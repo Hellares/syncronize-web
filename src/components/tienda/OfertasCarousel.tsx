@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Producto } from '@/lib/types';
 
@@ -11,12 +11,49 @@ interface Props {
 
 export function OfertasCarousel({ ofertas, subdominio }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
     const amount = 280;
     scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
   };
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  }, []);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  }, [isDragging, startX, scrollLeft]);
+
+  const onMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Autoplay
+  useEffect(() => {
+    if (isDragging) return;
+    const interval = setInterval(() => {
+      if (!scrollRef.current) return;
+      const { scrollLeft: sl, scrollWidth, clientWidth } = scrollRef.current;
+      if (sl + clientWidth >= scrollWidth - 10) {
+        scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        scrollRef.current.scrollBy({ left: 180, behavior: 'smooth' });
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isDragging]);
 
   return (
     <div className="relative group">
@@ -35,7 +72,15 @@ export function OfertasCarousel({ ofertas, subdominio }: Props) {
       </button>
 
       {/* Carousel */}
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto scroll-smooth pb-2" style={{ scrollbarWidth: 'none' }}>
+      <div
+        ref={scrollRef}
+        className={`flex gap-4 overflow-x-auto pb-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab scroll-smooth'}`}
+        style={{ scrollbarWidth: 'none', userSelect: 'none' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+      >
         {ofertas.map((producto) => {
           const descuentoPct = producto.precio && producto.precioOferta && producto.precio > 0
             ? Math.round((1 - producto.precioOferta / producto.precio) * 100)
@@ -43,7 +88,9 @@ export function OfertasCarousel({ ofertas, subdominio }: Props) {
 
           return (
             <Link key={producto.id} href={`/${subdominio}/producto/${producto.id}`}
-              className="flex-shrink-0 w-40 sm:w-44">
+              className="flex-shrink-0 w-40 sm:w-44"
+              draggable={false}
+              onClick={(e) => { if (isDragging) e.preventDefault(); }}>
               <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg hover:border-blue-300 transition-all duration-300 group/card">
                 {/* Imagen */}
                 <div className="relative aspect-[4/3] bg-gradient-to-br from-white to-gray-50 overflow-hidden">

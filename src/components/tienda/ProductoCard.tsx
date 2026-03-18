@@ -1,15 +1,33 @@
-import Link from 'next/link';
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Producto } from '@/lib/types';
 
 export function ProductoCard({ producto, subdominio }: { producto: Producto; subdominio: string }) {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
   const tieneDescuento = producto.enOferta && producto.precioOferta && producto.precio;
   const descuentoPct = tieneDescuento && producto.precio! > 0
     ? Math.round((1 - producto.precioOferta! / producto.precio!) * 100) : 0;
 
+  const handleClick = () => {
+    if (loading) return;
+    setLoading(true);
+    router.push(`/${subdominio}/producto/${producto.id}`);
+  };
+
   return (
-    <Link href={`/${subdominio}/producto/${producto.id}`} className="block h-full">
-      <article className="bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border-2 border-gray-200 hover:border-blue-400 hover:-translate-y-1">
+    <div onClick={handleClick} className="block h-full">
+      <article className={`bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border-2 border-gray-200 hover:border-blue-400 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
+
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 rounded-2xl">
+            <div className="w-7 h-7 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          </div>
+        )}
 
         {/* Imagen */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
@@ -128,6 +146,6 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
           </div>
         </div>
       </article>
-    </Link>
+    </div>
   );
 }

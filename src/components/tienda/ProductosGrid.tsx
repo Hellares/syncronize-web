@@ -11,11 +11,19 @@ interface Props {
   productosIniciales: Producto[];
   totalProductos: number;
   categorias?: string[];
+  initialSearch?: string;
 }
 
-export function ProductosGrid({ subdominio, productosIniciales, totalProductos, categorias = [] }: Props) {
+export function ProductosGrid({ subdominio, productosIniciales, totalProductos, categorias = [], initialSearch }: Props) {
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [search, setSearch] = useState('');
+
+  // Sincronizar búsqueda del hero
+  useEffect(() => {
+    if (initialSearch !== undefined && initialSearch !== search) {
+      setSearch(initialSearch);
+    }
+  }, [initialSearch]);
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [total, setTotal] = useState(totalProductos);
@@ -60,9 +68,9 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
 
   return (
     <div>
-      {/* Buscador */}
-      <div className="mb-5">
-        <div className="relative">
+      {/* Buscador + limpiar */}
+      <div className="mb-5 flex gap-3 items-center">
+        <div className="relative flex-1">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -82,50 +90,21 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
             </button>
           )}
         </div>
-      </div>
-
-      {/* Categorías */}
-      {categorias.length > 0 && (
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        {(search || categoriaActiva) && (
           <button
-            onClick={() => setCategoriaActiva(null)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
-              !categoriaActiva
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'
-            }`}
+            onClick={() => { setSearch(''); setCategoriaActiva(null); }}
+            className="flex-shrink-0 px-4 py-3 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
           >
-            Todos
+            Mostrar todos
           </button>
-          {categorias.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoriaActiva(prev => prev === cat ? null : cat)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                categoriaActiva === cat
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-900">
           Productos <span className="text-sm font-normal text-gray-400">({total})</span>
         </h2>
-        {(search || categoriaActiva) && (
-          <button
-            onClick={() => { setSearch(''); setCategoriaActiva(null); }}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-          >
-            Limpiar filtros
-          </button>
-        )}
       </div>
 
       {/* Loading */}
@@ -142,7 +121,7 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
           {search && <p className="text-sm text-gray-400 mt-1">Intenta con otra busqueda</p>}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5">
           {productos.map((producto) => (
             <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} />
           ))}

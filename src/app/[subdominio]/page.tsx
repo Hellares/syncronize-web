@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import { getEmpresaBySubdominio, getProductosByEmpresa } from '@/lib/api';
-import { Empresa, Producto, PaginatedResponse, Sede } from '@/lib/types';
-import { ProductosGrid } from '@/components/tienda/ProductosGrid';
+import { getEmpresaBySubdominio, getProductosByEmpresa, getServiciosByEmpresa, getOpinionesProducto } from '@/lib/api';
+import { Empresa, Producto, PaginatedResponse } from '@/lib/types';
 import { TiendaHeader } from '@/components/tienda/TiendaHeader';
-import { OfertasCarousel } from '@/components/tienda/OfertasCarousel';
+import { TiendaContent } from '@/components/tienda/TiendaContent';
+import { FloatingButtons } from '@/components/tienda/FloatingButtons';
+import { ScrollReveal } from '@/components/tienda/ScrollReveal';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 
 interface Props {
   params: Promise<{ subdominio: string }>;
@@ -38,8 +38,26 @@ export default async function TiendaPage({ params }: Props) {
     notFound();
   }
 
+  // Servicios (opcional)
+  let servicios: any[] = [];
+  try {
+    const sData = await getServiciosByEmpresa(subdominio) as any;
+    servicios = sData?.data || [];
+  } catch { /* ignorar */ }
+
+  // Opiniones destacadas (del primer producto con opiniones)
+  let opiniones: any[] = [];
+  try {
+    const productosConOpiniones = productosData.data.filter((p: any) => p.totalOpiniones > 0);
+    if (productosConOpiniones.length > 0) {
+      const opData = await getOpinionesProducto(productosConOpiniones[0].id, 1, 3) as any;
+      opiniones = opData?.data || [];
+    }
+  } catch { /* ignorar */ }
+
   const banner = empresa.personalizaciones?.[0];
   const totalProductos = empresa._count?.productos || 0;
+  const totalServicios = empresa._count?.servicios || 0;
   const sedePrincipal = empresa.sedes?.find((s) => s.esPrincipal) || empresa.sedes?.[0];
   const productos = productosData.data as Producto[];
   const ofertas = productos.filter((p: Producto) => p.enOferta);
@@ -47,188 +65,184 @@ export default async function TiendaPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Top bar */}
-      <div className="bg-gray-900 text-gray-300 text-xs py-1.5">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-          <span>Bienvenido a <strong className="text-white">{empresa.nombre}</strong></span>
-          <div className="flex items-center gap-4">
-            {empresa.telefono && (
-              <a href={`tel:${empresa.telefono}`} className="hover:text-white transition-colors flex items-center gap-1">
-                📞 {empresa.telefono}
-              </a>
-            )}
-            {empresa.email && (
-              <a href={`mailto:${empresa.email}`} className="hover:text-white transition-colors hidden sm:block">
-                ✉️ {empresa.email}
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Header */}
       <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} />
 
-      {/* Banner Hero */}
-      {banner?.bannerPrincipalUrl && (
-        <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 overflow-hidden bg-gradient-to-r from-slate-900 to-blue-900">
-          <img src={banner.bannerPrincipalUrl} alt={banner.bannerPrincipalTexto || ''} className="w-full h-full object-cover" />
-          {banner.bannerPrincipalTexto && (
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
-              <div className="max-w-7xl mx-auto px-6 w-full">
-                <h2 className="text-white text-2xl sm:text-4xl font-bold max-w-md leading-tight">
-                  {banner.bannerPrincipalTexto}
-                </h2>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Content interactivo */}
+      <TiendaContent
+        empresa={empresa}
+        subdominio={subdominio}
+        productos={productos}
+        totalProductos={totalProductos}
+        totalServicios={totalServicios}
+        categorias={categorias}
+        ofertas={ofertas}
+        bannerUrl={banner?.bannerPrincipalUrl}
+        bannerTexto={banner?.bannerPrincipalTexto}
+        banners={banner?.banners as Array<{ url: string; texto?: string; link?: string; orden?: number }> | undefined}
+        sedePrincipal={sedePrincipal}
+      />
 
-      {/* Sin banner: hero con gradiente */}
-      {!banner?.bannerPrincipalUrl && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 py-12 sm:py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center gap-6">
-            {empresa.logo ? (
-              <img src={empresa.logo} alt={empresa.nombre} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white object-cover shadow-lg ring-2 ring-white/20" />
-            ) : (
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-2xl font-bold text-white shadow-lg ring-2 ring-white/20">
-                {empresa.nombre[0]}
-              </div>
-            )}
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">{empresa.nombre}</h1>
-              {empresa.descripcion && (
-                <p className="text-blue-100/70 mt-2 max-w-xl text-sm sm:text-base">{empresa.descripcion}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Ofertas de la semana */}
-      {ofertas.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              🔥 Ofertas de la semana
+      {/* Servicios */}
+      {servicios.length > 0 && (
+        <ScrollReveal>
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              🔧 Nuestros servicios
             </h2>
-          </div>
-          <OfertasCarousel ofertas={ofertas} subdominio={subdominio} />
-        </section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {servicios.slice(0, 6).map((servicio: any) => (
+                <div key={servicio.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 mb-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-sm text-gray-900">{servicio.nombre}</h3>
+                  {servicio.descripcion && (
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{servicio.descripcion}</p>
+                  )}
+                  {servicio.precio && (
+                    <p className="text-sm font-bold text-blue-600 mt-2">S/ {Number(servicio.precio).toFixed(2)}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        </ScrollReveal>
       )}
 
-      {/* Main content: sidebar categorías + productos */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
-        <div className="flex gap-6">
-          {/* Sidebar categorías (desktop) */}
-          {categorias.length > 1 && (
-            <aside className="hidden lg:block w-56 flex-shrink-0">
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden sticky top-16">
-                <div className="bg-gray-900 text-white px-4 py-3 font-semibold text-sm">
-                  Categorias
-                </div>
-                <nav className="divide-y divide-gray-50">
-                  {categorias.map((cat) => (
-                    <button key={cat} className="w-full text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                      {cat}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-
-              {/* Info sede */}
-              {sedePrincipal && (
-                <div className="bg-white rounded-xl border border-gray-100 mt-4 p-4">
-                  <h3 className="font-semibold text-sm mb-2 text-gray-800">📍 Ubicacion</h3>
-                  {sedePrincipal.direccion && <p className="text-xs text-gray-500">{sedePrincipal.direccion}</p>}
-                  {sedePrincipal.stand && <p className="text-xs text-gray-500">Stand: {sedePrincipal.stand}</p>}
-                  <p className="text-xs text-gray-500">
-                    {[sedePrincipal.distrito, sedePrincipal.provincia].filter(Boolean).join(', ')}
-                  </p>
-                  {sedePrincipal.coordenadas?.lat && (
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${sedePrincipal.coordenadas.lat},${sedePrincipal.coordenadas.lng ?? sedePrincipal.coordenadas.lon}`}
-                      target="_blank" className="mt-2 inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">
-                      🗺️ Como llegar
-                    </a>
+      {/* Testimonios / Opiniones destacadas */}
+      {opiniones.length > 0 && (
+        <ScrollReveal delay={100}>
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              💬 Lo que dicen nuestros clientes
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {opiniones.map((op: any) => (
+                <div key={op.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <svg key={i} className={`w-4 h-4 ${i <= op.calificacion ? 'text-amber-400' : 'text-gray-200'}`}
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  {op.comentario && (
+                    <p className="text-sm text-gray-600 italic line-clamp-3">&ldquo;{op.comentario}&rdquo;</p>
                   )}
-                  {sedePrincipal.horarioAtencion && (
-                    <div className="mt-3 border-t pt-2">
-                      <p className="text-xs font-semibold text-gray-700 mb-1">🕐 Horario</p>
-                      {Object.entries(sedePrincipal.horarioAtencion).map(([dia, h]) => (
-                        <div key={dia} className="flex text-[11px] text-gray-500">
-                          <span className="w-14 capitalize">{dia}</span>
-                          <span>{h.inicio} - {h.fin}</span>
-                        </div>
-                      ))}
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+                      {op.nombreUsuario?.[0] || 'U'}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-800">{op.nombreUsuario}</p>
+                      {op.verificada && (
+                        <p className="text-[9px] text-green-600">✓ Compra verificada</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
+
+      {/* Sobre nosotros */}
+      {empresa.descripcion && (
+        <ScrollReveal delay={200}>
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                {empresa.logo && <img src={empresa.logo} alt="" className="w-16 h-16 rounded-xl object-cover shadow-sm" />}
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900 mb-2">Sobre {empresa.nombre}</h2>
+                  <p className="text-sm text-gray-600 leading-relaxed">{empresa.descripcion}</p>
+                  {(empresa.facebook || empresa.instagram || empresa.twitter) && (
+                    <div className="flex gap-3 mt-4">
+                      {empresa.facebook && <a href={empresa.facebook} target="_blank" className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors text-sm font-bold">f</a>}
+                      {empresa.instagram && <a href={empresa.instagram} target="_blank" className="w-9 h-9 rounded-full bg-pink-50 flex items-center justify-center text-pink-600 hover:bg-pink-100 transition-colors text-sm">📷</a>}
+                      {empresa.twitter && <a href={empresa.twitter} target="_blank" className="w-9 h-9 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 hover:bg-sky-100 transition-colors text-sm">𝕏</a>}
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* WhatsApp */}
-              {empresa.telefono && (
-                <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`}
-                  target="_blank"
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors shadow-md shadow-green-500/20">
-                  💬 WhatsApp
-                </a>
-              )}
-            </aside>
-          )}
-
-          {/* Grid de productos */}
-          <div className="flex-1 min-w-0">
-            <ProductosGrid
-              subdominio={subdominio}
-              productosIniciales={productos}
-              totalProductos={totalProductos}
-              categorias={categorias}
-            />
-          </div>
-        </div>
-      </main>
+                <div className="flex flex-wrap gap-2">
+                  <div className="text-center px-4 py-2 bg-blue-50 rounded-xl">
+                    <p className="text-xl font-bold text-blue-600">{totalProductos}</p>
+                    <p className="text-[10px] text-blue-500">Productos</p>
+                  </div>
+                  {totalServicios > 0 && (
+                    <div className="text-center px-4 py-2 bg-purple-50 rounded-xl">
+                      <p className="text-xl font-bold text-purple-600">{totalServicios}</p>
+                      <p className="text-[10px] text-purple-500">Servicios</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-            {/* Logo + descripción */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-3 mb-3">
-                {empresa.logo && <img src={empresa.logo} alt="" className="w-8 h-8 rounded-lg object-cover opacity-70" />}
-                <span className="text-white font-semibold text-sm">{empresa.nombre}</span>
+              <div className="flex items-center gap-3 mb-4">
+                {empresa.logo && <img src={empresa.logo} alt="" className="w-10 h-10 rounded-lg object-cover opacity-80" />}
+                <span className="text-white font-bold">{empresa.nombre}</span>
               </div>
-              {empresa.descripcion && <p className="text-xs text-slate-500 leading-relaxed">{empresa.descripcion}</p>}
+              {empresa.descripcion && <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{empresa.descripcion}</p>}
             </div>
-
-            {/* Contacto */}
             <div>
-              <h4 className="text-white text-sm font-semibold mb-3">Contacto</h4>
-              {empresa.telefono && <p className="text-xs mb-1">📞 {empresa.telefono}</p>}
-              {empresa.email && <p className="text-xs mb-1">✉️ {empresa.email}</p>}
-              {sedePrincipal?.direccion && <p className="text-xs">📍 {sedePrincipal.direccion}</p>}
+              <h4 className="text-white text-sm font-semibold mb-4">Navegacion</h4>
+              <nav className="space-y-2">
+                <p className="text-xs hover:text-white cursor-pointer transition-colors">🏠 Inicio</p>
+                <p className="text-xs hover:text-white cursor-pointer transition-colors">📦 Productos</p>
+                {totalServicios > 0 && <p className="text-xs hover:text-white cursor-pointer transition-colors">🔧 Servicios</p>}
+                <p className="text-xs hover:text-white cursor-pointer transition-colors">📍 Ubicacion</p>
+              </nav>
             </div>
-
-            {/* Redes */}
             <div>
-              <h4 className="text-white text-sm font-semibold mb-3">Redes sociales</h4>
-              <div className="flex gap-3">
-                {empresa.facebook && <a href={empresa.facebook} target="_blank" className="text-slate-500 hover:text-blue-400 transition-colors text-sm">Facebook</a>}
-                {empresa.instagram && <a href={empresa.instagram} target="_blank" className="text-slate-500 hover:text-pink-400 transition-colors text-sm">Instagram</a>}
-                {empresa.twitter && <a href={empresa.twitter} target="_blank" className="text-slate-500 hover:text-sky-400 transition-colors text-sm">Twitter</a>}
+              <h4 className="text-white text-sm font-semibold mb-4">Contacto</h4>
+              <div className="space-y-2">
+                {empresa.telefono && <p className="text-xs">📞 {empresa.telefono}</p>}
+                {empresa.email && <p className="text-xs">✉️ {empresa.email}</p>}
+                {sedePrincipal?.direccion && <p className="text-xs">📍 {sedePrincipal.direccion}</p>}
+                {empresa.telefono && (
+                  <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`} target="_blank"
+                    className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors">💬 WhatsApp</a>
+                )}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-white text-sm font-semibold mb-4">Siguenos</h4>
+              <div className="flex gap-2 mb-4">
+                {empresa.facebook && <a href={empresa.facebook} target="_blank" className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-blue-400 hover:bg-slate-700 transition-colors text-xs font-bold">f</a>}
+                {empresa.instagram && <a href={empresa.instagram} target="_blank" className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-pink-400 hover:bg-slate-700 transition-colors text-xs">📷</a>}
+                {empresa.twitter && <a href={empresa.twitter} target="_blank" className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-sky-400 hover:bg-slate-700 transition-colors text-xs">𝕏</a>}
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-slate-500">✅ Compra segura</p>
+                <p className="text-[10px] text-slate-500">✅ Envio a todo el pais</p>
+                <p className="text-[10px] text-slate-500">✅ Productos originales</p>
               </div>
             </div>
           </div>
-
-          <div className="border-t border-slate-800 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="border-t border-slate-800 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
             <p className="text-xs">&copy; {new Date().getFullYear()} {empresa.nombre}. Todos los derechos reservados.</p>
-            <p className="text-xs">
-              Powered by <a href="https://syncronize.com" className="text-blue-400 hover:text-blue-300 font-medium">Syncronize</a>
-            </p>
+            <p className="text-xs">Powered by <a href="https://syncronize.com" className="text-blue-400 hover:text-blue-300 font-medium">Syncronize</a></p>
           </div>
         </div>
       </footer>
+
+      {/* Floating buttons */}
+      <FloatingButtons telefono={empresa.telefono} empresaNombre={empresa.nombre} />
     </div>
   );
 }

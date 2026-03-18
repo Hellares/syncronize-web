@@ -49,3 +49,7 @@ export async function getPreguntasProducto(productoId: string, page = 1, limit =
 export async function getOpinionesProducto(productoId: string, page = 1, limit = 10) {
   return fetchApi(`/marketplace/productos/${productoId}/opiniones?page=${page}&limit=${limit}`);
 }
+
+export async function getServiciosByEmpresa(subdominio: string) {
+  return fetchApi(`/marketplace/empresas/${subdominio}/servicios?limit=10`);
+}

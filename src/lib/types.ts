@@ -15,7 +15,7 @@ export interface Empresa {
   creadoEn: string;
   sedes?: Sede[];
   _count?: { productos: number; servicios: number };
-  personalizaciones?: { bannerPrincipalUrl?: string; bannerPrincipalTexto?: string; colorPrimario?: string }[];
+  personalizaciones?: { bannerPrincipalUrl?: string; bannerPrincipalTexto?: string; banners?: Array<{ url: string; texto?: string; link?: string; orden?: number }>; colorPrimario?: string }[];
 }
 
 export interface Sede {
