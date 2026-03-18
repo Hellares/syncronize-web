@@ -30,16 +30,23 @@ export default async function ProductoPage({ params }: Props) {
   const { subdominio, id } = await params;
 
   let producto: ProductoDetalle;
-  let preguntasData: PaginatedResponse<Pregunta> & { resumen?: unknown };
-  let opinionesData: PaginatedResponse<Opinion> & { resumen?: { promedio: number; total: number; distribucion: Record<string, number> } };
 
   try {
     producto = await getProductoDetalle(id) as ProductoDetalle;
-    preguntasData = await getPreguntasProducto(id, 1, 5) as PaginatedResponse<Pregunta>;
-    opinionesData = await getOpinionesProducto(id, 1, 5) as PaginatedResponse<Opinion> & { resumen: { promedio: number; total: number; distribucion: Record<string, number> } };
   } catch {
     notFound();
   }
+
+  let preguntasData: PaginatedResponse<Pregunta> = { data: [], total: 0, page: 1, limit: 5, totalPages: 0 };
+  let opinionesData: PaginatedResponse<Opinion> & { resumen?: { promedio: number; total: number; distribucion: Record<string, number> } } = { data: [], total: 0, page: 1, limit: 5, totalPages: 0 };
+
+  try {
+    preguntasData = await getPreguntasProducto(id, 1, 5) as PaginatedResponse<Pregunta>;
+  } catch { /* ignorar */ }
+
+  try {
+    opinionesData = await getOpinionesProducto(id, 1, 5) as PaginatedResponse<Opinion> & { resumen: { promedio: number; total: number; distribucion: Record<string, number> } };
+  } catch { /* ignorar */ }
 
   const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
   const tieneDescuento = producto.enOferta && producto.precioOferta && producto.precio;
