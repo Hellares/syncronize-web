@@ -9,3 +9,9 @@ services:
       - "3020:3020"
     environment:
       - NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
+    networks:
+      - elastika-network
+
+networks:
+  elastika-network:
+    external: true
