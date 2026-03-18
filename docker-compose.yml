@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  syncronize-web:
+    build: .
+    container_name: syncronize-web
+    restart: unless-stopped
+    ports:
+      - "3020:3020"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
