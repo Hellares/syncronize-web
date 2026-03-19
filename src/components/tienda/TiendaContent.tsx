@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Empresa, Producto, Sede } from '@/lib/types';
+import { TiendaHeader } from './TiendaHeader';
 import { SearchHero } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
@@ -28,6 +29,9 @@ export function TiendaContent({
 
   return (
     <>
+      {/* Header */}
+      <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} onSearch={(q) => setHeroSearch(q)} />
+
       {/* Hero con buscador */}
       <SearchHero
         empresa={empresa}

@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import { getEmpresaBySubdominio, getProductosByEmpresa, getServiciosByEmpresa, getOpinionesProducto } from '@/lib/api';
 import { Empresa, Producto, PaginatedResponse } from '@/lib/types';
-import { TiendaHeader } from '@/components/tienda/TiendaHeader';
 import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
@@ -65,10 +64,7 @@ export default async function TiendaPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      {/* Header */}
-      <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} />
-
-      {/* Content interactivo */}
+      {/* Content interactivo (incluye header) */}
       <TiendaContent
         empresa={empresa}
         subdominio={subdominio}

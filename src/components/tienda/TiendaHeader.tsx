@@ -8,11 +8,13 @@ interface Props {
   empresa: Empresa;
   subdominio: string;
   categorias: string[];
+  onSearch?: (query: string) => void;
 }
 
-export function TiendaHeader({ empresa, subdominio, categorias }: Props) {
+export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <header className="sticky top-0 z-20">
@@ -35,18 +37,23 @@ export function TiendaHeader({ empresa, subdominio, categorias }: Props) {
 
           {/* Buscador */}
           <div className="flex-1 max-w-2xl">
-            <div className="relative">
+            <form className="relative" onSubmit={(e) => { e.preventDefault(); onSearch?.(searchQuery); }}>
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  onSearch?.(e.target.value);
+                }}
                 placeholder="Buscar productos, marcas y mas..."
-                className="w-full pl-4 pr-12 py-2 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400 shadow-sm"
+                className="w-full pl-4 pr-12 py-2 rounded-md bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-gray-400 shadow-sm"
               />
-              <button className="absolute right-0 top-0 bottom-0 px-3 bg-gray-100 hover:bg-gray-200 rounded-r-md transition-colors border-l">
+              <button type="submit" className="absolute right-0 top-0 bottom-0 px-3 bg-gray-100 hover:bg-gray-200 rounded-r-md transition-colors border-l">
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
-            </div>
+            </form>
           </div>
 
           {/* Info derecha */}
