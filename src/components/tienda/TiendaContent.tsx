@@ -75,7 +75,7 @@ export function TiendaContent({
                   <BadgeCard key={`${badge.title}-${i}`} badge={badge} mobile />
                 ))}
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[40%] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #c4daf0)' }} />
+              <div className="absolute bottom-0 left-0 right-0 h-[50%] pointer-events-none" style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', maskImage: 'linear-gradient(to bottom, transparent, black)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black)' }} />
             </div>
           </section>
         );
