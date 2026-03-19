@@ -49,13 +49,13 @@ export function TiendaContent({
         ];
 
         const BadgeCard = ({ badge, mobile }: { badge: typeof badges[0]; mobile?: boolean }) => (
-          <div className={`bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[140px]' : ''}`}>
-            <div className={`w-16 h-16 rounded-full ${badge.color} hidden md:flex items-center justify-center mb-2 overflow-hidden`}>
-              {badge.image && <img src={badge.image} alt={badge.title} className="w-16 h-16 object-contain" />}
+          <div className={`bg-white rounded-xl shadow-md border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[80px] p-2' : 'p-4'}`}>
+            <div className={`rounded-full ${badge.color} ${mobile ? 'w-10 h-10 flex' : 'w-16 h-16 hidden md:flex'} items-center justify-center mb-1 md:mb-2 overflow-hidden`}>
+              {badge.image && <img src={badge.image} alt={badge.title} className={`${mobile ? 'w-10 h-10' : 'w-16 h-16'} object-contain`} />}
             </div>
-            <p className="text-[11px] font-bold text-gray-800 mb-1">{badge.title}</p>
-            <p className="text-[9px] text-gray-400 leading-tight mb-2 line-clamp-2">{badge.desc}</p>
-            <span className="text-[9px] text-blue-500 font-semibold group-hover:text-blue-700 transition-colors">{badge.link}</span>
+            <p className={`font-bold text-gray-800 ${mobile ? 'text-[9px] leading-tight' : 'text-[11px] mb-1'}`}>{badge.title}</p>
+            <p className="text-[9px] text-gray-400 leading-tight mb-2 line-clamp-2 hidden md:block">{badge.desc}</p>
+            <span className="text-[9px] text-blue-500 font-semibold group-hover:text-blue-700 transition-colors hidden md:block">{badge.link}</span>
           </div>
         );
 
