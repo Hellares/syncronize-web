@@ -49,7 +49,7 @@ export function TiendaContent({
         ];
 
         const BadgeCard = ({ badge, mobile }: { badge: typeof badges[0]; mobile?: boolean }) => (
-          <div className={`bg-white shadow-md border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-md' : 'p-4 rounded-xl'}`}>
+          <div className={`bg-white shadow-md border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-md shadow-none border-0' : 'p-4 rounded-xl'}`}>
             <div className={`${badge.color} ${mobile ? 'w-8 h-8 flex rounded-md' : 'w-16 h-16 hidden md:flex rounded-full'} items-center justify-center mb-1 md:mb-2 overflow-hidden`}>
               {badge.image && <img src={badge.image} alt={badge.title} className={`${mobile ? 'w-8 h-8' : 'w-16 h-16'} object-contain`} />}
             </div>
