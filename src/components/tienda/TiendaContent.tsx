@@ -84,8 +84,8 @@ export function TiendaContent({
       {/* Ofertas */}
       {ofertas.length > 0 && (
         <section className="max-w-7xl mx-auto px-0 md:px-6 mt-8">
-          <div className="flex items-center justify-between mb-4 px-4 md:px-0">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">🔥 Ofertas de la semana</h2>
+          <div className="flex items-center justify-between mb-3 px-2 md:px-0">
+            <h2 className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-1.5">🔥 Ofertas de la semana</h2>
           </div>
           {/* Desktop: carousel original */}
           <div className="hidden md:block">
