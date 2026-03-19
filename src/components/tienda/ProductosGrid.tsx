@@ -121,7 +121,7 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
           {search && <p className="text-sm text-gray-400 mt-1">Intenta con otra busqueda</p>}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-[8px] sm:gap-5 px-[2.5px] md:px-0">
           {productos.map((producto) => (
             <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} />
           ))}
