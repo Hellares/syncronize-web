@@ -60,7 +60,7 @@ export function TiendaContent({
         );
 
         return (
-          <section className="max-w-[960px] mx-auto px-4 sm:px-6 -mt-10 relative z-10">
+          <section className="max-w-[960px] mx-auto px-0 md:px-6 -mt-10 md:-mt-10 relative z-10">
             {/* Desktop: grid */}
             <div className="hidden md:grid md:grid-cols-5 gap-[22px]">
               {badges.map((badge) => (
@@ -69,8 +69,8 @@ export function TiendaContent({
             </div>
 
             {/* Mobile: auto-scroll infinito */}
-            <div className="md:hidden overflow-hidden">
-              <div className="flex gap-3 animate-badges-scroll">
+            <div className="md:hidden overflow-hidden mt-[15px]">
+              <div className="flex gap-2 animate-badges-scroll">
                 {[...badges, ...badges].map((badge, i) => (
                   <BadgeCard key={`${badge.title}-${i}`} badge={badge} mobile />
                 ))}
