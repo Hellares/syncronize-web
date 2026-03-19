@@ -83,11 +83,51 @@ export function TiendaContent({
 
       {/* Ofertas */}
       {ofertas.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 mt-8">
-          <div className="flex items-center justify-between mb-4">
+        <section className="max-w-7xl mx-auto px-0 md:px-6 mt-8">
+          <div className="flex items-center justify-between mb-4 px-4 md:px-0">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">🔥 Ofertas de la semana</h2>
           </div>
-          <OfertasCarousel ofertas={ofertas} subdominio={subdominio} />
+          {/* Desktop: carousel original */}
+          <div className="hidden md:block">
+            <OfertasCarousel ofertas={ofertas} subdominio={subdominio} />
+          </div>
+          {/* Mobile: auto-scroll infinito */}
+          <div className="md:hidden overflow-hidden">
+            <div className="flex gap-3 animate-ofertas-scroll">
+              {[...ofertas, ...ofertas].map((producto, i) => {
+                const descuentoPct = producto.precio && producto.precioOferta && producto.precio > 0
+                  ? Math.round((1 - producto.precioOferta / producto.precio) * 100)
+                  : 0;
+                return (
+                  <a key={`${producto.id}-${i}`} href={`/${subdominio}/producto/${producto.id}`} className="flex-shrink-0 w-[120px]">
+                    <div className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                      <div className="relative aspect-square bg-gradient-to-br from-white to-gray-50 overflow-hidden">
+                        {producto.imagen ? (
+                          <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xl">📦</div>
+                        )}
+                        {descuentoPct > 0 && (
+                          <span className="absolute top-1 left-1 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">
+                            -{descuentoPct}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-1.5">
+                        <h3 className="text-[9px] text-gray-600 line-clamp-1 font-medium">{producto.nombre}</h3>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-xs font-extrabold text-green-600">S/ {producto.precioOferta?.toFixed(2)}</span>
+                          {producto.precio && (
+                            <span className="text-[8px] text-gray-400 line-through">S/ {producto.precio.toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
         </section>
       )}
 
