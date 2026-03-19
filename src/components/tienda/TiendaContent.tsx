@@ -39,31 +39,46 @@ export function TiendaContent({
       />
 
       {/* Badges de confianza - superpuestas sobre el banner */}
-      <section className="max-w-[960px] mx-auto px-4 sm:px-6 -mt-10 relative z-10">
-        <div className="flex md:grid md:grid-cols-5 gap-3 md:gap-[22px] overflow-x-auto pb-2 md:pb-0" style={{ scrollbarWidth: 'none' }}>
-          {[
-            { icon: '', image: '/envio.png', title: 'Envio nacional', desc: 'A todo el pais', link: 'Ver cobertura', color: 'bg-blue-50' },
-            { icon: '', image: '/mapa.png', title: 'Ubicanos', desc: 'Consulta costos y tiempos de entrega', link: 'Ver ubicacion', color: 'bg-green-50' },
-            { icon: '', image: '/oferta.png', title: 'Ofertas', desc: 'Descubre productos con precios bajos', link: 'Ver ofertas', color: 'bg-amber-50' },
-            { icon: '', image: '/vendidos.png', title: 'Mas vendidos', desc: 'Explora los productos que son tendencia', link: 'Ver productos', color: 'bg-orange-50' },
-            // { icon: '🔒', image: '', title: 'Compra segura', desc: 'Puedes devolver tu compra gratis', link: 'Como funciona', color: 'bg-purple-50' },
-            { icon: '', image: '/fono.jpg', title: 'Atencion directa', desc: 'Respuesta rapida por WhatsApp', link: 'Contactanos', color: 'bg-cyan-50' },
-          ].map((badge) => (
-            <div key={badge.title} className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group flex-shrink-0 w-[130px] md:w-auto">
-              <div className={`w-16 h-16 rounded-full ${badge.color} hidden md:flex items-center justify-center mb-2 overflow-hidden`}>
-                {badge.image ? (
-                  <img src={badge.image} alt={badge.title} className="w-16 h-16 object-contain" />
-                ) : (
-                  <span className="text-2xl">{badge.icon}</span>
-                )}
-              </div>
-              <p className="text-[11px] font-bold text-gray-800 mb-1">{badge.title}</p>
-              <p className="text-[9px] text-gray-400 leading-tight mb-2 line-clamp-2">{badge.desc}</p>
-              <span className="text-[9px] text-blue-500 font-semibold group-hover:text-blue-700 transition-colors">{badge.link}</span>
+      {(() => {
+        const badges = [
+          { image: '/envio.png', title: 'Envio nacional', desc: 'A todo el pais', link: 'Ver cobertura', color: 'bg-blue-50' },
+          { image: '/mapa.png', title: 'Ubicanos', desc: 'Consulta costos y tiempos de entrega', link: 'Ver ubicacion', color: 'bg-green-50' },
+          { image: '/oferta.png', title: 'Ofertas', desc: 'Descubre productos con precios bajos', link: 'Ver ofertas', color: 'bg-amber-50' },
+          { image: '/vendidos.png', title: 'Mas vendidos', desc: 'Explora los productos que son tendencia', link: 'Ver productos', color: 'bg-orange-50' },
+          { image: '/fono.jpg', title: 'Atencion directa', desc: 'Respuesta rapida por WhatsApp', link: 'Contactanos', color: 'bg-cyan-50' },
+        ];
+
+        const BadgeCard = ({ badge, mobile }: { badge: typeof badges[0]; mobile?: boolean }) => (
+          <div className={`bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[140px]' : ''}`}>
+            <div className={`w-16 h-16 rounded-full ${badge.color} hidden md:flex items-center justify-center mb-2 overflow-hidden`}>
+              {badge.image && <img src={badge.image} alt={badge.title} className="w-16 h-16 object-contain" />}
             </div>
-          ))}
-        </div>
-      </section>
+            <p className="text-[11px] font-bold text-gray-800 mb-1">{badge.title}</p>
+            <p className="text-[9px] text-gray-400 leading-tight mb-2 line-clamp-2">{badge.desc}</p>
+            <span className="text-[9px] text-blue-500 font-semibold group-hover:text-blue-700 transition-colors">{badge.link}</span>
+          </div>
+        );
+
+        return (
+          <section className="max-w-[960px] mx-auto px-4 sm:px-6 -mt-10 relative z-10">
+            {/* Desktop: grid */}
+            <div className="hidden md:grid md:grid-cols-5 gap-[22px]">
+              {badges.map((badge) => (
+                <BadgeCard key={badge.title} badge={badge} />
+              ))}
+            </div>
+
+            {/* Mobile: auto-scroll infinito */}
+            <div className="md:hidden overflow-hidden">
+              <div className="flex gap-3 animate-badges-scroll">
+                {[...badges, ...badges].map((badge, i) => (
+                  <BadgeCard key={`${badge.title}-${i}`} badge={badge} mobile />
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Ofertas */}
       {ofertas.length > 0 && (
