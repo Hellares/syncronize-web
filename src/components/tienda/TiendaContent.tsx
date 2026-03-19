@@ -132,7 +132,7 @@ export function TiendaContent({
       )}
 
       {/* Main content */}
-      <main id="productos-section" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
+      <main id="productos-section" className="max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
         <div className="flex gap-6">
           {/* Sidebar */}
           {categorias.length > 1 && (

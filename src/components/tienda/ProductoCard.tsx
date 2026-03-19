@@ -20,7 +20,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
 
   return (
     <div onClick={handleClick} className="block h-full">
-      <article className={`bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border-2 border-gray-200 hover:border-blue-400 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
+      <article className={`bg-white rounded-xl md:rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border border-gray-200 md:border-2 hover:border-blue-400 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
 
         {/* Loading overlay */}
         {loading && (
@@ -35,7 +35,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
             <img
               src={producto.imagen}
               alt={producto.nombre}
-              className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500 ease-out"
+              className="w-full h-full object-contain p-2 md:p-4 group-hover:scale-110 transition-transform duration-500 ease-out"
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-300">
@@ -47,15 +47,15 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
           )}
 
           {/* Badges top */}
-          <div className="absolute top-0 left-0 right-0 p-2 flex justify-between items-start">
+          <div className="absolute top-0 left-0 right-0 p-1.5 md:p-2 flex justify-between items-start">
             {tieneDescuento && descuentoPct > 0 ? (
-              <span className="bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-lg shadow-lg shadow-red-500/40 ring-1 ring-red-400/50">
+              <span className="bg-gradient-to-r from-red-500 to-rose-600 text-white text-[8px] md:text-[10px] font-extrabold px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg shadow-lg shadow-red-500/40 ring-1 ring-red-400/50">
                 -{descuentoPct}%
               </span>
             ) : <span />}
 
             {producto.hayStock && producto.enOferta && (
-              <span className="bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-md">
+              <span className="bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[7px] md:text-[9px] font-bold px-1.5 md:px-2 py-0.5 rounded-md shadow-md">
                 OFERTA
               </span>
             )}
@@ -81,30 +81,30 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
         </div>
 
         {/* Content */}
-        <div className="p-3.5 flex flex-col flex-1 gap-1">
+        <div className="p-2 md:p-3.5 flex flex-col flex-1 gap-0.5 md:gap-1">
           {/* Precio */}
           <div>
             {precioFinal != null ? (
               <>
-                <div className="flex items-baseline gap-2">
-                  <span className={`text-xl font-extrabold tracking-tight ${tieneDescuento ? 'text-green-600' : 'text-gray-900'}`}>
+                <div className="flex items-baseline gap-1 md:gap-2">
+                  <span className={`text-sm md:text-xl font-extrabold tracking-tight ${tieneDescuento ? 'text-green-600' : 'text-gray-900'}`}>
                     S/ {precioFinal.toFixed(2)}
                   </span>
                   {tieneDescuento && (
-                    <span className="text-[11px] text-gray-400 line-through font-medium">
+                    <span className="text-[9px] md:text-[11px] text-gray-400 line-through font-medium">
                       S/ {producto.precio!.toFixed(2)}
                     </span>
                   )}
                 </div>
                 {/* Cuotas */}
                 {precioFinal > 50 && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[8px] md:text-[10px] text-gray-400 mt-0.5">
                     en <span className="text-green-600 font-semibold">6x S/ {(precioFinal / 6).toFixed(2)}</span> sin interes
                   </p>
                 )}
               </>
             ) : (
-              <span className="text-sm font-bold text-blue-600">Consultar precio</span>
+              <span className="text-xs md:text-sm font-bold text-blue-600">Consultar precio</span>
             )}
           </div>
 
@@ -124,7 +124,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
           )}
 
           {/* Nombre */}
-          <h3 className="text-[13px] text-gray-800 line-clamp-2 leading-snug font-semibold group-hover:text-blue-600 transition-colors flex-1 mt-0.5">
+          <h3 className="text-[10px] md:text-[13px] text-gray-800 line-clamp-2 leading-snug font-semibold group-hover:text-blue-600 transition-colors flex-1 mt-0.5">
             {producto.nombre}
           </h3>
 
