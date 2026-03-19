@@ -64,7 +64,7 @@ export default async function TiendaPage({ params }: Props) {
   const categorias = [...new Set(productos.map((p: Producto) => p.categoria).filter(Boolean))] as string[];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       {/* Header */}
       <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} />
 
