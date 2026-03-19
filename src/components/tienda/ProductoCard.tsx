@@ -30,7 +30,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
         )}
 
         {/* Imagen */}
-        <div className="relative aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
+        <div className="relative aspect-square md:aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
           {producto.imagen ? (
             <img
               src={producto.imagen}
@@ -81,30 +81,30 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
         </div>
 
         {/* Content */}
-        <div className="p-2 md:p-3.5 flex flex-col flex-1 gap-0.5 md:gap-1">
+        <div className="p-1.5 md:p-3.5 flex flex-col flex-1 gap-0.5 md:gap-1">
           {/* Precio */}
           <div>
             {precioFinal != null ? (
               <>
                 <div className="flex items-baseline gap-1 md:gap-2">
-                  <span className={`text-sm md:text-xl font-extrabold tracking-tight ${tieneDescuento ? 'text-green-600' : 'text-gray-900'}`}>
+                  <span className={`text-xs md:text-xl font-extrabold tracking-tight ${tieneDescuento ? 'text-green-600' : 'text-gray-900'}`}>
                     S/ {precioFinal.toFixed(2)}
                   </span>
                   {tieneDescuento && (
-                    <span className="text-[9px] md:text-[11px] text-gray-400 line-through font-medium">
+                    <span className="text-[8px] md:text-[11px] text-gray-400 line-through font-medium">
                       S/ {producto.precio!.toFixed(2)}
                     </span>
                   )}
                 </div>
                 {/* Cuotas */}
                 {precioFinal > 50 && (
-                  <p className="text-[8px] md:text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[7px] md:text-[10px] text-gray-400 mt-0.5">
                     en <span className="text-green-600 font-semibold">6x S/ {(precioFinal / 6).toFixed(2)}</span> sin interes
                   </p>
                 )}
               </>
             ) : (
-              <span className="text-xs md:text-sm font-bold text-blue-600">Consultar precio</span>
+              <span className="text-[10px] md:text-sm font-bold text-blue-600">Consultar precio</span>
             )}
           </div>
 
@@ -124,12 +124,12 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
           )}
 
           {/* Nombre */}
-          <h3 className="text-[10px] md:text-[13px] text-gray-800 line-clamp-2 leading-snug font-semibold group-hover:text-blue-600 transition-colors flex-1 mt-0.5">
+          <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-semibold group-hover:text-blue-600 transition-colors flex-1 mt-0.5">
             {producto.nombre}
           </h3>
 
           {/* Ubicacion + distancia */}
-          <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between mt-auto pt-1 md:pt-2 border-t border-gray-100">
             {producto.empresa?.ubicacion ? (
               <span className="text-[10px] text-gray-400 truncate flex items-center gap-1">
                 <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
