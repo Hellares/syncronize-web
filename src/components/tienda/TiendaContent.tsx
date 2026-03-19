@@ -69,12 +69,13 @@ export function TiendaContent({
             </div>
 
             {/* Mobile: auto-scroll infinito */}
-            <div className="md:hidden overflow-hidden mt-[15px]">
+            <div className="md:hidden overflow-hidden mt-[15px] relative">
               <div className="flex gap-[13px] animate-badges-scroll">
                 {[...badges, ...badges].map((badge, i) => (
                   <BadgeCard key={`${badge.title}-${i}`} badge={badge} mobile />
                 ))}
               </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[40%] pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent, #c4daf0)' }} />
             </div>
           </section>
         );
