@@ -132,6 +132,31 @@
   75% { transform: translate(-50px, -50px) scale(1.12); }
 }
 
+/* Shimmer en logo */
+.logo-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 70%, 100% { transform: translateX(-100%); }
+  85% { transform: translateX(100%); }
+}
+
 /* Reducir animaciones si el usuario prefiere */
 @media (prefers-reduced-motion: reduce) {
   .blob { animation: none !important; }

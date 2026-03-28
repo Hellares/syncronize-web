@@ -33,6 +33,8 @@ export function TiendaContent({
     <>
       {/* Header */}
       <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} onSearch={(q) => setHeroSearch(q)} colors={colors} />
+      {/* Spacer para header fijo */}
+      <div className="h-[96px] md:h-[96px]" />
 
       {/* Hero con buscador */}
       <SearchHero

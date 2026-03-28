@@ -19,14 +19,14 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <header className="sticky top-0 z-20">
+    <header className="fixed top-0 left-0 right-0 z-20">
       {/* Header principal */}
       <div className="shadow-md" style={{ background: `linear-gradient(to right, ${colors.primario}, ${lighten(colors.primario, 0.15)}, ${colors.secundario})` }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-14">
           {/* Logo */}
           <Link href={`/${subdominio}`} className="flex items-center flex-shrink-0">
             {empresa.logo ? (
-              <img src={empresa.logo} alt={empresa.nombre} className="h-11 sm:h-12 max-w-[200px] sm:max-w-[250px] object-contain drop-shadow-sm" />
+              <img src={empresa.logo} alt={empresa.nombre} className="h-11 sm:h-12 max-w-[200px] sm:max-w-[250px] object-contain drop-shadow-sm logo-shimmer" />
             ) : (
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-sm">
