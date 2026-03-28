@@ -23,7 +23,11 @@ export interface Empresa {
     colorSecundario?: string;
     colorAcento?: string;
     bannerColor?: string;
-    webConfig?: { colorFondo1?: string; colorFondo2?: string };
+    webConfig?: {
+      colorFondo1?: string;
+      colorFondo2?: string;
+      videos?: Array<{ url: string; titulo?: string }>;
+    };
   }[];
 }
 

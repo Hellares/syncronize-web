@@ -163,7 +163,7 @@ function VideoPlayer({ url }: { url: string }) {
         src={url}
         controls
         playsInline
-        className="w-full h-full object-contain bg-black"
+        className="w-full h-full object-contain bg-white"
         preload="metadata"
       />
     );

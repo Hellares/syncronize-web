@@ -10,7 +10,7 @@ export async function fetchApi<T>(
       'Content-Type': 'application/json',
       ...options?.headers,
     },
-    next: { revalidate: 60 }, // Cache por 60 segundos
+    next: { revalidate: 15 }, // Cache por 15 segundos
   });
 
   if (!res.ok) {

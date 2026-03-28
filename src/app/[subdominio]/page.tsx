@@ -102,6 +102,7 @@ export default async function TiendaPage({ params }: Props) {
         banners={banner?.banners as Array<{ url: string; texto?: string; link?: string; orden?: number }> | undefined}
         sedePrincipal={sedePrincipal}
         colors={colors}
+        webVideos={wc?.videos}
       />
 
       {/* Servicios */}

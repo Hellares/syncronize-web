@@ -7,6 +7,7 @@ import { TiendaHeader } from './TiendaHeader';
 import { SearchHero } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
+import { VideosSection } from './VideosSection';
 
 interface Props {
   empresa: Empresa;
@@ -21,11 +22,12 @@ interface Props {
   sedePrincipal?: Sede;
   totalServicios: number;
   colors: TiendaColors;
+  webVideos?: Array<{ url: string; titulo?: string }>;
 }
 
 export function TiendaContent({
   empresa, subdominio, productos, totalProductos, categorias, ofertas,
-  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, colors,
+  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, colors, webVideos,
 }: Props) {
   const [heroSearch, setHeroSearch] = useState('');
 
@@ -138,6 +140,11 @@ export function TiendaContent({
             </div>
           </div>
         </section>
+      )}
+
+      {/* Videos */}
+      {webVideos && webVideos.length > 0 && (
+        <VideosSection videos={webVideos} colors={colors} />
       )}
 
       {/* Main content */}
