@@ -34,7 +34,25 @@ export default async function TiendaPage({ params }: Props) {
   try {
     empresa = await getEmpresaBySubdominio(subdominio) as Empresa;
     productosData = await getProductosByEmpresa(subdominio, { limit: 40 }) as PaginatedResponse<Producto>;
-  } catch {
+  } catch (error: any) {
+    if (error?.status === 403) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-50 flex items-center justify-center">
+              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Pagina no disponible</h1>
+            <p className="text-gray-500 mb-6">El periodo de prueba gratuito de esta tienda ha finalizado. El propietario debe actualizar su plan para reactivar la pagina web.</p>
+            <a href="https://syncronize.com" className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+              Powered by Syncronize
+            </a>
+          </div>
+        </div>
+      );
+    }
     notFound();
   }
 

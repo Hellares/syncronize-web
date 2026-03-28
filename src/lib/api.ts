@@ -14,7 +14,9 @@ export async function fetchApi<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
+    const error = new Error(`API error: ${res.status}`) as any;
+    error.status = res.status;
+    throw error;
   }
 
   return res.json();
