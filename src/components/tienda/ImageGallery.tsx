@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { TiendaColors, DEFAULT_COLORS } from '@/lib/colors';
 
 interface Props {
   imagenes: { id: string; url: string; thumbnail?: string }[];
   nombre: string;
+  colors?: TiendaColors;
 }
 
-export function ImageGallery({ imagenes, nombre }: Props) {
+export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (imagenes.length === 0) {
@@ -56,7 +58,8 @@ export function ImageGallery({ imagenes, nombre }: Props) {
                 <button
                   key={i}
                   onClick={() => setActiveIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? 'bg-blue-600 w-4' : 'bg-gray-300'}`}
+                  className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? 'w-4' : 'bg-gray-300'}`}
+                  style={i === activeIndex ? { backgroundColor: colors.primario } : undefined}
                 />
               ))}
             </div>
@@ -73,9 +76,10 @@ export function ImageGallery({ imagenes, nombre }: Props) {
               onClick={() => setActiveIndex(i)}
               className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 transition-all border-2 ${
                 i === activeIndex
-                  ? 'border-blue-500 shadow-sm'
+                  ? 'shadow-sm'
                   : 'border-transparent opacity-50 hover:opacity-80 hover:border-gray-300'
               }`}
+              style={i === activeIndex ? { borderColor: colors.primario } : undefined}
             >
               <img src={img.thumbnail || img.url} alt="" className="w-full h-full object-cover rounded-md" />
             </button>

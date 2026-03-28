@@ -215,7 +215,7 @@ export default async function TiendaPage({ params }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                {empresa.logo && <img src={empresa.logo} alt="" className="h-10 max-w-[180px] object-contain opacity-90" />}
+                {empresa.logo && <img src={empresa.logo} alt="" className="h-14 max-w-[220px] object-contain opacity-90" />}
                 {!empresa.logo && <span className="text-white font-bold">{empresa.nombre}</span>}
               </div>
               {empresa.descripcion && <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{empresa.descripcion}</p>}
