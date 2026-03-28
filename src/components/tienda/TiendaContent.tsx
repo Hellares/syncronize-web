@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Empresa, Producto, Sede } from '@/lib/types';
+import { TiendaColors } from '@/lib/colors';
 import { TiendaHeader } from './TiendaHeader';
 import { SearchHero } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
@@ -19,18 +20,19 @@ interface Props {
   banners?: Array<{ url: string; texto?: string; link?: string; orden?: number }>;
   sedePrincipal?: Sede;
   totalServicios: number;
+  colors: TiendaColors;
 }
 
 export function TiendaContent({
   empresa, subdominio, productos, totalProductos, categorias, ofertas,
-  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios,
+  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, colors,
 }: Props) {
   const [heroSearch, setHeroSearch] = useState('');
 
   return (
     <>
       {/* Header */}
-      <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} onSearch={(q) => setHeroSearch(q)} />
+      <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} onSearch={(q) => setHeroSearch(q)} colors={colors} />
 
       {/* Hero con buscador */}
       <SearchHero
@@ -40,6 +42,7 @@ export function TiendaContent({
         banners={banners}
         totalProductos={totalProductos}
         onSearch={(q) => setHeroSearch(q)}
+        colors={colors}
       />
 
       {/* Badges de confianza - superpuestas sobre el banner */}
@@ -93,7 +96,7 @@ export function TiendaContent({
           </div>
           {/* Desktop: carousel original */}
           <div className="hidden md:block">
-            <OfertasCarousel ofertas={ofertas} subdominio={subdominio} />
+            <OfertasCarousel ofertas={ofertas} subdominio={subdominio} colors={colors} />
           </div>
           {/* Mobile: auto-scroll infinito */}
           <div className="md:hidden overflow-hidden">
@@ -191,6 +194,7 @@ export function TiendaContent({
               totalProductos={totalProductos}
               categorias={categorias}
               initialSearch={heroSearch}
+              colors={colors}
             />
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ProductoCard } from './ProductoCard';
 import { Producto, PaginatedResponse } from '@/lib/types';
+import { TiendaColors, alpha } from '@/lib/colors';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -12,9 +13,10 @@ interface Props {
   totalProductos: number;
   categorias?: string[];
   initialSearch?: string;
+  colors: TiendaColors;
 }
 
-export function ProductosGrid({ subdominio, productosIniciales, totalProductos, categorias = [], initialSearch }: Props) {
+export function ProductosGrid({ subdominio, productosIniciales, totalProductos, categorias = [], initialSearch, colors }: Props) {
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [search, setSearch] = useState('');
 
@@ -79,7 +81,10 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar productos en esta tienda..."
-            className="w-full pl-9 md:pl-11 pr-10 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm placeholder:text-gray-400"
+            className="w-full pl-9 md:pl-11 pr-10 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 transition-all shadow-sm placeholder:text-gray-400"
+            style={{ '--tw-ring-color': alpha(colors.primario, 0.2) } as React.CSSProperties}
+            onFocus={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
           />
           {search && (
             <button onClick={() => setSearch('')}
@@ -93,7 +98,8 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
         {(search || categoriaActiva) && (
           <button
             onClick={() => { setSearch(''); setCategoriaActiva(null); }}
-            className="flex-shrink-0 px-4 py-3 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+            className="flex-shrink-0 px-4 py-3 rounded-xl text-white text-xs font-semibold transition-colors shadow-sm"
+            style={{ backgroundColor: colors.primario }}
           >
             Mostrar todos
           </button>
@@ -110,7 +116,7 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
       {/* Loading */}
       {isLoading ? (
         <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: alpha(colors.primario, 0.2), borderTopColor: colors.primario }} />
         </div>
       ) : productos.length === 0 ? (
         <div className="text-center py-16">
@@ -123,7 +129,7 @@ export function ProductosGrid({ subdominio, productosIniciales, totalProductos, 
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-[8px] sm:gap-5 px-[2.5px] md:px-0">
           {productos.map((producto) => (
-            <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} />
+            <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} colors={colors} />
           ))}
         </div>
       )}

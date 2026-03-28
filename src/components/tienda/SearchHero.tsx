@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Empresa } from '@/lib/types';
+import { TiendaColors, lighten } from '@/lib/colors';
 
 interface Banner {
   url: string;
@@ -17,9 +18,10 @@ interface Props {
   banners?: Banner[];
   totalProductos: number;
   onSearch?: (query: string) => void;
+  colors: TiendaColors;
 }
 
-export function SearchHero({ empresa, bannerUrl, bannerTexto, banners, totalProductos }: Props) {
+export function SearchHero({ empresa, bannerUrl, bannerTexto, banners, totalProductos, colors }: Props) {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const slides: Banner[] = banners && banners.length > 0
@@ -42,7 +44,7 @@ export function SearchHero({ empresa, bannerUrl, bannerTexto, banners, totalProd
 
   if (!hasSlides) {
     return (
-      <div className="bg-gradient-to-br from-blue-500 via-blue-400 to-cyan-400 py-8">
+      <div className="py-8" style={{ background: `linear-gradient(to bottom right, ${colors.primario}, ${lighten(colors.primario, 0.2)}, ${colors.secundario})` }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <p className="text-white/80 text-sm">📦 {totalProductos} productos disponibles</p>
         </div>

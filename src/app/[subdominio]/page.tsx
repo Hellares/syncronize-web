@@ -5,6 +5,7 @@ import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
 import { notFound } from 'next/navigation';
+import { DEFAULT_COLORS, lighten, alpha, TiendaColors } from '@/lib/colors';
 
 interface Props {
   params: Promise<{ subdominio: string }>;
@@ -55,6 +56,15 @@ export default async function TiendaPage({ params }: Props) {
   } catch { /* ignorar */ }
 
   const banner = empresa.personalizaciones?.[0];
+  const wc = banner?.webConfig;
+  const colors: TiendaColors = {
+    primario: banner?.colorPrimario || DEFAULT_COLORS.primario,
+    secundario: banner?.colorSecundario || DEFAULT_COLORS.secundario,
+    acento: banner?.colorAcento || DEFAULT_COLORS.acento,
+    bannerColor: banner?.bannerColor || DEFAULT_COLORS.bannerColor,
+    fondo1: wc?.colorFondo1 || DEFAULT_COLORS.fondo1,
+    fondo2: wc?.colorFondo2 || DEFAULT_COLORS.fondo2,
+  };
   const totalProductos = empresa._count?.productos || 0;
   const totalServicios = empresa._count?.servicios || 0;
   const sedePrincipal = empresa.sedes?.find((s) => s.esPrincipal) || empresa.sedes?.[0];
@@ -63,7 +73,21 @@ export default async function TiendaPage({ params }: Props) {
   const categorias = [...new Set(productos.map((p: Producto) => p.categoria).filter(Boolean))] as string[];
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div
+      className="min-h-screen flex flex-col overflow-x-hidden relative"
+      style={{
+        background: `linear-gradient(135deg, ${lighten(colors.fondo1, 0.75)} 0%, ${lighten(colors.fondo2, 0.8)} 30%, ${lighten(colors.fondo1, 0.85)} 60%, ${lighten(colors.fondo2, 0.75)} 100%)`,
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      {/* Blobs flotantes */}
+      <div className="hidden md:block fixed inset-0 overflow-hidden pointer-events-none z-0" aria-hidden="true">
+        <div className="blob blob-1" style={{ background: colors.fondo1 }} />
+        <div className="blob blob-2" style={{ background: colors.fondo2 }} />
+        <div className="blob blob-3" style={{ background: colors.primario }} />
+        <div className="blob blob-4" style={{ background: colors.fondo1 }} />
+      </div>
+
       {/* Content interactivo (incluye header) */}
       <TiendaContent
         empresa={empresa}
@@ -77,6 +101,7 @@ export default async function TiendaPage({ params }: Props) {
         bannerTexto={banner?.bannerPrincipalTexto}
         banners={banner?.banners as Array<{ url: string; texto?: string; link?: string; orden?: number }> | undefined}
         sedePrincipal={sedePrincipal}
+        colors={colors}
       />
 
       {/* Servicios */}

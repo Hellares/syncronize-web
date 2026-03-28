@@ -55,9 +55,90 @@
   animation-play-state: paused;
 }
 
+/* Hover dinámico para cards de producto */
+.group:hover .product-title {
+  color: var(--hover-color);
+}
+
+/* Blobs flotantes */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  will-change: transform;
+  mix-blend-mode: soft-light;
+  opacity: 0.5;
+}
+
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  top: 5%;
+  left: -5%;
+  animation: blob-float-1 16s ease-in-out infinite;
+}
+
+.blob-2 {
+  width: 350px;
+  height: 350px;
+  top: 35%;
+  right: -8%;
+  animation: blob-float-2 18s ease-in-out infinite;
+}
+
+.blob-3 {
+  width: 320px;
+  height: 320px;
+  bottom: 10%;
+  left: 15%;
+  animation: blob-float-3 14s ease-in-out infinite;
+}
+
+.blob-4 {
+  width: 280px;
+  height: 280px;
+  top: 55%;
+  right: 20%;
+  animation: blob-float-4 17s ease-in-out infinite;
+}
+
+@keyframes blob-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(120px, 80px) scale(1.15); }
+  40% { transform: translate(50px, 180px) scale(0.9); }
+  60% { transform: translate(-90px, 100px) scale(1.1); }
+  80% { transform: translate(-40px, 30px) scale(0.95); }
+}
+
+@keyframes blob-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(-100px, -60px) scale(1.12); }
+  40% { transform: translate(-160px, 50px) scale(0.88); }
+  60% { transform: translate(-50px, -120px) scale(1.08); }
+  80% { transform: translate(60px, -40px) scale(0.93); }
+}
+
+@keyframes blob-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(110px, -80px) scale(1.15); }
+  50% { transform: translate(-60px, -140px) scale(0.85); }
+  75% { transform: translate(80px, -40px) scale(1.1); }
+}
+
+@keyframes blob-float-4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-120px, 70px) scale(1.1); }
+  50% { transform: translate(80px, -90px) scale(0.88); }
+  75% { transform: translate(-50px, -50px) scale(1.12); }
+}
+
+/* Reducir animaciones si el usuario prefiere */
+@media (prefers-reduced-motion: reduce) {
+  .blob { animation: none !important; }
+}
+
 body {
-  background: linear-gradient(135deg, #a8c8f5 0%, #b5d0fa 20%, #d6e6f7 45%, #deedf5 55%, #b0ddd0 75%, #5b8fd4 100%);
-  background-attachment: fixed;
+  background: #f5f7fa;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;

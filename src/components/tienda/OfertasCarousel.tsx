@@ -3,13 +3,15 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Producto } from '@/lib/types';
+import { TiendaColors } from '@/lib/colors';
 
 interface Props {
   ofertas: Producto[];
   subdominio: string;
+  colors: TiendaColors;
 }
 
-export function OfertasCarousel({ ofertas, subdominio }: Props) {
+export function OfertasCarousel({ ofertas, subdominio, colors }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -91,7 +93,9 @@ export function OfertasCarousel({ ofertas, subdominio }: Props) {
               className="flex-shrink-0 w-40 sm:w-44"
               draggable={false}
               onClick={(e) => { if (isDragging) e.preventDefault(); }}>
-              <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg hover:border-blue-300 transition-all duration-300 group/card">
+              <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 group/card"
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}>
                 {/* Imagen */}
                 <div className="relative aspect-[4/3] bg-gradient-to-br from-white to-gray-50 overflow-hidden">
                   {producto.imagen ? (

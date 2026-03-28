@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Producto } from '@/lib/types';
+import { TiendaColors, alpha } from '@/lib/colors';
 
-export function ProductoCard({ producto, subdominio }: { producto: Producto; subdominio: string }) {
+export function ProductoCard({ producto, subdominio, colors }: { producto: Producto; subdominio: string; colors: TiendaColors }) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
@@ -20,12 +21,17 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
 
   return (
     <div onClick={handleClick} className="block h-full">
-      <article className={`bg-white rounded-xl md:rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border border-gray-200 md:border-2 hover:border-blue-400 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
+      <article
+        className={`bg-white rounded-xl md:rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border border-gray-200 md:border-2 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}
+        style={{ '--hover-color': colors.primario, '--hover-bg': alpha(colors.primario, 0.08) } as React.CSSProperties}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
+      >
 
         {/* Loading overlay */}
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 rounded-2xl">
-            <div className="w-7 h-7 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+            <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: alpha(colors.primario, 0.2), borderTopColor: colors.primario }} />
           </div>
         )}
 
@@ -104,7 +110,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
                 )}
               </>
             ) : (
-              <span className="text-[10px] md:text-sm font-bold text-blue-600">Consultar precio</span>
+              <span className="text-[10px] md:text-sm font-bold" style={{ color: colors.primario }}>Consultar precio</span>
             )}
           </div>
 
@@ -124,7 +130,7 @@ export function ProductoCard({ producto, subdominio }: { producto: Producto; sub
           )}
 
           {/* Nombre */}
-          <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-semibold group-hover:text-blue-600 transition-colors flex-1 mt-0.5">
+          <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-semibold transition-colors flex-1 mt-0.5 product-title">
             {producto.nombre}
           </h3>
 

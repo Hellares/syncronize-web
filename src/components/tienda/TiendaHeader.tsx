@@ -3,15 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Empresa } from '@/lib/types';
+import { TiendaColors, darken, lighten, alpha } from '@/lib/colors';
 
 interface Props {
   empresa: Empresa;
   subdominio: string;
   categorias: string[];
   onSearch?: (query: string) => void;
+  colors: TiendaColors;
 }
 
-export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Props) {
+export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,20 +21,22 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Prop
   return (
     <header className="sticky top-0 z-20">
       {/* Header principal */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 shadow-md">
+      <div className="shadow-md" style={{ background: `linear-gradient(to right, ${colors.primario}, ${lighten(colors.primario, 0.15)}, ${colors.secundario})` }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-4 h-14">
           {/* Logo */}
-          <Link href={`/${subdominio}`} className="flex items-center gap-2 flex-shrink-0">
+          <Link href={`/${subdominio}`} className="flex items-center flex-shrink-0">
             {empresa.logo ? (
-              <img src={empresa.logo} alt={empresa.nombre} className="w-9 h-9 rounded-lg object-cover bg-white shadow-sm" />
+              <img src={empresa.logo} alt={empresa.nombre} className="h-11 sm:h-12 max-w-[200px] sm:max-w-[250px] object-contain drop-shadow-sm" />
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-sm">
-                {empresa.nombre[0]}
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-sm">
+                  {empresa.nombre[0]}
+                </div>
+                <span className="text-white font-bold text-[11px] leading-tight hidden sm:block max-w-[170px] line-clamp-2">
+                  {empresa.nombre}
+                </span>
               </div>
             )}
-            <span className="text-white font-bold text-[11px] leading-tight hidden sm:block w-[170px] line-clamp-2 text-center">
-              {empresa.nombre}
-            </span>
           </Link>
 
           {/* Buscador */}
@@ -76,11 +80,11 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Prop
       </div>
 
       {/* Nav */}
-      <div className="bg-gradient-to-r from-blue-700/90 via-blue-600/90 to-cyan-600/90 backdrop-blur-sm border-b border-white/10">
+      <div className="backdrop-blur-sm border-b border-white/10" style={{ background: `linear-gradient(to right, ${darken(colors.acento, 0.1)}, ${colors.acento}, ${lighten(colors.acento, 0.1)})` }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <nav className="hidden md:flex items-center gap-0.5 h-9">
             <Link href={`/${subdominio}`}
-              className="px-3 py-1 text-[11px] font-semibold text-white hover:bg-white/10 rounded transition-colors whitespace-nowrap">
+              className="px-3 py-1 text-[14px] font-semibold text-white hover:bg-white/10 rounded transition-colors whitespace-nowrap">
               Inicio
             </Link>
 
@@ -89,14 +93,14 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Prop
               <div className="relative"
                 onMouseEnter={() => setCategoriasOpen(true)}
                 onMouseLeave={() => setCategoriasOpen(false)}>
-                <button className="px-3 py-1 text-[11px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors whitespace-nowrap flex items-center gap-1">
+                <button className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors whitespace-nowrap flex items-center gap-1">
                   Categorias
                   <svg className={`w-3 h-3 transition-transform ${categoriasOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 {categoriasOpen && (
-                  <div className="absolute top-full left-0 mt-0.5 bg-blue-100 rounded-lg shadow-2xl border border-blue-200 py-1 min-w-[220px] z-50 max-h-[70vh] overflow-y-auto">
+                  <div className="absolute top-full left-0 mt-0.5 rounded-lg shadow-2xl py-1 min-w-[220px] z-50 max-h-[70vh] overflow-y-auto" style={{ backgroundColor: lighten(colors.primario, 0.85), borderColor: lighten(colors.primario, 0.7), borderWidth: 1, borderStyle: 'solid' }}>
                     {categorias.map((cat) => (
                       <span key={cat}
                         className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-white cursor-pointer transition-colors">
@@ -111,20 +115,20 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch }: Prop
               </div>
             )}
 
-            <span className="px-3 py-1 text-[11px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
+            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
               Productos
             </span>
-            <span className="px-3 py-1 text-[11px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
+            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
               Servicios
             </span>
-            <span className="px-3 py-1 text-[11px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
+            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
               📍 Ubicacion
             </span>
 
             {empresa.telefono && (
               <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`}
                 target="_blank"
-                className="ml-auto px-3 py-1 text-[11px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
+                className="ml-auto px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
                 Contactanos
               </a>
             )}
