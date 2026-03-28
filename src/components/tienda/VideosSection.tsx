@@ -31,45 +31,65 @@ export function VideosSection({ videos, colors }: Props) {
           </h2>
         </div>
 
-        {/* Carousel horizontal */}
-        <div className="flex gap-3 md:gap-4 overflow-x-auto pb-2 px-1" style={{ scrollbarWidth: 'none' }}>
-          {videos.map((video, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveVideo(i)}
-              className="flex-shrink-0 w-[200px] md:w-[260px] group"
-            >
-              <div className="relative aspect-video rounded-xl overflow-hidden shadow-md border-2 border-transparent transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5"
-                style={{ borderColor: 'transparent' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
+        {/* Carousel horizontal - mobile auto-scroll */}
+        <div className="md:hidden overflow-hidden">
+          <div className="flex gap-2.5 animate-videos-scroll">
+            {[...videos, ...videos].map((video, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveVideo(i % videos.length)}
+                className="flex-shrink-0 w-[140px] group"
               >
-                {/* Thumbnail */}
-                <VideoThumbnail url={video.url} />
-
-                {/* Play overlay */}
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
-                    <svg className="w-5 h-5 md:w-6 md:h-6 ml-0.5" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                <div className="relative aspect-video rounded-lg overflow-hidden shadow-md border-2 border-transparent transition-all duration-300">
+                  <VideoThumbnail url={video.url} />
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                      <svg className="w-4 h-4 ml-0.5" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
+                  <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[7px] font-medium px-1 py-0.5 rounded">VIDEO</div>
                 </div>
+                {video.titulo && (
+                  <p className="text-[9px] text-gray-700 font-medium mt-1 line-clamp-1 text-left px-0.5">{video.titulo}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                {/* Duration badge (visual) */}
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[9px] md:text-[10px] font-medium px-1.5 py-0.5 rounded">
-                  VIDEO
+        {/* Desktop carousel - auto-scroll */}
+        <div className="hidden md:block overflow-hidden">
+          <div className="flex gap-4 animate-videos-scroll-desktop">
+            {[...videos, ...videos].map((video, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveVideo(i % videos.length)}
+                className="flex-shrink-0 w-[260px] group"
+              >
+                <div className="relative aspect-video rounded-xl overflow-hidden shadow-md border-2 border-transparent transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5"
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
+                >
+                  <VideoThumbnail url={video.url} />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+                      <svg className="w-6 h-6 ml-0.5" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded">VIDEO</div>
                 </div>
-              </div>
-
-              {/* Titulo */}
-              {video.titulo && (
-                <p className="text-[10px] md:text-xs text-gray-700 font-medium mt-2 line-clamp-1 text-left px-0.5 group-hover:text-gray-900 transition-colors">
-                  {video.titulo}
-                </p>
-              )}
-            </button>
-          ))}
+                {video.titulo && (
+                  <p className="text-xs text-gray-700 font-medium mt-2 line-clamp-1 text-left px-0.5 group-hover:text-gray-900 transition-colors">
+                    {video.titulo}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

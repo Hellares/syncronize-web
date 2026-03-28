@@ -132,6 +132,30 @@
   75% { transform: translate(-50px, -50px) scale(1.12); }
 }
 
+/* Auto-scroll videos mobile */
+@keyframes videos-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-videos-scroll {
+  animation: videos-scroll 35s linear infinite;
+  width: max-content;
+}
+
+.animate-videos-scroll:active {
+  animation-play-state: paused;
+}
+
+.animate-videos-scroll-desktop {
+  animation: videos-scroll 40s linear infinite;
+  width: max-content;
+}
+
+.animate-videos-scroll-desktop:hover {
+  animation-play-state: paused;
+}
+
 /* Shimmer en logo */
 .logo-shimmer {
   position: relative;
