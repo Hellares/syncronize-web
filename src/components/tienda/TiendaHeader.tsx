@@ -82,7 +82,7 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors
       {/* Nav */}
       <div className="backdrop-blur-sm border-b border-white/10" style={{ background: `linear-gradient(to right, ${darken(colors.acento, 0.1)}, ${colors.acento}, ${lighten(colors.acento, 0.1)})` }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <nav className="hidden md:flex items-center gap-0.5 h-9">
+          <nav className="hidden md:flex items-center gap-0.5 h-10">
             <Link href={`/${subdominio}`}
               className="px-3 py-1 text-[14px] font-semibold text-white hover:bg-white/10 rounded transition-colors whitespace-nowrap">
               Inicio
