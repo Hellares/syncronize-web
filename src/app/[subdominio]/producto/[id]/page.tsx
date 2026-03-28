@@ -128,7 +128,7 @@ export default async function ProductoPage({ params }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Galería */}
             <div className="p-4 md:p-6 border-b md:border-b-0 md:border-r border-gray-100">
-              <ImageGallery imagenes={producto.imagenes} nombre={producto.nombre} colors={colors} />
+              <ImageGallery imagenes={producto.imagenes} nombre={producto.nombre} colors={colors} videoUrl={producto.videoUrl} />
             </div>
 
             {/* Info */}

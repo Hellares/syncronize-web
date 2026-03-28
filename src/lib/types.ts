@@ -70,6 +70,7 @@ export interface Producto {
 
 export interface ProductoDetalle extends Producto {
   stockActual: number;
+  videoUrl?: string;
   imagenes: { id: string; url: string; thumbnail?: string }[];
   atributos: { nombre: string; valor: string }[];
   sede?: {

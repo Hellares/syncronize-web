@@ -2,17 +2,35 @@
 
 import { useState } from 'react';
 import { TiendaColors, DEFAULT_COLORS } from '@/lib/colors';
+import { detectVideoType, getYoutubeEmbedUrl, getVimeoEmbedUrl } from '@/lib/video';
+
+interface MediaItem {
+  id: string;
+  url: string;
+  thumbnail?: string;
+  type: 'image' | 'video';
+}
 
 interface Props {
   imagenes: { id: string; url: string; thumbnail?: string }[];
   nombre: string;
   colors?: TiendaColors;
+  videoUrl?: string;
 }
 
-export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS }: Props) {
+export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoUrl }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  if (imagenes.length === 0) {
+  // Construir array de media: video primero, luego imágenes
+  const media: MediaItem[] = [];
+  if (videoUrl) {
+    media.push({ id: 'video-main', url: videoUrl, type: 'video' });
+  }
+  imagenes.forEach((img) => {
+    media.push({ id: img.id, url: img.url, thumbnail: img.thumbnail, type: 'image' });
+  });
+
+  if (media.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-md aspect-square flex items-center justify-center text-gray-300">
         <svg className="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,43 +40,50 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS }: Prop
     );
   }
 
+  const totalItems = media.length;
+  const current = media[activeIndex];
+
   return (
     <div className="space-y-3">
-      {/* Imagen principal */}
+      {/* Media principal */}
       <div className="bg-white rounded-2xl shadow-md overflow-hidden aspect-square relative group">
-        <img
-          src={imagenes[activeIndex].url}
-          alt={nombre}
-          className="w-full h-full object-contain transition-opacity duration-300"
-        />
+        {current.type === 'video' ? (
+          <VideoPlayer url={current.url} />
+        ) : (
+          <img
+            src={current.url}
+            alt={nombre}
+            className="w-full h-full object-contain transition-opacity duration-300"
+          />
+        )}
 
-        {/* Flechas de navegación */}
-        {imagenes.length > 1 && (
+        {/* Flechas */}
+        {totalItems > 1 && (
           <>
             <button
-              onClick={() => setActiveIndex((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1))}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => setActiveIndex((prev) => (prev === 0 ? totalItems - 1 : prev - 1))}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
-              onClick={() => setActiveIndex((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1))}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => setActiveIndex((prev) => (prev === totalItems - 1 ? 0 : prev + 1))}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow-md flex items-center justify-center text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
 
-            {/* Indicador */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {imagenes.map((_, i) => (
+            {/* Indicadores */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {media.map((item, i) => (
                 <button
-                  key={i}
+                  key={item.id}
                   onClick={() => setActiveIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-all ${i === activeIndex ? 'w-4' : 'bg-gray-300'}`}
+                  className={`h-2 rounded-full transition-all ${i === activeIndex ? 'w-4' : 'w-2 bg-gray-300'}`}
                   style={i === activeIndex ? { backgroundColor: colors.primario } : undefined}
                 />
               ))}
@@ -68,11 +93,11 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS }: Prop
       </div>
 
       {/* Thumbnails */}
-      {imagenes.length > 1 && (
+      {totalItems > 1 && (
         <div className="flex gap-2 overflow-x-auto">
-          {imagenes.map((img, i) => (
+          {media.map((item, i) => (
             <button
-              key={img.id}
+              key={item.id}
               onClick={() => setActiveIndex(i)}
               className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 transition-all border-2 ${
                 i === activeIndex
@@ -81,11 +106,76 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS }: Prop
               }`}
               style={i === activeIndex ? { borderColor: colors.primario } : undefined}
             >
-              <img src={img.thumbnail || img.url} alt="" className="w-full h-full object-cover rounded-md" />
+              {item.type === 'video' ? (
+                <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              ) : (
+                <img src={item.thumbnail || item.url} alt="" className="w-full h-full object-cover rounded-md" />
+              )}
             </button>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+/** Renderiza el video según su tipo */
+function VideoPlayer({ url }: { url: string }) {
+  const type = detectVideoType(url);
+
+  if (type === 'youtube') {
+    const embedUrl = getYoutubeEmbedUrl(url);
+    if (embedUrl) {
+      return (
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title="Video"
+        />
+      );
+    }
+  }
+
+  if (type === 'vimeo') {
+    const embedUrl = getVimeoEmbedUrl(url);
+    if (embedUrl) {
+      return (
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+          title="Video"
+        />
+      );
+    }
+  }
+
+  if (type === 'direct') {
+    return (
+      <video
+        src={url}
+        controls
+        playsInline
+        className="w-full h-full object-contain bg-black"
+        preload="metadata"
+      />
+    );
+  }
+
+  // Facebook, TikTok, u otros — iframe genérico
+  return (
+    <iframe
+      src={url}
+      className="w-full h-full"
+      allowFullScreen
+      title="Video"
+    />
   );
 }
