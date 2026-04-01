@@ -1,0 +1,18 @@
+export const AUTH_ENDPOINTS = {
+  LOGIN: '/auth/login',
+  GOOGLE: '/auth/google',
+  REGISTER: '/auth/register',
+  LOGOUT: '/auth/logout',
+  REFRESH: '/auth/refresh',
+  PROFILE: '/auth/profile',
+  UPDATE_PROFILE: '/auth/profile',
+  CHECK_METHODS: '/auth/methods',
+  VALIDATE_SESSION: '/auth/validate-session',
+  SWITCH_TENANT: '/auth/switch-tenant',
+  CHANGE_PASSWORD: '/auth/change-password',
+  FORGOT_PASSWORD: '/auth/forgot-password',
+  RESET_PASSWORD: '/auth/reset-password',
+  SET_PASSWORD: '/auth/set-password',
+  LINK_ACCOUNT: '/auth/link-account',
+  SESSIONS: '/auth/sessions',
+} as const;

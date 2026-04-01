@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk, Sora, Orbitron } from "next/font/google";
+import { Providers } from "@/core/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,9 +13,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+});
+
+const sora = Sora({
+  variable: "--font-sora",
+  subsets: ["latin"],
+});
+
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Syncronize",
-  description: "Marketplace de productos y servicios",
+  title: "Syncronize — Plataforma SaaS para tu negocio",
+  description:
+    "Gestiona ventas, inventario, compras, RRHH y tu tienda online desde una sola plataforma. Empieza gratis.",
 };
 
 export default function RootLayout({
@@ -23,11 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${sora.variable} ${orbitron.variable} antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
