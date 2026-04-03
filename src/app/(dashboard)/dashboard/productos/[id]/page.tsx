@@ -3,11 +3,18 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { useProductoDetail } from '@/features/producto/hooks/use-producto-detail';
+import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import StockBadge from '@/features/producto/components/StockBadge';
+import VarianteList from '@/features/producto/components/variantes/VarianteList';
+import ImageGallery from '@/features/producto/components/ImageGallery';
+import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
+import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
+import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
 
 export default function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { producto, isLoading, error } = useProductoDetail(id);
+  const { empresa } = useEmpresa();
 
   if (isLoading) {
     return (
@@ -28,7 +35,8 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const mainImage = producto.archivos?.[0]?.url || producto.imagenes?.[0];
+  // Find active offer from any sede
+  const ofertaActiva = producto.stocksPorSede?.find(s => s.enOferta && s.precioOferta != null);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -40,6 +48,9 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           <p className="text-sm text-gray-500 font-mono">{producto.codigoEmpresa}</p>
         </div>
         <div className="flex gap-2">
+          <Link href="/dashboard/stock" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Stock
+          </Link>
           <Link
             href={`/dashboard/productos/${producto.id}/editar`}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]"
@@ -52,12 +63,13 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Image + Info */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Image */}
-          {mainImage && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <img src={mainImage} alt={producto.nombre} className="mx-auto max-h-80 rounded-lg object-contain" />
-            </div>
-          )}
+          {/* Image Gallery */}
+          <ImageGallery
+            archivos={producto.archivos}
+            imagenes={producto.imagenes}
+            videoUrl={producto.videoUrl}
+            alt={producto.nombre}
+          />
 
           {/* Details */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -69,7 +81,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               {producto.marca && <div><span className="text-gray-500">Marca:</span> <span className="font-medium">{producto.marca.nombre}</span></div>}
               {producto.unidadMedida && <div><span className="text-gray-500">Unidad:</span> <span className="font-medium">{producto.unidadMedida.nombre}</span></div>}
               {producto.peso != null && <div><span className="text-gray-500">Peso:</span> <span className="font-medium">{producto.peso} kg</span></div>}
-              <div><span className="text-gray-500">IGV:</span> <span className="font-medium">{producto.impuestoPorcentaje ?? 18}%</span></div>
+              <div><span className="text-gray-500">IGV:</span> <span className="font-medium">{producto.impuestoPorcentaje != null ? `${producto.impuestoPorcentaje}% (personalizado)` : 'Usa IGV global de la empresa'}</span></div>
               <div><span className="text-gray-500">Estado:</span> <span className={`font-medium ${producto.isActive ? 'text-green-600' : 'text-gray-400'}`}>{producto.isActive ? 'Activo' : 'Inactivo'}</span></div>
             </div>
             {producto.descripcion && (
@@ -79,31 +91,82 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
 
-          {/* Variants */}
-          {producto.tieneVariantes && producto.variantes && producto.variantes.length > 0 && (
+          {/* Dimensiones */}
+          {producto.dimensiones && Object.keys(producto.dimensiones).length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Variantes ({producto.variantes.length})</h3>
-              <div className="space-y-2">
-                {producto.variantes.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{v.nombre}</p>
-                      <p className="text-xs text-gray-500 font-mono">{v.sku}</p>
-                    </div>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${v.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {v.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Dimensiones</h3>
+              <div className="flex gap-4">
+                {Object.entries(producto.dimensiones).map(([key, val]) => (
+                  <div key={key} className="rounded-lg bg-gray-50 px-4 py-2 text-center">
+                    <p className="text-lg font-bold text-gray-900">{val}</p>
+                    <p className="text-[10px] uppercase text-gray-500">{key} (cm)</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Precio Niveles */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <PrecioNivelSection productoId={producto.id} />
+          </div>
+
+          {/* Combo Info */}
+          {producto.esCombo && (
+            <>
+              <div className="rounded-xl border border-purple-200 bg-purple-50 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-purple-900">Producto Combo</h3>
+                  <span className="rounded-full bg-purple-200 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                    {producto.tipoPrecioCombo === 'FIJO' ? 'Precio Fijo' : producto.tipoPrecioCombo === 'CALCULADO' ? 'Precio Calculado' : 'Calculado con Descuento'}
+                  </span>
+                </div>
+                <p className="text-xs text-purple-700">
+                  {producto.tipoPrecioCombo === 'FIJO'
+                    ? 'El precio del combo es fijo, definido manualmente.'
+                    : producto.tipoPrecioCombo === 'CALCULADO'
+                    ? 'El precio se calcula como la suma de los componentes.'
+                    : 'El precio se calcula con un descuento aplicado sobre la suma.'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <ComboComponentesList comboId={producto.id} />
+              </div>
+            </>
+          )}
+
+          {/* Variants */}
+          {producto.tieneVariantes && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <VarianteList
+                productoId={producto.id}
+                productoNombre={producto.nombre}
+                productoIsActive={producto.isActive}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Sidebar: Stock por sede */}
+        {/* Sidebar */}
         <div className="space-y-4">
+          {/* Oferta Countdown */}
+          {ofertaActiva && (
+            <OfertaCountdown
+              enOferta={ofertaActiva.enOferta}
+              fechaInicio={ofertaActiva.fechaInicioOferta}
+              fechaFin={ofertaActiva.fechaFinOferta}
+            />
+          )}
+
+          {/* Stock por sede */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Stock por Sede</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Stock por Sede</h3>
+              <Link href="/dashboard/stock" className="text-[10px] font-medium text-[#437EFF] hover:underline">Ver todo</Link>
+            </div>
             {producto.stocksPorSede && producto.stocksPorSede.length > 0 ? (
               <div className="space-y-3">
                 {producto.stocksPorSede.map((s) => (

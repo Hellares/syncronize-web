@@ -49,6 +49,25 @@ export async function deleteProducto(id: string): Promise<void> {
   await apiClient.delete(`/productos/${id}`);
 }
 
+export async function downloadBulkTemplate(): Promise<Blob> {
+  const res = await apiClient.get('/productos/bulk-upload/template', { responseType: 'blob' });
+  return res.data;
+}
+
+export async function uploadBulkFile(file: File, sedesIds?: string[]): Promise<{
+  totalFilas: number; creados: number; errores: number;
+  detalleErrores: Array<{ fila: number; columna: string; valor?: string; mensaje: string }>;
+  productosCreados: Array<{ id: string; nombre: string; codigoEmpresa: string }>;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (sedesIds?.length) formData.append('sedesIds', JSON.stringify(sedesIds));
+  const res = await apiClient.post('/productos/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
 export async function updateStock(
   id: string,
   sedeId: string,

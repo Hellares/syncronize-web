@@ -187,6 +187,130 @@ export interface CreateProductoDto {
   unidadMedidaId?: string;
   sedesIds?: string[];
   imagenesIds?: string[];
+  atributosEstructurados?: Array<{ atributoId: string; valor: string }>;
 }
 
 export type UpdateProductoDto = Partial<Omit<CreateProductoDto, 'empresaId' | 'sedesIds'>>;
+
+// --- Atributos de Producto ---
+
+export type AtributoTipo =
+  | 'COLOR' | 'TALLA' | 'MATERIAL' | 'CAPACIDAD'
+  | 'TEXTO' | 'NUMERO' | 'SELECT' | 'MULTI_SELECT' | 'BOOLEAN';
+
+export interface ProductoAtributo {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  clave: string;
+  tipo: AtributoTipo;
+  valores: string[];
+  unidad?: string;
+  requerido?: boolean;
+  descripcion?: string;
+  orden?: number;
+  isActive: boolean;
+  creadoEn?: string;
+  actualizadoEn?: string;
+}
+
+// --- Plantillas de Atributos ---
+
+export interface PlantillaAtributoInfo {
+  id: string;
+  nombre: string;
+  clave: string;
+  tipo: AtributoTipo;
+  requerido: boolean;
+  descripcion?: string;
+  unidad?: string;
+  valores: string[];
+}
+
+export interface PlantillaAtributo {
+  id: string;
+  atributoId: string;
+  orden: number;
+  requeridoOverride?: boolean;
+  valoresOverride?: string[];
+  atributo: PlantillaAtributoInfo;
+}
+
+export interface AtributoPlantilla {
+  id: string;
+  empresaId: string;
+  categoriaId?: string;
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  esPredefinida: boolean;
+  orden: number;
+  isActive: boolean;
+  atributos: PlantillaAtributo[];
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+// --- DTOs de Variantes ---
+
+export interface CreateVarianteDto {
+  nombre: string;
+  sku: string;
+  codigoBarras?: string;
+  atributosEstructurados?: Array<{ atributoId: string; valor: string }>;
+  peso?: number;
+  dimensiones?: Record<string, number>;
+  isActive?: boolean;
+  orden?: number;
+  imagenesIds?: string[];
+}
+
+export type UpdateVarianteDto = Partial<CreateVarianteDto>;
+
+export interface GenerarCombinacionesDto {
+  atributos: Array<{ atributoId: string; valores: string[] }>;
+  precioBase: number;
+  precioCosto?: number;
+  skuBase?: string;
+  stockDistribucion?: 'EQUITATIVO' | 'SIN_STOCK';
+  stockTotal?: number;
+}
+
+export interface SetVarianteAtributosDto {
+  atributos: Array<{ atributoId: string; valor: string }>;
+}
+
+// --- DTOs de Atributos ---
+
+export interface CreateProductoAtributoDto {
+  nombre: string;
+  clave: string;
+  tipo: AtributoTipo;
+  valores?: string[];
+  unidad?: string;
+  requerido?: boolean;
+  descripcion?: string;
+  orden?: number;
+  mostrarEnListado?: boolean;
+  usarParaFiltros?: boolean;
+  mostrarEnMarketplace?: boolean;
+}
+
+export type UpdateProductoAtributoDto = Partial<CreateProductoAtributoDto>;
+
+// --- Bulk Upload ---
+
+export interface BulkUploadError {
+  fila: number;
+  columna: string;
+  valor?: string;
+  mensaje: string;
+}
+
+export interface BulkUploadResult {
+  totalFilas: number;
+  creados: number;
+  errores: number;
+  detalleErrores: BulkUploadError[];
+  productosCreados: Array<{ id: string; nombre: string; codigoEmpresa: string }>;
+}

@@ -29,6 +29,9 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     permission: 'canViewProducts',
     items: [
       { label: 'Productos', href: '/dashboard/productos' },
+      { label: 'Carga Masiva', href: '/dashboard/productos/bulk', permission: 'canManageProducts' },
+      { label: 'Atributos', href: '/dashboard/atributos', permission: 'canManageProducts' },
+      { label: 'Config. Precios', href: '/dashboard/configuraciones-precio', permission: 'canManageProducts' },
       { label: 'Categorías', href: '/dashboard/categorias' },
       { label: 'Marcas', href: '/dashboard/marcas' },
       { label: 'Unidades de Medida', href: '/dashboard/unidades' },

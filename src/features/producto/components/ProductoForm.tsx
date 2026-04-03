@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useProductoForm } from '../hooks/use-producto-form';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
-import type { Producto } from '@/core/types/producto';
+import type { Producto, AtributoPlantilla } from '@/core/types/producto';
+import type { ConfiguracionPrecio } from '@/core/types/precio';
 import type { CatalogoItem, UnidadMedida } from '@/features/catalogo/services/catalogo-service';
 import * as catalogoService from '@/features/catalogo/services/catalogo-service';
+import * as varianteService from '../services/variante-service';
+import * as configPrecioService from '../services/configuracion-precio-service';
 import ImageUploader from './ImageUploader';
 
 interface Props {
@@ -52,7 +55,12 @@ export default function ProductoForm({ empresaId, producto }: Props) {
   const [categorias, setCategorias] = useState<CatalogoItem[]>([]);
   const [marcas, setMarcas] = useState<CatalogoItem[]>([]);
   const [unidades, setUnidades] = useState<UnidadMedida[]>([]);
+  const [plantillas, setPlantillas] = useState<AtributoPlantilla[]>([]);
+  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>('');
+  const [configsPrecio, setConfigsPrecio] = useState<ConfiguracionPrecio[]>([]);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
+
+  const selectedPlantilla = plantillas.find(p => p.id === selectedPlantillaId) ?? null;
 
   useEffect(() => {
     let failed = false;
@@ -60,10 +68,41 @@ export default function ProductoForm({ empresaId, producto }: Props) {
       catalogoService.getCategorias().then(setCategorias),
       catalogoService.getMarcas().then(setMarcas),
       catalogoService.getUnidadesMedida().then(setUnidades),
+      varianteService.getPlantillas().then(data => setPlantillas(data.filter(p => p.isActive))),
+      configPrecioService.getConfiguraciones().then(data => setConfigsPrecio(data.filter(c => c.isActive))),
     ]).catch(() => {
       if (!failed) { failed = true; setCatalogoError('Error al cargar catálogos. Los dropdowns pueden estar vacíos.'); }
     });
   }, []);
+
+  // Auto-detect plantilla when editing a product with existing attributes
+  useEffect(() => {
+    if (!producto?.atributosValores?.length || plantillas.length === 0 || selectedPlantillaId) return;
+    const attrIds = new Set(producto.atributosValores.map(av => av.atributoId));
+    const match = plantillas.find(p =>
+      p.atributos.length > 0 && p.atributos.every(pa => attrIds.has(pa.atributoId))
+    );
+    if (match) {
+      setSelectedPlantillaId(match.id);
+    }
+  }, [producto, plantillas, selectedPlantillaId]);
+
+  const handlePlantillaChange = (plantillaId: string) => {
+    setSelectedPlantillaId(plantillaId);
+    if (!plantillaId) {
+      updateField('atributos', {});
+      return;
+    }
+    const plantilla = plantillas.find(p => p.id === plantillaId);
+    if (plantilla) {
+      const newAttrs: Record<string, string> = {};
+      for (const pa of plantilla.atributos) {
+        // Keep existing value if available, otherwise empty
+        newAttrs[pa.atributoId] = form.atributos[pa.atributoId] || '';
+      }
+      updateField('atributos', newAttrs);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -151,13 +190,173 @@ export default function ProductoForm({ empresaId, producto }: Props) {
             </select>
           </Field>
         )}
+        {isEditing && form.tieneVariantes && (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 flex items-center gap-2">
+            <svg className="h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p className="text-xs text-blue-700">Las variantes se gestionan desde el <strong>detalle del producto</strong>.</p>
+          </div>
+        )}
+        {isEditing && form.esCombo && (
+          <div className="rounded-lg bg-purple-50 border border-purple-200 p-3 flex items-center gap-2">
+            <svg className="h-4 w-4 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+            <p className="text-xs text-purple-700">Los componentes del combo se gestionan desde el <strong>detalle del producto</strong>.</p>
+          </div>
+        )}
       </Section>
+
+      {/* Dimensiones */}
+      <Section title="Dimensiones (cm)" defaultOpen={false}>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Largo">
+            <input className={inputClass} type="number" step="0.1" value={form.dimensiones?.largo ?? ''} onChange={(e) => updateField('dimensiones', { ...(form.dimensiones || {}), largo: e.target.value ? parseFloat(e.target.value) : 0 })} placeholder="0.0" />
+          </Field>
+          <Field label="Ancho">
+            <input className={inputClass} type="number" step="0.1" value={form.dimensiones?.ancho ?? ''} onChange={(e) => updateField('dimensiones', { ...(form.dimensiones || {}), ancho: e.target.value ? parseFloat(e.target.value) : 0 })} placeholder="0.0" />
+          </Field>
+          <Field label="Alto">
+            <input className={inputClass} type="number" step="0.1" value={form.dimensiones?.alto ?? ''} onChange={(e) => updateField('dimensiones', { ...(form.dimensiones || {}), alto: e.target.value ? parseFloat(e.target.value) : 0 })} placeholder="0.0" />
+          </Field>
+        </div>
+      </Section>
+
+      {/* Atributos (via Plantilla) */}
+      {!form.tieneVariantes && !form.esCombo && plantillas.length > 0 && (
+        <Section title="Atributos" defaultOpen={isEditing && Object.keys(form.atributos).length > 0}>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Plantilla de Atributos</label>
+            <select className={selectClass} value={selectedPlantillaId} onChange={e => handlePlantillaChange(e.target.value)}>
+              <option value="">Ninguna (sin plantilla)</option>
+              {plantillas.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.icono ? `${p.icono} ` : ''}{p.nombre} ({p.atributos.length} atributos)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedPlantilla && (
+            <>
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5">
+                <p className="text-xs text-blue-700">
+                  <strong>{selectedPlantilla.atributos.length}</strong> atributos
+                  {selectedPlantilla.atributos.filter(pa => pa.requeridoOverride ?? pa.atributo.requerido).length > 0 &&
+                    <> — <strong>{selectedPlantilla.atributos.filter(pa => pa.requeridoOverride ?? pa.atributo.requerido).length}</strong> requeridos</>
+                  }
+                  . Complete los valores para guardar.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {selectedPlantilla.atributos
+                  .sort((a, b) => a.orden - b.orden)
+                  .map(pa => {
+                    const attr = pa.atributo;
+                    const valores = pa.valoresOverride?.length ? pa.valoresOverride : attr.valores;
+                    const esRequerido = pa.requeridoOverride ?? attr.requerido;
+
+                    return (
+                      <div key={pa.atributoId}>
+                        <label className="mb-1 block text-xs font-medium text-gray-600">
+                          {attr.nombre}
+                          {attr.unidad ? ` (${attr.unidad})` : ''}
+                          {esRequerido && <span className="text-red-500 ml-0.5">*</span>}
+                        </label>
+                        {valores && valores.length > 0 ? (
+                          <select
+                            className={selectClass}
+                            value={form.atributos[pa.atributoId] || ''}
+                            onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
+                          >
+                            <option value="">Seleccionar</option>
+                            {valores.map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        ) : attr.tipo === 'BOOLEAN' ? (
+                          <select
+                            className={selectClass}
+                            value={form.atributos[pa.atributoId] || ''}
+                            onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
+                          >
+                            <option value="">Seleccionar</option>
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                          </select>
+                        ) : attr.tipo === 'NUMERO' ? (
+                          <input
+                            className={inputClass}
+                            type="number"
+                            step="any"
+                            value={form.atributos[pa.atributoId] || ''}
+                            onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
+                            placeholder={`Valor de ${attr.nombre}`}
+                          />
+                        ) : (
+                          <input
+                            className={inputClass}
+                            value={form.atributos[pa.atributoId] || ''}
+                            onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
+                            placeholder={`Valor de ${attr.nombre}`}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+        </Section>
+      )}
+
+      {/* Configuración de Precio por Volumen */}
+      {!form.tieneVariantes && !form.esCombo && configsPrecio.length > 0 && (
+        <Section title="Precio por Volumen" defaultOpen={!!form.configuracionPrecioId}>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Configuración de Precio</label>
+            <select
+              className={selectClass}
+              value={form.configuracionPrecioId}
+              onChange={e => updateField('configuracionPrecioId', e.target.value)}
+            >
+              <option value="">Sin configuración</option>
+              {configsPrecio.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre} ({c.niveles.length} niveles)</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] text-gray-400">Al asignar una configuración, se crearán niveles de precio automáticamente.</p>
+          </div>
+
+          {/* Preview de niveles */}
+          {form.configuracionPrecioId && (() => {
+            const selected = configsPrecio.find(c => c.id === form.configuracionPrecioId);
+            if (!selected || selected.niveles.length === 0) return null;
+            return (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-[10px] font-medium uppercase text-gray-400 mb-2">Vista previa de niveles</p>
+                <div className="space-y-1">
+                  {selected.niveles.sort((a, b) => a.orden - b.orden).map((n, i) => (
+                    <div key={n.id} className="flex items-center gap-2 text-xs">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#437EFF] text-[9px] font-bold text-white">{i + 1}</span>
+                      <span className="font-medium text-gray-700">{n.nombre}</span>
+                      <span className="text-gray-400">
+                        {n.cantidadMinima}{n.cantidadMaxima ? `-${n.cantidadMaxima}` : '+'} unid.
+                      </span>
+                      <span className="text-green-600 font-medium">
+                        {n.porcentajeDesc != null ? `${n.porcentajeDesc}% desc.` : 'Precio fijo'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </Section>
+      )}
 
       {/* Impuestos y Marketplace */}
       <Section title="Impuestos y Marketplace" defaultOpen={false}>
+        <p className="text-[10px] text-gray-400 -mt-1 mb-3">Vacío = usa el IGV global de la empresa. Solo llena si este producto tiene una tasa diferente.</p>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="IGV %">
-            <input className={inputClass} type="number" step="0.01" value={form.impuestoPorcentaje} onChange={(e) => updateField('impuestoPorcentaje', e.target.value)} />
+          <Field label="IGV % (personalizado)">
+            <input className={inputClass} type="number" step="0.01" value={form.impuestoPorcentaje} onChange={(e) => updateField('impuestoPorcentaje', e.target.value)} placeholder="Usa IGV global" />
           </Field>
           <Field label="Descuento Máximo %">
             <input className={inputClass} type="number" step="0.01" value={form.descuentoMaximo} onChange={(e) => updateField('descuentoMaximo', e.target.value)} />

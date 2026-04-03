@@ -3,16 +3,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Producto, ProductoFiltros, PaginationMeta } from '@/core/types/producto';
 import * as productoService from '../services/producto-service';
-
-const DEFAULT_FILTROS: ProductoFiltros = {
-  page: 1,
-  limit: 10,
-};
+import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 export function useProductos() {
+  const { sedes } = useEmpresa();
+  const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
+
   const [productos, setProductos] = useState<Producto[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [filtros, setFiltros] = useState<ProductoFiltros>(DEFAULT_FILTROS);
+  const [filtros, setFiltros] = useState<ProductoFiltros>({ page: 1, limit: 10, sedeId: defaultSede?.id });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +30,8 @@ export function useProductos() {
   }, []);
 
   useEffect(() => {
-    fetchProductos(DEFAULT_FILTROS);
-  }, [fetchProductos]);
+    fetchProductos({ page: 1, limit: 10, sedeId: defaultSede?.id });
+  }, [fetchProductos, defaultSede?.id]);
 
   const updateFiltros = useCallback((partial: Partial<ProductoFiltros>) => {
     setFiltros((prev) => {
@@ -56,10 +55,10 @@ export function useProductos() {
   }, [fetchProductos, filtros]);
 
   const resetFiltros = useCallback(() => {
-    const next = { ...DEFAULT_FILTROS };
+    const next: ProductoFiltros = { page: 1, limit: 10, sedeId: defaultSede?.id };
     setFiltros(next);
     fetchProductos(next);
-  }, [fetchProductos]);
+  }, [fetchProductos, defaultSede?.id]);
 
   return {
     productos,
