@@ -353,15 +353,42 @@ export default function ProductoForm({ empresaId, producto }: Props) {
 
       {/* Impuestos y Marketplace */}
       <Section title="Impuestos y Marketplace" defaultOpen={false}>
-        <p className="text-[10px] text-gray-400 -mt-1 mb-3">Vacío = usa el IGV global de la empresa. Solo llena si este producto tiene una tasa diferente.</p>
+        {/* Tipo Afectación IGV */}
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de Afectación IGV (SUNAT)</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(['GRAVADO', 'EXONERADO', 'INAFECTO'] as const).map(tipo => (
+              <button key={tipo} type="button" onClick={() => { updateField('tipoAfectacionIgv', tipo); if (tipo !== 'GRAVADO') updateField('impuestoPorcentaje', ''); }}
+                className={`rounded-lg border p-2 text-center text-xs font-medium transition-colors ${form.tipoAfectacionIgv === tipo ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {tipo === 'GRAVADO' ? 'Gravado' : tipo === 'EXONERADO' ? 'Exonerado' : 'Inafecto'}
+              </button>
+            ))}
+          </div>
+          {form.tipoAfectacionIgv !== 'GRAVADO' && (
+            <p className="mt-1 text-[10px] text-amber-600">
+              {form.tipoAfectacionIgv === 'EXONERADO' ? 'Producto exonerado de IGV. No se cobrará impuesto.' : 'Producto inafecto al IGV. No está sujeto al impuesto.'}
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <Field label="IGV % (personalizado)">
-            <input className={inputClass} type="number" step="0.01" value={form.impuestoPorcentaje} onChange={(e) => updateField('impuestoPorcentaje', e.target.value)} placeholder="Usa IGV global" />
+            <input className={inputClass} type="number" step="0.01" value={form.impuestoPorcentaje}
+              onChange={(e) => updateField('impuestoPorcentaje', e.target.value)}
+              placeholder={form.tipoAfectacionIgv === 'GRAVADO' ? 'Usa IGV global' : '0'}
+              disabled={form.tipoAfectacionIgv !== 'GRAVADO'} />
           </Field>
           <Field label="Descuento Máximo %">
             <input className={inputClass} type="number" step="0.01" value={form.descuentoMaximo} onChange={(e) => updateField('descuentoMaximo', e.target.value)} />
           </Field>
         </div>
+
+        {/* ICBPER */}
+        <label className="flex items-center gap-2 text-sm mt-2">
+          <input type="checkbox" checked={form.aplicaIcbper || false} onChange={(e) => updateField('aplicaIcbper', e.target.checked)}
+            className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+          <span>Aplica ICBPER (bolsa plástica) — S/ 0.50/unidad</span>
+        </label>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.visibleMarketplace} onChange={(e) => updateField('visibleMarketplace', e.target.checked)}

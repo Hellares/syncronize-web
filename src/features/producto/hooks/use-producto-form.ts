@@ -27,6 +27,8 @@ interface FormState {
   dimensiones: Record<string, number> | null;
   atributos: Record<string, string>;
   configuracionPrecioId: string;
+  tipoAfectacionIgv: string;
+  aplicaIcbper: boolean;
 }
 
 const INITIAL_STATE: FormState = {
@@ -50,6 +52,8 @@ const INITIAL_STATE: FormState = {
   dimensiones: null,
   atributos: {},
   configuracionPrecioId: '',
+  tipoAfectacionIgv: 'GRAVADO',
+  aplicaIcbper: false,
 };
 
 export function useProductoForm(empresaId: string, producto?: Producto | null) {
@@ -77,6 +81,8 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       sedesIds: producto.stocksPorSede?.map((s) => s.sedeId) || [],
       dimensiones: producto.dimensiones || null,
       configuracionPrecioId: producto.configuracionPrecioId || '',
+      tipoAfectacionIgv: (producto as any).tipoAfectacionIgv || 'GRAVADO',
+      aplicaIcbper: (producto as any).aplicaIcbper || false,
       atributos: (() => {
         const map: Record<string, string> = {};
         producto.atributosValores?.forEach(av => { map[av.atributoId] = av.valor; });
@@ -127,6 +133,8 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       sedesIds: form.sedesIds.length > 0 ? form.sedesIds : undefined,
       dimensiones: form.dimensiones && Object.values(form.dimensiones).some(v => v) ? form.dimensiones : undefined,
       configuracionPrecioId: form.configuracionPrecioId || undefined,
+      tipoAfectacionIgv: form.tipoAfectacionIgv,
+      aplicaIcbper: form.aplicaIcbper || undefined,
       atributosEstructurados: (() => {
         const entries = Object.entries(form.atributos).filter(([, v]) => v.trim());
         return entries.length > 0 ? entries.map(([atributoId, valor]) => ({ atributoId, valor: valor.trim() })) : undefined;

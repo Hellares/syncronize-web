@@ -176,6 +176,8 @@ export interface CreateProductoDto {
   videoUrl?: string;
   impuestoPorcentaje?: number;
   descuentoMaximo?: number;
+  tipoAfectacionIgv?: string;
+  aplicaIcbper?: boolean;
   visibleMarketplace?: boolean;
   destacado?: boolean;
   tieneVariantes?: boolean;
