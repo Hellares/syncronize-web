@@ -11,17 +11,22 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Build-arg parametrizable: la imagen de beta se construye con la URL
+# del backend beta, la de prod con la URL prod. Sin esto la URL queda
+# inlineada por Next.js y la env var en runtime es ignorada.
+ARG NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 # Producción
 FROM base AS runner
 WORKDIR /app
+ARG NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=https://saas.syncronize.net.pe/api
-ENV API_URL=https://saas.syncronize.net.pe/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
