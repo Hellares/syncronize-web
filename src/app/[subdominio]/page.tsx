@@ -7,6 +7,15 @@ import { ScrollReveal } from '@/components/tienda/ScrollReveal';
 import { notFound } from 'next/navigation';
 import { DEFAULT_COLORS, lighten, alpha, TiendaColors } from '@/lib/colors';
 
+/// Desactiva el Full Route Cache de Next.js para que cada visita
+/// llame al backend. Sin esto, una página generada con datos vivos
+/// queda "congelada" indefinidamente cuando la regeneración tira
+/// 404 (la empresa fue eliminada): Next.js conserva la versión
+/// anterior (stale-while-error). Ya nos pasó con `/jtorres` que
+/// seguía mostrando productos/videos/colores eliminados.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface Props {
   params: Promise<{ subdominio: string }>;
 }
@@ -46,6 +55,31 @@ export default async function TiendaPage({ params }: Props) {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Pagina no disponible</h1>
             <p className="text-gray-500 mb-6">El periodo de prueba gratuito de esta tienda ha finalizado. El propietario debe actualizar su plan para reactivar la pagina web.</p>
+            <a href="https://syncronize.com" className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+              Powered by Syncronize
+            </a>
+          </div>
+        </div>
+      );
+    }
+    // 404 explícito: la empresa no existe o no está visible en
+    // marketplace. Mostramos página clara en vez de notFound() —
+    // así el usuario que tiene el link viejo entiende qué pasó
+    // (la tienda fue eliminada / desactivada).
+    if (error?.status === 404) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+              <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Tienda no disponible</h1>
+            <p className="text-gray-500 mb-6">
+              La tienda <span className="font-semibold text-gray-700">/{subdominio}</span> no existe
+              o ya no está visible en el marketplace.
+            </p>
             <a href="https://syncronize.com" className="text-blue-500 hover:text-blue-600 text-sm font-medium">
               Powered by Syncronize
             </a>
