@@ -6,6 +6,10 @@ import type {
   CreateTransferenciasMultiplesDto,
   TransferenciaFiltros,
   PaginatedResponse,
+  TransferenciaIncidencia,
+  RecibirTransferenciaConIncidenciasDto,
+  ResolverIncidenciaDto,
+  IncidenciaItemDto,
 } from '@/core/types/stock';
 
 function buildTransferenciaParams(filtros: TransferenciaFiltros): string {
@@ -65,5 +69,33 @@ export async function cancelarTransferencia(id: string, motivo: string): Promise
 
 export async function procesarCompletoTransferencia(id: string, data?: { ubicacion?: string; observaciones?: string }): Promise<TransferenciaStock> {
   const res = await apiClient.put<TransferenciaStock>(TRANSFERENCIA_ENDPOINTS.PROCESAR_COMPLETO(id), data);
+  return res.data;
+}
+
+// --- Incidencias (F5) ---
+
+export async function recibirConIncidencias(id: string, data: RecibirTransferenciaConIncidenciasDto): Promise<TransferenciaStock> {
+  const res = await apiClient.post<TransferenciaStock>(TRANSFERENCIA_ENDPOINTS.RECIBIR_CON_INCIDENCIAS(id), data);
+  return res.data;
+}
+
+export async function getIncidencias(filtros?: { resuelto?: boolean; tipo?: string; sedeId?: string; transferenciaId?: string }): Promise<TransferenciaIncidencia[]> {
+  const params = new URLSearchParams();
+  if (filtros?.resuelto !== undefined) params.set('resuelto', String(filtros.resuelto));
+  if (filtros?.tipo) params.set('tipo', filtros.tipo);
+  if (filtros?.sedeId) params.set('sedeId', filtros.sedeId);
+  if (filtros?.transferenciaId) params.set('transferenciaId', filtros.transferenciaId);
+  const q = params.toString();
+  const res = await apiClient.get(`${TRANSFERENCIA_ENDPOINTS.INCIDENCIAS}${q ? `?${q}` : ''}`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+export async function resolverIncidencia(incidenciaId: string, data: ResolverIncidenciaDto): Promise<TransferenciaIncidencia> {
+  const res = await apiClient.post<TransferenciaIncidencia>(TRANSFERENCIA_ENDPOINTS.RESOLVER_INCIDENCIA(incidenciaId), data);
+  return res.data;
+}
+
+export async function crearIncidenciaPosterior(transferenciaId: string, data: IncidenciaItemDto & { itemId: string; observaciones?: string }): Promise<TransferenciaIncidencia> {
+  const res = await apiClient.post<TransferenciaIncidencia>(TRANSFERENCIA_ENDPOINTS.CREAR_INCIDENCIA(transferenciaId), data);
   return res.data;
 }

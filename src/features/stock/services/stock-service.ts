@@ -2,7 +2,6 @@ import { apiClient } from '@/core/api/client';
 import { STOCK_ENDPOINTS } from '@/core/api/endpoints';
 import type {
   ProductoStock,
-  MovimientoStock,
   KardexResponse,
   AlertasResponse,
   AjustarStockDto,
@@ -25,6 +24,7 @@ import type {
   AjusteMasivoPreciosDto,
   VerificacionPreciosFiltros,
   VerificacionPreciosResponse,
+  MonitorResponse,
 } from '@/core/types/stock';
 
 function buildStockParams(filtros: StockFiltros): string {
@@ -38,10 +38,19 @@ function buildStockParams(filtros: StockFiltros): string {
 function buildMovimientoParams(filtros: MovimientoFiltros): string {
   const params = new URLSearchParams();
   if (filtros.limit) params.set('limit', String(filtros.limit));
+  if (filtros.offset) params.set('offset', String(filtros.offset));
   if (filtros.tipo) params.set('tipo', filtros.tipo);
   if (filtros.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
   if (filtros.fechaHasta) params.set('fechaHasta', filtros.fechaHasta);
+  if (filtros.documento) params.set('documento', filtros.documento);
   return params.toString();
+}
+
+/** Export Excel del kardex (mismos filtros que el listado) */
+export async function exportMovimientos(id: string, filtros: MovimientoFiltros): Promise<Blob> {
+  const query = buildMovimientoParams(filtros);
+  const res = await apiClient.get(`${STOCK_ENDPOINTS.MOVIMIENTOS(id)}/export?${query}`, { responseType: 'blob' });
+  return res.data;
 }
 
 function buildReporteParams(filtros: ReporteFiltros): string {
@@ -211,6 +220,27 @@ export async function getPendientesPrecio(sedeId: string, page = 1, limit = 20):
 export async function getListosVenta(sedeId: string, page = 1, limit = 20): Promise<PaginatedResponse<ProductoStock>> {
   const res = await apiClient.get(`${STOCK_ENDPOINTS.LISTOS_VENTA(sedeId)}?page=${page}&limit=${limit}`);
   return res.data;
+}
+
+// --- Monitor + bulk ops (F5) ---
+
+export async function getMonitor(sedeId?: string): Promise<MonitorResponse> {
+  const params = sedeId ? `?sedeId=${sedeId}` : '';
+  const res = await apiClient.get<MonitorResponse>(`${STOCK_ENDPOINTS.MONITOR}${params}`);
+  return res.data;
+}
+
+/** OJO: marketplace usa productoIds (IDs de Producto); ubicación e IGV usan productoStockIds */
+export async function bulkMarketplace(productoIds: string[], visible: boolean): Promise<void> {
+  await apiClient.patch(STOCK_ENDPOINTS.BULK_MARKETPLACE, { productoIds, visible });
+}
+
+export async function bulkUbicacion(productoStockIds: string[], ubicacion: string): Promise<void> {
+  await apiClient.patch(STOCK_ENDPOINTS.BULK_UBICACION, { productoStockIds, ubicacion });
+}
+
+export async function bulkPrecioIgv(productoStockIds: string[], precioIncluyeIgv: boolean): Promise<void> {
+  await apiClient.patch(STOCK_ENDPOINTS.BULK_PRECIO_IGV, { productoStockIds, precioIncluyeIgv });
 }
 
 // --- Reportes ---

@@ -18,13 +18,16 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
+  const [documento, setDocumento] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const applyFilters = () => {
     updateFiltros({
       fechaDesde: fechaDesde || undefined,
       fechaHasta: fechaHasta || undefined,
       tipo: (tipoFiltro as TipoMovimientoStock) || undefined,
+      documento: documento || undefined,
     });
   };
 
@@ -32,8 +35,30 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
     setFechaDesde('');
     setFechaHasta('');
     setTipoFiltro('');
-    updateFiltros({ fechaDesde: undefined, fechaHasta: undefined, tipo: undefined });
+    setDocumento('');
+    updateFiltros({ fechaDesde: undefined, fechaHasta: undefined, tipo: undefined, documento: undefined });
   };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const stockService = await import('@/features/stock/services/stock-service');
+      const blob = await stockService.exportMovimientos(id, filtros);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kardex_${id}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silencioso
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Valorización total del filtro actual (suma de |valorMovimiento| de entradas)
+  const valorizacion = movimientos.reduce((acc, m) => acc + (m.valorMovimiento != null ? Number(m.valorMovimiento) : 0), 0);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -52,6 +77,13 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
           Filtros
         </button>
         <span className="text-xs text-gray-500">{movimientos.length} movimientos</span>
+        {valorizacion > 0 && (
+          <span className="text-xs text-gray-500">· Valorización: <strong className="text-gray-700">S/ {valorizacion.toFixed(2)}</strong></span>
+        )}
+        <button onClick={handleExport} disabled={isExporting || movimientos.length === 0}
+          className="ml-auto rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+          {isExporting ? 'Exportando...' : '⬇ Excel'}
+        </button>
       </div>
 
       {/* Filters panel */}
@@ -75,6 +107,11 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
                 <option value="">Todos</option>
                 {MOVEMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Documento</label>
+              <input value={documento} onChange={e => setDocumento(e.target.value)} placeholder="N° comprobante..."
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
             </div>
             <button onClick={applyFilters} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
               Aplicar
@@ -136,7 +173,9 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
                 <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3 text-center">Anterior</th>
                 <th className="px-4 py-3 text-center">Cantidad</th>
-                <th className="px-4 py-3 text-center">Nuevo</th>
+                <th className="px-4 py-3 text-center">Saldo</th>
+                <th className="px-4 py-3 text-right">C.Unit</th>
+                <th className="px-4 py-3 text-right">Valor</th>
                 <th className="hidden px-4 py-3 md:table-cell">Documento</th>
                 <th className="hidden px-4 py-3 lg:table-cell">Usuario</th>
                 <th className="hidden px-4 py-3 md:table-cell">Motivo</th>
@@ -159,6 +198,13 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center font-medium">{m.cantidadNueva}</td>
+                    {/* Valoración: movimientos previos a la mig 20260521 no tienen costo → "—" */}
+                    <td className="px-4 py-3 text-right text-xs text-gray-600">
+                      {m.precioCostoUnitario != null ? `S/ ${Number(m.precioCostoUnitario).toFixed(2)}` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-600">
+                      {m.valorMovimiento != null ? `S/ ${Number(m.valorMovimiento).toFixed(2)}` : '—'}
+                    </td>
                     <td className="hidden px-4 py-3 text-xs text-gray-500 md:table-cell">
                       {m.tipoDocumento && <span>{m.tipoDocumento}{m.numeroDocumento ? ` ${m.numeroDocumento}` : ''}</span>}
                       {m.ventaCodigo && <span className="text-purple-600">Venta: {m.ventaCodigo}</span>}

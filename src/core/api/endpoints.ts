@@ -93,6 +93,11 @@ export const STOCK_ENDPOINTS = {
   PENDIENTES_PRECIO: (sedeId: string) => `/producto-stock/sede/${sedeId}/pendientes-precio`,
   LISTOS_VENTA: (sedeId: string) => `/producto-stock/sede/${sedeId}/listos-venta`,
   ESTADISTICAS_PRECIOS: '/producto-stock/estadisticas-precios',
+  // Monitor + bulk ops (F5)
+  MONITOR: '/producto-stock/monitor',
+  BULK_MARKETPLACE: '/producto-stock/bulk/marketplace',
+  BULK_UBICACION: '/producto-stock/bulk/ubicacion',
+  BULK_PRECIO_IGV: '/producto-stock/bulk/precio-igv',
 } as const;
 
 export const TRANSFERENCIA_ENDPOINTS = {
@@ -106,4 +111,9 @@ export const TRANSFERENCIA_ENDPOINTS = {
   RECHAZAR: (id: string) => `/transferencias-stock/${id}/rechazar`,
   CANCELAR: (id: string) => `/transferencias-stock/${id}/cancelar`,
   PROCESAR_COMPLETO: (id: string) => `/transferencias-stock/${id}/procesar-completo`,
+  // Incidencias (F5)
+  RECIBIR_CON_INCIDENCIAS: (id: string) => `/transferencias-stock/${id}/recibir-con-incidencias`,
+  INCIDENCIAS: '/transferencias-stock/incidencias',
+  RESOLVER_INCIDENCIA: (incidenciaId: string) => `/transferencias-stock/incidencias/${incidenciaId}/resolver`,
+  CREAR_INCIDENCIA: (id: string) => `/transferencias-stock/${id}/crear-incidencia`,
 } as const;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTransferenciaDetail } from '@/features/stock/hooks/use-transferencia-detail';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 import TransferenciaEstadoBadge from '@/features/stock/components/transferencias/TransferenciaEstadoBadge';
+import RecibirConIncidenciasDialog from '@/features/stock/components/RecibirConIncidenciasDialog';
 
 function formatDate(d?: string) {
   if (!d) return '-';
@@ -20,6 +21,7 @@ export default function TransferenciaDetailPage({ params }: { params: Promise<{ 
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [showRechazo, setShowRechazo] = useState(false);
   const [showCancelar, setShowCancelar] = useState(false);
+  const [showIncidencias, setShowIncidencias] = useState(false);
 
   if (isLoading) {
     return (
@@ -150,11 +152,24 @@ export default function TransferenciaDetailPage({ params }: { params: Promise<{ 
               </>
             )}
             {estado === 'EN_TRANSITO' && (
-              <button onClick={recibir} disabled={isSubmitting} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
-                Marcar como Recibida
-              </button>
+              <>
+                <button onClick={recibir} disabled={isSubmitting} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
+                  Marcar como Recibida
+                </button>
+                <button onClick={() => setShowIncidencias(true)} disabled={isSubmitting}
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50">
+                  ⚠ Recibir con incidencias
+                </button>
+              </>
             )}
           </div>
+
+          <RecibirConIncidenciasDialog
+            isOpen={showIncidencias}
+            transferencia={transferencia}
+            onSuccess={() => { setShowIncidencias(false); window.location.reload(); }}
+            onClose={() => setShowIncidencias(false)}
+          />
 
           {/* Rechazo dialog inline */}
           {showRechazo && (

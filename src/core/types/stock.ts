@@ -170,6 +170,10 @@ export interface MovimientoStock {
   compraCodigo?: string;
   transferenciaCodigo?: string;
   devolucionCodigo?: string;
+  // Valoración (snapshot al momento del movimiento; null en movs previos a la mig de valoración)
+  precioCostoUnitario?: number | null;
+  valorMovimiento?: number | null;
+  costoManoObra?: number | null;
   creadoEn: string;
 }
 
@@ -233,6 +237,124 @@ export interface TransferenciaStock {
   sedeDestino?: { id: string; nombre: string; codigo: string };
   items?: TransferenciaItem[];
 }
+
+// --- Monitor de productos (F5) ---
+
+export interface MonitorEstadisticas {
+  totalProductos: number;
+  totalProductoStock: number;
+  conStock: number;
+  sinStock: number;
+  bajoMinimo: number;
+  conPrecio: number;
+  sinPrecio: number;
+  conPrecioCosto: number;
+  sinPrecioCosto: number;
+  conUbicacion: number;
+  sinUbicacion: number;
+  visibleMarketplace: number;
+  noVisibleMarketplace: number;
+  precioIncluyeIgv: number;
+  precioNoIncluyeIgv: number;
+  enOferta: number;
+  conImagen: number;
+  sinImagen: number;
+  conBarcode: number;
+  sinBarcode: number;
+  porcentajeCatalogoCompleto: number;
+  listosParaVenta: number;
+}
+
+export interface MonitorProductoAlerta {
+  /** productoStock ID */
+  id: string;
+  productoId: string;
+  nombre: string;
+  codigoEmpresa?: string;
+  sedeNombre?: string;
+  ubicacion?: string;
+  stockActual: number;
+  precio?: number;
+}
+
+export interface MonitorResponse {
+  estadisticas: MonitorEstadisticas;
+  alertas: Record<string, MonitorProductoAlerta[]>;
+}
+
+// --- Incidencias de transferencias (F5) ---
+
+export type TipoIncidenciaTransferencia =
+  | 'FALTANTE' | 'DANADO' | 'CALIDAD_RECHAZADA' | 'EXCEDENTE' | 'EMPAQUE_DANADO' | 'PRODUCTO_INCORRECTO';
+
+export type AccionResolucionIncidencia =
+  | 'DEVOLVER_ORIGEN' | 'DAR_DE_BAJA' | 'REPARAR' | 'ACEPTAR_CON_DESCUENTO' | 'RECLAMAR_PROVEEDOR';
+
+export interface TransferenciaIncidencia {
+  id: string;
+  empresaId: string;
+  transferenciaId: string;
+  transferenciaItemId: string;
+  tipo: TipoIncidenciaTransferencia;
+  cantidadAfectada: number;
+  descripcion?: string | null;
+  evidenciasUrls?: string[];
+  observaciones?: string | null;
+  resuelto: boolean;
+  fechaResolucion?: string | null;
+  accionTomada?: string | null;
+  reportadoPor?: string;
+  reportadoPorNombre?: string;
+  resueltoPorNombre?: string;
+  creadoEn: string;
+  transferencia?: { id: string; codigo: string; sedeOrigen?: { nombre: string }; sedeDestino?: { nombre: string } };
+  item?: { id: string; productoId?: string; varianteId?: string; producto?: { nombre: string }; variante?: { nombre: string } };
+}
+
+export interface IncidenciaItemDto {
+  tipo: TipoIncidenciaTransferencia;
+  cantidadAfectada: number;
+  descripcion?: string;
+  evidenciasUrls?: string[];
+}
+
+export interface RecibirItemConIncidenciasDto {
+  itemId: string;
+  /** Cantidad recibida en buen estado (vendible). + suma(incidencias) debe ser ≤ enviada */
+  cantidadRecibidaBuenEstado: number;
+  incidencias?: IncidenciaItemDto[];
+  ubicacion?: string;
+  observaciones?: string;
+}
+
+export interface RecibirTransferenciaConIncidenciasDto {
+  items: RecibirItemConIncidenciasDto[];
+  observacionesGenerales?: string;
+  /** true = marca la transferencia como completamente recibida */
+  marcarComoCompletada?: boolean;
+}
+
+export interface ResolverIncidenciaDto {
+  accion: AccionResolucionIncidencia;
+  observaciones?: string;
+}
+
+export const TIPO_INCIDENCIA_LABEL: Record<TipoIncidenciaTransferencia, string> = {
+  FALTANTE: 'Faltante',
+  DANADO: 'Dañado',
+  CALIDAD_RECHAZADA: 'Calidad rechazada',
+  EXCEDENTE: 'Excedente',
+  EMPAQUE_DANADO: 'Empaque dañado',
+  PRODUCTO_INCORRECTO: 'Producto incorrecto',
+};
+
+export const ACCION_RESOLUCION_LABEL: Record<AccionResolucionIncidencia, string> = {
+  DEVOLVER_ORIGEN: 'Devolver a origen (transferencia inversa)',
+  DAR_DE_BAJA: 'Dar de baja (eliminar del inventario)',
+  REPARAR: 'Reparar (mover a garantía)',
+  ACEPTAR_CON_DESCUENTO: 'Aceptar con descuento (mover a vendible)',
+  RECLAMAR_PROVEEDOR: 'Reclamar a proveedor (gestión externa)',
+};
 
 // --- Alertas ---
 
@@ -480,9 +602,12 @@ export interface StockFiltros {
 
 export interface MovimientoFiltros {
   limit?: number;
+  offset?: number;
   tipo?: TipoMovimientoStock;
   fechaDesde?: string;
   fechaHasta?: string;
+  /** Búsqueda parcial por número de documento */
+  documento?: string;
 }
 
 export interface TransferenciaFiltros {
