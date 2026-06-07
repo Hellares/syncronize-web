@@ -20,6 +20,11 @@ function buildQueryParams(filtros: ProductoFiltros): string {
   if (filtros.stockBajo !== undefined) params.set('stockBajo', String(filtros.stockBajo));
   if (filtros.soloProductos) params.set('soloProductos', 'true');
   if (filtros.soloCombos) params.set('soloCombos', 'true');
+  // Booleans tri-estado: el backend los declara como string 'true'|'false' (gotcha enableImplicitConversion)
+  if (filtros.esInsumo !== undefined) params.set('esInsumo', String(filtros.esInsumo));
+  if (filtros.isActive !== undefined) params.set('isActive', String(filtros.isActive));
+  if (filtros.enLiquidacion) params.set('enLiquidacion', 'true');
+  if (filtros.soloEliminados) params.set('soloEliminados', 'true');
   if (filtros.orden) params.set('orden', filtros.orden);
   return params.toString();
 }
@@ -47,6 +52,18 @@ export async function updateProducto(id: string, data: UpdateProductoDto): Promi
 
 export async function deleteProducto(id: string): Promise<void> {
   await apiClient.delete(`/productos/${id}`);
+}
+
+/** Restaura un producto de la papelera (soft-delete revertido) */
+export async function restaurarProducto(id: string): Promise<Producto> {
+  const res = await apiClient.patch<Producto>(`/productos/${id}/restaurar`);
+  return res.data;
+}
+
+/** Activa/desactiva el producto (toggle isActive) */
+export async function toggleActiveProducto(id: string): Promise<Producto> {
+  const res = await apiClient.patch<Producto>(`/productos/${id}/toggle-active`);
+  return res.data;
 }
 
 export async function downloadBulkTemplate(): Promise<Blob> {

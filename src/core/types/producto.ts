@@ -40,6 +40,9 @@ export interface AtributoValor {
 
 // --- Stock por Sede ---
 
+export type MotivoLiquidacion =
+  | 'FUERA_DE_CAMPANA' | 'SIN_ROTACION' | 'PROXIMO_A_VENCER' | 'DESCONTINUADO' | 'OTRO';
+
 export interface StockPorSedeInfo {
   sedeId: string;
   sedeNombre: string;
@@ -54,6 +57,12 @@ export interface StockPorSedeInfo {
   enOferta: boolean;
   fechaInicioOferta?: string;
   fechaFinOferta?: string;
+  enLiquidacion?: boolean;
+  precioLiquidacion?: number;
+  motivoLiquidacion?: MotivoLiquidacion;
+  observacionesLiquidacion?: string;
+  fechaInicioLiquidacion?: string;
+  fechaFinLiquidacion?: string;
   precioConfigurado: boolean;
   precioIncluyeIgv?: boolean;
 }
@@ -96,11 +105,14 @@ export interface Producto {
   videoUrl?: string;
   impuestoPorcentaje?: number;
   descuentoMaximo?: number;
+  tipoAfectacionIgv?: 'GRAVADO' | 'EXONERADO' | 'INAFECTO';
+  aplicaIcbper?: boolean;
   visibleMarketplace: boolean;
   destacado: boolean;
   ordenMarketplace?: number;
   tieneVariantes: boolean;
   esCombo: boolean;
+  esInsumo?: boolean;
   tipoPrecioCombo?: 'FIJO' | 'CALCULADO' | 'CALCULADO_CON_DESCUENTO' | null;
   configuracionPrecioId?: string;
   isActive: boolean;
@@ -111,6 +123,8 @@ export interface Producto {
   marca?: ProductoMarca;
   sede?: { id: string; nombre: string };
   unidadMedida?: { id: string; nombre: string; abreviatura?: string };
+  unidadCompra?: { id: string; nombre: string; abreviatura?: string };
+  factorCompra?: number;
   imagenes?: string[];
   archivos?: ProductoArchivo[];
   atributosValores?: AtributoValor[];
@@ -121,11 +135,12 @@ export interface Producto {
 
 // --- Filtros ---
 
+// Valores en minúscula: deben coincidir con el enum OrdenProducto del backend (query-producto.dto.ts)
 export type OrdenProducto =
-  | 'NOMBRE_ASC' | 'NOMBRE_DESC'
-  | 'PRECIO_ASC' | 'PRECIO_DESC'
-  | 'STOCK_ASC' | 'STOCK_DESC'
-  | 'RECIENTES' | 'ANTIGUOS';
+  | 'nombre_asc' | 'nombre_desc'
+  | 'precio_asc' | 'precio_desc'
+  | 'stock_asc' | 'stock_desc'
+  | 'recientes' | 'antiguos';
 
 export interface ProductoFiltros {
   page: number;
@@ -140,6 +155,14 @@ export interface ProductoFiltros {
   stockBajo?: boolean;
   soloProductos?: boolean;
   soloCombos?: boolean;
+  /** true=solo insumos, false=solo no-insumos, undefined=todos */
+  esInsumo?: boolean;
+  /** Solo productos con liquidación activa */
+  enLiquidacion?: boolean;
+  /** Papelera: solo productos eliminados (deletedAt != null) */
+  soloEliminados?: boolean;
+  /** true=activos, false=inactivos, undefined=ambos */
+  isActive?: boolean;
   orden?: OrdenProducto;
 }
 
@@ -182,11 +205,16 @@ export interface CreateProductoDto {
   destacado?: boolean;
   tieneVariantes?: boolean;
   esCombo?: boolean;
+  esInsumo?: boolean;
   tipoPrecioCombo?: 'FIJO' | 'CALCULADO' | 'CALCULADO_CON_DESCUENTO';
   configuracionPrecioId?: string;
   empresaCategoriaId?: string;
   empresaMarcaId?: string;
   unidadMedidaId?: string;
+  /** Unidad de COMPRA (proveedor vende en otra unidad, ej: PAQUETE de 100 BOLSAS). Requiere factorCompra. null = limpiar. */
+  unidadCompraId?: string | null;
+  /** Unidades de venta por 1 unidad de compra (ej: 100). Requerido si unidadCompraId. null = limpiar. */
+  factorCompra?: number | null;
   sedesIds?: string[];
   imagenesIds?: string[];
   atributosEstructurados?: Array<{ atributoId: string; valor: string }>;

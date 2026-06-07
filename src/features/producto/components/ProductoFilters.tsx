@@ -6,21 +6,30 @@ import type { CatalogoItem } from '@/features/catalogo/services/catalogo-service
 import * as catalogoService from '@/features/catalogo/services/catalogo-service';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
+// Tabs alineados con la app Flutter: TODOS (vendibles, sin insumos) / PRODUCTOS / COMBOS / LIQUIDACIÓN / INSUMOS
 const TABS = [
   { label: 'Todos', key: 'todos' },
   { label: 'Productos', key: 'productos' },
   { label: 'Combos', key: 'combos' },
+  { label: 'Liquidación', key: 'liquidacion' },
+  { label: 'Insumos', key: 'insumos' },
+] as const;
+
+const ESTADO_CHIPS = [
+  { label: 'Activos', value: true },
+  { label: 'Inactivos', value: false },
+  { label: 'Todos', value: undefined },
 ] as const;
 
 const ORDEN_OPTIONS: { label: string; value: OrdenProducto }[] = [
-  { label: 'Nombre A-Z', value: 'NOMBRE_ASC' },
-  { label: 'Nombre Z-A', value: 'NOMBRE_DESC' },
-  { label: 'Precio menor', value: 'PRECIO_ASC' },
-  { label: 'Precio mayor', value: 'PRECIO_DESC' },
-  { label: 'Stock menor', value: 'STOCK_ASC' },
-  { label: 'Stock mayor', value: 'STOCK_DESC' },
-  { label: 'Más recientes', value: 'RECIENTES' },
-  { label: 'Más antiguos', value: 'ANTIGUOS' },
+  { label: 'Nombre A-Z', value: 'nombre_asc' },
+  { label: 'Nombre Z-A', value: 'nombre_desc' },
+  { label: 'Precio menor', value: 'precio_asc' },
+  { label: 'Precio mayor', value: 'precio_desc' },
+  { label: 'Stock menor', value: 'stock_asc' },
+  { label: 'Stock mayor', value: 'stock_desc' },
+  { label: 'Más recientes', value: 'recientes' },
+  { label: 'Más antiguos', value: 'antiguos' },
 ];
 
 interface Props {
@@ -36,7 +45,11 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
   const [searchLocal, setSearchLocal] = useState(filtros.search || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeTab = filtros.soloCombos ? 'combos' : filtros.soloProductos ? 'productos' : 'todos';
+  const activeTab = filtros.esInsumo === true ? 'insumos'
+    : filtros.enLiquidacion ? 'liquidacion'
+    : filtros.soloCombos ? 'combos'
+    : filtros.soloProductos ? 'productos'
+    : 'todos';
 
   useEffect(() => {
     catalogoService.getCategorias().then(setCategorias).catch(() => {});
@@ -55,9 +68,13 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
   };
 
   const handleTab = (tab: string) => {
-    if (tab === 'productos') onUpdate({ soloProductos: true, soloCombos: false });
-    else if (tab === 'combos') onUpdate({ soloProductos: false, soloCombos: true });
-    else onUpdate({ soloProductos: false, soloCombos: false });
+    // Semántica idéntica a Flutter (productos_page.dart): todos los tabs envían esInsumo=false salvo INSUMOS
+    const base = { soloProductos: false, soloCombos: false, enLiquidacion: undefined, esInsumo: false as boolean };
+    if (tab === 'productos') onUpdate({ ...base, soloProductos: true });
+    else if (tab === 'combos') onUpdate({ ...base, soloCombos: true });
+    else if (tab === 'liquidacion') onUpdate({ ...base, enLiquidacion: true });
+    else if (tab === 'insumos') onUpdate({ ...base, esInsumo: true });
+    else onUpdate(base); // TODOS = vendibles (excluye insumos)
   };
 
   return (
@@ -95,7 +112,24 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
       </div>
 
       {/* Dropdowns row */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        {/* Chips de estado */}
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
+          {ESTADO_CHIPS.map((chip) => (
+            <button
+              key={chip.label}
+              onClick={() => onUpdate({ isActive: chip.value })}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                filtros.isActive === chip.value
+                  ? 'bg-white text-[#004A94] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
         <select
           value={filtros.empresaCategoriaId || ''}
           onChange={(e) => onUpdate({ empresaCategoriaId: e.target.value || undefined })}

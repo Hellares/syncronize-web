@@ -9,9 +9,12 @@ export function useProductos() {
   const { sedes } = useEmpresa();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
 
+  // Defaults alineados con Flutter: tab TODOS = vendibles (sin insumos), estado sin filtrar (ambos)
+  const defaultFiltros: ProductoFiltros = { page: 1, limit: 10, sedeId: defaultSede?.id, esInsumo: false };
+
   const [productos, setProductos] = useState<Producto[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [filtros, setFiltros] = useState<ProductoFiltros>({ page: 1, limit: 10, sedeId: defaultSede?.id });
+  const [filtros, setFiltros] = useState<ProductoFiltros>(defaultFiltros);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +33,7 @@ export function useProductos() {
   }, []);
 
   useEffect(() => {
-    fetchProductos({ page: 1, limit: 10, sedeId: defaultSede?.id });
+    fetchProductos({ page: 1, limit: 10, sedeId: defaultSede?.id, esInsumo: false });
   }, [fetchProductos, defaultSede?.id]);
 
   const updateFiltros = useCallback((partial: Partial<ProductoFiltros>) => {
@@ -55,7 +58,7 @@ export function useProductos() {
   }, [fetchProductos, filtros]);
 
   const resetFiltros = useCallback(() => {
-    const next: ProductoFiltros = { page: 1, limit: 10, sedeId: defaultSede?.id };
+    const next: ProductoFiltros = { page: 1, limit: 10, sedeId: defaultSede?.id, esInsumo: false };
     setFiltros(next);
     fetchProductos(next);
   }, [fetchProductos, defaultSede?.id]);

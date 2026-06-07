@@ -19,10 +19,13 @@ interface FormState {
   destacado: boolean;
   tieneVariantes: boolean;
   esCombo: boolean;
+  esInsumo: boolean;
   tipoPrecioCombo: string;
   empresaCategoriaId: string;
   empresaMarcaId: string;
   unidadMedidaId: string;
+  unidadCompraId: string;
+  factorCompra: string;
   sedesIds: string[];
   dimensiones: Record<string, number> | null;
   atributos: Record<string, string>;
@@ -44,10 +47,13 @@ const INITIAL_STATE: FormState = {
   destacado: false,
   tieneVariantes: false,
   esCombo: false,
+  esInsumo: false,
   tipoPrecioCombo: 'FIJO',
   empresaCategoriaId: '',
   empresaMarcaId: '',
   unidadMedidaId: '',
+  unidadCompraId: '',
+  factorCompra: '',
   sedesIds: [],
   dimensiones: null,
   atributos: {},
@@ -74,15 +80,18 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       destacado: producto.destacado ?? false,
       tieneVariantes: producto.tieneVariantes ?? false,
       esCombo: producto.esCombo ?? false,
+      esInsumo: producto.esInsumo ?? false,
       tipoPrecioCombo: producto.tipoPrecioCombo || 'FIJO',
       empresaCategoriaId: producto.categoria?.id || '',
       empresaMarcaId: producto.marca?.id || '',
       unidadMedidaId: producto.unidadMedida?.id || '',
+      unidadCompraId: producto.unidadCompra?.id || '',
+      factorCompra: producto.factorCompra?.toString() || '',
       sedesIds: producto.stocksPorSede?.map((s) => s.sedeId) || [],
       dimensiones: producto.dimensiones || null,
       configuracionPrecioId: producto.configuracionPrecioId || '',
-      tipoAfectacionIgv: (producto as any).tipoAfectacionIgv || 'GRAVADO',
-      aplicaIcbper: (producto as any).aplicaIcbper || false,
+      tipoAfectacionIgv: producto.tipoAfectacionIgv || 'GRAVADO',
+      aplicaIcbper: producto.aplicaIcbper || false,
       atributos: (() => {
         const map: Record<string, string> = {};
         producto.atributosValores?.forEach(av => { map[av.atributoId] = av.valor; });
@@ -107,6 +116,12 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     if (!form.nombre.trim()) newErrors.nombre = 'El nombre es requerido';
+    if (form.unidadCompraId && (!form.factorCompra || parseFloat(form.factorCompra) <= 0)) {
+      newErrors.factorCompra = 'Indica cuántas unidades de venta trae 1 unidad de compra';
+    }
+    if (form.unidadCompraId && form.unidadCompraId === form.unidadMedidaId) {
+      newErrors.unidadCompraId = 'La unidad de compra debe ser distinta a la unidad de venta';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [form]);
@@ -126,10 +141,14 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       destacado: form.destacado,
       tieneVariantes: form.tieneVariantes,
       esCombo: form.esCombo,
+      esInsumo: form.esInsumo,
       tipoPrecioCombo: form.esCombo ? (form.tipoPrecioCombo as CreateProductoDto['tipoPrecioCombo']) : undefined,
       empresaCategoriaId: form.empresaCategoriaId || undefined,
       empresaMarcaId: form.empresaMarcaId || undefined,
       unidadMedidaId: form.unidadMedidaId || undefined,
+      // null explícito = limpiar en backend (igual que Flutter al colapsar la sección)
+      unidadCompraId: form.unidadCompraId || null,
+      factorCompra: form.unidadCompraId && form.factorCompra ? parseFloat(form.factorCompra) : null,
       sedesIds: form.sedesIds.length > 0 ? form.sedesIds : undefined,
       dimensiones: form.dimensiones && Object.values(form.dimensiones).some(v => v) ? form.dimensiones : undefined,
       configuracionPrecioId: form.configuracionPrecioId || undefined,

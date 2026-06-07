@@ -167,20 +167,66 @@ export default function ProductoForm({ empresaId, producto }: Props) {
         </div>
       </Section>
 
+      {/* Unidad de Compra (disponible para todos los productos, como Flutter) */}
+      <Section title="Unidad de Compra" defaultOpen={!!form.unidadCompraId}>
+          <p className="text-xs text-gray-500">
+            Configúrala si tu proveedor te vende en una unidad distinta a la de venta (ej: compras <strong>PAQUETE</strong> y vendes <strong>BOLSA</strong>).
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Unidad de Compra (opcional)" error={errors.unidadCompraId}>
+              <select className={selectClass} value={form.unidadCompraId}
+                onChange={(e) => { updateField('unidadCompraId', e.target.value); if (!e.target.value) updateField('factorCompra', ''); }}>
+                <option value="">Misma unidad de venta</option>
+                {unidades.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              </select>
+            </Field>
+            {form.unidadCompraId && (
+              <Field label="Factor de conversión *" error={errors.factorCompra}>
+                <input className={inputClass} type="number" step="0.0001" min="0.0001" value={form.factorCompra}
+                  onChange={(e) => updateField('factorCompra', e.target.value)} placeholder="Ej: 100" />
+              </Field>
+            )}
+          </div>
+          {form.unidadCompraId && form.factorCompra && parseFloat(form.factorCompra) > 0 && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5">
+              <p className="text-xs text-blue-700">
+                1 <strong>{unidades.find(u => u.id === form.unidadCompraId)?.nombre || 'unidad de compra'}</strong> = {form.factorCompra} <strong>{unidades.find(u => u.id === form.unidadMedidaId)?.nombre || 'unidades de venta'}</strong>
+              </p>
+            </div>
+          )}
+      </Section>
+
       {/* Tipo */}
       <Section title="Tipo de Producto" defaultOpen={false}>
-        <div className="flex gap-6">
+        <div className="flex flex-wrap gap-6">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.tieneVariantes} onChange={(e) => { updateField('tieneVariantes', e.target.checked); if (e.target.checked) updateField('esCombo', false); }}
               className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
             Tiene Variantes
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.esCombo} onChange={(e) => { updateField('esCombo', e.target.checked); if (e.target.checked) updateField('tieneVariantes', false); }}
+            <input type="checkbox" checked={form.esCombo}
+              onChange={(e) => { updateField('esCombo', e.target.checked); if (e.target.checked) updateField('tieneVariantes', false); }}
               className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
             Es Combo
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.esInsumo}
+              onChange={(e) => {
+                updateField('esInsumo', e.target.checked);
+                // Igual que Flutter: solo deshabilita marketplace/destacado, no restringe combo ni variantes
+                if (e.target.checked) { updateField('visibleMarketplace', false); updateField('destacado', false); }
+              }}
+              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+            Es Insumo (materia prima)
+          </label>
         </div>
+        {form.esInsumo && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 flex items-center gap-2">
+            <svg className="h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p className="text-xs text-amber-700">Los insumos quedan <strong>ocultos del POS, marketplace y carrito</strong> — solo se usan como componentes en fabricación (BOM).</p>
+          </div>
+        )}
         {form.esCombo && (
           <Field label="Tipo Precio Combo">
             <select className={selectClass} value={form.tipoPrecioCombo} onChange={(e) => updateField('tipoPrecioCombo', e.target.value)}>
@@ -391,16 +437,21 @@ export default function ProductoForm({ empresaId, producto }: Props) {
         </label>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.visibleMarketplace} onChange={(e) => updateField('visibleMarketplace', e.target.checked)}
-              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
-            Visible en Marketplace
+            <input type="checkbox" checked={form.visibleMarketplace} disabled={form.esInsumo}
+              onChange={(e) => updateField('visibleMarketplace', e.target.checked)}
+              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF] disabled:opacity-40" />
+            <span className={form.esInsumo ? 'opacity-40' : ''}>Visible en Marketplace</span>
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.destacado} onChange={(e) => updateField('destacado', e.target.checked)}
-              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
-            Producto Destacado
+            <input type="checkbox" checked={form.destacado} disabled={form.esInsumo}
+              onChange={(e) => updateField('destacado', e.target.checked)}
+              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF] disabled:opacity-40" />
+            <span className={form.esInsumo ? 'opacity-40' : ''}>Producto Destacado</span>
           </label>
         </div>
+        {form.esInsumo && (
+          <p className="text-[10px] text-gray-400">Los insumos no se muestran en el marketplace.</p>
+        )}
       </Section>
 
       {/* Sedes */}

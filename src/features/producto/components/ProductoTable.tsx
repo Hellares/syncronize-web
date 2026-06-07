@@ -12,6 +12,7 @@ interface Props {
   canManage?: boolean;
   onPageChange: (page: number) => void;
   onDelete: (producto: Producto) => void;
+  onToggleActive?: (producto: Producto) => void;
 }
 
 function getStockForSede(producto: Producto, sedeId?: string): StockPorSedeInfo {
@@ -29,7 +30,7 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -93,6 +94,12 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           {p.esCombo && (
                             <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">Combo</span>
                           )}
+                          {p.esInsumo && (
+                            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">Insumo</span>
+                          )}
+                          {stock.enLiquidacion && (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Liquidación</span>
+                          )}
                           {p.destacado && (
                             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Destacado</span>
                           )}
@@ -131,13 +138,18 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                     <StockBadge cantidad={stock.cantidad ?? 0} stockMinimo={stock.stockMinimo ?? undefined} />
                   </td>
 
-                  {/* Estado */}
+                  {/* Estado (clickeable si puede gestionar) */}
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
+                    <button
+                      onClick={() => canManage && onToggleActive?.(p)}
+                      disabled={!canManage || !onToggleActive}
+                      title={canManage ? (p.isActive ? 'Click para desactivar' : 'Click para activar') : undefined}
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
+                        p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      } ${canManage && onToggleActive ? 'cursor-pointer hover:ring-1 hover:ring-gray-300' : 'cursor-default'}`}
+                    >
                       {p.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
+                    </button>
                   </td>
 
                   {/* Acciones */}
