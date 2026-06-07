@@ -222,33 +222,73 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     [searchProducts],
   );
 
+  // ── Variantes: selector (los productos con variantes no tienen precio/stock propio) ──
+  const [variantePicker, setVariantePicker] = useState<any | null>(null);
+  const [loadingVariantes, setLoadingVariantes] = useState(false);
+
+  // Precio/flag de la sede activa desde stocksPorSede
+  const stockDeSede = useCallback((stocks?: any[]) => {
+    if (!stocks?.length) return null;
+    return stocks.find((s: any) => s.sedeId === sedeId) ?? stocks[0];
+  }, [sedeId]);
+
   // ── Add product ─────────────────────────────────────────────────────────────
-  const addProductItem = useCallback((producto: any) => {
-    let precio = 0;
-    let precioIncluyeIgv = true; // default POS Perú: el precio en mostrador incluye IGV
-    if (producto.stocksPorSede?.length) {
-      const sedeStock = producto.stocksPorSede.find((s: any) => s.sedeId === sedeId) ?? producto.stocksPorSede[0];
-      precio = sedeStock?.precio ?? 0;
-      precioIncluyeIgv = sedeStock?.precioIncluyeIgv ?? true;
+  const addProductItem = useCallback(async (producto: any) => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowResults(false);
+    setCompatibilidad(null);
+
+    // Producto con variantes → abrir selector (paridad Flutter CotizacionItemSelector)
+    if (producto.tieneVariantes) {
+      if (!producto.variantes?.length) {
+        // La búsqueda no siempre trae las variantes: cargar detalle completo
+        setLoadingVariantes(true);
+        try {
+          const full = await productoService.getProducto(producto.id);
+          setVariantePicker(full);
+        } catch { /* ignore */ } finally { setLoadingVariantes(false); }
+      } else {
+        setVariantePicker(producto);
+      }
+      return;
     }
+
+    const sedeStock = stockDeSede(producto.stocksPorSede);
     const newItem: ItemLinea = {
       key: genKey(),
       productoId: producto.id,
       descripcion: producto.nombre,
       cantidad: 1,
-      precioUnitario: precio,
+      precioUnitario: sedeStock?.precio ?? 0,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
       tipoAfectacion: producto.tipoAfectacion || '10',
       icbper: producto.icbper ?? 0,
-      precioIncluyeIgv,
+      precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
     };
     setItems(prev => [...prev, newItem]);
-    setSearchQuery('');
-    setSearchResults([]);
-    setShowResults(false);
-    setCompatibilidad(null);
-  }, [sedeId]);
+  }, [sedeId, stockDeSede]);
+
+  // ── Add variante seleccionada ───────────────────────────────────────────────
+  const addVarianteItem = useCallback((producto: any, variante: any) => {
+    const sedeStock = stockDeSede(variante.stocksPorSede);
+    const newItem: ItemLinea = {
+      key: genKey(),
+      productoId: producto.id,
+      varianteId: variante.id,
+      descripcion: `${producto.nombre} - ${variante.nombre}`,
+      cantidad: 1,
+      precioUnitario: sedeStock?.precio ?? 0,
+      descuento: 0,
+      porcentajeIGV: producto.impuestoPorcentaje ?? 18,
+      tipoAfectacion: producto.tipoAfectacion || '10',
+      icbper: producto.icbper ?? 0,
+      precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
+    };
+    setItems(prev => [...prev, newItem]);
+    setVariantePicker(null);
+  }, [stockDeSede]);
 
   // ── Add manual item ─────────────────────────────────────────────────────────
   const addManualItem = useCallback(() => {
@@ -610,12 +650,19 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-gray-900">{p.nombre}</p>
                           <p className="text-xs text-gray-500">
-                            {p.sku || p.codigoEmpresa}{sedeStock ? ` · Stock: ${stock}` : ''}
+                            {p.sku || p.codigoEmpresa}
+                            {p.tieneVariantes ? ' · Con variantes' : sedeStock ? ` · Stock: ${stock}` : ''}
                           </p>
                         </div>
-                        <span className="ml-3 whitespace-nowrap text-sm font-semibold text-gray-700">
-                          S/ {fmt(precio)}
-                        </span>
+                        {p.tieneVariantes ? (
+                          <span className="ml-3 whitespace-nowrap rounded bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                            Elegir variante →
+                          </span>
+                        ) : (
+                          <span className="ml-3 whitespace-nowrap text-sm font-semibold text-gray-700">
+                            S/ {fmt(precio)}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -1137,6 +1184,55 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           )}
         </div>
       </div>
+
+      {/* ─── Selector de variantes (paridad Flutter) ──────────────────────── */}
+      {loadingVariantes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="rounded-xl bg-white p-5 shadow-xl">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" />
+          </div>
+        </div>
+      )}
+      {variantePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setVariantePicker(null)}>
+          <div className="w-full max-w-md max-h-[75vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-gray-900">Selecciona la variante</h3>
+            <p className="mt-0.5 text-xs text-gray-500">{variantePicker.nombre}</p>
+            <div className="mt-3 space-y-2">
+              {(variantePicker.variantes ?? []).filter((v: any) => v.isActive !== false).map((v: any) => {
+                const vStock = stockDeSede(v.stocksPorSede);
+                const sinStock = (vStock?.cantidad ?? 0) <= 0;
+                return (
+                  <button key={v.id} type="button" onClick={() => addVarianteItem(variantePicker, v)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-left hover:border-[#437EFF] hover:bg-[#437EFF]/5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{v.nombre}</p>
+                      <p className="text-[10px] text-gray-400">{v.sku}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {vStock?.precio != null ? `S/ ${fmt(Number(vStock.precio))}` : 'Sin precio'}
+                      </p>
+                      <p className={`text-[10px] ${sinStock ? 'text-red-500' : 'text-gray-400'}`}>
+                        Stock: {vStock?.cantidad ?? 0}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+              {(variantePicker.variantes ?? []).length === 0 && (
+                <p className="py-6 text-center text-sm text-gray-400">Este producto no tiene variantes activas</p>
+              )}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setVariantePicker(null)}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
