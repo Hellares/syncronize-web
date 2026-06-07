@@ -94,6 +94,56 @@ export interface DivergenciaPrecio {
   nivelAplicado?: { nombre?: string; cantidadMinima?: number } | null;
 }
 
+export type EstadoVenta = 'BORRADOR' | 'CONFIRMADA' | 'PAGADA_PARCIAL' | 'PAGADA_COMPLETA' | 'ANULADA';
+
+export const ESTADO_VENTA_CONFIG: Record<EstadoVenta, { label: string; color: string; bg: string }> = {
+  BORRADOR: { label: 'Borrador', color: 'text-gray-600', bg: 'bg-gray-100' },
+  CONFIRMADA: { label: 'Confirmada', color: 'text-blue-700', bg: 'bg-blue-100' },
+  PAGADA_PARCIAL: { label: 'Pago parcial', color: 'text-amber-700', bg: 'bg-amber-100' },
+  PAGADA_COMPLETA: { label: 'Pagada', color: 'text-green-700', bg: 'bg-green-100' },
+  ANULADA: { label: 'Anulada', color: 'text-red-700', bg: 'bg-red-100' },
+};
+
+/** GET /ventas — filtros (rol VENDEDOR/CAJERO se filtra server-side automáticamente) */
+export interface VentaFiltros {
+  sedeId?: string;
+  estado?: EstadoVenta;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  clienteId?: string;
+  search?: string;
+}
+
+export interface PagoVenta {
+  id: string;
+  metodoPago: MetodoPagoVenta;
+  monto: number;
+  referencia?: string | null;
+  banco?: string | null;
+  creadoEn?: string;
+  [key: string]: unknown;
+}
+
+export interface VentaDetalle {
+  id: string;
+  productoId?: string | null;
+  varianteId?: string | null;
+  comboId?: string | null;
+  servicioId?: string | null;
+  ordenServicioId?: string | null;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  descuento?: number;
+  subtotal?: number;
+  igv?: number;
+  icbper?: number;
+  total?: number;
+  origenComboId?: string | null;
+  origenComboNombre?: string | null;
+  [key: string]: unknown;
+}
+
 export interface Venta {
   id: string;
   codigo: string;
@@ -116,10 +166,53 @@ export interface Venta {
   montoCambio?: number;
   metodoPago?: MetodoPagoVenta;
   esCredito?: boolean;
+  numeroCuotas?: number;
+  plazoCredito?: number;
   tipoComprobante?: string;
   comprobanteId?: string | null;
+  /** Serie-número del comprobante (null = aún TICKET, se puede generar) */
+  codigoComprobante?: string | null;
+  comprobanteSunatStatus?: 'PENDIENTE' | 'PROCESANDO' | 'ACEPTADO' | 'RECHAZADO' | 'ERROR_COMUNICACION' | string | null;
+  comprobanteSunatHash?: string | null;
+  comprobanteSunatXmlUrl?: string | null;
+  comprobanteSunatPdfUrl?: string | null;
+  comprobanteEnlaceProveedor?: string | null;
+  comprobanteAnulado?: boolean;
   creadoEn?: string;
+  fechaVenta?: string;
+  fechaVencimientoPago?: string | null;
+  detalles?: VentaDetalle[];
+  pagos?: PagoVenta[];
+  cuotas?: Array<{ id: string; numero?: number; monto: number; estado?: string; fechaVencimiento?: string; mora?: number; diasVencido?: number; [key: string]: unknown }>;
+  sedeNombre?: string;
+  vendedorNombre?: string;
+  vendedorAlias?: string | null;
+  cajeroNombre?: string | null;
+  cotizacionCodigo?: string | null;
+  ordenesServicio?: Array<{ codigo: string;[key: string]: unknown }>;
+  observaciones?: string | null;
+  sede?: { id: string; nombre: string };
+  vendedor?: { id: string; persona?: { nombres?: string; apellidos?: string }; alias?: string | null };
+  anulado?: boolean;
+  motivoAnulacion?: string | null;
+  comprobante?: Record<string, unknown> | null;
   [key: string]: unknown;
+}
+
+/** Estados desde los que se puede anular (paridad venta.dart puedeAnular) */
+export function puedeAnularVenta(v: Venta): boolean {
+  return ['CONFIRMADA', 'PAGADA_PARCIAL', 'PAGADA_COMPLETA'].includes(v.estado ?? '');
+}
+
+/** Registrar pago: CONFIRMADA o PAGADA_PARCIAL */
+export function puedePagarVenta(v: Venta): boolean {
+  return ['CONFIRMADA', 'PAGADA_PARCIAL'].includes(v.estado ?? '');
+}
+
+export function saldoPendienteVenta(v: Venta): number {
+  const total = Number(v.total ?? 0);
+  const pagado = (v.pagos ?? []).reduce((a, p) => a + Number(p.monto ?? 0), 0);
+  return Math.max(0, total - pagado);
 }
 
 // --- PrecioNivel aplicado en POS (cálculo local, paridad Flutter) ---

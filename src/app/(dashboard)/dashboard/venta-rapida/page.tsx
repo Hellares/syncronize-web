@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
@@ -30,6 +31,7 @@ function imgUrl(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; i
 }
 
 export default function VentaRapidaPage() {
+  const router = useRouter();
   const { sedes } = useEmpresa();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
   const sedeId = defaultSede?.id ?? '';
@@ -239,7 +241,9 @@ export default function VentaRapidaPage() {
   const handleVentaOk = (venta: Venta) => {
     setItems([]);
     setMode('carrito');
-    setInfo(`✓ Venta ${venta.codigo ?? ''} registrada — el movimiento ya está en tu caja`);
+    setInfo(`✓ Venta ${venta.codigo ?? ''} registrada`);
+    // Paridad Flutter: abrir el ticket de la venta (imprimible)
+    if (venta.id) router.push(`/dashboard/ventas/${venta.id}/ticket`);
   };
 
   // --- Guard: sin caja ---

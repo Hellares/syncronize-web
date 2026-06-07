@@ -300,8 +300,14 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
           </div>
         )}
         <div className="flex justify-center gap-2">
+          {ventaOk.id && (
+            <Link href={`/dashboard/ventas/${ventaOk.id}/ticket`}
+              className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#003570]">
+              Ver Ticket
+            </Link>
+          )}
           <button onClick={() => router.push('/dashboard/pos')}
-            className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#003570]">
+            className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
             Volver a Cola POS
           </button>
           <Link href="/dashboard/caja" className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">

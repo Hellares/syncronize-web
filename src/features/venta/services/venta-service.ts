@@ -1,15 +1,96 @@
 import { apiClient } from '@/core/api/client';
-import type { CrearYCobrarVentaDto, Venta, ClienteResueltoDni, ClienteResueltoRuc } from '@/core/types/venta';
+import type { CrearYCobrarVentaDto, Venta, VentaFiltros, ClienteResueltoDni, ClienteResueltoRuc, MetodoPagoVenta } from '@/core/types/venta';
+
+/** Aplana relaciones anidadas a los campos planos que usa la UI
+ *  (paridad VentaModel.fromJson de Flutter: comprobante.codigoGenerado, sede.nombre, etc.) */
+function normalizeVenta(raw: Record<string, unknown>): Venta {
+  const v = { ...raw } as Venta;
+  const c = raw.comprobante as Record<string, unknown> | null | undefined;
+  if (c && typeof c === 'object') {
+    v.tipoComprobante = (c.tipoComprobante as string) ?? v.tipoComprobante;
+    v.codigoComprobante = (c.codigoGenerado as string) ?? v.codigoComprobante;
+    v.comprobanteSunatStatus = (c.sunatStatus as string) ?? v.comprobanteSunatStatus;
+    v.comprobanteSunatHash = (c.sunatHash as string) ?? null;
+    v.comprobanteSunatXmlUrl = (c.sunatXmlUrl as string) ?? null;
+    v.comprobanteSunatPdfUrl = (c.sunatPdfUrl as string) ?? null;
+    v.comprobanteEnlaceProveedor = (c.enlaceProveedor as string) ?? null;
+    v.comprobanteAnulado = (c.anulado as boolean) ?? false;
+    (v as Record<string, unknown>).comprobanteCadenaQR = (c.cadenaQR as string) ?? null;
+  }
+  const sede = raw.sede as { nombre?: string } | undefined;
+  if (sede?.nombre && !v.sedeNombre) v.sedeNombre = sede.nombre;
+  const vendedor = raw.vendedor as { persona?: { nombres?: string; apellidos?: string }; aliasTicket?: string } | undefined;
+  if (vendedor) {
+    if (!v.vendedorNombre && vendedor.persona) v.vendedorNombre = `${vendedor.persona.nombres ?? ''} ${vendedor.persona.apellidos ?? ''}`.trim();
+    if (!v.vendedorAlias && vendedor.aliasTicket?.trim()) v.vendedorAlias = vendedor.aliasTicket.trim();
+  }
+  const cajero = raw.cajero as { persona?: { nombres?: string; apellidos?: string } } | undefined;
+  if (cajero?.persona && !v.cajeroNombre) v.cajeroNombre = `${cajero.persona.nombres ?? ''} ${cajero.persona.apellidos ?? ''}`.trim();
+  const cot = raw.cotizacion as { codigo?: string } | undefined;
+  if (cot?.codigo && !v.cotizacionCodigo) v.cotizacionCodigo = cot.codigo;
+  return v;
+}
 
 /** POS: crea y cobra la venta en una sola operación (requiere caja abierta).
  *  409 con divergencias[] si los precios difieren del recálculo server (re-sync y reintentar). */
 export async function crearYCobrar(data: CrearYCobrarVentaDto): Promise<Venta> {
-  const res = await apiClient.post<Venta>('/ventas/cobrar', data);
-  return res.data;
+  const res = await apiClient.post('/ventas/cobrar', data);
+  return normalizeVenta(res.data);
 }
 
 export async function getVenta(id: string): Promise<Venta> {
-  const res = await apiClient.get<Venta>(`/ventas/${id}`);
+  const res = await apiClient.get(`/ventas/${id}`);
+  return normalizeVenta(res.data);
+}
+
+// --- Gestión de ventas (V3) ---
+
+/** Listado (array plano, server filtra por rol: VENDEDOR→sus ventas, CAJERO→las que cobró) */
+export async function getVentas(filtros?: VentaFiltros): Promise<Venta[]> {
+  const q = new URLSearchParams();
+  if (filtros?.sedeId) q.set('sedeId', filtros.sedeId);
+  if (filtros?.estado) q.set('estado', filtros.estado);
+  if (filtros?.fechaDesde) q.set('fechaDesde', filtros.fechaDesde);
+  if (filtros?.fechaHasta) q.set('fechaHasta', filtros.fechaHasta);
+  if (filtros?.clienteId) q.set('clienteId', filtros.clienteId);
+  if (filtros?.search) q.set('search', filtros.search);
+  const query = q.toString();
+  const res = await apiClient.get(`/ventas${query ? `?${query}` : ''}`);
+  const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+  return list.map(normalizeVenta);
+}
+
+export async function getResumenVentas(sedeId?: string): Promise<Record<string, unknown>> {
+  const res = await apiClient.get(`/ventas/resumen${sedeId ? `?sedeId=${sedeId}` : ''}`);
+  return res.data;
+}
+
+/** Búsqueda exacta por código de venta o comprobante */
+export async function buscarVentaPorCodigo(codigo: string): Promise<Venta | null> {
+  const res = await apiClient.get(`/ventas/buscar?codigo=${encodeURIComponent(codigo)}`);
+  return res.data ? normalizeVenta(res.data) : null;
+}
+
+export async function anularVenta(id: string, data: { autorizadoPorId: string; motivo: string }): Promise<Venta> {
+  const res = await apiClient.post<Venta>(`/ventas/${id}/anular`, data);
+  return res.data;
+}
+
+/** Pago de venta a crédito (cuotaVentaId opcional para cuota específica) */
+export async function procesarPago(id: string, data: { metodoPago: MetodoPagoVenta; monto: number; referencia?: string; cuotaVentaId?: string }): Promise<Venta> {
+  const res = await apiClient.post<Venta>(`/ventas/${id}/pago`, data);
+  return res.data;
+}
+
+/** Reintento manual de comprobante electrónico */
+export async function generarComprobante(id: string, data: { tipoComprobante: 'BOLETA' | 'FACTURA'; tipoDocumentoCliente?: string }): Promise<Record<string, unknown>> {
+  const res = await apiClient.post(`/ventas/${id}/generar-comprobante`, data);
+  return res.data;
+}
+
+/** Cadena cotización → venta → comprobante → devoluciones */
+export async function getFlujoDocumentos(id: string): Promise<Record<string, unknown>> {
+  const res = await apiClient.get(`/ventas/${id}/flujo-documentos`);
   return res.data;
 }
 
