@@ -63,6 +63,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     label: 'Operaciones',
     icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
     items: [
+      { label: 'Venta Rápida', href: '/dashboard/venta-rapida', permission: 'canViewVentas' },
       { label: 'Mi Caja', href: '/dashboard/caja', permission: 'canViewCaja' },
       { label: 'Monitor de Cajas', href: '/dashboard/caja/monitor', permission: 'canViewCaja' },
       { label: 'Historial de Cajas', href: '/dashboard/caja/historial', permission: 'canViewCaja' },
