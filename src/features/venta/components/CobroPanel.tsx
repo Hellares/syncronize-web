@@ -176,6 +176,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           precioIncluyeIgv: it.precioIncluyeIgv,
           tipoAfectacion: it.tipoAfectacion,
           ...(it.icbper > 0 && { icbper: it.icbper * it.cantidad }),
+          // Trazabilidad de combo expandido
+          ...(it.origenComboId && { origenComboId: it.origenComboId, origenComboNombre: it.origenComboNombre }),
         })),
         ...(opts?.aceptaRiesgo && { aceptaRiesgoBancarizacion: true }),
         ...(opts?.bajoCostoAuthId && { ventaBajoCostoAutorizadaPorId: opts.bajoCostoAuthId }),

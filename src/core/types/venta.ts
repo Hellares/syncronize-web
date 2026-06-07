@@ -171,6 +171,9 @@ export interface VentaItem {
   precioIncluyeIgv: boolean;
   tipoAfectacion: string;
   icbper: number;
+  // Combo expandido: referencia de trazabilidad (SÍ viaja al backend)
+  origenComboId?: string;
+  origenComboNombre?: string;
   // Contexto local (NO viaja al backend)
   niveles: NivelPrecio[];
   nivelAplicado?: string | null;
