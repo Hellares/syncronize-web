@@ -7,6 +7,8 @@ import type { Venta, EstadoVenta, MetodoPagoVenta } from '@/core/types/venta';
 import { ESTADO_VENTA_CONFIG, puedeAnularVenta, puedePagarVenta, saldoPendienteVenta } from '@/core/types/venta';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as ventaService from '@/features/venta/services/venta-service';
+import * as devolucionService from '@/features/devoluciones/services/devolucion-service';
+import type { Devolucion } from '@/core/types/devolucion';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
@@ -32,6 +34,9 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   const esAutorizador = userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol));
 
   const [venta, setVenta] = useState<Venta | null>(null);
+  const [reversion, setReversion] = useState<Devolucion | null>(null);
+  const [showReversion, setShowReversion] = useState(false);
+  const [motivoReversion, setMotivoReversion] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -55,6 +60,30 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   }, [id]);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Reversión total existente (banner "venta revertida")
+  useEffect(() => {
+    if (!permissions.canViewDevoluciones) return;
+    devolucionService.getReversionTotal(id).then(setReversion).catch(() => {});
+  }, [id, permissions.canViewDevoluciones]);
+
+  const procesarReversion = async () => {
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const rev = await devolucionService.crearReversionTotal(id, motivoReversion.trim() || undefined);
+      setReversion(rev);
+      setShowReversion(false);
+      setInfo('Reversión total procesada — stock reingresado y caja reversada');
+      reload();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo procesar la reversión total');
+      setShowReversion(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const anular = async (autorizadoPorId: string) => {
     setIsSubmitting(true);
@@ -138,6 +167,18 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
               Anular
             </button>
           )}
+          {puedeAnularVenta(venta) && permissions.canManageDevoluciones && !reversion && (
+            <Link href={`/dashboard/devoluciones/nueva?ventaId=${id}`}
+              className="rounded-lg border border-orange-300 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50">
+              Devolver
+            </Link>
+          )}
+          {venta.comprobanteAnulado && !reversion && permissions.canManageDevoluciones && (
+            <button onClick={() => { setMotivoReversion(''); setShowReversion(true); }}
+              className="rounded-lg border border-purple-300 px-3 py-2 text-xs font-bold text-purple-600 hover:bg-purple-50">
+              Reversión total
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,6 +189,13 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5">
           <p className="text-xs font-semibold text-red-700">⛔ VENTA ANULADA{venta.motivoAnulacion ? ` — ${venta.motivoAnulacion}` : ''}</p>
         </div>
+      )}
+
+      {reversion && (
+        <Link href={`/dashboard/devoluciones/${reversion.id}`}
+          className="block rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 hover:bg-purple-100">
+          <p className="text-xs font-semibold text-purple-700">↩ VENTA REVERTIDA — {reversion.codigo} ({reversion.estado}). Ver devolución →</p>
+        </Link>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -320,6 +368,29 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           onSuccess={() => { setShowComprobante(false); setInfo('Comprobante en proceso — revisa el estado SUNAT'); reload(); }}
           onClose={() => setShowComprobante(false)}
         />
+      )}
+
+      {/* Dialog reversión total */}
+      {showReversion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowReversion(false)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-purple-700">Reversión total de {venta.codigo}</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              El comprobante (y sus notas) ya están anulados en SUNAT. Se reingresará todo el stock, se reversará la caja del cobro y se anularán las cuotas pendientes. Esta acción es definitiva.
+            </p>
+            <textarea
+              className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] min-h-[60px]"
+              value={motivoReversion} onChange={e => setMotivoReversion(e.target.value)}
+              placeholder="Motivo (opcional)" autoFocus />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowReversion(false)} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={procesarReversion} disabled={isSubmitting}
+                className="rounded-lg bg-purple-600 px-4 py-2 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50">
+                {isSubmitting ? 'Procesando...' : 'Procesar reversión'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
