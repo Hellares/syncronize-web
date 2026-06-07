@@ -67,6 +67,31 @@ export interface StockPorSedeInfo {
   precioIncluyeIgv?: boolean;
 }
 
+// Helpers de precio efectivo (misma semántica que ProductoStock en stock.ts / Flutter):
+// inicio inclusivo, fin exclusivo, fecha fin null = sin vencimiento.
+export function infoOfertaActiva(s: StockPorSedeInfo): boolean {
+  if (!s.enOferta || s.precioOferta == null) return false;
+  const now = new Date();
+  if (s.fechaInicioOferta && now < new Date(s.fechaInicioOferta)) return false;
+  if (s.fechaFinOferta && now > new Date(s.fechaFinOferta)) return false;
+  return true;
+}
+
+export function infoLiquidacionActiva(s: StockPorSedeInfo): boolean {
+  if (!s.enLiquidacion || s.precioLiquidacion == null) return false;
+  const now = new Date();
+  if (s.fechaInicioLiquidacion && now < new Date(s.fechaInicioLiquidacion)) return false;
+  if (s.fechaFinLiquidacion && now > new Date(s.fechaFinLiquidacion)) return false;
+  return true;
+}
+
+// Prioridad: liquidación > oferta > base
+export function infoPrecioEfectivo(s: StockPorSedeInfo): number | undefined {
+  if (infoLiquidacionActiva(s)) return s.precioLiquidacion;
+  if (infoOfertaActiva(s)) return s.precioOferta;
+  return s.precio;
+}
+
 // --- Variante ---
 
 export interface ProductoVariante {

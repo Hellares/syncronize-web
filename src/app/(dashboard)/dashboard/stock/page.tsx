@@ -8,6 +8,7 @@ import StockSedeSelector from '@/features/stock/components/StockSedeSelector';
 import StockTable from '@/features/stock/components/StockTable';
 import AjustarStockDialog from '@/features/stock/components/AjustarStockDialog';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import HistorialPreciosDialog from '@/features/stock/components/HistorialPreciosDialog';
 import type { ProductoStock } from '@/core/types/stock';
 
 export default function StockPage() {
@@ -23,6 +24,7 @@ export default function StockPage() {
 
   const [ajustarStock, setAjustarStock] = useState<ProductoStock | null>(null);
   const [preciosStock, setPreciosStock] = useState<ProductoStock | null>(null);
+  const [historialStock, setHistorialStock] = useState<ProductoStock | null>(null);
   const [search, setSearch] = useState('');
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,6 +86,7 @@ export default function StockPage() {
           onAjustar={setAjustarStock}
           onKardex={(stock) => router.push(`/dashboard/stock/${stock.id}/kardex`)}
           onPrecios={setPreciosStock}
+          onHistorial={setHistorialStock}
           onPageChange={setPage}
         />
       </div>
@@ -100,6 +103,11 @@ export default function StockPage() {
         stock={preciosStock}
         onSuccess={reload}
         onClose={() => setPreciosStock(null)}
+      />
+      <HistorialPreciosDialog
+        isOpen={!!historialStock}
+        stock={historialStock}
+        onClose={() => setHistorialStock(null)}
       />
     </div>
   );

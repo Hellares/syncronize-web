@@ -1,6 +1,6 @@
-import type { PaginatedResponse } from './producto';
+import type { PaginatedResponse, MotivoLiquidacion } from './producto';
 
-export type { PaginatedResponse };
+export type { PaginatedResponse, MotivoLiquidacion };
 
 // --- Enums ---
 
@@ -68,6 +68,14 @@ export interface ProductoStock {
   enOferta: boolean;
   fechaInicioOferta?: string;
   fechaFinOferta?: string;
+  // Liquidación (remate bajo costo, requiere autorización gerencial)
+  enLiquidacion?: boolean;
+  precioLiquidacion?: number;
+  motivoLiquidacion?: MotivoLiquidacion;
+  observacionesLiquidacion?: string;
+  fechaInicioLiquidacion?: string;
+  fechaFinLiquidacion?: string;
+  liquidacionAutorizadaPorId?: string;
   precioConfigurado: boolean;
   precioIncluyeIgv: boolean;
   // Relaciones
@@ -104,9 +112,30 @@ export function esCritico(s: ProductoStock): boolean {
   return stockDisponibleVenta(s) <= 0;
 }
 
+// Semántica idéntica a Flutter (producto_stock.dart:234-268):
+// inicio inclusivo, fin exclusivo; fecha fin null = sin vencimiento.
+export function isOfertaActiva(s: ProductoStock): boolean {
+  if (!s.enOferta || s.precioOferta == null) return false;
+  const now = new Date();
+  if (s.fechaInicioOferta && now < new Date(s.fechaInicioOferta)) return false;
+  if (s.fechaFinOferta && now > new Date(s.fechaFinOferta)) return false;
+  return true;
+}
+
+export function isLiquidacionActiva(s: ProductoStock): boolean {
+  if (!s.enLiquidacion || s.precioLiquidacion == null) return false;
+  const now = new Date();
+  if (s.fechaInicioLiquidacion && now < new Date(s.fechaInicioLiquidacion)) return false;
+  if (s.fechaFinLiquidacion && now > new Date(s.fechaFinLiquidacion)) return false;
+  return true;
+}
+
+// Prioridad: liquidación > oferta > precio base (niveles aplican por cantidad en la venta, no aquí)
 export function precioEfectivo(s: ProductoStock): number | undefined {
-  if (s.enOferta && s.precioOferta != null) return s.precioOferta;
-  return s.precio ?? undefined;
+  if (!s.precioConfigurado || s.precio == null) return undefined;
+  if (isLiquidacionActiva(s) && s.precioLiquidacion != null) return s.precioLiquidacion;
+  if (isOfertaActiva(s) && s.precioOferta != null) return s.precioOferta;
+  return s.precio;
 }
 
 export function nombreProductoStock(s: ProductoStock): string {
@@ -261,6 +290,11 @@ export interface AjustarStockDto {
   numeroDocumento?: string;
 }
 
+// Auditoría de cambios de precio (enum TipoCambioPrecioSede del backend)
+export type TipoCambioPrecioSede =
+  | 'MANUAL' | 'OFERTA' | 'COSTO' | 'MASIVO'
+  | 'AJUSTE_MERCADO' | 'COMPETENCIA' | 'CORRECCION';
+
 export interface UpdatePreciosStockDto {
   precio?: number | null;
   precioCosto?: number | null;
@@ -269,9 +303,147 @@ export interface UpdatePreciosStockDto {
   fechaInicioOferta?: string | null;
   fechaFinOferta?: string | null;
   precioIncluyeIgv?: boolean;
+  tipoCambio?: TipoCambioPrecioSede;
+  razon?: string;
   ubicacion?: string;
   stockMinimo?: number;
   stockMaximo?: number;
+}
+
+// --- Liquidación (F2) ---
+
+export interface ActivarLiquidacionDto {
+  precioLiquidacion: number;
+  motivoLiquidacion: MotivoLiquidacion;
+  /** ID del usuario que autoriza (de /auth/autorizar-operacion o el propio si es admin/gerente) */
+  autorizadoPorId: string;
+  /** ISO. Si se omite, vigente hasta desactivación manual */
+  fechaFin?: string;
+  /** Obligatorio si motivo = OTRO */
+  observaciones?: string;
+}
+
+export interface AutorizarOperacionDto {
+  dni: string;
+  password: string;
+  operacion: string;
+  motivo?: string;
+}
+
+export interface AutorizacionResponse {
+  authorized: boolean;
+  autorizadoPorId: string;
+  autorizadoPorNombre: string;
+}
+
+// --- Historial de precios (F2) ---
+
+export type TipoCambioPrecio =
+  | 'MANUAL' | 'OFERTA' | 'OFERTA_ACTIVADA' | 'OFERTA_DESACTIVADA'
+  | 'COSTO' | 'COSTO_ACTUALIZADO' | 'MASIVO' | 'AJUSTE_MASIVO'
+  | 'AJUSTE_MERCADO' | 'COMPETENCIA' | 'CORRECCION' | 'LIQUIDACION';
+
+// Registro de ProductoPrecioHistorialSede (pares anterior/nuevo + auditoría)
+export interface HistorialPrecioSede {
+  id: string;
+  productoStockId: string;
+  sedeId: string;
+  precioAnterior?: number | null;
+  precioNuevo?: number | null;
+  precioCostoAnterior?: number | null;
+  precioCostoNuevo?: number | null;
+  precioOfertaAnterior?: number | null;
+  precioOfertaNuevo?: number | null;
+  tipoCambio: TipoCambioPrecio;
+  razon?: string | null;
+  origenModulo?: string | null;
+  usuarioId: string;
+  creadoEn: string;
+  sede?: { id: string; nombre: string };
+  usuario?: { id: string; email?: string; persona?: { nombres?: string; apellidos?: string } };
+  productoStock?: {
+    id: string;
+    productoId?: string;
+    varianteId?: string;
+    producto?: { id: string; nombre: string; codigoEmpresa: string };
+    variante?: { id: string; nombre: string; sku: string };
+  };
+}
+
+export interface HistorialGlobalResponse {
+  data: HistorialPrecioSede[];
+  meta: { limit: number; hasNext: boolean; nextCursor: string | null };
+}
+
+export interface HistorialGlobalFiltros {
+  sedeId?: string;
+  productoId?: string;
+  fechaInicio?: string; // YYYY-MM-DD
+  fechaFin?: string;    // YYYY-MM-DD
+  tipoCambio?: TipoCambioPrecio;
+  search?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+// --- Ajuste masivo de precios (F2, contrato = AjusteMasivoPreciosDto backend) ---
+
+export interface AjusteMasivoPreciosDto {
+  tipo: 'PORCENTAJE' | 'MONTO_FIJO';
+  valor: number;
+  aplicarA: 'PRECIO' | 'PRECIO_COSTO';
+  operacion: 'AUMENTAR' | 'DISMINUIR';
+  /** Si se omite, aplica a todos los productos de la sede */
+  productoIds?: string[];
+  excluirCombos?: boolean;
+  soloCombos?: boolean;
+}
+
+// --- Verificación de precios (F2) ---
+
+export type CampoPrecioVerificacion = 'PRECIO' | 'COSTO' | 'OFERTA' | 'LIQUIDACION';
+export type ModoVerificacion = 'RANGO' | 'EXACTO' | 'SIN_VALOR';
+export type ComparacionPrecio = 'PERDIDA' | 'SIN_MARGEN' | 'MARGEN_BAJO' | 'SIN_COSTO';
+
+export interface VerificacionPrecioItem {
+  id: string;
+  productoId?: string | null;
+  varianteId?: string | null;
+  codigoEmpresa?: string | null;
+  nombre: string;
+  sedeId: string;
+  sedeNombre: string;
+  stockActual: number;
+  precio?: number | null;
+  precioCosto?: number | null;
+  precioOferta?: number | null;
+  precioLiquidacion?: number | null;
+  enOferta: boolean;
+  enLiquidacion?: boolean;
+  precioConfigurado: boolean;
+}
+
+export interface VerificacionPreciosResponse {
+  total: number;
+  limitAlcanzado: boolean;
+  items: VerificacionPrecioItem[];
+}
+
+export interface VerificacionPreciosFiltros {
+  sedeId?: string;
+  campo?: CampoPrecioVerificacion;
+  modo?: ModoVerificacion;
+  min?: number;
+  max?: number;
+  exacto?: number;
+  empresaCategoriaId?: string;
+  empresaMarcaId?: string;
+  stock?: 'CON' | 'SIN' | 'AMBOS';
+  soloActivos?: boolean;
+  /** Si se setea, ignora campo/modo/min/max/exacto */
+  comparacion?: ComparacionPrecio;
+  margenMinimo?: number;
+  limit?: number;
 }
 
 export interface CreateTransferenciaDto {

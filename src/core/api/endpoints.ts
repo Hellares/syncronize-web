@@ -68,6 +68,19 @@ export const STOCK_ENDPOINTS = {
   REPORTE_SUGERENCIAS: '/producto-stock/reportes/sugerencias-reorden',
   REPORTE_ROTACION: '/producto-stock/reportes/rotacion',
   HISTORIAL_PRECIOS: '/producto-stock/historial-precios',
+  HISTORIAL_PRECIOS_EXPORT: '/producto-stock/historial-precios/export',
+  HISTORIAL_PRECIOS_STOCK: (id: string) => `/producto-stock/${id}/precios/historial`,
+  // Liquidación (F2)
+  LIQUIDACION_ACTIVAR: (id: string) => `/producto-stock/${id}/liquidacion/activar`,
+  LIQUIDACION_DESACTIVAR: (id: string) => `/producto-stock/${id}/liquidacion/desactivar`,
+  LIQUIDACIONES: '/producto-stock/liquidaciones',
+  // Herramientas masivas de precios (F2)
+  AJUSTE_MASIVO_PRECIOS: (sedeId: string) => `/producto-stock/sedes/${sedeId}/precios/ajuste-masivo`,
+  VERIFICACION_PRECIOS: '/producto-stock/verificacion-precios',
+  VERIFICACION_PRECIOS_EXPORT: '/producto-stock/verificacion-precios/export',
+  PENDIENTES_PRECIO: (sedeId: string) => `/producto-stock/sede/${sedeId}/pendientes-precio`,
+  LISTOS_VENTA: (sedeId: string) => `/producto-stock/sede/${sedeId}/listos-venta`,
+  ESTADISTICAS_PRECIOS: '/producto-stock/estadisticas-precios',
 } as const;
 
 export const TRANSFERENCIA_ENDPOINTS = {

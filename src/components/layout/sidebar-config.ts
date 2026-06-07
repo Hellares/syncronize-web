@@ -47,6 +47,10 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Alertas de Stock', href: '/dashboard/alertas-stock' },
       { label: 'Inventario Físico', href: '/dashboard/inventario-fisico' },
       { label: 'Merma y Pérdida', href: '/dashboard/merma' },
+      { label: 'Liquidaciones', href: '/dashboard/liquidaciones' },
+      { label: 'Historial de Precios', href: '/dashboard/historial-precios' },
+      { label: 'Verificación de Precios', href: '/dashboard/verificacion-precios' },
+      { label: 'Ajuste Masivo de Precios', href: '/dashboard/ajuste-precios', permission: 'canManageProducts' },
     ],
   },
   {

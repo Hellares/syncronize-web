@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { Producto, PaginationMeta, StockPorSedeInfo } from '@/core/types/producto';
+import { infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
 import StockBadge from './StockBadge';
 
 interface Props {
@@ -97,7 +98,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           {p.esInsumo && (
                             <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">Insumo</span>
                           )}
-                          {stock.enLiquidacion && (
+                          {infoLiquidacionActiva(stock) && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Liquidación</span>
                           )}
                           {p.destacado && (
@@ -123,13 +124,22 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                     <span className="text-xs text-gray-500">{p.marca?.nombre || '—'}</span>
                   </td>
 
-                  {/* Precio */}
+                  {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
                   <td className="px-4 py-3 text-right">
-                    <span className="font-medium text-gray-900">
-                      {stock.precio != null ? `S/ ${Number(stock.precio).toFixed(2)}` : '—'}
-                    </span>
-                    {stock.enOferta && stock.precioOferta != null && (
-                      <div className="text-xs text-green-600">Oferta: S/ {Number(stock.precioOferta).toFixed(2)}</div>
+                    {infoLiquidacionActiva(stock) ? (
+                      <>
+                        <span className="text-xs text-gray-400 line-through block">S/ {Number(stock.precio).toFixed(2)}</span>
+                        <span className="font-bold text-red-600">S/ {Number(stock.precioLiquidacion).toFixed(2)}</span>
+                      </>
+                    ) : infoOfertaActiva(stock) ? (
+                      <>
+                        <span className="text-xs text-gray-400 line-through block">S/ {Number(stock.precio).toFixed(2)}</span>
+                        <span className="font-bold text-green-600">S/ {Number(stock.precioOferta).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium text-gray-900">
+                        {stock.precio != null ? `S/ ${Number(stock.precio).toFixed(2)}` : '—'}
+                      </span>
                     )}
                   </td>
 

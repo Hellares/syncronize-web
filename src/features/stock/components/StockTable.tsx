@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProductoStock } from '@/core/types/stock';
-import { stockDisponibleVenta, nombreProductoStock, skuProductoStock, precioEfectivo, esBajoMinimo, esCritico } from '@/core/types/stock';
+import { stockDisponibleVenta, nombreProductoStock, skuProductoStock, precioEfectivo, esBajoMinimo, esCritico, isLiquidacionActiva, isOfertaActiva } from '@/core/types/stock';
 import type { PaginationMeta } from '@/core/types/producto';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onAjustar: (stock: ProductoStock) => void;
   onKardex: (stock: ProductoStock) => void;
   onPrecios: (stock: ProductoStock) => void;
+  onHistorial?: (stock: ProductoStock) => void;
   onPageChange: (page: number) => void;
 }
 
@@ -23,7 +24,7 @@ function StockBadge({ stock }: { stock: ProductoStock }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{disponible}</span>;
 }
 
-export default function StockTable({ stocks, meta, isLoading, canManage, onAjustar, onKardex, onPrecios, onPageChange }: Props) {
+export default function StockTable({ stocks, meta, isLoading, canManage, onAjustar, onKardex, onPrecios, onHistorial, onPageChange }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -99,9 +100,14 @@ export default function StockTable({ stocks, meta, isLoading, canManage, onAjust
                   </td>
                   <td className="px-4 py-3 text-right">
                     {precio != null ? (
-                      <span className={`font-medium ${stock.enOferta ? 'text-green-600' : 'text-gray-900'}`}>
-                        S/ {Number(precio).toFixed(2)}
-                      </span>
+                      <div>
+                        <span className={`font-medium ${isLiquidacionActiva(stock) ? 'text-red-600' : isOfertaActiva(stock) ? 'text-green-600' : 'text-gray-900'}`}>
+                          S/ {Number(precio).toFixed(2)}
+                        </span>
+                        {isLiquidacionActiva(stock) && (
+                          <span className="block rounded bg-red-100 px-1 text-[9px] font-bold text-red-600">LIQUIDACIÓN</span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-xs text-gray-400">Sin precio</span>
                     )}
@@ -124,6 +130,13 @@ export default function StockTable({ stocks, meta, isLoading, canManage, onAjust
                         <button onClick={() => onPrecios(stock)} title="Configurar precios" className="rounded-lg p-1.5 text-gray-400 hover:bg-green-50 hover:text-green-600">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+                      )}
+                      {onHistorial && (
+                        <button onClick={() => onHistorial(stock)} title="Historial de precios" className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </button>
                       )}
