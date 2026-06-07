@@ -78,32 +78,39 @@ export default function ColaPOSPage() {
           {items.map((c) => {
             const cfg = ESTADO_COTIZACION_CONFIG[c.estado];
             const reservado = (c as ColaPOSItem & { tieneReservaActiva?: boolean }).tieneReservaActiva;
+            const esPendiente = c.estado === 'PENDIENTE';
             return (
-              <button key={c.id} onClick={() => router.push(`/dashboard/cotizaciones/${c.id}`)}
-                className="rounded-xl border border-gray-200 bg-white p-4 text-left transition-shadow hover:shadow-md">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-mono text-[10px] text-gray-400">{c.codigo}</p>
-                    <p className="font-semibold text-gray-900 truncate">{c.nombreCliente || 'Sin cliente'}</p>
-                    <p className="text-[10px] text-gray-400">{c.vendedor}{c.sede ? ` · ${c.sede}` : ''}</p>
+              <div key={c.id} className="rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md">
+                <button onClick={() => router.push(`/dashboard/cotizaciones/${c.id}`)} className="w-full text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[10px] text-gray-400">{c.codigo}</p>
+                      <p className="font-semibold text-gray-900 truncate">{c.nombreCliente || 'Sin cliente'}</p>
+                      <p className="text-[10px] text-gray-400">{c.vendedor}{c.sede ? ` · ${c.sede}` : ''}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-lg font-bold text-gray-900">{c.moneda === 'USD' ? '$' : 'S/'} {Number(c.total).toFixed(2)}</p>
+                      <p className="text-[10px] text-gray-400">{c.totalItems} item{c.totalItems !== 1 ? 's' : ''}</p>
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-lg font-bold text-gray-900">{c.moneda === 'USD' ? '$' : 'S/'} {Number(c.total).toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-400">{c.totalItems} item{c.totalItems !== 1 ? 's' : ''}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex gap-1">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg?.color ?? 'text-gray-600'} ${cfg?.bg ?? 'bg-gray-100'}`}>
+                        {cfg?.label ?? c.estado}
+                      </span>
+                      {reservado && (
+                        <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">🔖 Reservado</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-amber-600">⏱ {tiempoEspera(c.creadoEn)}</span>
                   </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex gap-1">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg?.color ?? 'text-gray-600'} ${cfg?.bg ?? 'bg-gray-100'}`}>
-                      {cfg?.label ?? c.estado}
-                    </span>
-                    {reservado && (
-                      <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">🔖 Reservado</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-amber-600">⏱ {tiempoEspera(c.creadoEn)}</span>
-                </div>
-              </button>
+                </button>
+                {/* Botón cobrar (paridad cola_pos Flutter: ámbar PENDIENTE, azul APROBADA) */}
+                <button onClick={() => router.push(`/dashboard/pos/cobrar/${c.id}`)}
+                  className={`mt-3 w-full rounded-lg px-3 py-2 text-xs font-bold text-white ${esPendiente ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#004A94] hover:bg-[#003570]'}`}>
+                  {esPendiente ? '⚡ Aprobar y Cobrar' : '💵 Cobrar'}
+                </button>
+              </div>
             );
           })}
         </div>

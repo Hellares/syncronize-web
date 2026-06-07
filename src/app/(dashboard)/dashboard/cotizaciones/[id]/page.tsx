@@ -180,7 +180,8 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const estadoConfig = ESTADO_COTIZACION_CONFIG[c.estado];
   const transitions = getTransitions(c.estado);
   const isBorrador = c.estado === 'BORRADOR';
-  const isAprobada = c.estado === 'APROBADA';
+  // El backend acepta PENDIENTE o APROBADA en /ventas/desde-cotizacion (auto-aprueba PENDIENTE en la tx)
+  const isAprobada = c.estado === 'APROBADA' || c.estado === 'PENDIENTE';
   const vendedorNombre = c.vendedor?.persona
     ? `${c.vendedor.persona.nombres} ${c.vendedor.persona.apellidos}`
     : '-';
