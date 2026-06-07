@@ -32,7 +32,7 @@ export function useCombo(comboId: string, sedeId: string | null) {
     setIsSubmitting(true);
     setError(null); setSuccess(null);
     try {
-      await comboService.addComponente(comboId, { ...data, sedeId });
+      await comboService.addComponente(comboId, sedeId, data);
       await load();
       setSuccess('Componente agregado');
     } catch {
@@ -43,10 +43,11 @@ export function useCombo(comboId: string, sedeId: string | null) {
   }, [comboId, sedeId, load]);
 
   const updateComponente = useCallback(async (componenteId: string, data: UpdateComponenteComboDto) => {
+    if (!sedeId) return;
     setIsSubmitting(true);
     setError(null); setSuccess(null);
     try {
-      await comboService.updateComponente(componenteId, data);
+      await comboService.updateComponente(componenteId, sedeId, data);
       await load();
       setSuccess('Componente actualizado');
     } catch {
@@ -54,7 +55,7 @@ export function useCombo(comboId: string, sedeId: string | null) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [load]);
+  }, [sedeId, load]);
 
   const removeComponente = useCallback(async (componenteId: string) => {
     setIsSubmitting(true);

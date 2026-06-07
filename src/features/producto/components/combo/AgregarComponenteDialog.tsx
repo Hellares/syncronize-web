@@ -2,19 +2,27 @@
 
 import { useState, useCallback } from 'react';
 import type { CreateComponenteComboDto } from '@/core/types/combo';
-import type { Producto } from '@/core/types/producto';
+import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
+import { infoPrecioEfectivo } from '@/core/types/producto';
 import * as productoService from '../../services/producto-service';
 
 interface Props {
   isOpen: boolean;
   isSubmitting: boolean;
+  /** Sede para mostrar precio/stock correctos del componente */
+  sedeId?: string | null;
   onAdd: (data: CreateComponenteComboDto) => void;
   onClose: () => void;
 }
 
+function stockDeSede(p: Producto, sedeId?: string | null): StockPorSedeInfo | undefined {
+  if (!p.stocksPorSede?.length) return undefined;
+  return (sedeId && p.stocksPorSede.find(s => s.sedeId === sedeId)) || p.stocksPorSede[0];
+}
+
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
 
-export default function AgregarComponenteDialog({ isOpen, isSubmitting, onAdd, onClose }: Props) {
+export default function AgregarComponenteDialog({ isOpen, isSubmitting, sedeId, onAdd, onClose }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
@@ -30,13 +38,13 @@ export default function AgregarComponenteDialog({ isOpen, isSubmitting, onAdd, o
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await productoService.getProductos({ page: 1, limit: 10, search: value, soloProductos: true });
+        const res = await productoService.getProductos({ page: 1, limit: 10, search: value, soloProductos: true, sedeId: sedeId || undefined });
         setSearchResults(res.data);
       } catch { /* ignore */ }
       setSearching(false);
     }, 400);
     setSearchTimeout(t);
-  }, [searchTimeout]);
+  }, [searchTimeout, sedeId]);
 
   const handleSelect = (p: Producto) => {
     setSelected(p);
@@ -74,18 +82,43 @@ export default function AgregarComponenteDialog({ isOpen, isSubmitting, onAdd, o
               <input className={inputClass} value={searchQuery} onChange={e => handleSearch(e.target.value)} placeholder="Buscar producto..." />
               {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#437EFF]" /></div>}
               {searchResults.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-40 overflow-y-auto">
-                  {searchResults.map(p => (
-                    <button key={p.id} onClick={() => handleSelect(p)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
-                      <span className="font-medium text-gray-900">{p.nombre}</span>
-                      <span className="text-xs text-gray-500">{p.sku || p.codigoEmpresa}</span>
-                    </button>
-                  ))}
+                <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-52 overflow-y-auto">
+                  {searchResults.map(p => {
+                    const stock = stockDeSede(p, sedeId);
+                    const precio = stock ? infoPrecioEfectivo(stock) : undefined;
+                    return (
+                      <button key={p.id} onClick={() => handleSelect(p)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{p.nombre}</p>
+                          <p className="text-[10px] text-gray-400">{p.sku || p.codigoEmpresa}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-xs font-semibold text-gray-800">
+                            {precio != null ? `S/ ${Number(precio).toFixed(2)}` : 'Sin precio'}
+                          </p>
+                          <p className={`text-[10px] ${(stock?.cantidad ?? 0) <= 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                            Stock: {stock?.cantidad ?? 0}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-            {selected && <p className="mt-1 text-xs text-green-600">Seleccionado: {selected.nombre}</p>}
+            {selected && (() => {
+              const stock = stockDeSede(selected, sedeId);
+              const precio = stock ? infoPrecioEfectivo(stock) : undefined;
+              return (
+                <div className="mt-2 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                  <p className="text-xs font-medium text-green-700 truncate">{selected.nombre}</p>
+                  <p className="shrink-0 text-xs text-green-700">
+                    {precio != null ? `S/ ${Number(precio).toFixed(2)}` : 'Sin precio'} · Stock {stock?.cantidad ?? 0}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -95,7 +128,12 @@ export default function AgregarComponenteDialog({ isOpen, isSubmitting, onAdd, o
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Precio en Combo</label>
-              <input className={inputClass} type="number" step="0.01" value={precioEnCombo} onChange={e => setPrecioEnCombo(e.target.value)} placeholder="Usar precio normal" />
+              <input className={inputClass} type="number" step="0.01" value={precioEnCombo} onChange={e => setPrecioEnCombo(e.target.value)}
+                placeholder={(() => {
+                  const stock = selected ? stockDeSede(selected, sedeId) : undefined;
+                  const precio = stock ? infoPrecioEfectivo(stock) : undefined;
+                  return precio != null ? `Normal: S/ ${Number(precio).toFixed(2)}` : 'Usar precio normal';
+                })()} />
             </div>
           </div>
         </div>

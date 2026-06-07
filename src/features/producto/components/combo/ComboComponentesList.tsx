@@ -133,37 +133,56 @@ export default function ComboComponentesList({ comboId }: Props) {
         <p className="text-xs text-gray-400 py-4 text-center">No hay componentes. Agrega productos para armar el combo.</p>
       ) : (
         <div className="space-y-2">
-          {combo.componentes.map(comp => (
-            <div key={comp.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-              <div className="flex items-center gap-3 min-w-0">
-                {comp.componenteInfo?.imagen && (
-                  <img src={comp.componenteInfo.imagen} alt="" className="h-8 w-8 rounded object-cover" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{comp.componenteInfo?.nombre || 'Producto'}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>x{comp.cantidad}</span>
-                    {comp.precioEnCombo != null && <span className="text-green-600">S/ {Number(comp.precioEnCombo).toFixed(2)}</span>}
-                    {comp.componenteInfo?.stock != null && <span>Stock: {comp.componenteInfo.stock}</span>}
+          {combo.componentes.map(comp => {
+            // Precio unitario efectivo: override del combo > precio regular del componente
+            const precioRegular = comp.componenteInfo?.precio != null ? Number(comp.componenteInfo.precio) : null;
+            const precioUnit = comp.precioEnCombo != null ? Number(comp.precioEnCombo) : precioRegular;
+            const tieneOverride = comp.precioEnCombo != null && precioRegular != null && Number(comp.precioEnCombo) !== precioRegular;
+            return (
+              <div key={comp.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  {comp.componenteInfo?.imagen && (
+                    <img src={comp.componenteInfo.imagen} alt="" className="h-8 w-8 rounded object-cover" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{comp.componenteInfo?.nombre || 'Producto'}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>x{comp.cantidad}</span>
+                      {comp.componenteInfo?.stock != null && <span>Stock: {comp.componenteInfo.stock}</span>}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    {tieneOverride && (
+                      <p className="text-[10px] text-gray-400 line-through">S/ {precioRegular!.toFixed(2)}</p>
+                    )}
+                    <p className={`text-sm font-semibold ${tieneOverride ? 'text-green-600' : 'text-gray-800'}`}>
+                      {precioUnit != null ? `S/ ${precioUnit.toFixed(2)}` : '—'}
+                    </p>
+                    {precioUnit != null && comp.cantidad > 1 && (
+                      <p className="text-[10px] text-gray-400">Subtotal: S/ {(precioUnit * comp.cantidad).toFixed(2)}</p>
+                    )}
+                  </div>
+                  {canManage && (
+                    <button onClick={() => removeComponente(comp.id)} disabled={isSubmitting}
+                      className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
-              {canManage && (
-                <button onClick={() => removeComponente(comp.id)} disabled={isSubmitting}
-                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <AgregarComponenteDialog
         isOpen={addOpen}
         isSubmitting={isSubmitting}
+        sedeId={sedeId}
         onAdd={addComponente}
         onClose={() => setAddOpen(false)}
       />

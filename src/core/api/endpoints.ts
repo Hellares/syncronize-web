@@ -44,11 +44,23 @@ export const CONFIGURACION_PRECIO_ENDPOINTS = {
 
 export const COMBO_ENDPOINTS = {
   LIST: '/combos',
+  CREATE: '/combos',
   COMPONENTES: (comboId: string) => `/combos/${comboId}/componentes`,
   COMPONENTES_BATCH: (comboId: string) => `/combos/${comboId}/componentes/batch`,
+  COMPONENTES_BATCH_DELETE: '/combos/componentes/batch',
   COMPONENTE: (componenteId: string) => `/combos/componentes/${componenteId}`,
   COMBO_COMPLETO: (comboId: string) => `/combos/${comboId}/combo-completo`,
   STOCK_DISPONIBLE: (comboId: string) => `/combos/${comboId}/stock-disponible-combo`,
+  PRECIO_CALCULADO: (comboId: string) => `/combos/${comboId}/precio-calculado-combo`,
+  // F3: pricing, oferta, precio por sede, historial, reservas
+  PRICING: (comboId: string) => `/combos/${comboId}/pricing`,
+  OFERTA: (comboId: string) => `/combos/${comboId}/oferta`,
+  PRECIO_SEDE: (comboId: string) => `/combos/${comboId}/precio-sede`,
+  PRECIOS_POR_SEDE: (comboId: string) => `/combos/${comboId}/precios-por-sede`,
+  HISTORIAL_PRECIOS: (comboId: string) => `/combos/${comboId}/historial-precios`,
+  RESERVACION: (comboId: string) => `/combos/${comboId}/reservacion`,
+  RESERVAR_STOCK: (comboId: string) => `/combos/${comboId}/reservar-stock`,
+  VALIDAR_STOCK: (comboId: string, cantidad: number) => `/combos/${comboId}/validar-stock-combo/${cantidad}`,
 } as const;
 
 export const STOCK_ENDPOINTS = {
