@@ -1,13 +1,14 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCotizacionDetail } from '@/features/cotizacion/hooks/use-cotizacion-detail';
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import { ESTADO_COTIZACION_CONFIG } from '@/core/types/cotizacion';
-import type { EstadoCotizacion } from '@/core/types/cotizacion';
+import type { EstadoCotizacion, StockValidationResult, CreateVentaDesdeCotizacionDto } from '@/core/types/cotizacion';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
+import CotizacionPdfGenerator from '@/features/cotizacion/components/CotizacionPdfGenerator';
 
 // --- Helpers ---
 
@@ -43,6 +44,12 @@ function getTransitions(estado: EstadoCotizacion): TransitionAction[] {
   }
 }
 
+const TIPO_AFECTACION_LABELS: Record<string, string> = {
+  '10': 'Gravado',
+  '20': 'Exonerado',
+  '30': 'Inafecto',
+};
+
 // --- Component ---
 
 export default function CotizacionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,6 +69,15 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEstadoDropdown, setShowEstadoDropdown] = useState(false);
 
+  // Convertir a venta
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [convertData, setConvertData] = useState<CreateVentaDesdeCotizacionDto>({});
+  const [stockValidation, setStockValidation] = useState<StockValidationResult | null>(null);
+  const [validatingStock, setValidatingStock] = useState(false);
+
+  // PDF
+  const [showPdfModal, setShowPdfModal] = useState(false);
+
   // --- Actions ---
 
   async function handleCambiarEstado() {
@@ -71,11 +87,11 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
     setSuccessMsg(null);
     try {
       await cambiarEstado(estadoTarget.targetEstado);
-      setSuccessMsg(`Cotización cambiada a "${ESTADO_COTIZACION_CONFIG[estadoTarget.targetEstado].label}"`);
+      setSuccessMsg(`Cotizacion cambiada a "${ESTADO_COTIZACION_CONFIG[estadoTarget.targetEstado].label}"`);
       setShowEstadoModal(false);
       setEstadoTarget(null);
     } catch {
-      setErrorMsg('Error al cambiar el estado de la cotización');
+      setErrorMsg('Error al cambiar el estado de la cotizacion');
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +104,7 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
       const dup = await duplicar();
       router.push(`/dashboard/cotizaciones/${dup.id}`);
     } catch {
-      setErrorMsg('Error al duplicar la cotización');
+      setErrorMsg('Error al duplicar la cotizacion');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,8 +117,39 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
       await cotizacionService.deleteCotizacion(id);
       router.push('/dashboard/cotizaciones');
     } catch {
-      setErrorMsg('Error al eliminar la cotización');
+      setErrorMsg('Error al eliminar la cotizacion');
       setShowDeleteModal(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Convertir a venta
+  const handleOpenConvert = useCallback(async () => {
+    setValidatingStock(true);
+    setStockValidation(null);
+    setShowConvertModal(true);
+    try {
+      const result = await cotizacionService.validarStock(id);
+      setStockValidation(result);
+    } catch {
+      // continue without stock validation
+    } finally {
+      setValidatingStock(false);
+    }
+  }, [id]);
+
+  async function handleConvertir() {
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      await cotizacionService.convertirAVenta(id, convertData);
+      setShowConvertModal(false);
+      setSuccessMsg('Cotizacion convertida a venta exitosamente');
+      reload();
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.message || 'Error al convertir a venta');
+      setShowConvertModal(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +168,7 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   if (!cotizacion) {
     return (
       <div className="py-20 text-center">
-        <p className="text-red-500">{error || 'Cotización no encontrada'}</p>
+        <p className="text-red-500">{error || 'Cotizacion no encontrada'}</p>
         <Link href="/dashboard/cotizaciones" className="mt-4 inline-block text-sm text-[#004A94] hover:underline">
           Volver a cotizaciones
         </Link>
@@ -133,6 +180,7 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const estadoConfig = ESTADO_COTIZACION_CONFIG[c.estado];
   const transitions = getTransitions(c.estado);
   const isBorrador = c.estado === 'BORRADOR';
+  const isAprobada = c.estado === 'APROBADA';
   const vendedorNombre = c.vendedor?.persona
     ? `${c.vendedor.persona.nombres} ${c.vendedor.persona.apellidos}`
     : '-';
@@ -154,6 +202,18 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
 
           {canManage && (
             <div className="flex flex-wrap items-center gap-2">
+              {/* PDF */}
+              <button
+                onClick={() => setShowPdfModal(true)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                title="Generar PDF"
+              >
+                <svg className="h-4 w-4 inline-block mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                PDF
+              </button>
+
               {/* Editar - only BORRADOR */}
               {isBorrador && (
                 <Link
@@ -162,6 +222,17 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                 >
                   Editar
                 </Link>
+              )}
+
+              {/* Convertir a Venta - APROBADA */}
+              {isAprobada && (
+                <button
+                  onClick={handleOpenConvert}
+                  disabled={isSubmitting}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  Convertir a Venta
+                </button>
               )}
 
               {/* Duplicar */}
@@ -188,7 +259,6 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
 
                   {showEstadoDropdown && (
                     <>
-                      {/* Backdrop to close dropdown */}
                       <div className="fixed inset-0 z-10" onClick={() => setShowEstadoDropdown(false)} />
                       <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                         {transitions.map((t) => (
@@ -241,10 +311,10 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Card 1 - Informacion General */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900">Informaci&oacute;n General</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Informacion General</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className="text-gray-500">C&oacute;digo:</span>{' '}
+              <span className="text-gray-500">Codigo:</span>{' '}
               <span className="font-medium">{c.codigo}</span>
             </div>
             {c.nombre && (
@@ -262,7 +332,7 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
               <span className="font-medium">{c.sede?.nombre ?? '-'}</span>
             </div>
             <div>
-              <span className="text-gray-500">Fecha emisi&oacute;n:</span>{' '}
+              <span className="text-gray-500">Fecha emision:</span>{' '}
               <span className="font-medium">{formatDate(c.fechaEmision)}</span>
             </div>
             {c.fechaVencimiento && (
@@ -303,13 +373,13 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
             )}
             {c.telefonoCliente && (
               <div>
-                <span className="text-gray-500">Tel&eacute;fono:</span>{' '}
+                <span className="text-gray-500">Telefono:</span>{' '}
                 <span className="font-medium">{c.telefonoCliente}</span>
               </div>
             )}
             {c.direccionCliente && (
               <div>
-                <span className="text-gray-500">Direcci&oacute;n:</span>{' '}
+                <span className="text-gray-500">Direccion:</span>{' '}
                 <span className="font-medium">{c.direccionCliente}</span>
               </div>
             )}
@@ -330,11 +400,15 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
               <thead>
                 <tr className="border-b border-gray-200 text-xs font-medium uppercase text-gray-500">
                   <th className="px-4 py-2 text-center w-10">#</th>
-                  <th className="px-4 py-2">Descripci&oacute;n</th>
+                  <th className="px-4 py-2">Descripcion</th>
                   <th className="px-4 py-2 text-right">Cant.</th>
                   <th className="px-4 py-2 text-right">P. Unit.</th>
                   <th className="px-4 py-2 text-right">Desc.</th>
+                  <th className="px-4 py-2 text-center">Afect.</th>
                   <th className="px-4 py-2 text-right">IGV</th>
+                  {c.detalles.some(d => d.icbper > 0) && (
+                    <th className="px-4 py-2 text-right">ICBPER</th>
+                  )}
                   <th className="px-4 py-2 text-right">Total</th>
                 </tr>
               </thead>
@@ -360,7 +434,21 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                       <td className="px-4 py-2.5 text-right">
                         {det.descuento > 0 ? formatCurrency(det.descuento, c.moneda) : '-'}
                       </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          det.tipoAfectacion === '10' ? 'bg-blue-50 text-blue-600' :
+                          det.tipoAfectacion === '20' ? 'bg-green-50 text-green-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {TIPO_AFECTACION_LABELS[det.tipoAfectacion] || det.tipoAfectacion}
+                        </span>
+                      </td>
                       <td className="px-4 py-2.5 text-right">{formatCurrency(det.igv, c.moneda)}</td>
+                      {c.detalles!.some(d => d.icbper > 0) && (
+                        <td className="px-4 py-2.5 text-right">
+                          {det.icbper > 0 ? formatCurrency(det.icbper, c.moneda) : '-'}
+                        </td>
+                      )}
                       <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(det.total, c.moneda)}</td>
                     </tr>
                   ))}
@@ -389,6 +477,24 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                 <span className="text-base font-bold text-gray-900">Total</span>
                 <span className="text-base font-bold text-gray-900">{formatCurrency(c.total, c.moneda)}</span>
               </div>
+              {/* Adelanto registrado en caja (categoría ADELANTO_COTIZACION) — paridad Flutter */}
+              {(c.adelantoMonto ?? 0) > 0 && (
+                <>
+                  <div className="flex w-64 justify-between">
+                    <span className="text-green-600">Adelanto pagado</span>
+                    <span className="font-medium text-green-600">-{formatCurrency(Number(c.adelantoMonto), c.moneda)}</span>
+                  </div>
+                  <div className="flex w-64 justify-between rounded-md bg-green-50 px-2 py-1">
+                    <span className="font-bold text-green-700">Saldo pendiente</span>
+                    <span className="font-bold text-green-700">{formatCurrency(Number(c.total) - Number(c.adelantoMonto), c.moneda)}</span>
+                  </div>
+                </>
+              )}
+              {c.tieneReservaActiva && (
+                <div className="flex w-64 items-center justify-end gap-1 pt-1">
+                  <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">🔖 Stock reservado para este cliente</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -412,27 +518,19 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* State Change Modal */}
+      {/* ========== State Change Modal ========== */}
       {showEstadoModal && estadoTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-gray-900">Confirmar cambio de estado</h3>
             <p className="mt-2 text-sm text-gray-600">
-              ¿Estás seguro de que deseas cambiar el estado de esta cotización a{' '}
-              <span className="font-semibold">
-                {ESTADO_COTIZACION_CONFIG[estadoTarget.targetEstado].label}
-              </span>
-              ?
+              Deseas cambiar el estado de esta cotizacion a{' '}
+              <span className="font-semibold">{ESTADO_COTIZACION_CONFIG[estadoTarget.targetEstado].label}</span>?
             </p>
-            <p className="mt-1 text-xs text-gray-400">
-              Cotización: {c.codigo}
-            </p>
+            <p className="mt-1 text-xs text-gray-400">Cotizacion: {c.codigo}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => {
-                  setShowEstadoModal(false);
-                  setEstadoTarget(null);
-                }}
+                onClick={() => { setShowEstadoModal(false); setEstadoTarget(null); }}
                 disabled={isSubmitting}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
@@ -450,14 +548,14 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* ========== Delete Modal ========== */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900">Eliminar cotización</h3>
+            <h3 className="text-lg font-bold text-gray-900">Eliminar cotizacion</h3>
             <p className="mt-2 text-sm text-gray-600">
-              ¿Estás seguro de que deseas eliminar la cotización <span className="font-semibold">{c.codigo}</span>?
-              Esta acción no se puede deshacer.
+              Deseas eliminar la cotizacion <span className="font-semibold">{c.codigo}</span>?
+              Esta accion no se puede deshacer.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -477,6 +575,174 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========== Convertir a Venta Modal ========== */}
+      {showConvertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-900">Convertir a Venta</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Cotizacion {c.codigo} - {formatCurrency(c.total, c.moneda)}
+            </p>
+
+            {/* Stock validation */}
+            {validatingStock && (
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#004A94]" />
+                Validando stock...
+              </div>
+            )}
+
+            {stockValidation && (
+              <div className={`mt-4 rounded-lg border p-3 ${
+                stockValidation.todosConStock ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
+              }`}>
+                {stockValidation.todosConStock ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm text-green-700">Todos los items tienen stock disponible</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <p className="text-sm font-medium text-amber-700">Algunos items sin stock suficiente</p>
+                    </div>
+                    <ul className="mt-2 space-y-1">
+                      {stockValidation.items.filter(i => i.sinStock).map(item => (
+                        <li key={item.detalleId} className="text-xs text-amber-600">
+                          {item.descripcion}: necesita {item.cantidad}, disponible {item.stockDisponible}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Opciones de conversion */}
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Tipo de comprobante</label>
+                <select
+                  value={convertData.tipoComprobante || ''}
+                  onChange={e => setConvertData(prev => ({ ...prev, tipoComprobante: e.target.value || undefined }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                >
+                  <option value="">Nota de venta</option>
+                  <option value="BOLETA">Boleta</option>
+                  <option value="FACTURA">Factura</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Metodo de pago</label>
+                <select
+                  value={convertData.metodoPago || ''}
+                  onChange={e => setConvertData(prev => ({ ...prev, metodoPago: e.target.value || undefined }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="EFECTIVO">Efectivo</option>
+                  <option value="TARJETA">Tarjeta</option>
+                  <option value="TRANSFERENCIA">Transferencia</option>
+                  <option value="YAPE">Yape</option>
+                  <option value="PLIN">Plin</option>
+                </select>
+              </div>
+
+              {convertData.metodoPago === 'EFECTIVO' && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Monto recibido</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={convertData.montoRecibido || ''}
+                    onChange={e => setConvertData(prev => ({ ...prev, montoRecibido: parseFloat(e.target.value) || undefined }))}
+                    placeholder={`${c.total}`}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={convertData.esCredito || false}
+                    onChange={e => setConvertData(prev => ({ ...prev, esCredito: e.target.checked || undefined }))}
+                    className="rounded border-gray-300 text-[#004A94] focus:ring-[#004A94]"
+                  />
+                  Venta a credito
+                </label>
+              </div>
+
+              {convertData.esCredito && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Plazo (dias)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={convertData.plazoCredito || ''}
+                      onChange={e => setConvertData(prev => ({ ...prev, plazoCredito: parseInt(e.target.value) || undefined }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Cuotas</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={convertData.numeroCuotas || ''}
+                      onChange={e => setConvertData(prev => ({ ...prev, numeroCuotas: parseInt(e.target.value) || undefined }))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Observaciones</label>
+                <textarea
+                  value={convertData.observaciones || ''}
+                  onChange={e => setConvertData(prev => ({ ...prev, observaciones: e.target.value || undefined }))}
+                  rows={2}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] resize-none"
+                  placeholder="Observaciones de la venta..."
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => { setShowConvertModal(false); setConvertData({}); setStockValidation(null); }}
+                disabled={isSubmitting}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConvertir}
+                disabled={isSubmitting}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Convirtiendo...' : 'Confirmar Conversion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== PDF Modal ========== */}
+      {showPdfModal && (
+        <CotizacionPdfGenerator cotizacion={c} onClose={() => setShowPdfModal(false)} />
       )}
     </div>
   );

@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useCotizaciones } from '@/features/cotizacion/hooks/use-cotizaciones';
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import type { Cotizacion, EstadoCotizacion } from '@/core/types/cotizacion';
-import { ESTADO_COTIZACION_CONFIG } from '@/core/types/cotizacion';
-import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { ESTADO_COTIZACION_CONFIG, estadoEfectivoCotizacion } from '@/core/types/cotizacion';
+import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
 
 const ESTADOS: EstadoCotizacion[] = ['BORRADOR', 'PENDIENTE', 'APROBADA', 'RECHAZADA', 'VENCIDA', 'CONVERTIDA'];
 
@@ -65,6 +65,7 @@ function EmptyState() {
 export default function CotizacionesPage() {
   const { cotizaciones, meta, filtros, isLoading, error, updateFiltros, setPage, reload, resetFiltros } = useCotizaciones();
   const permissions = usePermissions();
+  const { sedes } = useEmpresa();
   const [deleteTarget, setDeleteTarget] = useState<Cotizacion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
@@ -132,7 +133,7 @@ export default function CotizacionesPage() {
         </div>
 
         {/* Estado */}
-        <div className="min-w-[160px]">
+        <div className="min-w-[140px]">
           <label className="mb-1 block text-xs font-medium text-gray-500">Estado</label>
           <select
             value={filtros.estado ?? ''}
@@ -143,6 +144,23 @@ export default function CotizacionesPage() {
             {ESTADOS.map(est => (
               <option key={est} value={est}>{ESTADO_COTIZACION_CONFIG[est].label}</option>
             ))}
+          </select>
+        </div>
+
+        {/* Sede */}
+        <div className="min-w-[140px]">
+          <label className="mb-1 block text-xs font-medium text-gray-500">Sede</label>
+          <select
+            value={filtros.sedeId ?? ''}
+            onChange={e => updateFiltros({ sedeId: e.target.value || undefined })}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+          >
+            <option value="">Todas</option>
+            {sedes
+              .filter((s: any) => s.isActive)
+              .map((s: any) => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
           </select>
         </div>
 
@@ -205,7 +223,8 @@ export default function CotizacionesPage() {
               <EmptyState />
             ) : (
               cotizaciones.map(cot => {
-                const estadoCfg = ESTADO_COTIZACION_CONFIG[cot.estado];
+                // VENCIDA es computada en el front (fechaVencimiento < hoy), paridad Flutter
+                const estadoCfg = ESTADO_COTIZACION_CONFIG[estadoEfectivoCotizacion(cot)];
                 const isBorrador = cot.estado === 'BORRADOR';
                 return (
                   <tr key={cot.id} className="hover:bg-gray-50 transition-colors">
@@ -219,16 +238,26 @@ export default function CotizacionesPage() {
                       {getClienteName(cot)}
                     </td>
 
-                    {/* Monto */}
+                    {/* Monto (con adelanto si existe) */}
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-900">
                       {formatCurrency(cot.total)}
+                      {(cot.adelantoMonto ?? 0) > 0 && (
+                        <div className="text-[10px] font-normal text-green-600">
+                          Adelanto: {formatCurrency(Number(cot.adelantoMonto))}
+                        </div>
+                      )}
                     </td>
 
-                    {/* Estado */}
+                    {/* Estado (+ badge Reservado, paridad Flutter) */}
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${estadoCfg.color} ${estadoCfg.bg}`}>
                         {estadoCfg.label}
                       </span>
+                      {cot.tieneReservaActiva && (
+                        <span className="ml-1 inline-flex items-center gap-0.5 rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700" title="Stock apartado para este cliente">
+                          🔖 Reservado
+                        </span>
+                      )}
                     </td>
 
                     {/* Fecha */}
