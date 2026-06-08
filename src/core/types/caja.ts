@@ -47,6 +47,7 @@ export const CATEGORIA_MOVIMIENTO_LABEL: Record<string, string> = {
   DEPOSITO_TESORERIA: 'Depósito tesorería',
   RETIRO_TESORERIA: 'Retiro tesorería',
   REVERSO_TESORERIA: 'Reverso tesorería',
+  REVERSO_CAJA_CERRADA: 'Reverso caja cerrada',
   AJUSTE_TESORERIA: 'Ajuste tesorería',
 };
 

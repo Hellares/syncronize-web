@@ -67,6 +67,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Mi Caja', href: '/dashboard/caja', permission: 'canViewCaja' },
       { label: 'Monitor de Cajas', href: '/dashboard/caja/monitor', permission: 'canViewCaja' },
       { label: 'Historial de Cajas', href: '/dashboard/caja/historial', permission: 'canViewCaja' },
+      { label: 'Tesorería', href: '/dashboard/tesoreria', permission: 'canViewCaja' },
       { label: 'Cotizaciones', href: '/dashboard/cotizaciones', permission: 'canViewCotizaciones' },
       { label: 'Ventas', href: '/dashboard/ventas', permission: 'canViewVentas' },
       { label: 'Cola POS', href: '/dashboard/pos', permission: 'canViewVentas' },
