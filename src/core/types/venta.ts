@@ -267,6 +267,11 @@ export interface VentaItem {
   // Combo expandido: referencia de trazabilidad (SÍ viaja al backend)
   origenComboId?: string;
   origenComboNombre?: string;
+  // Cobro de orden de servicio: línea pura (precio = costo neto, cantidad 1, sin descuento).
+  // El backend aplica el adelanto como pago y cobra hoy total − adelanto.
+  ordenServicioId?: string;
+  esOrdenServicio?: boolean;
+  adelantoOrden?: number; // adelanto ya pagado de la orden (para calcular el saldo a cobrar hoy)
   // Contexto local (NO viaja al backend)
   niveles: NivelPrecio[];
   nivelAplicado?: string | null;

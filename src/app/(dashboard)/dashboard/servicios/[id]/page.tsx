@@ -6,11 +6,12 @@ import { AxiosError } from 'axios';
 import type { OrdenServicio, HistorialOS, EstadoOrdenServicio } from '@/core/types/orden-servicio';
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
-  TRANSICIONES_VALIDAS, saldoOrden,
+  TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, saldoOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
+import * as cajaService from '@/features/caja/services/caja-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -69,6 +70,18 @@ export default function OrdenDetailPage() {
   const prio = PRIORIDAD_CONFIG[orden.prioridad];
   const saldo = saldoOrden(orden);
   const transiciones = (TRANSICIONES_VALIDAS[orden.estado] ?? []).filter(e => e !== 'TERCERIZADO');
+  const esCobrable = ESTADOS_OS_COBRABLES.includes(orden.estado) && Number(orden.costoTotal ?? 0) > 0;
+
+  const cobrar = async () => {
+    setError(null);
+    try {
+      const caja = await cajaService.getCajaActiva();
+      if (!caja?.id) { setError('Necesitas una caja abierta para cobrar. Abre tu caja primero.'); return; }
+      router.push(`/dashboard/venta-rapida?ordenServicioId=${orden.id}`);
+    } catch {
+      setError('Necesitas una caja abierta para cobrar.');
+    }
+  };
   const tecnicoNombre = orden.tecnico?.persona ? [orden.tecnico.persona.nombres, orden.tecnico.persona.apellidos].filter(Boolean).join(' ') : null;
   const esEmpresa = !!orden.clienteEmpresa;
   const persona = orden.cliente?.persona;
@@ -80,12 +93,20 @@ export default function OrdenDetailPage() {
         <h1 className="font-mono text-xl font-bold text-gray-900">{orden.codigo}</h1>
         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[orden.prioridad]}</span>
-        {permissions.canManageOrders && transiciones.length > 0 && (
-          <button onClick={() => setTransicionOpen(true)}
-            className="ml-auto rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">
-            Cambiar estado
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {permissions.canManageOrders && esCobrable && (
+            <button onClick={cobrar}
+              className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700">
+              Cobrar {saldo > 0.005 ? `S/ ${fmt(saldo)}` : '(pagado)'}
+            </button>
+          )}
+          {permissions.canManageOrders && transiciones.length > 0 && (
+            <button onClick={() => setTransicionOpen(true)}
+              className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">
+              Cambiar estado
+            </button>
+          )}
+        </div>
       </div>
 
       {accionMsg && <div className="rounded-lg border border-green-200 bg-green-50 p-3"><p className="text-sm text-green-700">{accionMsg}</p></div>}

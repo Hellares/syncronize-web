@@ -211,6 +211,31 @@ export function saldoOrden(o: { costoTotal?: number | null; adelanto?: number | 
   return Math.max(0, Number(o.costoTotal ?? 0) - Number(o.adelanto ?? 0) - Number(o.descuento ?? 0));
 }
 
+/** Costo neto = costoTotal − descuento (precio de la línea de venta al cobrar vía VR; el adelanto va aparte). */
+export function costoNetoOrden(o: { costoTotal?: number | null; descuento?: number | null }): number {
+  return Math.round((Number(o.costoTotal ?? 0) - Number(o.descuento ?? 0)) * 100) / 100;
+}
+
+export const ESTADOS_OS_COBRABLES: EstadoOrdenServicio[] = ['REPARADO', 'LISTO_ENTREGA'];
+
+/** GET /ordenes-servicio/cobrables — payload liviano para cargar al carrito VR. */
+export interface OrdenCobrable {
+  id: string;
+  codigo: string;
+  estado: EstadoOrdenServicio;
+  tipoServicio: TipoServicio;
+  servicioNombre?: string | null;
+  tipoEquipo?: string | null;
+  marcaEquipo?: string | null;
+  numeroSerie?: string | null;
+  costoTotal: number;
+  adelanto: number;
+  descuento: number;
+  saldoPendiente: number;
+  cliente?: { clienteId: string; nombre: string; numeroDocumento?: string | null; telefono?: string | null; email?: string | null } | null;
+  clienteEmpresa?: { clienteEmpresaId: string; razonSocial: string; ruc?: string | null; email?: string | null; direccion?: string | null } | null;
+}
+
 export function nombreClienteOrden(o: OrdenServicio): string {
   if (o.clienteEmpresa?.razonSocial) return o.clienteEmpresa.razonSocial;
   const p = o.cliente?.persona;

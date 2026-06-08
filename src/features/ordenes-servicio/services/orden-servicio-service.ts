@@ -6,6 +6,7 @@ import type {
   CreateOrdenServicioDto,
   TransitionEstadoDto,
   HistorialOS,
+  OrdenCobrable,
 } from '@/core/types/orden-servicio';
 
 const BASE = '/ordenes-servicio';
@@ -54,5 +55,12 @@ export async function asignarTecnico(id: string, tecnicoId: string): Promise<Ord
 
 export async function getHistorial(id: string): Promise<HistorialOS[]> {
   const res = await apiClient.get(`${BASE}/${id}/historial`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+/** Órdenes cobrables desde Venta Rápida (REPARADO/LISTO_ENTREGA con saldo ≥ 0 sin venta vinculada). */
+export async function getOrdenesCobrables(search?: string): Promise<OrdenCobrable[]> {
+  const q = search ? `?search=${encodeURIComponent(search)}` : '';
+  const res = await apiClient.get(`${BASE}/cobrables${q}`);
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }

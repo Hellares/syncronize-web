@@ -23,6 +23,8 @@ function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+interface InitialCliente { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
+
 interface Props {
   items: VentaItem[];
   setItems: React.Dispatch<React.SetStateAction<VentaItem[]>>;
@@ -30,20 +32,27 @@ interface Props {
   total: number;
   onBack: () => void;
   onSuccess: (venta: Venta) => void;
+  /** Adelantos ya pagados de órdenes de servicio en el carrito: hoy se cobra total − adelanto. */
+  adelantoAplicado?: number;
+  /** Cliente pre-cargado (ej. desde una orden de servicio). */
+  initialCliente?: InitialCliente;
 }
 
-export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess }: Props) {
+export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess, adelantoAplicado = 0, initialCliente }: Props) {
   const { state: authState } = useAuth();
   const { userRoles } = useEmpresa();
   const userId = authState.status === 'authenticated' ? authState.user.id : '';
   const esAutorizador = useMemo(() => userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol)), [userRoles]);
 
-  // Comprobante + cliente
+  const hayOrdenes = items.some(it => it.esOrdenServicio);
+  const totalACobrar = Math.round((total - adelantoAplicado) * 100) / 100;
+
+  // Comprobante + cliente (pre-cargado si viene de una orden)
   const [tipoComprobante, setTipoComprobante] = useState<'TICKET' | 'BOLETA' | 'FACTURA'>('TICKET');
-  const [documento, setDocumento] = useState('');
-  const [clienteNombre, setClienteNombre] = useState('');
-  const [clienteId, setClienteId] = useState<string | undefined>();
-  const [clienteEmpresaId, setClienteEmpresaId] = useState<string | undefined>();
+  const [documento, setDocumento] = useState(initialCliente?.documento ?? '');
+  const [clienteNombre, setClienteNombre] = useState(initialCliente?.nombre ?? '');
+  const [clienteId, setClienteId] = useState<string | undefined>(initialCliente?.clienteId);
+  const [clienteEmpresaId, setClienteEmpresaId] = useState<string | undefined>(initialCliente?.clienteEmpresaId);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [esGenerico, setEsGenerico] = useState(false);
 
@@ -70,8 +79,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
 
   const esCredito = condicionPago === 'CREDITO';
   const totalPagado = useMemo(() => pagos.reduce((a, p) => a + p.monto, 0), [pagos]);
-  const faltante = total - totalPagado;
-  const vuelto = totalPagado - total;
+  const faltante = totalACobrar - totalPagado;
+  const vuelto = totalPagado - totalACobrar;
   const cubierto = faltante <= TOLERANCIA;
 
   // --- Cliente lookup (RENIEC/SUNAT) ---
@@ -165,20 +174,31 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           montoRecibido: totalPagado,
           pagos: pagos as PagoVentaDto[],
         }),
-        detalles: items.map(it => ({
-          productoId: it.productoId,
-          varianteId: it.varianteId,
-          descripcion: it.descripcion,
-          cantidad: it.cantidad,
-          precioUnitario: it.precioUnitario,
-          ...(it.descuento > 0 && { descuento: it.descuento }),
-          porcentajeIGV: it.porcentajeIGV,
-          precioIncluyeIgv: it.precioIncluyeIgv,
-          tipoAfectacion: it.tipoAfectacion,
-          ...(it.icbper > 0 && { icbper: it.icbper * it.cantidad }),
-          // Trazabilidad de combo expandido
-          ...(it.origenComboId && { origenComboId: it.origenComboId, origenComboNombre: it.origenComboNombre }),
-        })),
+        detalles: items.map(it => it.esOrdenServicio
+          ? {
+              // Línea de orden de servicio: pura, cantidad 1, sin descuento.
+              ordenServicioId: it.ordenServicioId,
+              descripcion: it.descripcion,
+              cantidad: 1,
+              precioUnitario: it.precioUnitario,
+              porcentajeIGV: it.porcentajeIGV,
+              precioIncluyeIgv: it.precioIncluyeIgv,
+              tipoAfectacion: it.tipoAfectacion,
+            }
+          : {
+              productoId: it.productoId,
+              varianteId: it.varianteId,
+              descripcion: it.descripcion,
+              cantidad: it.cantidad,
+              precioUnitario: it.precioUnitario,
+              ...(it.descuento > 0 && { descuento: it.descuento }),
+              porcentajeIGV: it.porcentajeIGV,
+              precioIncluyeIgv: it.precioIncluyeIgv,
+              tipoAfectacion: it.tipoAfectacion,
+              ...(it.icbper > 0 && { icbper: it.icbper * it.cantidad }),
+              // Trazabilidad de combo expandido
+              ...(it.origenComboId && { origenComboId: it.origenComboId, origenComboNombre: it.origenComboNombre }),
+            }),
         ...(opts?.aceptaRiesgo && { aceptaRiesgoBancarizacion: true }),
         ...(opts?.bajoCostoAuthId && { ventaBajoCostoAutorizadaPorId: opts.bajoCostoAuthId }),
       });
@@ -194,6 +214,18 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           setDivergenciasStock(data.divergencias);
           return;
         }
+        if (data?.code === 'ORDEN_YA_COBRADA' && Array.isArray(data?.ordenes)) {
+          const ids = new Set(data.ordenes.map((o: { ordenServicioId: string }) => o.ordenServicioId));
+          setItems(prev => prev.filter(it => !(it.ordenServicioId && ids.has(it.ordenServicioId))));
+          setError(data.message || 'La orden ya fue cobrada en otra venta — se quitó del carrito');
+          return;
+        }
+        if (data?.code === 'SALDO_ORDEN_DESACTUALIZADO' && Array.isArray(data?.divergencias)) {
+          const ids = new Set(data.divergencias.map((d: { ordenServicioId: string }) => d.ordenServicioId));
+          setItems(prev => prev.filter(it => !(it.ordenServicioId && ids.has(it.ordenServicioId))));
+          setError('El costo de la orden cambió — se quitó del carrito. Vuelve a agregarla desde Venta Rápida.');
+          return;
+        }
         setError(data?.message || 'Conflicto al cobrar — reintenta');
         return;
       }
@@ -202,7 +234,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, esCredito, plazoDias, numeroCuotas, totalPagado, onSuccess]);
+  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, esCredito, plazoDias, numeroCuotas, totalPagado, onSuccess]);
 
   const handleCobrar = () => {
     setError('');
@@ -213,8 +245,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     if (esCredito && (esGenerico || (!clienteId && !clienteEmpresaId))) {
       setError('El crédito requiere un cliente identificado (busca por DNI/RUC)'); return;
     }
-    if (!esCredito && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
-    if (!esCredito && !cubierto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
+    // Orden 100% adelantada (saldo 0): se emite el comprobante sin cobrar nada hoy.
+    const sinSaldoHoy = totalACobrar <= TOLERANCIA;
+    if (!esCredito && !sinSaldoHoy && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
+    if (!esCredito && !sinSaldoHoy && !cubierto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
     if (!clienteNombre.trim()) { setError('Indica el cliente (busca por documento o usa Genérico)'); return; }
 
     // Venta bajo costo → autorización
@@ -282,8 +316,19 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           </button>
           <h1 className="text-xl font-bold text-gray-900">Cobrar</h1>
         </div>
-        <p className="text-2xl font-bold text-[#004A94]">S/ {fmt(total)}</p>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-[#004A94]">S/ {fmt(total)}</p>
+          {adelantoAplicado > 0 && (
+            <p className="text-[11px] text-gray-500">Adelanto −S/ {fmt(adelantoAplicado)} · <span className="font-semibold text-green-600">a cobrar hoy S/ {fmt(totalACobrar)}</span></p>
+          )}
+        </div>
       </div>
+
+      {hayOrdenes && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
+          <p className="text-[11px] text-blue-700">🛠 Incluye orden(es) de servicio: el comprobante se emite por el total del servicio y el adelanto ya pagado se aplica como pago.</p>
+        </div>
+      )}
 
       {total >= UMBRAL_BANCARIZACION_PEN && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2">
@@ -432,7 +477,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
 
           <button onClick={handleCobrar} disabled={isSubmitting || items.length === 0}
             className="w-full rounded-lg bg-green-600 px-4 py-3.5 text-base font-bold text-white hover:bg-green-700 disabled:opacity-50">
-            {isSubmitting ? 'Procesando...' : esCredito ? `REGISTRAR CRÉDITO S/ ${fmt(total)}` : `COBRAR S/ ${fmt(total)}`}
+            {isSubmitting ? 'Procesando...' : esCredito ? `REGISTRAR CRÉDITO S/ ${fmt(totalACobrar)}` : totalACobrar <= TOLERANCIA ? 'EMITIR COMPROBANTE (pagado)' : `COBRAR S/ ${fmt(totalACobrar)}`}
           </button>
         </div>
       </div>

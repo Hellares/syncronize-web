@@ -1,19 +1,24 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { VentaItem, Venta } from '@/core/types/venta';
 import { recalcularPorNiveles, calcularLinea } from '@/core/types/venta';
+import type { OrdenCobrable } from '@/core/types/orden-servicio';
+import { costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
 import * as cajaService from '@/features/caja/services/caja-service';
 import * as comboService from '@/features/producto/services/combo-service';
+import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
+
+interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
 
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
 
@@ -30,8 +35,10 @@ function imgUrl(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; i
   return null;
 }
 
-export default function VentaRapidaPage() {
+function VentaRapidaInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const ordenServicioParam = searchParams.get('ordenServicioId');
   const { sedes } = useEmpresa();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
   const sedeId = defaultSede?.id ?? '';
@@ -39,6 +46,10 @@ export default function VentaRapidaPage() {
   const [mode, setMode] = useState<'carrito' | 'cobro'>('carrito');
   const [items, setItems] = useState<VentaItem[]>([]);
   const [cajaOk, setCajaOk] = useState<boolean | null>(null);
+
+  // Cobro de órdenes de servicio
+  const [ordenCliente, setOrdenCliente] = useState<OrdenClienteCtx | null>(null);
+  const [cobrablesOpen, setCobrablesOpen] = useState(false);
 
   // Catálogo
   const [query, setQuery] = useState('');
@@ -217,7 +228,82 @@ export default function VentaRapidaPage() {
     setItems(prev => prev.map(it => it.key === key ? recalcularPorNiveles(it, nueva) : it));
   };
 
-  const quitarItem = (key: string) => setItems(prev => prev.filter(it => it.key !== key));
+  const quitarItem = (key: string) => setItems(prev => {
+    const next = prev.filter(it => it.key !== key);
+    if (!next.some(it => it.esOrdenServicio)) setOrdenCliente(null);
+    return next;
+  });
+
+  // --- Agregar orden de servicio al carrito (paridad agregarOrdenServicio) ---
+  const agregarOrden = useCallback((o: OrdenCobrable) => {
+    if (items.some(it => it.ordenServicioId === o.id)) { setInfo(`La orden ${o.codigo} ya está en el carrito`); return; }
+    // Cliente de la orden (la orden manda; persona o empresa)
+    const ctx: OrdenClienteCtx = o.clienteEmpresa
+      ? { clienteEmpresaId: o.clienteEmpresa.clienteEmpresaId, nombre: o.clienteEmpresa.razonSocial, documento: o.clienteEmpresa.ruc ?? '' }
+      : o.cliente
+        ? { clienteId: o.cliente.clienteId, nombre: o.cliente.nombre, documento: o.cliente.numeroDocumento ?? '' }
+        : { nombre: 'CLIENTES VARIOS', documento: '' };
+    // Guard: todas las órdenes del carrito deben ser del mismo cliente
+    const hayOtraOrden = items.some(it => it.esOrdenServicio);
+    if (hayOtraOrden && ordenCliente &&
+        (ordenCliente.clienteId !== ctx.clienteId || ordenCliente.clienteEmpresaId !== ctx.clienteEmpresaId)) {
+      setInfo('Todas las órdenes de un mismo cobro deben ser del mismo cliente');
+      return;
+    }
+    const costoNeto = costoNetoOrden(o); // costoTotal − descuento
+    const nuevo: VentaItem = {
+      key: genKey(),
+      descripcion: `Servicio ${o.codigo}${o.tipoEquipo ? ` · ${o.tipoEquipo}` : ''}`,
+      cantidad: 1,
+      precioBase: costoNeto,
+      precioUnitario: costoNeto,
+      descuento: 0,
+      porcentajeIGV: 18,
+      precioIncluyeIgv: true,
+      tipoAfectacion: '10',
+      icbper: 0,
+      ordenServicioId: o.id,
+      esOrdenServicio: true,
+      adelantoOrden: Number(o.adelanto ?? 0),
+      niveles: [],
+      enLiquidacion: false,
+      precioCosto: null,
+      stockDisponible: null,
+    };
+    setItems(prev => [...prev, nuevo]);
+    setOrdenCliente(ctx);
+    setCobrablesOpen(false);
+    setInfo(`Orden ${o.codigo} agregada (saldo hoy S/ ${fmt(o.saldoPendiente)})`);
+  }, [items, ordenCliente]);
+
+  // Precarga desde ?ordenServicioId (botón Cobrar del detalle de OS)
+  useEffect(() => {
+    if (!ordenServicioParam) return;
+    let cancel = false;
+    osService.getOrden(ordenServicioParam).then(orden => {
+      if (cancel) return;
+      if (!ESTADOS_OS_COBRABLES.includes(orden.estado)) { setInfo(`La orden ${orden.codigo} no está en estado cobrable`); return; }
+      const costoTotal = Number(orden.costoTotal ?? 0);
+      if (costoTotal <= 0) { setInfo(`La orden ${orden.codigo} no tiene costo definido`); return; }
+      const adelanto = Number(orden.adelanto ?? 0);
+      const descuento = Number(orden.descuento ?? 0);
+      agregarOrden({
+        id: orden.id, codigo: orden.codigo, estado: orden.estado, tipoServicio: orden.tipoServicio,
+        servicioNombre: orden.servicio?.nombre ?? null, tipoEquipo: orden.tipoEquipo ?? null,
+        marcaEquipo: orden.marcaEquipo ?? null, numeroSerie: orden.numeroSerie ?? null,
+        costoTotal, adelanto, descuento, saldoPendiente: Math.max(0, costoTotal - adelanto - descuento),
+        cliente: orden.cliente?.persona ? { clienteId: orden.clienteId ?? '', nombre: nombreClienteOrden(orden), numeroDocumento: orden.cliente.persona.dni ?? null, telefono: orden.cliente.persona.telefono ?? null, email: orden.cliente.persona.email ?? null } : null,
+        clienteEmpresa: orden.clienteEmpresa ? { clienteEmpresaId: orden.clienteEmpresaId ?? '', razonSocial: orden.clienteEmpresa.razonSocial ?? '', ruc: orden.clienteEmpresa.ruc ?? orden.clienteEmpresa.numeroDocumento ?? null, email: orden.clienteEmpresa.email ?? null, direccion: orden.clienteEmpresa.direccion ?? null } : null,
+      });
+    }).catch(() => setInfo('No se pudo cargar la orden a cobrar'));
+    return () => { cancel = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordenServicioParam]);
+
+  const adelantoAplicado = useMemo(
+    () => Math.round(items.filter(it => it.esOrdenServicio).reduce((s, it) => s + Number(it.adelantoOrden ?? 0), 0) * 100) / 100,
+    [items],
+  );
 
   // Descuento global %: setea descuento manual por línea (paridad aplicarDescuentoGlobal)
   const aplicarDescuentoGlobal = (pct: number) => {
@@ -240,6 +326,7 @@ export default function VentaRapidaPage() {
 
   const handleVentaOk = (venta: Venta) => {
     setItems([]);
+    setOrdenCliente(null);
     setMode('carrito');
     setInfo(`✓ Venta ${venta.codigo ?? ''} registrada`);
     // Paridad Flutter: abrir el ticket de la venta (imprimible)
@@ -272,6 +359,8 @@ export default function VentaRapidaPage() {
         setItems={setItems}
         sedeId={sedeId}
         total={totales.total}
+        adelantoAplicado={adelantoAplicado}
+        initialCliente={ordenCliente ?? undefined}
         onBack={() => setMode('carrito')}
         onSuccess={handleVentaOk}
       />
@@ -281,12 +370,18 @@ export default function VentaRapidaPage() {
   // --- Modo carrito ---
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-gray-900">🛒 Venta Rápida</h1>
           <p className="text-sm text-gray-500">{defaultSede?.nombre ?? ''}</p>
         </div>
-        {info && <p className="text-xs text-green-600">{info}</p>}
+        <div className="flex items-center gap-2">
+          {info && <p className="text-xs text-green-600">{info}</p>}
+          <button onClick={() => setCobrablesOpen(true)}
+            className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50">
+            🛠 Cobrar orden
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -375,26 +470,34 @@ export default function VentaRapidaPage() {
               ) : items.map(it => {
                 const c = calcularLinea(it);
                 return (
-                  <div key={it.key} className={`px-3 py-2 ${it.origenComboId ? 'bg-purple-50/40' : ''}`}>
+                  <div key={it.key} className={`px-3 py-2 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
+                        {it.esOrdenServicio && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
                         {it.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO</span>}
                         {it.descripcion}
                       </p>
                       <button onClick={() => quitarItem(it.key)} className="text-gray-300 hover:text-red-500">✕</button>
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center rounded-lg border border-gray-200">
-                          <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)} className="px-2 text-gray-400 hover:text-gray-700">−</button>
-                          <span className="w-7 text-center text-xs font-medium">{it.cantidad}</span>
-                          <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)} className="px-2 text-gray-400 hover:text-gray-700">+</button>
+                      {it.esOrdenServicio ? (
+                        <span className="text-[10px] text-blue-600">
+                          Servicio · comprobante por el total
+                          {(it.adelantoOrden ?? 0) > 0 && <span className="text-gray-400"> · adelanto S/ {fmt(it.adelantoOrden ?? 0)}</span>}
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center rounded-lg border border-gray-200">
+                            <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)} className="px-2 text-gray-400 hover:text-gray-700">−</button>
+                            <span className="w-7 text-center text-xs font-medium">{it.cantidad}</span>
+                            <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)} className="px-2 text-gray-400 hover:text-gray-700">+</button>
+                          </div>
+                          <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
+                            className={`rounded px-1.5 py-0.5 text-[10px] ${it.descuento > 0 ? 'bg-amber-100 text-amber-700 font-bold' : 'text-gray-400 hover:bg-gray-100'}`}>
+                            {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
+                          </button>
                         </div>
-                        <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
-                          className={`rounded px-1.5 py-0.5 text-[10px] ${it.descuento > 0 ? 'bg-amber-100 text-amber-700 font-bold' : 'text-gray-400 hover:bg-gray-100'}`}>
-                          {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
-                        </button>
-                      </div>
+                      )}
                       <div className="text-right">
                         <p className="text-sm font-bold text-gray-900">S/ {fmt(c.total)}</p>
                         <p className="text-[9px] text-gray-400">
@@ -404,7 +507,7 @@ export default function VentaRapidaPage() {
                         </p>
                       </div>
                     </div>
-                    {(it.stockDisponible ?? 99999) < it.cantidad && (
+                    {!it.esOrdenServicio && (it.stockDisponible ?? 99999) < it.cantidad && (
                       <p className="text-[9px] text-red-500">⚠ Stock disponible: {it.stockDisponible}</p>
                     )}
                   </div>
@@ -483,6 +586,88 @@ export default function VentaRapidaPage() {
       {descGlobalOpen && (
         <DescuentoGlobalDialog onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
       )}
+
+      {/* Órdenes de servicio cobrables */}
+      {cobrablesOpen && (
+        <CobrablesSheet onPick={agregarOrden} onClose={() => setCobrablesOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+export default function VentaRapidaPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>}>
+      <VentaRapidaInner />
+    </Suspense>
+  );
+}
+
+/* --- Selector de órdenes de servicio cobrables --- */
+function CobrablesSheet({ onPick, onClose }: { onPick: (o: OrdenCobrable) => void; onClose: () => void }) {
+  const [search, setSearch] = useState('');
+  const [items, setItems] = useState<OrdenCobrable[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cargar = useCallback((q: string) => {
+    setLoading(true);
+    osService.getOrdenesCobrables(q || undefined)
+      .then(setItems)
+      .catch(() => setError('No se pudieron cargar las órdenes cobrables'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { cargar(''); }, [cargar]);
+
+  const onSearch = (q: string) => {
+    setSearch(q);
+    if (debRef.current) clearTimeout(debRef.current);
+    debRef.current = setTimeout(() => cargar(q), 400);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="border-b border-gray-100 p-4">
+          <h3 className="text-sm font-semibold text-gray-900">Cobrar orden de servicio</h3>
+          <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+            value={search} onChange={e => onSearch(e.target.value)} placeholder="Buscar por código, equipo o cliente..." autoFocus />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {loading ? (
+            <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
+          ) : error ? (
+            <p className="py-6 text-center text-sm text-red-500">{error}</p>
+          ) : items.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">Sin órdenes cobrables (REPARADO o LISTO_ENTREGA con saldo)</p>
+          ) : (
+            <div className="space-y-1.5">
+              {items.map(o => {
+                const cli = o.clienteEmpresa?.razonSocial ?? o.cliente?.nombre ?? '—';
+                return (
+                  <button key={o.id} onClick={() => onPick(o)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-left hover:border-[#437EFF] hover:bg-[#437EFF]/5">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs font-semibold text-gray-900">{o.codigo}</p>
+                      <p className="truncate text-[11px] text-gray-500">{cli} · {TIPO_SERVICIO_LABEL[o.tipoServicio] ?? o.tipoServicio}{o.tipoEquipo ? ` · ${o.tipoEquipo}` : ''}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-bold text-amber-600">S/ {fmt(Number(o.saldoPendiente))}</p>
+                      {Number(o.adelanto) > 0 && <p className="text-[9px] text-gray-400">adel. {fmt(Number(o.adelanto))}</p>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="border-t border-gray-100 p-3 text-right">
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cerrar</button>
+        </div>
+      </div>
     </div>
   );
 }
