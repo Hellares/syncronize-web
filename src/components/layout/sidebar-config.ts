@@ -75,6 +75,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Cuentas por Pagar', href: '/dashboard/cuentas-pagar', permission: 'canViewCompras' },
       { label: 'Devoluciones', href: '/dashboard/devoluciones', permission: 'canViewDevoluciones' },
       { label: 'Tipo de Cambio', href: '/dashboard/tipo-cambio', permission: 'canViewVentas' },
+      { label: 'Reportes de Ventas', href: '/dashboard/reportes-ventas', permission: 'canViewVentas' },
       { label: 'Resumen Financiero', href: '/dashboard/resumen-financiero', permission: 'canViewReports' },
     ],
   },
