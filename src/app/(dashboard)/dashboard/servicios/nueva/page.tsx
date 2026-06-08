@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { TipoServicio, PrioridadServicio, CreateOrdenServicioDto } from '@/core/types/orden-servicio';
 import { TIPOS_SERVICIO, PRIORIDADES, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { Servicio, CampoServicio } from '@/core/types/servicio-catalogo';
+import { opcionesAStrings } from '@/core/types/servicio-catalogo';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
+import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
 import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
@@ -32,6 +35,12 @@ export default function NuevaOrdenPage() {
 
   const [tipoServicio, setTipoServicio] = useState<TipoServicio>('REPARACION');
   const [prioridad, setPrioridad] = useState<PrioridadServicio>('NORMAL');
+
+  // Servicio del catálogo + campos dinámicos
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [servicioId, setServicioId] = useState('');
+  const [campos, setCampos] = useState<CampoServicio[]>([]);
+  const [datos, setDatos] = useState<Record<string, unknown>>({});
   const [tipoEquipo, setTipoEquipo] = useState('');
   const [marcaEquipo, setMarcaEquipo] = useState('');
   const [numeroSerie, setNumeroSerie] = useState('');
@@ -59,6 +68,21 @@ export default function NuevaOrdenPage() {
     }, 350);
   };
 
+  // Catálogo de servicios para el selector
+  useEffect(() => { catalogoService.getServicios({ limit: 200 }).then(setServicios).catch(() => {}); }, []);
+
+  const elegirServicio = async (id: string) => {
+    setServicioId(id);
+    setDatos({});
+    setCampos([]);
+    const sv = servicios.find(s => s.id === id);
+    if (sv?.tipoServicio) setTipoServicio(sv.tipoServicio);
+    if (sv?.precio != null && !costoTotal) setCostoTotal(String(sv.precio));
+    if (id) {
+      try { setCampos(await catalogoService.getCamposPorServicio(id)); } catch { /* sin plantilla */ }
+    }
+  };
+
   const handleSubmit = async () => {
     setError('');
     const costo = costoTotal ? parseFloat(costoTotal) : undefined;
@@ -70,9 +94,12 @@ export default function NuevaOrdenPage() {
     }
     setIsSubmitting(true);
     try {
+      const datosLimpios = Object.fromEntries(Object.entries(datos).filter(([, v]) => v !== '' && v != null));
       const dto: CreateOrdenServicioDto = {
         tipoServicio,
         prioridad,
+        ...(servicioId ? { servicioId } : {}),
+        ...(Object.keys(datosLimpios).length > 0 ? { datosPersonalizados: datosLimpios } : {}),
         ...(cliente?.tipo === 'persona' ? { clienteId: cliente.id } : {}),
         ...(cliente?.tipo === 'empresa' ? { clienteEmpresaId: cliente.id } : {}),
         tipoEquipo: tipoEquipo.trim() || undefined,
@@ -152,6 +179,15 @@ export default function NuevaOrdenPage() {
       {/* Servicio */}
       <section className="rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="mb-2 text-sm font-semibold text-gray-900">Servicio</h2>
+        {servicios.length > 0 && (
+          <div className="mb-3">
+            <label className={labelClass}>Servicio del catálogo (opcional)</label>
+            <select className={selectClass} value={servicioId} onChange={e => elegirServicio(e.target.value)}>
+              <option value="">Sin servicio del catálogo</option>
+              {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre}{s.precio != null ? ` · S/ ${Number(s.precio).toFixed(2)}` : ''}</option>)}
+            </select>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Tipo de servicio *</label>
@@ -174,6 +210,31 @@ export default function NuevaOrdenPage() {
           <label className={labelClass}>Notas</label>
           <input className={inputClass} value={notas} onChange={e => setNotas(e.target.value)} />
         </div>
+
+        {/* Campos dinámicos de la plantilla del servicio */}
+        {campos.length > 0 && (
+          <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
+            <p className="text-[11px] font-semibold uppercase text-gray-400">Datos del servicio</p>
+            {campos.map(campo => {
+              const val = datos[campo.nombre];
+              const set = (v: unknown) => setDatos(d => ({ ...d, [campo.nombre]: v }));
+              const req = campo.esRequerido ? ' *' : '';
+              const ph = campo.placeholder ?? '';
+              if (campo.tipoCampo === 'TEXTO_AREA') {
+                return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><textarea className={`${inputClass} resize-none`} rows={2} value={String(val ?? '')} onChange={e => set(e.target.value)} placeholder={ph} /></div>;
+              }
+              if (campo.tipoCampo === 'OPCION_SIMPLES' || campo.tipoCampo === 'OPCION_MULTIPLE') {
+                const ops = opcionesAStrings(campo.opciones);
+                return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><select className={selectClass} value={String(val ?? '')} onChange={e => set(e.target.value)}><option value="">Seleccionar...</option>{ops.map(o => <option key={o} value={o}>{o}</option>)}</select></div>;
+              }
+              if (campo.tipoCampo === 'CHECKBOX' || campo.tipoCampo === 'CHECKBOX_MULTIPLE') {
+                return <label key={campo.id} className="flex items-center justify-between"><span className="text-xs font-medium text-gray-600">{campo.nombre}{req}</span><input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={!!val} onChange={e => set(e.target.checked)} /></label>;
+              }
+              const tipoInput = campo.tipoCampo === 'NUMERO' ? 'number' : campo.tipoCampo === 'FECHA' ? 'date' : campo.tipoCampo === 'HORA' ? 'time' : campo.tipoCampo === 'EMAIL' ? 'email' : campo.tipoCampo === 'URL' ? 'url' : 'text';
+              return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><input className={inputClass} type={tipoInput} value={String(val ?? '')} onChange={e => set(e.target.value)} placeholder={ph} /></div>;
+            })}
+          </div>
+        )}
       </section>
 
       {/* Costos */}
