@@ -218,6 +218,56 @@ export function costoNetoOrden(o: { costoTotal?: number | null; descuento?: numb
 
 export const ESTADOS_OS_COBRABLES: EstadoOrdenServicio[] = ['REPARADO', 'LISTO_ENTREGA'];
 
+// ── Componentes ──
+
+export type TipoAccionComponente =
+  | 'DIAGNOSTICAR' | 'REPARAR' | 'REEMPLAZAR' | 'LIMPIAR' | 'ACTUALIZAR'
+  | 'INSTALAR' | 'DESMONTAR' | 'PROBAR' | 'CALIBRAR';
+
+export const TIPOS_ACCION: TipoAccionComponente[] = [
+  'DIAGNOSTICAR', 'REPARAR', 'REEMPLAZAR', 'LIMPIAR', 'ACTUALIZAR', 'INSTALAR', 'DESMONTAR', 'PROBAR', 'CALIBRAR',
+];
+export const TIPO_ACCION_LABEL: Record<TipoAccionComponente, string> = {
+  DIAGNOSTICAR: 'Diagnosticar', REPARAR: 'Reparar', REEMPLAZAR: 'Reemplazar', LIMPIAR: 'Limpiar',
+  ACTUALIZAR: 'Actualizar', INSTALAR: 'Instalar', DESMONTAR: 'Desmontar', PROBAR: 'Probar', CALIBRAR: 'Calibrar',
+};
+
+export interface TipoComponente {
+  id: string;
+  nombre: string;
+  categoria?: string;
+  descripcion?: string;
+  [key: string]: unknown;
+}
+
+/** Body POST /componentes/find-or-create */
+export interface FindOrCreateComponenteDto {
+  tipoComponenteId: string;
+  marca?: string;
+  modelo?: string;
+  numeroSerie?: string;
+}
+
+/** Body POST /ordenes-servicio/:id/componentes */
+export interface CreateServicioComponenteDto {
+  componenteId: string;
+  tipoAccion: TipoAccionComponente;
+  descripcionAccion?: string;
+  costoAccion?: number;
+  tiempoAccion?: number;
+  costoRepuestos?: number;
+  resultadoAccion?: string;
+  pruebaRealizada?: boolean;
+  observaciones?: string;
+  garantiaMeses?: number;
+}
+
+export interface Tecnico {
+  id: string;
+  nombre: string;
+  rol?: string;
+}
+
 /** GET /ordenes-servicio/cobrables — payload liviano para cargar al carrito VR. */
 export interface OrdenCobrable {
   id: string;

@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AxiosError } from 'axios';
-import type { OrdenServicio, HistorialOS, EstadoOrdenServicio } from '@/core/types/orden-servicio';
+import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, TipoAccionComponente, Tecnico } from '@/core/types/orden-servicio';
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
-  TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, saldoOrden,
+  TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, saldoOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -35,6 +35,8 @@ export default function OrdenDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [accionMsg, setAccionMsg] = useState('');
   const [transicionOpen, setTransicionOpen] = useState(false);
+  const [tecnicoOpen, setTecnicoOpen] = useState(false);
+  const [componenteOpen, setComponenteOpen] = useState(false);
 
   const cargar = useCallback(async () => {
     setIsLoading(true);
@@ -53,6 +55,15 @@ export default function OrdenDetailPage() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const flash = (m: string) => { setAccionMsg(m); setTimeout(() => setAccionMsg(''), 4000); };
+
+  const eliminarComponente = async (componenteId: string) => {
+    if (!confirm('¿Quitar este componente de la orden?')) return;
+    try { await osService.deleteComponente(id, componenteId); flash('Componente eliminado'); cargar(); }
+    catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo eliminar el componente');
+    }
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>;
@@ -117,7 +128,15 @@ export default function OrdenDetailPage() {
         <div><p className="text-[10px] uppercase text-gray-400">Servicio</p><p className="text-xs font-medium text-gray-700">{TIPO_SERVICIO_LABEL[orden.tipoServicio]}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Creada</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.creadoEn)}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Entrega</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.fechaEntrega)}</p></div>
-        <div><p className="text-[10px] uppercase text-gray-400">Técnico</p><p className="text-xs font-medium text-gray-700">{tecnicoNombre ?? 'Sin asignar'}</p></div>
+        <div>
+          <p className="text-[10px] uppercase text-gray-400">Técnico</p>
+          <p className="text-xs font-medium text-gray-700">{tecnicoNombre ?? 'Sin asignar'}</p>
+          {permissions.canManageOrders && permissions.canViewUsers && (
+            <button onClick={() => setTecnicoOpen(true)} className="text-[10px] font-semibold text-[#437EFF] hover:underline">
+              {tecnicoNombre ? 'Cambiar' : 'Asignar'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -171,18 +190,35 @@ export default function OrdenDetailPage() {
         </div>
       )}
 
-      {/* Componentes (display) */}
-      {(orden.componentes ?? []).length > 0 && (
+      {/* Componentes */}
+      {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Componentes ({orden.componentes!.length})</p>
-          <div className="space-y-1.5">
-            {orden.componentes!.map(c => (
-              <div key={c.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
-                <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'} · <span className="text-teal-600">{c.tipoAccion}</span></span>
-                <span className="text-gray-500">{fmt((c.costoAccion ?? 0) + (c.costoRepuestos ?? 0))}</span>
-              </div>
-            ))}
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase text-gray-400">Componentes ({(orden.componentes ?? []).length})</p>
+            {permissions.canManageOrders && (
+              <button onClick={() => setComponenteOpen(true)} className="text-[11px] font-semibold text-[#437EFF] hover:underline">+ Agregar</button>
+            )}
           </div>
+          {(orden.componentes ?? []).length === 0 ? (
+            <p className="text-xs text-gray-400">Sin componentes registrados.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {orden.componentes!.map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
+                  <div className="min-w-0">
+                    <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className="text-teal-600">{TIPO_ACCION_LABEL[c.tipoAccion as TipoAccionComponente] ?? c.tipoAccion}</span></span>
+                    {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
+                  </div>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-gray-500">{fmt((Number(c.costoAccion ?? 0)) + (Number(c.costoRepuestos ?? 0)))}</span>
+                    {permissions.canManageOrders && (
+                      <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -216,6 +252,172 @@ export default function OrdenDetailPage() {
           onSuccess={() => { setTransicionOpen(false); flash('Estado actualizado'); cargar(); }}
         />
       )}
+      {tecnicoOpen && (
+        <TecnicoDialog ordenId={id} actualId={orden.tecnicoId ?? null}
+          onClose={() => setTecnicoOpen(false)}
+          onSuccess={() => { setTecnicoOpen(false); flash('Técnico asignado'); cargar(); }} />
+      )}
+      {componenteOpen && (
+        <ComponenteDialog ordenId={id}
+          onClose={() => setComponenteOpen(false)}
+          onSuccess={() => { setComponenteOpen(false); flash('Componente agregado'); cargar(); }} />
+      )}
+    </div>
+  );
+}
+
+/* --- Asignar técnico --- */
+function TecnicoDialog({ ordenId, actualId, onClose, onSuccess }: { ordenId: string; actualId: string | null; onClose: () => void; onSuccess: () => void }) {
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    osService.getTecnicos()
+      .then(setTecnicos)
+      .catch(() => setError('No se pudieron cargar los usuarios (requiere permiso de ver usuarios)'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const asignar = async (t: Tecnico) => {
+    setBusyId(t.id);
+    setError('');
+    try { await osService.asignarTecnico(ordenId, t.id); onSuccess(); }
+    catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo asignar el técnico');
+      setBusyId(null);
+    }
+  };
+
+  const filtrados = tecnicos.filter(t => t.nombre.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[80vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="border-b border-gray-100 p-4">
+          <h3 className="text-sm font-semibold text-gray-900">Asignar técnico</h3>
+          <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+            value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." autoFocus />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {loading ? (
+            <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
+          ) : error ? (
+            <p className="py-6 text-center text-xs text-red-500">{error}</p>
+          ) : filtrados.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400">Sin usuarios</p>
+          ) : (
+            <div className="space-y-1">
+              {filtrados.map(t => (
+                <button key={t.id} onClick={() => asignar(t)} disabled={busyId !== null}
+                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs hover:border-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-50 ${t.id === actualId ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-200'}`}>
+                  <span className="text-gray-800">{t.nombre}{t.id === actualId ? ' (actual)' : ''}</span>
+                  {t.rol && <span className="text-[10px] text-gray-400">{t.rol}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="border-t border-gray-100 p-3 text-right">
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --- Agregar componente (find-or-create + acción) --- */
+function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; onClose: () => void; onSuccess: () => void }) {
+  const [tipos, setTipos] = useState<TipoComponente[]>([]);
+  const [loadingTipos, setLoadingTipos] = useState(true);
+  const [tipoComponenteId, setTipoComponenteId] = useState('');
+  const [marca, setMarca] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [tipoAccion, setTipoAccion] = useState<TipoAccionComponente>('REPARAR');
+  const [descripcionAccion, setDescripcionAccion] = useState('');
+  const [costoAccion, setCostoAccion] = useState('');
+  const [costoRepuestos, setCostoRepuestos] = useState('');
+  const [garantiaMeses, setGarantiaMeses] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    osService.getTiposComponente()
+      .then(t => { setTipos(t); if (t.length) setTipoComponenteId(t[0].id); })
+      .catch(() => setError('No se pudieron cargar los tipos de componente'))
+      .finally(() => setLoadingTipos(false));
+  }, []);
+
+  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+
+  const submit = async () => {
+    setError('');
+    if (!tipoComponenteId) { setError('Selecciona el tipo de componente'); return; }
+    setIsSubmitting(true);
+    try {
+      const comp = await osService.findOrCreateComponente({ tipoComponenteId, marca: marca.trim() || undefined, modelo: modelo.trim() || undefined });
+      await osService.addComponente(ordenId, {
+        componenteId: comp.id,
+        tipoAccion,
+        descripcionAccion: descripcionAccion.trim() || undefined,
+        costoAccion: costoAccion ? parseFloat(costoAccion) : undefined,
+        costoRepuestos: costoRepuestos ? parseFloat(costoRepuestos) : undefined,
+        garantiaMeses: garantiaMeses ? parseInt(garantiaMeses, 10) : undefined,
+      });
+      onSuccess();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo agregar el componente');
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-gray-900">Agregar componente</h3>
+        {loadingTipos ? (
+          <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
+        ) : (
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de componente *</label>
+              <select className={`${inputClass} bg-white`} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
+                {tipos.length === 0 && <option value="">Sin tipos configurados</option>}
+                {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="mb-1 block text-xs font-medium text-gray-600">Marca</label><input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} /></div>
+              <div><label className="mb-1 block text-xs font-medium text-gray-600">Modelo</label><input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} /></div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Acción *</label>
+              <select className={`${inputClass} bg-white`} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
+                {TIPOS_ACCION.map(a => <option key={a} value={a}>{TIPO_ACCION_LABEL[a]}</option>)}
+              </select>
+            </div>
+            <input className={inputClass} value={descripcionAccion} onChange={e => setDescripcionAccion(e.target.value)} placeholder="Descripción de la acción (opcional)" />
+            <div className="grid grid-cols-3 gap-2">
+              <div><label className="mb-1 block text-[10px] text-gray-400">Costo M.O.</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
+              <div><label className="mb-1 block text-[10px] text-gray-400">Repuestos</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
+              <div><label className="mb-1 block text-[10px] text-gray-400">Garantía (m)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
+            </div>
+            <p className="text-[10px] text-gray-400">Los costos de componentes no modifican el costo total de la orden (se ajusta en la transición de estado).</p>
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+          <button onClick={submit} disabled={isSubmitting || loadingTipos}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+            {isSubmitting ? 'Agregando...' : 'Agregar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
