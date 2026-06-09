@@ -12,6 +12,10 @@ import { DynamicFieldsForm, seedDefaults, validarCamposRequeridos, limpiarDatos 
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
 import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
+import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
+import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
+import type { ClientePersona } from '@/core/types/cliente';
+import type { ClienteEmpresa } from '@/core/types/cliente-empresa';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
@@ -31,7 +35,18 @@ export default function NuevaOrdenPage() {
   const [clienteSearch, setClienteSearch] = useState('');
   const [clienteResultados, setClienteResultados] = useState<ClienteSel[]>([]);
   const [clienteOpen, setClienteOpen] = useState(false);
+  const [personaDialog, setPersonaDialog] = useState(false);
+  const [empresaDialog, setEmpresaDialog] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onPersonaCreada = (_msg: string, c?: ClientePersona) => {
+    setPersonaDialog(false);
+    if (c) setCliente({ id: c.id, tipo: 'persona', nombre: c.nombreCompleto || [c.nombres, c.apellidos].filter(Boolean).join(' '), documento: c.dni ?? '' });
+  };
+  const onEmpresaCreada = (_msg: string, c?: ClienteEmpresa) => {
+    setEmpresaDialog(false);
+    if (c) setCliente({ id: c.id, tipo: 'empresa', nombre: c.nombreComercial || c.razonSocial, documento: c.numeroDocumento ?? '' });
+  };
 
   const [tipoServicio, setTipoServicio] = useState<TipoServicio>('REPARACION');
   const [prioridad, setPrioridad] = useState<PrioridadServicio>('NORMAL');
@@ -153,21 +168,30 @@ export default function NuevaOrdenPage() {
             <button onClick={() => { setCliente(null); setClienteSearch(''); }} className="text-xs text-green-600 hover:text-green-800">Cambiar</button>
           </div>
         ) : (
-          <div className="relative">
-            <input className={inputClass} value={clienteSearch} onChange={e => buscarCliente(e.target.value)}
-              placeholder="Buscar cliente por nombre o documento (opcional)..." />
-            {clienteOpen && clienteResultados.length > 0 && (
-              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                {clienteResultados.map(c => (
-                  <button key={`${c.tipo}-${c.id}`} type="button" onClick={() => { setCliente(c); setClienteOpen(false); }}
-                    className="block w-full border-b border-gray-50 px-3 py-2 text-left text-xs hover:bg-[#437EFF]/5 last:border-0">
-                    <span className={`mr-1 rounded px-1 text-[9px] font-bold ${c.tipo === 'empresa' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{c.tipo === 'empresa' ? 'E' : 'P'}</span>
-                    {c.nombre} <span className="text-gray-400">{c.documento}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <>
+            <div className="relative">
+              <input className={inputClass} value={clienteSearch} onChange={e => buscarCliente(e.target.value)}
+                placeholder="Buscar cliente por nombre o documento (opcional)..." />
+              {clienteOpen && clienteResultados.length > 0 && (
+                <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {clienteResultados.map(c => (
+                    <button key={`${c.tipo}-${c.id}`} type="button" onClick={() => { setCliente(c); setClienteOpen(false); }}
+                      className="block w-full border-b border-gray-50 px-3 py-2 text-left text-xs hover:bg-[#437EFF]/5 last:border-0">
+                      <span className={`mr-1 rounded px-1 text-[9px] font-bold ${c.tipo === 'empresa' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>{c.tipo === 'empresa' ? 'E' : 'P'}</span>
+                      {c.nombre} <span className="text-gray-400">{c.documento}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => setPersonaDialog(true)}
+                className="flex-1 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#437EFF] hover:text-[#437EFF]">+ Nueva persona</button>
+              <button type="button" onClick={() => setEmpresaDialog(true)}
+                className="flex-1 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#437EFF] hover:text-[#437EFF]">+ Nueva empresa</button>
+            </div>
+            <p className="mt-1 text-[10px] text-gray-400">Si el cliente no existe, créalo aquí (con búsqueda RENIEC/SUNAT por DNI/RUC).</p>
+          </>
         )}
       </section>
 
@@ -253,6 +277,9 @@ export default function NuevaOrdenPage() {
           {isSubmitting ? 'Creando...' : 'Crear orden'}
         </button>
       </div>
+
+      <ClientePersonaFormDialog isOpen={personaDialog} onClose={() => setPersonaDialog(false)} onSuccess={onPersonaCreada} />
+      <ClienteEmpresaFormDialog isOpen={empresaDialog} empresaId={empresaId} onClose={() => setEmpresaDialog(false)} onSuccess={onEmpresaCreada} />
     </div>
   );
 }

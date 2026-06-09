@@ -9,7 +9,7 @@ import { consultarDni } from '@/features/cotizacion/services/cliente-service';
 interface Props {
   isOpen: boolean;
   cliente?: ClientePersona | null; // null/undefined = crear
-  onSuccess: (msg: string) => void;
+  onSuccess: (msg: string, creado?: ClientePersona) => void;
   onClose: () => void;
 }
 
@@ -100,7 +100,7 @@ export default function ClientePersonaFormDialog({ isOpen, cliente, onSuccess, o
           departamento: departamento.trim() || undefined,
         };
         const r = await personaService.createCliente(dto);
-        onSuccess(r.mensaje || 'Cliente registrado');
+        onSuccess(r.mensaje || 'Cliente registrado', r.cliente);
       }
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;

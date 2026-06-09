@@ -9,7 +9,7 @@ interface Props {
   isOpen: boolean;
   empresaId: string;
   cliente?: ClienteEmpresa | null; // null/undefined = crear
-  onSuccess: (msg: string) => void;
+  onSuccess: (msg: string, creado?: ClienteEmpresa) => void;
   onClose: () => void;
 }
 
@@ -96,8 +96,8 @@ export default function ClienteEmpresaFormDialog({ isOpen, empresaId, cliente, o
         await updateCliente(empresaId, cliente.id, rest);
         onSuccess('Cliente empresa actualizado');
       } else {
-        await createCliente(empresaId, dto);
-        onSuccess('Cliente empresa registrado');
+        const creado = await createCliente(empresaId, dto);
+        onSuccess('Cliente empresa registrado', creado);
       }
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
