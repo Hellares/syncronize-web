@@ -129,18 +129,24 @@ export default function ClienteSelector({ onClienteSelected, initialNombre = '',
       <label className={labelClass}>Cliente *</label>
 
       {seleccion ? (
-        <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-green-800">{seleccion.nombre}</p>
-            <p className="text-[11px] text-green-700">
-              {seleccion.tipo === 'empresa' ? 'Empresa' : seleccion.tipo === 'persona' ? 'Persona' : 'Cliente'}
-              {seleccion.documento ? ` · ${seleccion.documento.length === 11 ? 'RUC' : 'DNI'} ${seleccion.documento}` : ''}
-            </p>
-            {(seleccion.telefono || seleccion.email) && (
-              <p className="text-[11px] text-green-700/80">{[seleccion.telefono, seleccion.email].filter(Boolean).join(' · ')}</p>
-            )}
+        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-green-800">{seleccion.nombre}</p>
+              <p className="text-[11px] text-green-700">
+                {seleccion.tipo === 'empresa' ? 'Empresa' : seleccion.tipo === 'persona' ? 'Persona' : 'Cliente'}
+                {seleccion.documento ? ` · ${seleccion.documento.length === 11 ? 'RUC' : 'DNI'} ${seleccion.documento}` : ''}
+              </p>
+            </div>
+            <button type="button" onClick={limpiar} className="shrink-0 text-xs text-green-600 hover:text-green-800">Cambiar</button>
           </div>
-          <button type="button" onClick={limpiar} className="ml-2 shrink-0 text-xs text-green-600 hover:text-green-800">Cambiar</button>
+          {(seleccion.telefono || seleccion.email || seleccion.direccion) && (
+            <div className="mt-1.5 space-y-0.5 border-t border-green-200/60 pt-1.5 text-[11px] text-green-700">
+              {seleccion.telefono && <p><span className="text-green-600/70">Teléfono:</span> {seleccion.telefono}</p>}
+              {seleccion.email && <p className="truncate"><span className="text-green-600/70">Email:</span> {seleccion.email}</p>}
+              {seleccion.direccion && <p><span className="text-green-600/70">Dirección:</span> {seleccion.direccion}</p>}
+            </div>
+          )}
         </div>
       ) : (
         <>

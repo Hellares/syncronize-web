@@ -23,7 +23,7 @@ const selectClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm 
 const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 const METODOS: MetodoPagoVenta[] = ['EFECTIVO', 'YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
 
-interface ClienteSel { id: string; tipo: 'empresa' | 'persona'; nombre: string; documento: string }
+interface ClienteSel { id: string; tipo: 'empresa' | 'persona'; nombre: string; documento: string; email?: string; telefono?: string; direccion?: string }
 
 export default function NuevaOrdenPage() {
   const router = useRouter();
@@ -41,11 +41,11 @@ export default function NuevaOrdenPage() {
 
   const onPersonaCreada = (_msg: string, c?: ClientePersona) => {
     setPersonaDialog(false);
-    if (c) setCliente({ id: c.id, tipo: 'persona', nombre: c.nombreCompleto || [c.nombres, c.apellidos].filter(Boolean).join(' '), documento: c.dni ?? '' });
+    if (c) setCliente({ id: c.id, tipo: 'persona', nombre: c.nombreCompleto || [c.nombres, c.apellidos].filter(Boolean).join(' '), documento: c.dni ?? '', email: c.email ?? undefined, telefono: c.telefono ?? undefined, direccion: c.direccion ?? undefined });
   };
   const onEmpresaCreada = (_msg: string, c?: ClienteEmpresa) => {
     setEmpresaDialog(false);
-    if (c) setCliente({ id: c.id, tipo: 'empresa', nombre: c.nombreComercial || c.razonSocial, documento: c.numeroDocumento ?? '' });
+    if (c) setCliente({ id: c.id, tipo: 'empresa', nombre: c.nombreComercial || c.razonSocial, documento: c.numeroDocumento ?? '', email: c.email ?? undefined, telefono: c.telefono ?? undefined, direccion: c.direccion ?? undefined });
   };
   // Si lo buscado es solo dígitos, se lleva al modal como DNI/RUC pre-rellenado.
   const docBuscado = /^\d+$/.test(clienteSearch.trim()) ? clienteSearch.trim() : '';
@@ -162,12 +162,21 @@ export default function NuevaOrdenPage() {
       <section className="rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="mb-2 text-sm font-semibold text-gray-900">Cliente</h2>
         {cliente ? (
-          <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-            <div>
-              <p className="text-sm font-medium text-green-800">{cliente.nombre}</p>
-              <p className="text-[11px] text-green-700">{cliente.tipo === 'empresa' ? 'Empresa' : 'Persona'} · {cliente.documento || 's/doc'}</p>
+          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-green-800">{cliente.nombre}</p>
+                <p className="text-[11px] text-green-700">{cliente.tipo === 'empresa' ? 'Empresa' : 'Persona'} · {cliente.documento || 's/doc'}</p>
+              </div>
+              <button onClick={() => { setCliente(null); setClienteSearch(''); }} className="shrink-0 text-xs text-green-600 hover:text-green-800">Cambiar</button>
             </div>
-            <button onClick={() => { setCliente(null); setClienteSearch(''); }} className="text-xs text-green-600 hover:text-green-800">Cambiar</button>
+            {(cliente.telefono || cliente.email || cliente.direccion) && (
+              <div className="mt-1.5 space-y-0.5 border-t border-green-200/60 pt-1.5 text-[11px] text-green-700">
+                {cliente.telefono && <p><span className="text-green-600/70">Teléfono:</span> {cliente.telefono}</p>}
+                {cliente.email && <p className="truncate"><span className="text-green-600/70">Email:</span> {cliente.email}</p>}
+                {cliente.direccion && <p><span className="text-green-600/70">Dirección:</span> {cliente.direccion}</p>}
+              </div>
+            )}
           </div>
         ) : (
           <>
