@@ -489,28 +489,42 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       {step === 0 && (
         <div className="space-y-5">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-            {/* Sede */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Sede <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={sedeId}
-                onChange={e => setSedeId(e.target.value)}
-                className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
-                  stepErrors.sedeId ? 'border-red-400' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Seleccione una sede</option>
-                {sedes
-                  .filter((s: any) => s.isActive)
-                  .map((s: any) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre}{s.esPrincipal ? ' (Principal)' : ''}
-                    </option>
-                  ))}
-              </select>
-              {stepErrors.sedeId && <p className="mt-1 text-xs text-red-500">{stepErrors.sedeId}</p>}
+            {/* Sede + Vendedor en una sola fila */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Sede */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Sede <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={sedeId}
+                  onChange={e => setSedeId(e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
+                    stepErrors.sedeId ? 'border-red-400' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Seleccione una sede</option>
+                  {sedes
+                    .filter((s: any) => s.isActive)
+                    .map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}{s.esPrincipal ? ' (Principal)' : ''}
+                      </option>
+                    ))}
+                </select>
+                {stepErrors.sedeId && <p className="mt-1 text-xs text-red-500">{stepErrors.sedeId}</p>}
+              </div>
+
+              {/* Vendedor */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Vendedor</label>
+                <input
+                  type="text"
+                  value={vendedorNombre}
+                  disabled
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                />
+              </div>
             </div>
 
             {/* Nombre cotizacion */}
@@ -522,17 +536,6 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 onChange={e => setNombreCotizacion(e.target.value)}
                 placeholder="Ej: Propuesta equipos oficina (opcional)"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-              />
-            </div>
-
-            {/* Vendedor */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Vendedor</label>
-              <input
-                type="text"
-                value={vendedorNombre}
-                disabled
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
               />
             </div>
           </div>
