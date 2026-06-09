@@ -32,6 +32,64 @@
   font-display: swap;
 }
 
+/* Amazon Ember — fuente principal de la web (copiada de los assets de Flutter) */
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-DisplayLight.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('/fonts/AmazonEmber-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember Mono';
+  src: url('/fonts/AmazonEmber-Mono.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -40,8 +98,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: 'Amazon Ember', var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: 'Amazon Ember Mono', var(--font-geist-mono), ui-monospace, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -489,7 +547,7 @@
 body {
   background: #f5f7fa;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
 }
