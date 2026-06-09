@@ -339,12 +339,17 @@ function InspeccionEditor({ campo, value, onChange }: { campo: CampoServicio; va
 
 // ───────────────────────── objeto (subcampos anidados) ─────────────────────────
 
+// Subcampos del OBJETO: mapas JSON planos { nombre, tipo, opciones } — OJO: usan
+// `tipo` (no `tipoCampo`). Tipos soportados (paridad Flutter): CHECKBOX, OPCION_SIMPLES
+// (dropdown), TEXTO/NUMERO. Valor guardado: Map keyed por nombre del subcampo.
+interface SubCampo { nombre: string; tipo?: string; opciones?: unknown }
+
 function ObjetoInput({ campo, value, onChange, label, help }: {
   campo: CampoServicio; value: unknown; onChange: (v: unknown) => void;
   label: React.ReactNode; help: React.ReactNode;
 }) {
-  const subs: CampoServicio[] = Array.isArray(campo.opciones)
-    ? (campo.opciones as unknown[]).filter((s): s is CampoServicio => !!s && typeof s === 'object' && 'nombre' in (s as object))
+  const subs: SubCampo[] = Array.isArray(campo.opciones)
+    ? (campo.opciones as unknown[]).filter((s): s is SubCampo => !!s && typeof s === 'object' && 'nombre' in (s as object))
     : [];
   const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 
@@ -352,12 +357,47 @@ function ObjetoInput({ campo, value, onChange, label, help }: {
   return (
     <div>
       {label}{help}
-      <div className="mt-1 space-y-2 rounded-lg border border-gray-200 p-3">
+      <div className="mt-1 space-y-3 rounded-lg border border-gray-200 p-3">
         {subs.map((sc, i) => (
-          <CampoInput key={sc.id ?? sc.nombre ?? i} campo={sc} value={obj[sc.nombre]}
+          <SubCampoInput key={sc.nombre || i} sub={sc} value={obj[sc.nombre]}
             onChange={(v) => onChange({ ...obj, [sc.nombre]: v })} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function SubCampoInput({ sub, value, onChange }: { sub: SubCampo; value: unknown; onChange: (v: unknown) => void }) {
+  const tipo = (sub.tipo ?? 'TEXTO').toUpperCase();
+
+  if (tipo === 'CHECKBOX') {
+    return (
+      <label className="flex items-center justify-between">
+        <span className="text-xs font-medium text-gray-600">{sub.nombre}</span>
+        <input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
+      </label>
+    );
+  }
+
+  if (tipo === 'OPCION_SIMPLES' || tipo === 'OPCION_MULTIPLE') {
+    const ops = opcionesAStrings(sub.opciones);
+    return (
+      <div>
+        <label className={labelClass}>{sub.nombre}</label>
+        <select className={selectClass} value={value == null ? '' : String(value)} onChange={(e) => onChange(e.target.value)}>
+          <option value="">Seleccionar...</option>
+          {ops.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+    );
+  }
+
+  const t = tipo === 'NUMERO' ? 'number' : 'text';
+  return (
+    <div>
+      <label className={labelClass}>{sub.nombre}</label>
+      <input className={inputClass} type={t} value={value == null ? '' : String(value)}
+        onChange={(e) => onChange(t === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />
     </div>
   );
 }
