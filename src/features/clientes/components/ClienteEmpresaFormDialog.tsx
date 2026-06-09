@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { ClienteEmpresa, CreateClienteEmpresaDto } from '@/core/types/cliente-empresa';
 import { createCliente, updateCliente, consultarRuc } from '@/features/cotizacion/services/cliente-service';
@@ -9,6 +9,7 @@ interface Props {
   isOpen: boolean;
   empresaId: string;
   cliente?: ClienteEmpresa | null; // null/undefined = crear
+  initialRuc?: string; // pre-rellena el RUC (al crear desde una búsqueda)
   onSuccess: (msg: string, creado?: ClienteEmpresa) => void;
   onClose: () => void;
 }
@@ -16,7 +17,7 @@ interface Props {
 const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
 const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 
-export default function ClienteEmpresaFormDialog({ isOpen, empresaId, cliente, onSuccess, onClose }: Props) {
+export default function ClienteEmpresaFormDialog({ isOpen, empresaId, cliente, initialRuc, onSuccess, onClose }: Props) {
   const esEdicion = !!cliente;
 
   const [ruc, setRuc] = useState('');
@@ -47,12 +48,12 @@ export default function ClienteEmpresaFormDialog({ isOpen, empresaId, cliente, o
       setProvincia(cliente.provincia ?? '');
       setDepartamento(cliente.departamento ?? '');
     } else {
-      setRuc(''); setRazonSocial(''); setNombreComercial(''); setEmail(''); setTelefono('');
+      setRuc(initialRuc ?? ''); setRazonSocial(''); setNombreComercial(''); setEmail(''); setTelefono('');
       setDireccion(''); setDistrito(''); setProvincia(''); setDepartamento('');
     }
-  }, [isOpen, cliente]);
+  }, [isOpen, cliente, initialRuc]);
 
-  const buscarRuc = async (valor: string) => {
+  const buscarRuc = useCallback(async (valor: string) => {
     if (!/^\d{11}$/.test(valor)) return;
     setBuscandoRuc(true);
     setRucMsg('');
@@ -69,7 +70,12 @@ export default function ClienteEmpresaFormDialog({ isOpen, empresaId, cliente, o
     } finally {
       setBuscandoRuc(false);
     }
-  };
+  }, []);
+
+  // Al abrir para crear con un RUC pre-rellenado, dispara el lookup SUNAT.
+  useEffect(() => {
+    if (isOpen && !cliente && initialRuc && /^\d{11}$/.test(initialRuc)) buscarRuc(initialRuc);
+  }, [isOpen, cliente, initialRuc, buscarRuc]);
 
   const handleSubmit = async () => {
     setError('');

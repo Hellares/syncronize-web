@@ -47,6 +47,8 @@ export default function NuevaOrdenPage() {
     setEmpresaDialog(false);
     if (c) setCliente({ id: c.id, tipo: 'empresa', nombre: c.nombreComercial || c.razonSocial, documento: c.numeroDocumento ?? '' });
   };
+  // Si lo buscado es solo dígitos, se lleva al modal como DNI/RUC pre-rellenado.
+  const docBuscado = /^\d+$/.test(clienteSearch.trim()) ? clienteSearch.trim() : '';
 
   const [tipoServicio, setTipoServicio] = useState<TipoServicio>('REPARACION');
   const [prioridad, setPrioridad] = useState<PrioridadServicio>('NORMAL');
@@ -278,8 +280,10 @@ export default function NuevaOrdenPage() {
         </button>
       </div>
 
-      <ClientePersonaFormDialog isOpen={personaDialog} onClose={() => setPersonaDialog(false)} onSuccess={onPersonaCreada} />
-      <ClienteEmpresaFormDialog isOpen={empresaDialog} empresaId={empresaId} onClose={() => setEmpresaDialog(false)} onSuccess={onEmpresaCreada} />
+      <ClientePersonaFormDialog isOpen={personaDialog} initialDni={docBuscado.length > 0 && docBuscado.length <= 8 ? docBuscado : undefined}
+        onClose={() => setPersonaDialog(false)} onSuccess={onPersonaCreada} />
+      <ClienteEmpresaFormDialog isOpen={empresaDialog} empresaId={empresaId} initialRuc={docBuscado.length > 0 && docBuscado.length <= 11 ? docBuscado : undefined}
+        onClose={() => setEmpresaDialog(false)} onSuccess={onEmpresaCreada} />
     </div>
   );
 }

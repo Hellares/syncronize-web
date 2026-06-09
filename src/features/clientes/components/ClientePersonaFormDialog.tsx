@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { ClientePersona, CreateClienteDto, UpdateClienteDto } from '@/core/types/cliente';
 import * as personaService from '../services/cliente-persona-service';
@@ -9,6 +9,7 @@ import { consultarDni } from '@/features/cotizacion/services/cliente-service';
 interface Props {
   isOpen: boolean;
   cliente?: ClientePersona | null; // null/undefined = crear
+  initialDni?: string; // pre-rellena el DNI (al crear desde una búsqueda)
   onSuccess: (msg: string, creado?: ClientePersona) => void;
   onClose: () => void;
 }
@@ -16,7 +17,7 @@ interface Props {
 const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
 const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 
-export default function ClientePersonaFormDialog({ isOpen, cliente, onSuccess, onClose }: Props) {
+export default function ClientePersonaFormDialog({ isOpen, cliente, initialDni, onSuccess, onClose }: Props) {
   const esEdicion = !!cliente;
 
   const [dni, setDni] = useState('');
@@ -49,12 +50,12 @@ export default function ClientePersonaFormDialog({ isOpen, cliente, onSuccess, o
       setDepartamento(cliente.departamento ?? '');
       setIsActive(cliente.isActive);
     } else {
-      setDni(''); setNombres(''); setApellidos(''); setTelefono(''); setEmail('');
+      setDni(initialDni ?? ''); setNombres(''); setApellidos(''); setTelefono(''); setEmail('');
       setDireccion(''); setDistrito(''); setProvincia(''); setDepartamento(''); setIsActive(true);
     }
-  }, [isOpen, cliente]);
+  }, [isOpen, cliente, initialDni]);
 
-  const buscarDni = async (valor: string) => {
+  const buscarDni = useCallback(async (valor: string) => {
     if (!/^\d{8}$/.test(valor)) return;
     setBuscandoDni(true);
     setDniMsg('');
@@ -72,7 +73,12 @@ export default function ClientePersonaFormDialog({ isOpen, cliente, onSuccess, o
     } finally {
       setBuscandoDni(false);
     }
-  };
+  }, []);
+
+  // Al abrir para crear con un DNI pre-rellenado, dispara el lookup RENIEC.
+  useEffect(() => {
+    if (isOpen && !cliente && initialDni && /^\d{8}$/.test(initialDni)) buscarDni(initialDni);
+  }, [isOpen, cliente, initialDni, buscarDni]);
 
   const handleSubmit = async () => {
     setError('');
