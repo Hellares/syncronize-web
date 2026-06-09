@@ -344,13 +344,28 @@ function TecnicoDialog({ ordenId, actualId, onClose, onSuccess }: { ordenId: str
   );
 }
 
-/* --- Agregar componente (find-or-create + acción) --- */
+/* --- Agregar componente (crear/elegir tipo + find-or-create + acción) --- */
+const CATEGORIAS_COMP: { v: osService.CategoriaComponente; label: string }[] = [
+  { v: 'HARDWARE', label: 'Hardware' },
+  { v: 'SOFTWARE', label: 'Software' },
+  { v: 'PERIFERICO', label: 'Periférico' },
+  { v: 'ACCESORIOS', label: 'Accesorios' },
+  { v: 'CONSUMIBLES', label: 'Consumibles' },
+];
+
 function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; onClose: () => void; onSuccess: () => void }) {
   const [tipos, setTipos] = useState<TipoComponente[]>([]);
   const [loadingTipos, setLoadingTipos] = useState(true);
+  // Tipo: elegir existente o crear nuevo escribiéndolo
+  const [crearNuevoTipo, setCrearNuevoTipo] = useState(false);
   const [tipoComponenteId, setTipoComponenteId] = useState('');
+  const [nombreTipo, setNombreTipo] = useState('');
+  const [categoriaTipo, setCategoriaTipo] = useState<osService.CategoriaComponente>('HARDWARE');
+  // Marca / modelo: texto llenable con sugerencias de los existentes
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
+  const [marcas, setMarcas] = useState<string[]>([]);
+  const [modelos, setModelos] = useState<string[]>([]);
   const [tipoAccion, setTipoAccion] = useState<TipoAccionComponente>('REPARAR');
   const [descripcionAccion, setDescripcionAccion] = useState('');
   const [costoAccion, setCostoAccion] = useState('');
@@ -361,19 +376,53 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 
   useEffect(() => {
     osService.getTiposComponente()
-      .then(t => { setTipos(t); if (t.length) setTipoComponenteId(t[0].id); })
+      .then(t => { setTipos(t); if (t.length) setTipoComponenteId(t[0].id); else setCrearNuevoTipo(true); })
       .catch(() => setError('No se pudieron cargar los tipos de componente'))
       .finally(() => setLoadingTipos(false));
   }, []);
 
+  // Sugerencias de marcas al elegir un tipo existente
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (crearNuevoTipo || !tipoComponenteId) { if (active) setMarcas([]); return; }
+      try { const m = await osService.getMarcasComponente(tipoComponenteId); if (active) setMarcas(m); }
+      catch { if (active) setMarcas([]); }
+    };
+    load();
+    return () => { active = false; };
+  }, [tipoComponenteId, crearNuevoTipo]);
+
+  // Sugerencias de modelos al escribir la marca (debounced)
+  useEffect(() => {
+    let active = true;
+    const t = setTimeout(async () => {
+      if (crearNuevoTipo || !tipoComponenteId || !marca.trim()) { if (active) setModelos([]); return; }
+      try { const m = await osService.getModelosComponente(tipoComponenteId, marca.trim()); if (active) setModelos(m); }
+      catch { if (active) setModelos([]); }
+    }, 400);
+    return () => { active = false; clearTimeout(t); };
+  }, [marca, tipoComponenteId, crearNuevoTipo]);
+
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+  const linkClass = 'mt-1 text-[11px] font-semibold text-[#437EFF] hover:underline';
 
   const submit = async () => {
     setError('');
-    if (!tipoComponenteId) { setError('Selecciona el tipo de componente'); return; }
     setIsSubmitting(true);
     try {
-      const comp = await osService.findOrCreateComponente({ tipoComponenteId, marca: marca.trim() || undefined, modelo: modelo.trim() || undefined });
+      // 1) Resolver el tipo (crear si es nuevo)
+      let tipoId = tipoComponenteId;
+      if (crearNuevoTipo) {
+        if (!nombreTipo.trim()) { setError('Ingresa el nombre del tipo de componente'); setIsSubmitting(false); return; }
+        const nuevo = await osService.crearTipoComponente({ nombre: nombreTipo.trim(), categoria: categoriaTipo });
+        tipoId = nuevo.id;
+      } else if (!tipoId) {
+        setError('Selecciona el tipo de componente'); setIsSubmitting(false); return;
+      }
+      // 2) Buscar o crear el componente físico
+      const comp = await osService.findOrCreateComponente({ tipoComponenteId: tipoId, marca: marca.trim() || undefined, modelo: modelo.trim() || undefined });
+      // 3) Agregarlo a la orden
       await osService.addComponente(ordenId, {
         componenteId: comp.id,
         tipoAccion,
@@ -398,16 +447,40 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
         ) : (
           <div className="mt-3 space-y-3">
+            {/* Tipo de componente: elegir existente o crear nuevo */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de componente *</label>
-              <select className={`${inputClass} bg-white`} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
-                {tipos.length === 0 && <option value="">Sin tipos configurados</option>}
-                {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
-              </select>
+              {!crearNuevoTipo && tipos.length > 0 ? (
+                <>
+                  <select className={`${inputClass} bg-white`} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
+                    {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
+                  </select>
+                  <button type="button" className={linkClass} onClick={() => { setCrearNuevoTipo(true); setMarca(''); setModelo(''); }}>+ Crear nuevo tipo</button>
+                </>
+              ) : (
+                <>
+                  <input className={inputClass} value={nombreTipo} onChange={e => setNombreTipo(e.target.value)} placeholder="Ej: Pantalla, Disco duro, Teclado..." autoFocus />
+                  <select className={`${inputClass} mt-2 bg-white`} value={categoriaTipo} onChange={e => setCategoriaTipo(e.target.value as osService.CategoriaComponente)}>
+                    {CATEGORIAS_COMP.map(c => <option key={c.v} value={c.v}>{c.label}</option>)}
+                  </select>
+                  {tipos.length > 0 && (
+                    <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(false)}>Elegir tipo existente</button>
+                  )}
+                </>
+              )}
             </div>
+            {/* Marca / modelo: texto llenable con sugerencias */}
             <div className="grid grid-cols-2 gap-2">
-              <div><label className="mb-1 block text-xs font-medium text-gray-600">Marca</label><input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} /></div>
-              <div><label className="mb-1 block text-xs font-medium text-gray-600">Modelo</label><input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} /></div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Marca</label>
+                <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} list="marcas-comp" placeholder="Samsung, HP..." />
+                <datalist id="marcas-comp">{marcas.map(m => <option key={m} value={m} />)}</datalist>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Modelo</label>
+                <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} list="modelos-comp" placeholder="Galaxy S24..." />
+                <datalist id="modelos-comp">{modelos.map(m => <option key={m} value={m} />)}</datalist>
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Acción *</label>

@@ -86,6 +86,26 @@ export async function getTiposComponente(): Promise<TipoComponente[]> {
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }
 
+export type CategoriaComponente = 'HARDWARE' | 'SOFTWARE' | 'PERIFERICO' | 'ACCESORIOS' | 'CONSUMIBLES';
+
+/** Crea un tipo de componente al vuelo (cuando no existe en el catálogo). */
+export async function crearTipoComponente(data: { nombre: string; categoria: CategoriaComponente; descripcion?: string }): Promise<TipoComponente> {
+  const res = await apiClient.post<TipoComponente>('/tipos-componente', data);
+  return res.data;
+}
+
+/** Marcas existentes para un tipo (sugerencias del input de marca). */
+export async function getMarcasComponente(tipoComponenteId: string): Promise<string[]> {
+  const res = await apiClient.get(`/componentes/marcas?tipoComponenteId=${encodeURIComponent(tipoComponenteId)}`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+/** Modelos existentes para un tipo + marca (sugerencias del input de modelo). */
+export async function getModelosComponente(tipoComponenteId: string, marca: string): Promise<string[]> {
+  const res = await apiClient.get(`/componentes/modelos?tipoComponenteId=${encodeURIComponent(tipoComponenteId)}&marca=${encodeURIComponent(marca)}`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
 /** Busca o crea el componente físico (tipo + marca + modelo) y devuelve su id. */
 export async function findOrCreateComponente(data: FindOrCreateComponenteDto): Promise<{ id: string; [key: string]: unknown }> {
   const res = await apiClient.post('/componentes/find-or-create', data);
