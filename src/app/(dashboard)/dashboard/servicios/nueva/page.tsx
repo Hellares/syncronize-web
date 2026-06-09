@@ -8,7 +8,7 @@ import { TIPOS_SERVICIO, PRIORIDADES, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL } fro
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import type { Servicio, CampoServicio } from '@/core/types/servicio-catalogo';
-import { opcionesAStrings } from '@/core/types/servicio-catalogo';
+import { DynamicFieldsForm, seedDefaults, validarCamposRequeridos, limpiarDatos } from '@/features/ordenes-servicio/components/dynamic-fields-form';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
 import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
@@ -79,7 +79,11 @@ export default function NuevaOrdenPage() {
     if (sv?.tipoServicio) setTipoServicio(sv.tipoServicio);
     if (sv?.precio != null && !costoTotal) setCostoTotal(String(sv.precio));
     if (id) {
-      try { setCampos(await catalogoService.getCamposPorServicio(id)); } catch { /* sin plantilla */ }
+      try {
+        const cs = await catalogoService.getCamposPorServicio(id);
+        setCampos(cs);
+        setDatos(seedDefaults(cs));
+      } catch { /* sin plantilla */ }
     }
   };
 
@@ -92,9 +96,11 @@ export default function NuevaOrdenPage() {
       setError('Adelanto + descuento no puede superar el costo total');
       return;
     }
+    const reqErr = validarCamposRequeridos(campos, datos);
+    if (reqErr) { setError(reqErr); return; }
     setIsSubmitting(true);
     try {
-      const datosLimpios = Object.fromEntries(Object.entries(datos).filter(([, v]) => v !== '' && v != null));
+      const datosLimpios = limpiarDatos(datos);
       const dto: CreateOrdenServicioDto = {
         tipoServicio,
         prioridad,
@@ -213,26 +219,9 @@ export default function NuevaOrdenPage() {
 
         {/* Campos dinámicos de la plantilla del servicio */}
         {campos.length > 0 && (
-          <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
-            <p className="text-[11px] font-semibold uppercase text-gray-400">Datos del servicio</p>
-            {campos.map(campo => {
-              const val = datos[campo.nombre];
-              const set = (v: unknown) => setDatos(d => ({ ...d, [campo.nombre]: v }));
-              const req = campo.esRequerido ? ' *' : '';
-              const ph = campo.placeholder ?? '';
-              if (campo.tipoCampo === 'TEXTO_AREA') {
-                return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><textarea className={`${inputClass} resize-none`} rows={2} value={String(val ?? '')} onChange={e => set(e.target.value)} placeholder={ph} /></div>;
-              }
-              if (campo.tipoCampo === 'OPCION_SIMPLES' || campo.tipoCampo === 'OPCION_MULTIPLE') {
-                const ops = opcionesAStrings(campo.opciones);
-                return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><select className={selectClass} value={String(val ?? '')} onChange={e => set(e.target.value)}><option value="">Seleccionar...</option>{ops.map(o => <option key={o} value={o}>{o}</option>)}</select></div>;
-              }
-              if (campo.tipoCampo === 'CHECKBOX' || campo.tipoCampo === 'CHECKBOX_MULTIPLE') {
-                return <label key={campo.id} className="flex items-center justify-between"><span className="text-xs font-medium text-gray-600">{campo.nombre}{req}</span><input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={!!val} onChange={e => set(e.target.checked)} /></label>;
-              }
-              const tipoInput = campo.tipoCampo === 'NUMERO' ? 'number' : campo.tipoCampo === 'FECHA' ? 'date' : campo.tipoCampo === 'HORA' ? 'time' : campo.tipoCampo === 'EMAIL' ? 'email' : campo.tipoCampo === 'URL' ? 'url' : 'text';
-              return <div key={campo.id}><label className={labelClass}>{campo.nombre}{req}</label><input className={inputClass} type={tipoInput} value={String(val ?? '')} onChange={e => set(e.target.value)} placeholder={ph} /></div>;
-            })}
+          <div className="mt-4 border-t border-gray-100 pt-3">
+            <DynamicFieldsForm campos={campos} values={datos}
+              onChange={(nombre, v) => setDatos(d => ({ ...d, [nombre]: v }))} />
           </div>
         )}
       </section>

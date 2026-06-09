@@ -10,8 +10,11 @@ import {
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { CampoServicio } from '@/core/types/servicio-catalogo';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
+import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
 import * as cajaService from '@/features/caja/services/caja-service';
+import { DatosPersonalizadosView } from '@/features/ordenes-servicio/components/datos-personalizados-view';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -30,6 +33,7 @@ export default function OrdenDetailPage() {
   const permissions = usePermissions();
 
   const [orden, setOrden] = useState<OrdenServicio | null>(null);
+  const [campos, setCampos] = useState<CampoServicio[]>([]);
   const [historial, setHistorial] = useState<HistorialOS[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +49,12 @@ export default function OrdenDetailPage() {
       const [o, h] = await Promise.all([osService.getOrden(id), osService.getHistorial(id).catch(() => [])]);
       setOrden(o);
       setHistorial(h);
+      const svId = o.servicioId ?? o.servicio?.id;
+      if (svId && o.datosPersonalizados && Object.keys(o.datosPersonalizados).length > 0) {
+        catalogoService.getCamposPorServicio(svId).then(setCampos).catch(() => setCampos([]));
+      } else {
+        setCampos([]);
+      }
     } catch {
       setError('No se pudo cargar la orden');
     } finally {
@@ -175,6 +185,11 @@ export default function OrdenDetailPage() {
           {orden.descripcionProblema && <><p className="text-[10px] uppercase text-gray-400">Problema reportado</p><p className="text-sm text-gray-700">{orden.descripcionProblema}</p></>}
           {orden.notas && <p className="mt-1 text-xs text-gray-500">{orden.notas}</p>}
         </div>
+      )}
+
+      {/* Datos personalizados (campos dinámicos del servicio) */}
+      {orden.datosPersonalizados && Object.keys(orden.datosPersonalizados).length > 0 && (
+        <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
       )}
 
       {/* Costos */}
