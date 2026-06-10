@@ -9,7 +9,7 @@ import type { Producto } from '@/core/types/producto';
 import * as productoService from '@/features/producto/services/producto-service';
 import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
 
-const inputClass = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]/20';
+const inputClass = 'w-full rounded-[6px] h-[30px] border border-gray-300 px-3 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]/20';
 
 /** Todas las imágenes del producto (galería) para el dialog. */
 function imgList(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; imagenes?: string[] }): string[] {
