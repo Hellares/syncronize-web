@@ -481,7 +481,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 <select
                   value={sedeId}
                   onChange={e => setSedeId(e.target.value)}
-                  className={`${INPUT_STD} w-full text-sm ${stepErrors.sedeId ? 'ring-red-400' : 'ring-zinc-400'}`}
+                  className={`${INPUT_STD} w-full text-xs ${stepErrors.sedeId ? 'ring-red-400' : 'ring-zinc-400'}`}
                 >
                   <option value="">Seleccione una sede</option>
                   {sedes
@@ -502,7 +502,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                   type="text"
                   value={vendedorNombre}
                   disabled
-                  className={`${INPUT_STD} w-full text-sm ring-zinc-400 cursor-not-allowed`}
+                  className={`${INPUT_STD} w-full text-xs ring-zinc-400 cursor-not-allowed`}
                 />
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 value={nombreCotizacion}
                 onChange={e => setNombreCotizacion(e.target.value)}
                 placeholder="Ej: Propuesta equipos oficina (opcional)"
-                className={`${INPUT_STD} w-full text-sm ring-zinc-400`}
+                className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
               />
             </div>
           </div>
@@ -628,7 +628,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           value={item.descripcion}
                           onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
                           placeholder="Descripcion"
-                          className={`${INPUT_STD} flex-1 text-sm ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
+                          className={`${INPUT_STD} flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
                         />
                         <button type="button" onClick={() => removeItem(item.key)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -641,7 +641,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           <label className="mb-0.5 block text-[11px] text-gray-500">Cant.</label>
                           <input type="number" min={0.01} step="any" value={item.cantidad}
                             onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                            className={`${INPUT_STD} w-full text-center text-sm ring-zinc-400`}
+                            className={`${INPUT_STD} w-full text-center text-xs ring-zinc-400`}
                           />
                         </div>
                         <div className="text-right">
@@ -708,7 +708,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 <select
                   value={moneda}
                   onChange={e => setMoneda(e.target.value)}
-                  className={`${INPUT_STD} w-full text-sm ring-zinc-400`}
+                  className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
                 >
                   <option value="PEN">PEN - Soles</option>
                   <option value="USD">USD - Dolares</option>
@@ -724,7 +724,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                     value={tipoCambio}
                     onChange={e => setTipoCambio(e.target.value === '' ? '' : parseFloat(e.target.value))}
                     placeholder="Ej: 3.750"
-                    className={`${INPUT_STD} w-full text-sm ring-zinc-400`}
+                    className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
                   />
                 </div>
               )}
@@ -736,7 +736,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 type="date"
                 value={fechaVencimiento}
                 onChange={e => setFechaVencimiento(e.target.value)}
-                className={`${INPUT_STD} w-full text-sm ring-zinc-400`}
+                className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
               />
             </div>
 
@@ -747,7 +747,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 onChange={e => setObservaciones(e.target.value)}
                 rows={3}
                 placeholder="Notas internas o para el cliente..."
-                className={`${INPUT_STD_TA} w-full text-sm resize-none`}
+                className={`${INPUT_STD_TA} w-full text-xs resize-none`}
               />
             </div>
 
@@ -758,7 +758,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 onChange={e => setCondiciones(e.target.value)}
                 rows={3}
                 placeholder="Condiciones comerciales, garantia, tiempo de entrega..."
-                className={`${INPUT_STD_TA} w-full text-sm resize-none`}
+                className={`${INPUT_STD_TA} w-full text-xs resize-none`}
               />
             </div>
           </div>
