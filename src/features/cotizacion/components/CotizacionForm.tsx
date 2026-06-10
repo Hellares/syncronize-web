@@ -22,10 +22,10 @@ const TIPO_AFECTACION_OPTIONS = [
 ];
 
 // Estilo de input estándar (look mono + ring + sombra al focus). Altura 30px,
-// radio 6px, ring 1.5px al focus. Agregar el color de ring (ring-zinc-400 / ring-red-400).
-const INPUT_STD = 'bg-zinc-100 text-[#004A94] font-sans ring-1 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+// radio 6px, ring 1.5px al focus. Agregar el color de ring (ring-blue-400 / ring-red-400).
+const INPUT_STD = 'bg-zinc-100 text-[#004A94] font-sans ring-1 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 // Variante para textarea (sin altura fija)
-const INPUT_STD_TA = 'bg-zinc-100 text-[#004A94] font-sans ring-1 ring-zinc-400 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const INPUT_STD_TA = 'bg-zinc-100 text-[#004A94] font-sans ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 // ─── Item type ────────────────────────────────────────────────────────────────
 
@@ -481,7 +481,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 <select
                   value={sedeId}
                   onChange={e => setSedeId(e.target.value)}
-                  className={`${INPUT_STD} w-full text-xs ${stepErrors.sedeId ? 'ring-red-400' : 'ring-zinc-400'}`}
+                  className={`${INPUT_STD} w-full text-xs ${stepErrors.sedeId ? 'ring-red-400' : 'ring-blue-400'}`}
                 >
                   <option value="">Seleccione una sede</option>
                   {sedes
@@ -502,7 +502,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                   type="text"
                   value={vendedorNombre}
                   disabled
-                  className={`${INPUT_STD} w-full text-xs ring-zinc-400 cursor-not-allowed`}
+                  className={`${INPUT_STD} w-full text-xs ring-blue-400 cursor-not-allowed`}
                 />
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 value={nombreCotizacion}
                 onChange={e => setNombreCotizacion(e.target.value)}
                 placeholder="Ej: Propuesta equipos oficina (opcional)"
-                className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
+                className={`${INPUT_STD} w-full text-xs ring-blue-400`}
               />
             </div>
           </div>
@@ -635,11 +635,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                         value={item.descripcion}
                         onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
                         placeholder="Descripcion"
-                        className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
+                        className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
                       />
                       <input type="number" min={0.01} step="any" value={item.cantidad}
                         onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                        className={`${INPUT_STD} w-16 shrink-0 text-center text-xs ring-zinc-400`}
+                        className={`${INPUT_STD} w-16 shrink-0 text-center text-xs ring-blue-400`}
                       />
                       <span className="w-20 shrink-0 whitespace-nowrap text-right text-xs font-medium text-gray-700">{currSymbol} {fmt(item.precioUnitario)}</span>
                       <span className="w-24 shrink-0 whitespace-nowrap text-right text-xs font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</span>
@@ -703,7 +703,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 <select
                   value={moneda}
                   onChange={e => setMoneda(e.target.value)}
-                  className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
+                  className={`${INPUT_STD} w-full text-xs ring-blue-400`}
                 >
                   <option value="PEN">PEN - Soles</option>
                   <option value="USD">USD - Dolares</option>
@@ -719,7 +719,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                     value={tipoCambio}
                     onChange={e => setTipoCambio(e.target.value === '' ? '' : parseFloat(e.target.value))}
                     placeholder="Ej: 3.750"
-                    className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
+                    className={`${INPUT_STD} w-full text-xs ring-blue-400`}
                   />
                 </div>
               )}
@@ -731,7 +731,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 type="date"
                 value={fechaVencimiento}
                 onChange={e => setFechaVencimiento(e.target.value)}
-                className={`${INPUT_STD} w-full text-xs ring-zinc-400`}
+                className={`${INPUT_STD} w-full text-xs ring-blue-400`}
               />
             </div>
 
