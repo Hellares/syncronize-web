@@ -549,9 +549,18 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Productos y Servicios</h2>
+          <div className="grid gap-4 lg:grid-cols-5 lg:items-start">
+          {/* IZQUIERDA: agregar productos */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3 lg:col-span-2 lg:sticky lg:top-4">
+            <h2 className="text-base font-semibold text-gray-900">Agregar productos</h2>
+            {/* Grid de productos (mismas cards que Venta Rápida) */}
+            <ProductGrid sedeId={sedeId} onSelect={addProductItem} colsClass="grid-cols-2 xl:grid-cols-3" maxHeightClass="max-h-[34rem]" />
+          </div>
+
+          {/* DERECHA: items de la cotización */}
+          <div className="space-y-3 lg:col-span-3">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">Items ({items.length})</h2>
               <div className="flex gap-2">
                 {items.length >= 2 && (
                   <button
@@ -573,11 +582,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
               </div>
             </div>
 
-            {/* Grid de productos (mismas cards que Venta Rápida) */}
-            <ProductGrid sedeId={sedeId} onSelect={addProductItem} />
-
             {stepErrors.items && <p className="text-xs text-red-500">{stepErrors.items}</p>}
-          </div>
 
           {/* Items table */}
           {items.length === 0 ? (
@@ -589,6 +594,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="max-h-[34rem] overflow-y-auto">
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
@@ -790,6 +796,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 })}
               </div>
 
+              </div>{/* /scroll items */}
+
               {/* Totals bar */}
               <div className="border-t border-gray-200 bg-gray-50/50 px-4 py-4 sm:px-6">
                 <div className="flex flex-col items-end gap-1.5 text-sm">
@@ -821,6 +829,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
               </div>
             </div>
           )}
+          </div>{/* /columna derecha (items) */}
+          </div>{/* /grid 2 columnas */}
         </div>
       )}
 

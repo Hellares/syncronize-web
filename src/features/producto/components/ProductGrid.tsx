@@ -26,9 +26,11 @@ interface Props {
   onSelect: (producto: Producto) => void;
   /** Altura máxima del grid (clase tailwind). Por defecto acotado para no empujar la página. */
   maxHeightClass?: string;
+  /** Columnas del grid (clases tailwind). Útil para paneles angostos. */
+  colsClass?: string;
 }
 
-export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-[28rem]' }: Props) {
+export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-[28rem]', colsClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' }: Props) {
   const [query, setQuery] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
@@ -64,7 +66,7 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
         {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#004A94]" /></div>}
       </div>
 
-      <div className={`grid gap-2.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 ${maxHeightClass} overflow-y-auto p-1 content-start`}>
+      <div className={`grid gap-2.5 ${colsClass} ${maxHeightClass} overflow-y-auto p-1 content-start`}>
         {productos.map(p => {
           const stock = stockDeSede(p.stocksPorSede);
           const precio = p.tieneVariantes ? null : stock ? infoPrecioEfectivo(stock) : null;
