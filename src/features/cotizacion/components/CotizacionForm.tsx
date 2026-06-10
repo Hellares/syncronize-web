@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AxiosError } from 'axios';
 import * as cotizacionService from '../services/cotizacion-service';
 import * as productoService from '@/features/producto/services/producto-service';
 import type { CreateCotizacionDto, CreateCotizacionDetalleDto, Cotizacion, CompatibilidadResult } from '@/core/types/cotizacion';
+import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
@@ -190,17 +192,17 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   }, [sedes, sedeId]);
 
   // ── Variantes: selector (los productos con variantes no tienen precio/stock propio) ──
-  const [variantePicker, setVariantePicker] = useState<any | null>(null);
+  const [variantePicker, setVariantePicker] = useState<Producto | null>(null);
   const [loadingVariantes, setLoadingVariantes] = useState(false);
 
   // Precio/flag de la sede activa desde stocksPorSede
-  const stockDeSede = useCallback((stocks?: any[]) => {
+  const stockDeSede = useCallback((stocks?: StockPorSedeInfo[]) => {
     if (!stocks?.length) return null;
-    return stocks.find((s: any) => s.sedeId === sedeId) ?? stocks[0];
+    return stocks.find(s => s.sedeId === sedeId) ?? stocks[0];
   }, [sedeId]);
 
   // ── Add product ─────────────────────────────────────────────────────────────
-  const addProductItem = useCallback(async (producto: any) => {
+  const addProductItem = useCallback(async (producto: Producto) => {
     setCompatibilidad(null);
 
     // Producto con variantes → abrir selector (paridad Flutter CotizacionItemSelector)
@@ -227,8 +229,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       precioUnitario: sedeStock?.precio ?? 0,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
-      tipoAfectacion: producto.tipoAfectacion || '10',
-      icbper: producto.icbper ?? 0,
+      tipoAfectacion: producto.tipoAfectacionIgv === 'EXONERADO' ? '20' : producto.tipoAfectacionIgv === 'INAFECTO' ? '30' : '10',
+      icbper: producto.aplicaIcbper ? 0.5 : 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
     };
     // Si ya está en la lista (mismo producto sin variante) → incrementar cantidad
@@ -241,10 +243,10 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       }
       return [...prev, newItem];
     });
-  }, [sedeId, stockDeSede]);
+  }, [stockDeSede]);
 
   // ── Add variante seleccionada ───────────────────────────────────────────────
-  const addVarianteItem = useCallback((producto: any, variante: any, cantidad: number = 1) => {
+  const addVarianteItem = useCallback((producto: Producto, variante: ProductoVariante, cantidad: number = 1) => {
     const sedeStock = stockDeSede(variante.stocksPorSede);
     const newItem: ItemLinea = {
       key: genKey(),
@@ -255,8 +257,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       precioUnitario: sedeStock?.precio ?? 0,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
-      tipoAfectacion: producto.tipoAfectacion || '10',
-      icbper: producto.icbper ?? 0,
+      tipoAfectacion: producto.tipoAfectacionIgv === 'EXONERADO' ? '20' : producto.tipoAfectacionIgv === 'INAFECTO' ? '30' : '10',
+      icbper: producto.aplicaIcbper ? 0.5 : 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
     };
     // Si ya está (mismo producto + misma variante) → incrementar cantidad
@@ -290,8 +292,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     setCompatibilidad(null);
   }, []);
 
-  const updateItem = useCallback((key: string, field: keyof ItemLinea, value: any) => {
-    setItems(prev => prev.map(item => (item.key === key ? { ...item, [field]: value } : item)));
+  const updateItem = useCallback((key: string, field: keyof ItemLinea, value: string | number | boolean) => {
+    setItems(prev => prev.map(item => (item.key === key ? ({ ...item, [field]: value } as ItemLinea) : item)));
     if (field === 'tipoAfectacion' || field === 'productoId') setCompatibilidad(null);
   }, []);
 
@@ -417,8 +419,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         const created = await cotizacionService.createCotizacion(dto);
         router.push(`/dashboard/cotizaciones/${created.id}`);
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || `Error al ${mode === 'edit' ? 'actualizar' : 'crear'} la cotizacion`);
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : err instanceof Error ? err.message : undefined;
+      setError(msg || `Error al ${mode === 'edit' ? 'actualizar' : 'crear'} la cotizacion`);
     } finally {
       setSubmitting(false);
     }
@@ -485,8 +488,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 >
                   <option value="">Seleccione una sede</option>
                   {sedes
-                    .filter((s: any) => s.isActive)
-                    .map((s: any) => (
+                    .filter(s => s.isActive)
+                    .map(s => (
                       <option key={s.id} value={s.id}>
                         {s.nombre}{s.esPrincipal ? ' (Principal)' : ''}
                       </option>
