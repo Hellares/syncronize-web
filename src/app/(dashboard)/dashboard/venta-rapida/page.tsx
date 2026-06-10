@@ -17,6 +17,7 @@ import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
+import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
@@ -28,13 +29,6 @@ function fmt(n: number): string {
 }
 
 function genKey() { return Math.random().toString(36).slice(2, 10); }
-
-/** Thumbnail del producto (archivos > imagenes, mismo criterio que ProductoTable) */
-function imgUrl(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; imagenes?: string[] }): string | null {
-  if (p.archivos?.length) return p.archivos[0].urlThumbnail || p.archivos[0].url;
-  if (p.imagenes?.length) return p.imagenes[0];
-  return null;
-}
 
 function VentaRapidaInner() {
   const router = useRouter();
@@ -395,58 +389,11 @@ function VentaRapidaInner() {
           </div>
           {/* Máximo 6 columnas con respiro entre cards */}
           <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 max-h-[calc(100vh-15rem)] overflow-y-auto p-1 content-start">
-            {productos.map(p => {
-              const stock = stockDeSede(p.stocksPorSede);
-              const precio = p.tieneVariantes ? null : stock ? infoPrecioEfectivo(stock) : null;
-              const enLiq = stock ? infoLiquidacionActiva(stock) : false;
-              const img = imgUrl(p);
-              const sinStock = !p.tieneVariantes && !p.esCombo && (stock?.cantidad ?? 0) <= 0;
-              return (
-                <button key={p.id} onClick={() => handlePick(p)}
-                  className="group relative overflow-hidden rounded-lg border border-gray-300/80 bg-white text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.02] transition-all duration-150 hover:-translate-y-0.5 hover:border-[#437EFF]/60 hover:shadow-[0_8px_20px_rgba(0,74,148,0.15)] active:translate-y-0 active:shadow-sm">
-                  {/* Imagen full-bleed con badges superpuestos */}
-                  <div className="relative h-20 w-full bg-gradient-to-br from-gray-50 to-gray-100">
-                    {img ? (
-                      <img src={img} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-gray-300">
-                        <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z" />
-                        </svg>
-                      </div>
-                    )}
-                    {/* Badges sobre la imagen */}
-                    <div className="absolute left-1 top-1 flex gap-1">
-                      {p.esCombo && <span className="rounded-md bg-purple-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm">📦 COMBO</span>}
-                      {enLiq && <span className="rounded-md bg-red-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm">LIQ</span>}
-                    </div>
-                    {!p.tieneVariantes && (
-                      <span className={`absolute right-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold shadow-sm ${sinStock ? 'bg-red-600/90 text-white' : 'bg-white/90 text-gray-600'}`}>
-                        {sinStock ? 'SIN STOCK' : `×${stock?.cantidad ?? 0}`}
-                      </span>
-                    )}
-                  </div>
-                  {/* Contenido */}
-                  <div className="px-2 pb-1.5 pt-1">
-                    <p className="line-clamp-2 text-[11px] font-medium leading-tight text-gray-800 min-h-[1.8rem]">{p.nombre}</p>
-                    <div className="mt-0.5 flex items-end justify-between">
-                      {p.esCombo ? (
-                        <p className={`text-[13px] font-bold ${enLiq ? 'text-red-600' : 'text-purple-700'}`}>
-                          {precio != null ? `S/ ${fmt(Number(precio))}` : 'Calculado'}
-                        </p>
-                      ) : p.tieneVariantes ? (
-                        <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 ring-1 ring-blue-200">Variantes →</span>
-                      ) : (
-                        <p className={`text-[13px] font-bold ${enLiq ? 'text-red-600' : 'text-[#004A94]'}`}>
-                          {precio != null ? `S/ ${fmt(Number(precio))}` : 'Sin precio'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+            {productos.map(p => (
+              <button key={p.id} onClick={() => handlePick(p)} className={PRODUCT_CARD_SHELL}>
+                <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />
+              </button>
+            ))}
             {!searching && productos.length === 0 && (
               <p className="col-span-full py-10 text-center text-sm text-gray-400">Sin productos</p>
             )}
