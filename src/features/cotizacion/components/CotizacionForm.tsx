@@ -416,7 +416,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const sedeNombre = sedes.find(s => s.id === sedeId)?.nombre || '-';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-10">
+    <div className={`mx-auto space-y-6 pb-10 ${step === 1 ? 'max-w-none' : 'max-w-4xl'}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
