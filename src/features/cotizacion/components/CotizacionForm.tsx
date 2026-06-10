@@ -616,43 +616,38 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="max-h-[34rem] overflow-y-auto">
-              {/* Lista de items estilo carrito (como Venta Rápida) */}
+              {/* Encabezado de columnas */}
+              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                <span className="min-w-0 flex-1">Producto</span>
+                <span className="w-16 shrink-0 text-center">Cant.</span>
+                <span className="w-20 shrink-0 text-right">P. Unit.</span>
+                <span className="w-24 shrink-0 text-right">Total</span>
+                <span className="w-6 shrink-0" />
+              </div>
+              {/* Lista de items (una fila por ítem) */}
               <div className="divide-y divide-gray-100">
                 {items.map(item => {
                   const c = calcItem(item);
                   return (
-                    <div key={item.key} className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <input
-                          type="text"
-                          value={item.descripcion}
-                          onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
-                          placeholder="Descripcion"
-                          className={`${INPUT_STD} flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
-                        />
-                        <button type="button" onClick={() => removeItem(item.key)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="flex items-end justify-between gap-3">
-                        <div className="w-20 shrink-0">
-                          <label className="mb-0.5 block text-[11px] text-gray-500">Cant.</label>
-                          <input type="number" min={0.01} step="any" value={item.cantidad}
-                            onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                            className={`${INPUT_STD} w-full text-center text-xs ring-zinc-400`}
-                          />
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[11px] text-gray-500">P. Unit.</p>
-                          <p className="text-sm font-medium text-gray-700">{currSymbol} {fmt(item.precioUnitario)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[11px] text-gray-500">Total</p>
-                          <p className="text-sm font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</p>
-                        </div>
-                      </div>
+                    <div key={item.key} className="flex items-center gap-2 px-3 py-1.5">
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
+                        placeholder="Descripcion"
+                        className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
+                      />
+                      <input type="number" min={0.01} step="any" value={item.cantidad}
+                        onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
+                        className={`${INPUT_STD} w-16 shrink-0 text-center text-xs ring-zinc-400`}
+                      />
+                      <span className="w-20 shrink-0 whitespace-nowrap text-right text-xs font-medium text-gray-700">{currSymbol} {fmt(item.precioUnitario)}</span>
+                      <span className="w-24 shrink-0 whitespace-nowrap text-right text-xs font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</span>
+                      <button type="button" onClick={() => removeItem(item.key)} className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   );
                 })}
