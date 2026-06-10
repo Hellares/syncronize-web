@@ -598,7 +598,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 {items.map(item => {
                   const c = calcItem(item);
                   return (
-                    <div key={item.key} className="p-4 space-y-3">
+                    <div key={item.key} className="p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <input
                           type="text"
@@ -615,58 +615,22 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           </svg>
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-xs text-gray-500">Cant.</label>
+                      <div className="flex items-end justify-between gap-3">
+                        <div className="w-20 shrink-0">
+                          <label className="mb-0.5 block text-[11px] text-gray-500">Cant.</label>
                           <input type="number" min={0.01} step="any" value={item.cantidad}
                             onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
                             className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
                           />
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-500">P. Unit.</label>
-                          <input type="number" min={0} step="any" value={item.precioUnitario}
-                            onChange={e => updateItem(item.key, 'precioUnitario', parseFloat(e.target.value) || 0)}
-                            className="w-full rounded border border-gray-200 px-2 py-1.5 text-right text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                          />
+                        <div className="text-right">
+                          <p className="text-[11px] text-gray-500">P. Unit.</p>
+                          <p className="text-sm font-medium text-gray-700">{currSymbol} {fmt(item.precioUnitario)}</p>
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-500">Desc%</label>
-                          <input type="number" min={0} max={100} step="any" value={item.descuento}
-                            onChange={e => updateItem(item.key, 'descuento', parseFloat(e.target.value) || 0)}
-                            className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                          />
+                        <div className="text-right">
+                          <p className="text-[11px] text-gray-500">Total</p>
+                          <p className="text-sm font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</p>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="text-xs text-gray-500">Afectacion</label>
-                          <select value={item.tipoAfectacion}
-                            onChange={e => updateItem(item.key, 'tipoAfectacion', e.target.value)}
-                            className="w-full rounded border border-gray-200 px-1 py-1.5 text-xs focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                          >
-                            {TIPO_AFECTACION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">IGV%</label>
-                          <input type="number" min={0} max={100} step="any" value={item.porcentajeIGV}
-                            onChange={e => updateItem(item.key, 'porcentajeIGV', parseFloat(e.target.value) || 0)}
-                            disabled={item.tipoAfectacion !== '10'}
-                            className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm disabled:bg-gray-50 disabled:text-gray-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">ICBPER</label>
-                          <input type="number" min={0} step="0.01" value={item.icbper}
-                            onChange={e => updateItem(item.key, 'icbper', parseFloat(e.target.value) || 0)}
-                            className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">IGV: {fmt(c.igv)}</span>
-                        <span className="font-semibold text-gray-900">Total: {fmt(c.total)}</span>
                       </div>
                     </div>
                   );
