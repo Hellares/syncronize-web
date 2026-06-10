@@ -550,32 +550,30 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           )}
 
           <div className="grid gap-4 lg:grid-cols-5 lg:items-start">
-          {/* IZQUIERDA: agregar productos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3 lg:col-span-2 lg:sticky lg:top-4">
-            <h2 className="text-base font-semibold text-gray-900">Agregar productos</h2>
-            {/* Grid de productos (mismas cards que Venta Rápida) */}
-            <ProductGrid sedeId={sedeId} onSelect={addProductItem} colsClass="grid-cols-2 xl:grid-cols-3" maxHeightClass="max-h-[34rem]" />
+          {/* IZQUIERDA: catálogo de productos (como Venta Rápida) */}
+          <div className="space-y-3 lg:col-span-3">
+            <ProductGrid sedeId={sedeId} onSelect={addProductItem} colsClass="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5" maxHeightClass="max-h-[calc(100vh-15rem)]" />
           </div>
 
-          {/* DERECHA: items de la cotización */}
-          <div className="space-y-3 lg:col-span-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">Items ({items.length})</h2>
-              <div className="flex gap-2">
+          {/* DERECHA: carrito de la cotización (panel angosto) */}
+          <div className="space-y-3 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-gray-900">Items ({items.length})</h2>
+              <div className="flex flex-wrap gap-1.5">
                 {items.length >= 2 && (
                   <button
                     type="button"
                     onClick={checkCompatibilidad}
                     disabled={checkingCompat}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    {checkingCompat ? 'Verificando...' : 'Verificar compatibilidad'}
+                    {checkingCompat ? 'Verificando...' : 'Compatibilidad'}
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={addManualItem}
-                  className="rounded-lg border border-dashed border-[#004A94] px-3 py-1.5 text-sm font-medium text-[#004A94] hover:bg-[#004A94]/5"
+                  className="rounded-lg border border-dashed border-[#004A94] px-2.5 py-1 text-xs font-medium text-[#004A94] hover:bg-[#004A94]/5"
                 >
                   + Item manual
                 </button>
@@ -595,129 +593,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="max-h-[34rem] overflow-y-auto">
-              {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="px-3 py-3 text-left font-medium text-gray-600">Descripcion</th>
-                      <th className="px-2 py-3 text-center font-medium text-gray-600 w-20">Cant.</th>
-                      <th className="px-2 py-3 text-right font-medium text-gray-600 w-24">P. Unit.</th>
-                      <th className="px-2 py-3 text-center font-medium text-gray-600 w-16">Desc%</th>
-                      <th className="px-2 py-3 text-center font-medium text-gray-600 w-28">Afectacion</th>
-                      <th className="px-2 py-3 text-center font-medium text-gray-600 w-16">IGV%</th>
-                      <th className="px-2 py-3 text-center font-medium text-gray-600 w-20">ICBPER</th>
-                      <th className="px-2 py-3 text-right font-medium text-gray-600 w-24">Total</th>
-                      <th className="px-2 py-3 w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map(item => {
-                      const c = calcItem(item);
-                      return (
-                        <tr key={item.key} className="border-b border-gray-50 last:border-0">
-                          <td className="px-3 py-2">
-                            <input
-                              type="text"
-                              value={item.descripcion}
-                              onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
-                              placeholder="Descripcion del item"
-                              className={`w-full rounded border px-2 py-1.5 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
-                                stepErrors[`desc_${item.key}`] ? 'border-red-400' : 'border-gray-200'
-                              }`}
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              type="number"
-                              min={0.01}
-                              step="any"
-                              value={item.cantidad}
-                              onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                              className={`w-full rounded border px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
-                                stepErrors[`cant_${item.key}`] ? 'border-red-400' : 'border-gray-200'
-                              }`}
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              step="any"
-                              value={item.precioUnitario}
-                              onChange={e => updateItem(item.key, 'precioUnitario', parseFloat(e.target.value) || 0)}
-                              className={`w-full rounded border px-2 py-1.5 text-right text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
-                                stepErrors[`precio_${item.key}`] ? 'border-red-400' : 'border-gray-200'
-                              }`}
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="any"
-                              value={item.descuento}
-                              onChange={e => updateItem(item.key, 'descuento', parseFloat(e.target.value) || 0)}
-                              className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <select
-                              value={item.tipoAfectacion}
-                              onChange={e => updateItem(item.key, 'tipoAfectacion', e.target.value)}
-                              className="w-full rounded border border-gray-200 px-1 py-1.5 text-xs focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                            >
-                              {TIPO_AFECTACION_OPTIONS.map(o => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="any"
-                              value={item.porcentajeIGV}
-                              onChange={e => updateItem(item.key, 'porcentajeIGV', parseFloat(e.target.value) || 0)}
-                              disabled={item.tipoAfectacion !== '10'}
-                              className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] disabled:bg-gray-50 disabled:text-gray-400"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              value={item.icbper}
-                              onChange={e => updateItem(item.key, 'icbper', parseFloat(e.target.value) || 0)}
-                              className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
-                            />
-                          </td>
-                          <td className="px-2 py-2 text-right font-medium text-gray-900 whitespace-nowrap">
-                            {fmt(c.total)}
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.key)}
-                              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y divide-gray-100">
+              {/* Lista de items estilo carrito (como Venta Rápida) */}
+              <div className="divide-y divide-gray-100">
                 {items.map(item => {
                   const c = calcItem(item);
                   return (
