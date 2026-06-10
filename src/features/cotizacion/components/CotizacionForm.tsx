@@ -21,6 +21,9 @@ const TIPO_AFECTACION_OPTIONS = [
   { value: '30', label: 'Inafecto' },
 ];
 
+// Estilo de input del carrito (look mono + ring + sombra al focus)
+const ITEM_INPUT = 'bg-zinc-200 text-zinc-700 font-mono ring-1 focus:ring-2 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-md h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 // ─── Item type ────────────────────────────────────────────────────────────────
 
 interface ItemLinea {
@@ -624,9 +627,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           value={item.descripcion}
                           onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
                           placeholder="Descripcion"
-                          className={`flex-1 rounded border px-2 py-1.5 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94] ${
-                            stepErrors[`desc_${item.key}`] ? 'border-red-400' : 'border-gray-200'
-                          }`}
+                          className={`${ITEM_INPUT} flex-1 text-sm ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-zinc-400'}`}
                         />
                         <button type="button" onClick={() => removeItem(item.key)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -639,7 +640,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           <label className="mb-0.5 block text-[11px] text-gray-500">Cant.</label>
                           <input type="number" min={0.01} step="any" value={item.cantidad}
                             onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                            className="w-full rounded border border-gray-200 px-2 py-1.5 text-center text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                            className={`${ITEM_INPUT} w-full text-center text-sm ring-zinc-400`}
                           />
                         </div>
                         <div className="text-right">
