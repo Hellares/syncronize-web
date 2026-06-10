@@ -16,6 +16,7 @@ import * as cajaService from '@/features/caja/services/caja-service';
 import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
+import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
@@ -98,7 +99,7 @@ function VentaRapidaInner() {
   }, [sedeId]);
 
   // --- Agregar al carrito (con niveles async, paridad cubit.agregarProducto) ---
-  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string) => {
+  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string, cantidad: number = 1) => {
     const stocks = varianteId
       ? p.variantes?.find(v => v.id === varianteId)?.stocksPorSede
       : p.stocksPorSede;
@@ -109,7 +110,7 @@ function VentaRapidaInner() {
     // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId
     const idx = items.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
     if (idx >= 0) {
-      setItems(prev => prev.map((it, i) => i === idx ? recalcularPorNiveles(it, it.cantidad + 1) : it));
+      setItems(prev => prev.map((it, i) => i === idx ? recalcularPorNiveles(it, it.cantidad + cantidad) : it));
       return;
     }
 
@@ -119,7 +120,7 @@ function VentaRapidaInner() {
       productoId: p.id,
       varianteId,
       descripcion: varianteNombre ? `${p.nombre} - ${varianteNombre}` : p.nombre,
-      cantidad: 1,
+      cantidad,
       precioBase,
       precioUnitario: precioBase,
       descuento: 0,
@@ -535,39 +536,11 @@ function VentaRapidaInner() {
         </div>
       </div>
 
-      {/* Picker de variantes */}
+      {/* Selector dinámico de variantes (paridad Flutter) */}
       {variantePicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setVariantePicker(null)}>
-          <div className="w-full max-w-md max-h-[75vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900">{variantePicker.nombre}</h3>
-            <div className="mt-3 space-y-2">
-              {(variantePicker.variantes ?? []).filter(v => v.isActive !== false).map(v => {
-                const st = stockDeSede(v.stocksPorSede);
-                const precio = st ? infoPrecioEfectivo(st) : null;
-                const vImg = imgUrl(v) ?? imgUrl(variantePicker);
-                return (
-                  <button key={v.id} onClick={() => { addItem(variantePicker, v.id, v.nombre); setVariantePicker(null); }}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-left hover:border-[#437EFF] hover:bg-[#437EFF]/5">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {vImg && (
-                         
-                        <img src={vImg} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      )}
-                      <span className="truncate text-sm font-medium text-gray-900">{v.nombre}</span>
-                    </span>
-                    <span className="shrink-0 text-xs text-gray-500">
-                      {precio != null ? `S/ ${fmt(Number(precio))}` : 'Sin precio'} · stock {st?.cantidad ?? 0}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button onClick={() => setVariantePicker(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
-            </div>
-          </div>
-        </div>
+        <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#437EFF"
+          onClose={() => setVariantePicker(null)}
+          onConfirm={(v, c) => { addItem(variantePicker, v.id, v.nombre, c); setVariantePicker(null); }} />
       )}
 
       {/* Descuento de línea */}

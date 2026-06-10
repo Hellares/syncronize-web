@@ -9,6 +9,7 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
 import ProductGrid from '@/features/producto/components/ProductGrid';
+import VarianteSelector from '@/features/producto/components/VarianteSelector';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -237,14 +238,14 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   }, [sedeId, stockDeSede]);
 
   // ── Add variante seleccionada ───────────────────────────────────────────────
-  const addVarianteItem = useCallback((producto: any, variante: any) => {
+  const addVarianteItem = useCallback((producto: any, variante: any, cantidad: number = 1) => {
     const sedeStock = stockDeSede(variante.stocksPorSede);
     const newItem: ItemLinea = {
       key: genKey(),
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: `${producto.nombre} - ${variante.nombre}`,
-      cantidad: 1,
+      cantidad,
       precioUnitario: sedeStock?.precio ?? 0,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
@@ -257,7 +258,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       const idx = prev.findIndex(it => it.productoId === producto.id && it.varianteId === variante.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + 1 };
+        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + cantidad };
         return next;
       }
       return [...prev, newItem];
@@ -963,44 +964,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         </div>
       )}
       {variantePicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setVariantePicker(null)}>
-          <div className="w-full max-w-md max-h-[75vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-gray-900">Selecciona la variante</h3>
-            <p className="mt-0.5 text-xs text-gray-500">{variantePicker.nombre}</p>
-            <div className="mt-3 space-y-2">
-              {(variantePicker.variantes ?? []).filter((v: any) => v.isActive !== false).map((v: any) => {
-                const vStock = stockDeSede(v.stocksPorSede);
-                const sinStock = (vStock?.cantidad ?? 0) <= 0;
-                return (
-                  <button key={v.id} type="button" onClick={() => addVarianteItem(variantePicker, v)}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-left hover:border-[#437EFF] hover:bg-[#437EFF]/5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{v.nombre}</p>
-                      <p className="text-[10px] text-gray-400">{v.sku}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold text-gray-800">
-                        {vStock?.precio != null ? `S/ ${fmt(Number(vStock.precio))}` : 'Sin precio'}
-                      </p>
-                      <p className={`text-[10px] ${sinStock ? 'text-red-500' : 'text-gray-400'}`}>
-                        Stock: {vStock?.cantidad ?? 0}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-              {(variantePicker.variantes ?? []).length === 0 && (
-                <p className="py-6 text-center text-sm text-gray-400">Este producto no tiene variantes activas</p>
-              )}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setVariantePicker(null)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+        <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#004A94"
+          onClose={() => setVariantePicker(null)}
+          onConfirm={(v, c) => addVarianteItem(variantePicker, v, c)} />
       )}
     </div>
   );
