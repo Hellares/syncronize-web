@@ -571,7 +571,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           <div className="grid gap-4 lg:grid-cols-5 lg:items-start">
           {/* IZQUIERDA: catálogo de productos (como Venta Rápida) */}
           <div className="space-y-3 lg:col-span-3">
-            <ProductGrid sedeId={sedeId} onSelect={addProductItem} colsClass="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5" maxHeightClass="max-h-[calc(100vh-15rem)]" />
+            <ProductGrid sedeId={sedeId} onSelect={addProductItem} colsClass="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6" maxHeightClass="max-h-[calc(100vh-15rem)]" />
           </div>
 
           {/* DERECHA: carrito de la cotización (panel angosto) */}
