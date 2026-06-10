@@ -224,7 +224,16 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       icbper: producto.icbper ?? 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
     };
-    setItems(prev => [...prev, newItem]);
+    // Si ya está en la lista (mismo producto sin variante) → incrementar cantidad
+    setItems(prev => {
+      const idx = prev.findIndex(it => it.productoId === producto.id && !it.varianteId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + 1 };
+        return next;
+      }
+      return [...prev, newItem];
+    });
   }, [sedeId, stockDeSede]);
 
   // ── Add variante seleccionada ───────────────────────────────────────────────
@@ -243,7 +252,16 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       icbper: producto.icbper ?? 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
     };
-    setItems(prev => [...prev, newItem]);
+    // Si ya está (mismo producto + misma variante) → incrementar cantidad
+    setItems(prev => {
+      const idx = prev.findIndex(it => it.productoId === producto.id && it.varianteId === variante.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + 1 };
+        return next;
+      }
+      return [...prev, newItem];
+    });
     setVariantePicker(null);
   }, [stockDeSede]);
 
