@@ -36,7 +36,7 @@ interface Seleccion {
   direccion: string;
 }
 
-const inputClass = 'w-full bg-zinc-100 text-zinc-700 font-mono text-sm ring-1 ring-zinc-400 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const inputClass = 'w-full bg-zinc-100 text-zinc-700 font-sans text-sm ring-1 ring-zinc-400 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 const labelClass = 'mb-1 block text-sm font-medium text-gray-700';
 
 export default function ClienteSelector({ onClienteSelected, initialNombre = '', initialDocumento = '' }: ClienteSelectorProps) {
