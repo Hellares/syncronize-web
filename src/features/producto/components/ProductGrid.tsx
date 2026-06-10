@@ -81,7 +81,7 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
         {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#004A94]" /></div>}
       </div>
 
-      <div className={`grid gap-y-2.5 gap-x-[15px] ${colsClass} ${maxHeightClass} overflow-y-auto p-1 content-start`}>
+      <div className={`grid gap-y-2.5 gap-x-[15px] ${colsClass} ${maxHeightClass} overflow-y-auto rounded-xl bg-[#e8e8e8] p-3 content-start`}>
         {productos.map(p => (
           <button key={p.id} type="button" onClick={() => handleClick(p)} onDoubleClick={() => handleDoubleClick(p)}
             title="Click: agregar · Doble click: ver imágenes" className={PRODUCT_CARD_SHELL}>

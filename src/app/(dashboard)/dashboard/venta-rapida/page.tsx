@@ -388,7 +388,7 @@ function VentaRapidaInner() {
             {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#437EFF]" /></div>}
           </div>
           {/* Máximo 6 columnas con respiro entre cards */}
-          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto p-1 content-start">
+          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-xl bg-[#e8e8e8] p-3 content-start">
             {productos.map(p => (
               <button key={p.id} onClick={() => handlePick(p)} className={PRODUCT_CARD_SHELL}>
                 <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />

@@ -10,7 +10,7 @@ import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto
 
 /** Clases del <button> contenedor (úsalas en el padre para unificar el shell). */
 export const PRODUCT_CARD_SHELL =
-  'group relative flex w-full flex-col rounded-xl border border-gray-200/80 bg-white p-1 text-left shadow-[0_10px_22px_-6px_rgba(100,100,111,0.30),0_3px_8px_-3px_rgba(100,100,111,0.20)] transition-all duration-200 hover:-translate-y-1.5 hover:border-gray-300 hover:shadow-[0_22px_36px_-10px_rgba(0,74,148,0.30),0_8px_16px_-6px_rgba(0,74,148,0.20)] active:translate-y-0';
+  'group relative flex w-full flex-col rounded-xl border border-gray-200/80 bg-white p-1 text-left shadow-[rgba(100,100,111,0.2)_0px_50px_30px_-20px] transition-all duration-500 ease-in-out hover:scale-[1.03]';
 
 function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
