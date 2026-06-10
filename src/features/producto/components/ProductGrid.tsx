@@ -21,6 +21,13 @@ function imgUrl(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; i
   return null;
 }
 
+/** Todas las imágenes del producto (galería) para el dialog. */
+function imgList(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; imagenes?: string[] }): string[] {
+  if (p.archivos?.length) return p.archivos.map(a => a.url);
+  if (p.imagenes?.length) return p.imagenes;
+  return [];
+}
+
 interface Props {
   sedeId: string;
   onSelect: (producto: Producto) => void;
@@ -35,6 +42,27 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
   const [productos, setProductos] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dialog de imágenes (doble-click). Timer para distinguir click simple de doble.
+  const [imgDialog, setImgDialog] = useState<Producto | null>(null);
+  const [imgIdx, setImgIdx] = useState(0);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClick = useCallback((p: Producto) => {
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => { onSelect(p); clickTimer.current = null; }, 200);
+  }, [onSelect]);
+
+  const handleDoubleClick = useCallback(async (p: Producto) => {
+    if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
+    setImgIdx(0);
+    setImgDialog(p);
+    // Enriquecer con todas las imágenes del detalle (la lista puede traer solo el thumbnail)
+    try {
+      const full = await productoService.getProducto(p.id);
+      setImgDialog(prev => (prev && prev.id === p.id ? full : prev));
+    } catch { /* se queda con lo de la lista */ }
+  }, []);
 
   const stockDeSede = useCallback((stocks?: StockPorSedeInfo[]): StockPorSedeInfo | null => {
     if (!stocks?.length) return null;
@@ -74,7 +102,7 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
           const img = imgUrl(p);
           const sinStock = !p.tieneVariantes && !p.esCombo && (stock?.cantidad ?? 0) <= 0;
           return (
-            <button key={p.id} type="button" onClick={() => onSelect(p)}
+            <button key={p.id} type="button" onClick={() => handleClick(p)} onDoubleClick={() => handleDoubleClick(p)} title="Click: agregar · Doble click: ver imágenes"
               className="group relative overflow-hidden rounded-lg border border-gray-300/80 bg-white text-left shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.02] transition-all duration-150 hover:-translate-y-0.5 hover:border-[#004A94]/60 hover:shadow-[0_8px_20px_rgba(0,74,148,0.15)] active:translate-y-0 active:shadow-sm">
               <div className="relative h-20 w-full bg-gradient-to-br from-gray-50 to-gray-100">
                 {img ? (
@@ -116,6 +144,39 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
           <p className="col-span-full py-10 text-center text-sm text-gray-400">Sin productos</p>
         )}
       </div>
+
+      {imgDialog && (() => {
+        const imgs = imgList(imgDialog);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setImgDialog(null)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">{imgDialog.nombre}</p>
+                <button type="button" onClick={() => setImgDialog(null)} className="shrink-0 text-gray-400 hover:text-gray-600">✕</button>
+              </div>
+              {imgs.length === 0 ? (
+                <p className="py-12 text-center text-sm text-gray-400">Este producto no tiene imágenes</p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex h-72 items-center justify-center overflow-hidden rounded-xl bg-gray-50">
+                    <img src={imgs[Math.min(imgIdx, imgs.length - 1)]} alt={imgDialog.nombre} className="max-h-full max-w-full object-contain" />
+                  </div>
+                  {imgs.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {imgs.map((u, i) => (
+                        <button key={i} type="button" onClick={() => setImgIdx(i)}
+                          className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === imgIdx ? 'border-[#004A94]' : 'border-transparent'}`}>
+                          <img src={u} alt="" className="h-full w-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
