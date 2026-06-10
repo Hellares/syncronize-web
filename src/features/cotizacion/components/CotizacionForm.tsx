@@ -23,9 +23,9 @@ const TIPO_AFECTACION_OPTIONS = [
 
 // Estilo de input estándar (look mono + ring + sombra al focus). Altura 30px,
 // radio 6px, ring 1.5px al focus. Agregar el color de ring (ring-zinc-400 / ring-red-400).
-const INPUT_STD = 'bg-zinc-200 text-zinc-700 font-mono ring-1 focus:ring-[1.5px] focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const INPUT_STD = 'bg-zinc-100 text-zinc-700 font-mono ring-1 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 // Variante para textarea (sin altura fija)
-const INPUT_STD_TA = 'bg-zinc-200 text-zinc-700 font-mono ring-1 ring-zinc-400 focus:ring-[1.5px] focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const INPUT_STD_TA = 'bg-zinc-100 text-zinc-700 font-mono ring-1 ring-zinc-400 focus:ring-1 focus:ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 // ─── Item type ────────────────────────────────────────────────────────────────
 
