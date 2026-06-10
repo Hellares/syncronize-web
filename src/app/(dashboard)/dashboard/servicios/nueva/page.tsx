@@ -119,6 +119,7 @@ export default function NuevaOrdenPage() {
     try {
       const datosLimpios = limpiarDatos(datos);
       const dto: CreateOrdenServicioDto = {
+        empresaId,
         tipoServicio,
         prioridad,
         ...(servicioId ? { servicioId } : {}),

@@ -148,6 +148,7 @@ export interface HistorialOS {
 // ── DTOs ──
 
 export interface CreateOrdenServicioDto {
+  empresaId: string;
   clienteId?: string;
   clienteEmpresaId?: string;
   contactoClienteEmpresaId?: string;
