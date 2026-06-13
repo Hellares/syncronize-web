@@ -14,7 +14,7 @@ export async function fetchApi<T>(
   });
 
   if (!res.ok) {
-    const error = new Error(`API error: ${res.status}`) as any;
+    const error = new Error(`API error: ${res.status}`) as Error & { status?: number };
     error.status = res.status;
     throw error;
   }
