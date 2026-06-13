@@ -32,6 +32,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Combos', href: '/dashboard/combos' },
       { label: 'Carga Masiva', href: '/dashboard/productos/bulk', permission: 'canManageProducts' },
       { label: 'Atributos', href: '/dashboard/atributos', permission: 'canManageProducts' },
+      { label: 'Compatibilidad', href: '/dashboard/compatibilidad', permission: 'canManageProducts' },
       { label: 'Config. Precios', href: '/dashboard/configuraciones-precio', permission: 'canManageProducts' },
       { label: 'Categorías', href: '/dashboard/categorias' },
       { label: 'Marcas', href: '/dashboard/marcas' },
