@@ -17,6 +17,7 @@ import * as cajaService from '@/features/caja/services/caja-service';
 import { DatosPersonalizadosView } from '@/features/ordenes-servicio/components/datos-personalizados-view';
 import { MensajesOrden } from '@/features/ordenes-servicio/components/mensajes-orden';
 import { OrdenServicioPrintMenu } from '@/features/ordenes-servicio/components/orden-servicio-print-menu';
+import { TiempoServicioCard, TercerizacionCard } from '@/features/ordenes-servicio/components/orden-servicio-tiempo-b2b';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -116,6 +117,8 @@ export default function OrdenDetailPage() {
         <h1 className="font-mono text-xl font-bold text-gray-900">{orden.codigo}</h1>
         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[orden.prioridad]}</span>
+        {orden.origenOrden === 'B2B_ENVIADO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📤 Tercerizada</span>}
+        {orden.origenOrden === 'B2B_RECIBIDO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📥 B2B recibida</span>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <OrdenServicioPrintMenu orden={orden} />
           {permissions.canManageOrders && esCobrable && (
@@ -261,6 +264,12 @@ export default function OrdenDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Tercerización B2B (si aplica) */}
+      <TercerizacionCard orden={orden} />
+
+      {/* Cronómetro de tiempo en taller */}
+      <TiempoServicioCard orden={orden} historial={historial} />
 
       {/* Chat con el cliente */}
       {permissions.canManageOrders && <MensajesOrden ordenId={id} />}

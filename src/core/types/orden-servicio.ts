@@ -120,6 +120,9 @@ export interface OrdenServicio {
   metodoPagoAdelanto?: string | null;
   fechaEntrega?: string | null;
   numeroReingresos?: number;
+  origenOrden?: OrigenOrden;
+  tercerizacionOrigen?: TercerizacionRef | null;
+  tercerizacionDestino?: TercerizacionRef | null;
   creadoEn: string;
   actualizadoEn?: string;
   mensajesNoLeidos?: number;
@@ -143,6 +146,40 @@ export interface HistorialOS {
   creadoPor?: string | null;
   creadoEn: string;
   [key: string]: unknown;
+}
+
+export type OrigenOrden = 'CLIENTE_FINAL' | 'B2B_ENVIADO' | 'B2B_RECIBIDO';
+export type EstadoTercerizacion = 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO' | 'EN_PROCESO' | 'COMPLETADO' | 'CANCELADO';
+
+export const ESTADO_TERCERIZACION_CONFIG: Record<EstadoTercerizacion, { label: string; text: string; bg: string }> = {
+  PENDIENTE: { label: 'Pendiente', text: 'text-amber-700', bg: 'bg-amber-100' },
+  ACEPTADO: { label: 'Aceptada', text: 'text-blue-700', bg: 'bg-blue-100' },
+  RECHAZADO: { label: 'Rechazada', text: 'text-red-700', bg: 'bg-red-100' },
+  EN_PROCESO: { label: 'En proceso', text: 'text-indigo-700', bg: 'bg-indigo-100' },
+  COMPLETADO: { label: 'Completada', text: 'text-green-700', bg: 'bg-green-100' },
+  CANCELADO: { label: 'Cancelada', text: 'text-gray-600', bg: 'bg-gray-100' },
+};
+
+export interface EmpresaTercerizacionRef {
+  id: string;
+  nombre: string;
+  logo?: string | null;
+  telefono?: string | null;
+}
+
+/** Tercerización B2B vinculada a la orden (origen = enviada a otra empresa; destino = recibida de otra empresa). */
+export interface TercerizacionRef {
+  id: string;
+  estado: EstadoTercerizacion;
+  precioB2B?: number | null;
+  metodoPagoB2B?: string | null;
+  notasOrigen?: string | null;
+  notasDestino?: string | null;
+  motivoRechazo?: string | null;
+  fechaSolicitud?: string | null;
+  fechaRespuesta?: string | null;
+  empresaOrigen?: EmpresaTercerizacionRef | null;
+  empresaDestino?: EmpresaTercerizacionRef | null;
 }
 
 /** Mensaje del chat orden↔cliente (MENSAJE_SELECT del backend). esCliente=true → lo envió el cliente. */
