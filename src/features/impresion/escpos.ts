@@ -2,6 +2,12 @@
 // ticket_venta_esc_pos_generator.dart de Flutter (Bluetooth Classic → QZ Tray).
 import type { Venta } from '@/core/types/venta';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { OrdenServicio } from '@/core/types/orden-servicio';
+import {
+  TIPO_SERVICIO_LABEL, ESTADO_OS_CONFIG, PRIORIDAD_LABEL, TIPO_ACCION_LABEL,
+  nombreClienteOrden, saldoOrden,
+} from '@/core/types/orden-servicio';
+import type { TipoServicio, PrioridadServicio, TipoAccionComponente } from '@/core/types/orden-servicio';
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -225,6 +231,135 @@ export function generarTicketVenta(venta: Venta, empresa: EmpresaInfo, paperWidt
     b.text('comprobante electronico');
   }
   b.text('Gracias por su compra!');
+
+  b.feed(3).cut();
+  return b.build();
+}
+
+/** Formatea el valor de un campo dinámico para el ticket (omite booleanos/vacíos). */
+function osFieldValue(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'boolean') return '';
+  if (Array.isArray(value)) return value.map(v => osFieldValue(v)).filter(Boolean).join(', ');
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v != null && String(v).trim() !== '')
+      .map(([k, v]) => `${k}: ${v}`).join(' | ');
+  }
+  const s = String(value).trim();
+  return s === 'true' || s === 'false' ? '' : s;
+}
+
+/** Genera los bytes del ticket de orden de servicio (paridad ticket_esc_pos_generator.dart de Flutter). */
+export function generarTicketOrdenServicio(orden: OrdenServicio, empresa: EmpresaInfo, paperWidth: 58 | 80): number[] {
+  const b = new EscPosBuilder(paperWidth);
+  b.reset().fontB();
+
+  // --- Encabezado empresa ---
+  b.align('center').bold(true).sizeDoubleHeight(true)
+    .text(empresa.nombreComercial || empresa.razonSocial || 'EMPRESA')
+    .sizeDoubleHeight(false).bold(false);
+  if (empresa.razonSocial && empresa.nombreComercial) b.text(empresa.razonSocial);
+  if (empresa.ruc) b.text(`RUC: ${empresa.ruc}`);
+  if (empresa.direccionFiscal) b.text(empresa.direccionFiscal);
+  if (empresa.telefono) b.text(`Tel: ${empresa.telefono}`);
+  b.hr();
+
+  // --- Documento ---
+  b.text('ORDEN DE SERVICIO').text(orden.codigo).hr();
+
+  // --- Metadata ---
+  b.align('left').text(`Fecha: ${new Date(orden.creadoEn).toLocaleString('es-PE')}`);
+  if ((orden.numeroReingresos ?? 0) > 0) {
+    b.align('center').bold(true).text(`*** REINGRESO #${orden.numeroReingresos} ***`).bold(false).align('left');
+  }
+  b.hr();
+
+  // --- Cliente ---
+  b.text('CLIENTE').text(`Nombre: ${nombreClienteOrden(orden)}`);
+  const doc = orden.clienteEmpresa?.ruc ?? orden.clienteEmpresa?.numeroDocumento ?? orden.cliente?.persona?.dni;
+  const tel = orden.clienteEmpresa?.telefono ?? orden.cliente?.persona?.telefono;
+  const email = orden.clienteEmpresa?.email ?? orden.cliente?.persona?.email;
+  if (doc) b.text(`Doc: ${doc}`);
+  if (tel) b.text(`Tel: ${tel}`);
+  if (email) b.text(`Email: ${email}`);
+  b.hr();
+
+  // --- Detalle del servicio ---
+  b.text('DETALLE DEL SERVICIO');
+  b.text(`Tipo: ${TIPO_SERVICIO_LABEL[orden.tipoServicio as TipoServicio] ?? orden.tipoServicio}`);
+  b.text(`Estado: ${ESTADO_OS_CONFIG[orden.estado]?.label ?? orden.estado}`);
+  b.text(`Prioridad: ${PRIORIDAD_LABEL[orden.prioridad as PrioridadServicio] ?? orden.prioridad}`);
+  const tecnico = orden.tecnico?.persona ? [orden.tecnico.persona.nombres, orden.tecnico.persona.apellidos].filter(Boolean).join(' ') : null;
+  if (tecnico) b.text(`Tecnico: ${tecnico}`);
+
+  // --- Equipo ---
+  if (orden.tipoEquipo || orden.marcaEquipo || orden.numeroSerie) {
+    b.hr().text('EQUIPO');
+    if (orden.tipoEquipo) b.text(`Tipo: ${orden.tipoEquipo}`);
+    if (orden.marcaEquipo) b.text(`Marca: ${orden.marcaEquipo}`);
+    if (orden.numeroSerie) b.text(`N/Serie: ${orden.numeroSerie}`);
+    if (orden.condicionEquipo) b.text(`Condicion: ${orden.condicionEquipo}`);
+  }
+
+  // --- Datos adicionales (campos dinámicos) ---
+  const datos = orden.datosPersonalizados ?? {};
+  const datosKeys = Object.keys(datos);
+  if (datosKeys.length > 0) {
+    const lineas = datosKeys.map(k => ({ k, v: osFieldValue(datos[k]) })).filter(x => x.v);
+    if (lineas.length > 0) {
+      b.hr().text('DATOS ADICIONALES');
+      for (const { k, v } of lineas) b.text(`${k}: ${v}`);
+    }
+  }
+
+  // --- Problema ---
+  if (orden.descripcionProblema) {
+    b.hr().text('PROBLEMA REPORTADO').text(orden.descripcionProblema);
+  }
+
+  // --- Componentes / trabajos ---
+  const comps = orden.componentes ?? [];
+  if (comps.length > 0) {
+    b.hr().text('DETALLE DE TRABAJOS');
+    for (const c of comps) {
+      const nombre = c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente';
+      const modelo = c.componente?.modelo ? ` ${c.componente.modelo}` : '';
+      const accion = TIPO_ACCION_LABEL[c.tipoAccion as TipoAccionComponente] ?? c.tipoAccion;
+      const costo = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
+      b.kv(`- ${nombre}${modelo} (${accion})`, costo > 0 ? `S/ ${fmt(costo)}` : '');
+      if (c.descripcionAccion) b.text(`  ${c.descripcionAccion}`);
+      if (c.garantiaMeses) b.text(`  Garantia: ${c.garantiaMeses} meses`);
+    }
+  }
+
+  // --- Notas ---
+  if (orden.notas) b.hr().text('NOTAS').text(orden.notas);
+
+  // --- Costos ---
+  if (Number(orden.costoTotal ?? 0) > 0) {
+    b.hr().text('COSTOS');
+    b.kv('Costo servicio:', `S/ ${fmt(orden.costoTotal)}`);
+    if (Number(orden.descuento ?? 0) > 0) b.kv('Descuento:', `-S/ ${fmt(orden.descuento)}`);
+    if (Number(orden.adelanto ?? 0) > 0) {
+      const met = orden.metodoPagoAdelanto ? ` (${orden.metodoPagoAdelanto})` : '';
+      b.kv(`Adelanto${met}:`, `-S/ ${fmt(orden.adelanto)}`);
+    }
+    const saldo = saldoOrden(orden);
+    b.hr().bold(true).sizeDoubleHeight(true);
+    b.kv(saldo <= 0.005 ? 'PAGADO:' : 'SALDO:', `S/ ${fmt(saldo)}`);
+    b.sizeDoubleHeight(false).bold(false);
+  }
+
+  // --- QR ---
+  b.hr().feed(1).align('center');
+  b.qrcode(`${orden.codigo}|${ESTADO_OS_CONFIG[orden.estado]?.label ?? orden.estado}|${new Date(orden.creadoEn).toLocaleDateString('es-PE')}`, 5);
+  b.feed(1);
+
+  // --- Firma ---
+  b.hr().feed(3);
+  b.text('________________________').text('Firma del cliente');
+  b.feed(1).bold(true).text('Gracias por su preferencia').bold(false);
 
   b.feed(3).cut();
   return b.build();

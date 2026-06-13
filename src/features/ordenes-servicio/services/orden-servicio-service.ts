@@ -12,6 +12,7 @@ import type {
   FindOrCreateComponenteDto,
   CreateServicioComponenteDto,
   Tecnico,
+  MensajeServicio,
 } from '@/core/types/orden-servicio';
 
 const BASE = '/ordenes-servicio';
@@ -68,6 +69,26 @@ export async function getOrdenesCobrables(search?: string): Promise<OrdenCobrabl
   const q = search ? `?search=${encodeURIComponent(search)}` : '';
   const res = await apiClient.get(`${BASE}/cobrables${q}`);
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+// ── Mensajes (chat orden↔cliente, lado staff: perm MANAGE_ORDERS) ──
+
+/** Lista los mensajes de la orden. El backend marca como leídos los del cliente al consultar. */
+export async function getMensajes(ordenId: string): Promise<MensajeServicio[]> {
+  const res = await apiClient.get(`${BASE}/${ordenId}/mensajes`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+/** Envía un mensaje como técnico/empresa. */
+export async function enviarMensaje(ordenId: string, contenido: string): Promise<MensajeServicio> {
+  const res = await apiClient.post<MensajeServicio>(`${BASE}/${ordenId}/mensajes`, { contenido });
+  return res.data;
+}
+
+/** Cuenta mensajes del cliente sin leer (badge), sin marcarlos leídos. */
+export async function contarMensajesNoLeidos(ordenId: string): Promise<number> {
+  const res = await apiClient.get(`${BASE}/${ordenId}/mensajes/no-leidos`);
+  return Number((res.data as { count?: number })?.count ?? 0);
 }
 
 // ── Componentes de la orden ──

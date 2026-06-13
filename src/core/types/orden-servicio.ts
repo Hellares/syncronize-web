@@ -145,6 +145,17 @@ export interface HistorialOS {
   [key: string]: unknown;
 }
 
+/** Mensaje del chat orden↔cliente (MENSAJE_SELECT del backend). esCliente=true → lo envió el cliente. */
+export interface MensajeServicio {
+  id: string;
+  contenido: string;
+  esCliente: boolean;
+  usuarioId?: string | null;
+  creadoEn: string;
+  leidoEn?: string | null;
+  usuario?: { persona?: { nombres?: string; apellidos?: string } | null } | null;
+}
+
 // ── DTOs ──
 
 export interface CreateOrdenServicioDto {
