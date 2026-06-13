@@ -18,7 +18,8 @@ import * as osService from '@/features/ordenes-servicio/services/orden-servicio-
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
+import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 
 interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
 
@@ -35,6 +36,7 @@ function VentaRapidaInner() {
   const searchParams = useSearchParams();
   const ordenServicioParam = searchParams.get('ordenServicioId');
   const { sedes } = useEmpresa();
+  const permissions = usePermissions();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
   const sedeId = defaultSede?.id ?? '';
 
@@ -57,6 +59,13 @@ function VentaRapidaInner() {
   const [descLineaTarget, setDescLineaTarget] = useState<VentaItem | null>(null);
   const [descGlobalOpen, setDescGlobalOpen] = useState(false);
   const [info, setInfo] = useState('');
+
+  // Autorización de descuentos (paridad Flutter: sin canManageDiscounts un admin debe autorizar)
+  const [authDescuento, setAuthDescuento] = useState<null | (() => void)>(null);
+  const conAutorizacionDescuento = useCallback((aplicar: () => void) => {
+    if (permissions.canManageDiscounts) { aplicar(); return; }
+    setAuthDescuento(() => aplicar);
+  }, [permissions.canManageDiscounts]);
 
   // --- Guard de caja (paridad caja_guard Flutter) ---
   useEffect(() => {
@@ -302,11 +311,12 @@ function VentaRapidaInner() {
 
   // Descuento global %: setea descuento manual por línea (paridad aplicarDescuentoGlobal)
   const aplicarDescuentoGlobal = (pct: number) => {
-    setItems(prev => prev.map(it => {
+    setDescGlobalOpen(false);
+    const aplicar = () => setItems(prev => prev.map(it => {
       const bruto = it.cantidad * it.precioUnitario;
       return { ...it, descuento: Math.min(bruto, bruto * pct / 100) };
     }));
-    setDescGlobalOpen(false);
+    if (pct > 0) conAutorizacionDescuento(aplicar); else aplicar();
   };
 
   const totales = useMemo(() => items.reduce((acc, it) => {
@@ -494,10 +504,12 @@ function VentaRapidaInner() {
       {descLineaTarget && (
         <DescuentoLineaDialog item={descLineaTarget}
           onApply={(monto) => {
-            setItems(prev => prev.map(it => it.key === descLineaTarget.key
+            const target = descLineaTarget;
+            setDescLineaTarget(null);
+            const aplicar = () => setItems(prev => prev.map(it => it.key === target.key
               ? { ...it, descuento: Math.min(monto, it.cantidad * it.precioUnitario) }
               : it));
-            setDescLineaTarget(null);
+            if (monto > 0) conAutorizacionDescuento(aplicar); else aplicar();
           }}
           onClose={() => setDescLineaTarget(null)} />
       )}
@@ -511,6 +523,16 @@ function VentaRapidaInner() {
       {cobrablesOpen && (
         <CobrablesSheet onPick={agregarOrden} onClose={() => setCobrablesOpen(false)} />
       )}
+
+      {/* Autorización de descuento (paridad Flutter: operacion APLICAR_DESCUENTO) */}
+      <AutorizacionDialog
+        isOpen={authDescuento !== null}
+        operacion="APLICAR_DESCUENTO"
+        titulo="Autorizar descuento"
+        descripcion="Un administrador debe autorizar la aplicación de descuentos."
+        onAuthorized={() => { authDescuento?.(); setAuthDescuento(null); }}
+        onClose={() => setAuthDescuento(null)}
+      />
     </div>
   );
 }
