@@ -5,13 +5,19 @@ import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import * as cotizacionService from '../services/cotizacion-service';
 import * as productoService from '@/features/producto/services/producto-service';
+import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
+import * as comboService from '@/features/producto/services/combo-service';
 import type { CreateCotizacionDto, CreateCotizacionDetalleDto, Cotizacion, CompatibilidadResult } from '@/core/types/cotizacion';
 import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
+import type { NivelPrecio } from '@/core/types/venta';
+import { nivelAplicable, precioConNivel } from '@/core/types/venta';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
 import ProductGrid from '@/features/producto/components/ProductGrid';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
+import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,6 +45,7 @@ interface ItemLinea {
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
+  /** Descuento por línea en PORCENTAJE (calcItem usa /100). */
   descuento: number;
   porcentajeIGV: number;
   tipoAfectacion: string;
@@ -46,6 +53,33 @@ interface ItemLinea {
   /** El precio en mostrador YA incluye IGV (estilo POS Perú): S/50 → total S/50, no S/59.
    *  Viene del stock del producto por sede; items manuales = true (paridad Flutter). */
   precioIncluyeIgv: boolean;
+  // ── Contexto local (no viaja tal cual al backend) ──
+  /** Precio sin nivel (efectivo: liquidación > oferta > base) para recalcular por cantidad. */
+  precioBase: number;
+  niveles: NivelPrecio[];
+  nivelAplicado?: string | null;
+  /** El usuario editó el precio a mano → no recalcular por niveles. */
+  precioManual?: boolean;
+  enLiquidacion?: boolean;
+  origenComboId?: string;
+  origenComboNombre?: string;
+}
+
+/** Recalcula precioUnitario por niveles para la cantidad (paridad recalcularPorNiveles de VR;
+ *  liquidación o precio manual mantienen el precio). */
+function recalcItemNiveles(item: ItemLinea, cantidad: number): ItemLinea {
+  const cant = Math.max(0, cantidad);
+  if (item.precioManual || item.enLiquidacion) {
+    return { ...item, cantidad: cant };
+  }
+  const nivel = nivelAplicable(item.niveles, cant);
+  const precio = precioConNivel(item.precioBase, nivel);
+  return {
+    ...item,
+    cantidad: cant,
+    precioUnitario: precio,
+    nivelAplicado: precio < item.precioBase ? nivel?.nombre ?? null : null,
+  };
 }
 
 function calcItem(item: ItemLinea) {
@@ -129,6 +163,12 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const router = useRouter();
   const { state: authState } = useAuth();
   const { sedes, empresa } = useEmpresa();
+  const permissions = usePermissions();
+
+  // Autorización de descuentos (paridad VR): sin canManageDiscounts un admin desbloquea una vez.
+  const [descuentoDesbloqueado, setDescuentoDesbloqueado] = useState(false);
+  const [authDescuentoOpen, setAuthDescuentoOpen] = useState(false);
+  const puedeDescuento = permissions.canManageDiscounts || descuentoDesbloqueado;
 
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -161,6 +201,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         // Detalles guardados: subtotal ya viene sin IGV → reconstruir el flag
         // comparando si el total coincide con precio×cant (incluye) o con base+igv (no incluye)
         precioIncluyeIgv: (d as { precioIncluyeIgv?: boolean }).precioIncluyeIgv ?? true,
+        // El precio guardado se respeta (manual): no recalcular por niveles al editar.
+        precioBase: d.precioUnitario,
+        niveles: [],
+        precioManual: true,
+        enLiquidacion: false,
       }));
     }
     return [];
@@ -201,14 +246,75 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     return stocks.find(s => s.sedeId === sedeId) ?? stocks[0];
   }, [sedeId]);
 
-  // ── Add product ─────────────────────────────────────────────────────────────
+  // ── Expandir combo en componentes con prorrateo (paridad Venta Rápida) ───────
+  const expandirCombo = useCallback(async (producto: Producto) => {
+    try {
+      const combo = await comboService.getComboCompleto(producto.id, sedeId);
+      if (combo.stockDisponible <= 0) {
+        setError(`"${producto.nombre}" sin stock para armar (componentes insuficientes)`);
+        return;
+      }
+      const lineas = combo.componentes.map(c => ({
+        productoId: c.componenteProductoId,
+        varianteId: c.componenteVarianteId,
+        descripcion: c.componenteInfo?.nombre ?? 'Componente',
+        cantidad: Number(c.cantidad),
+        precioUnit: Number(c.precioEnCombo ?? c.componenteInfo?.precio ?? 0),
+      }));
+      const sumaLineas = lineas.reduce((a, l) => a + l.precioUnit * l.cantidad, 0);
+      // Precio objetivo: oferta activa > FIJO/C_DESC (precio) > CALCULADO (suma)
+      const objetivo = combo.ofertaActiva && combo.precioOferta != null
+        ? Number(combo.precioOferta)
+        : combo.tipoPrecioCombo === 'CALCULADO'
+          ? Number(combo.precioCalculado ?? sumaLineas)
+          : Number(combo.precio ?? sumaLineas);
+      const descTotal = Math.max(0, sumaLineas - objetivo);
+      let acumulado = 0;
+      const igvP = producto.impuestoPorcentaje ?? 18;
+      const nuevos: ItemLinea[] = lineas.map((l, i) => {
+        const bruto = l.precioUnit * l.cantidad;
+        let descMonto = sumaLineas > 0 ? Math.round((descTotal * bruto / sumaLineas) * 100) / 100 : 0;
+        if (i === lineas.length - 1) descMonto = Math.round((descTotal - acumulado) * 100) / 100;
+        acumulado += descMonto;
+        // Cotización maneja descuento en %: convertir el monto prorrateado a porcentaje de la línea
+        const pct = bruto > 0 ? Math.min(100, Math.round((descMonto / bruto) * 10000) / 100) : 0;
+        return {
+          key: genKey(),
+          productoId: l.productoId,
+          varianteId: l.varianteId,
+          descripcion: l.descripcion,
+          cantidad: l.cantidad,
+          precioBase: l.precioUnit,
+          precioUnitario: l.precioUnit,
+          descuento: pct,
+          porcentajeIGV: igvP,
+          tipoAfectacion: '10',
+          icbper: 0,
+          precioIncluyeIgv: true,
+          niveles: [],          // los combos no aplican niveles por mayor (paridad Flutter)
+          precioManual: true,
+          enLiquidacion: false,
+          origenComboId: producto.id,
+          origenComboNombre: producto.nombre,
+        };
+      });
+      setItems(prev => [...prev, ...nuevos]);
+      setCompatibilidad(null);
+    } catch {
+      setError(`No se pudo cargar el combo "${producto.nombre}"`);
+    }
+  }, [sedeId]);
+
+  // ── Add product (combo → expandir; variantes → selector; simple → con niveles) ──
   const addProductItem = useCallback(async (producto: Producto) => {
     setCompatibilidad(null);
+
+    // Combo → expandir en sus componentes
+    if (producto.esCombo) { await expandirCombo(producto); return; }
 
     // Producto con variantes → abrir selector (paridad Flutter CotizacionItemSelector)
     if (producto.tieneVariantes) {
       if (!producto.variantes?.length) {
-        // La búsqueda no siempre trae las variantes: cargar detalle completo
         setLoadingVariantes(true);
         try {
           const full = await productoService.getProducto(producto.id);
@@ -221,57 +327,86 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     }
 
     const sedeStock = stockDeSede(producto.stocksPorSede);
+    const precioBase = sedeStock ? Number(infoPrecioEfectivo(sedeStock) ?? sedeStock.precio ?? 0) : 0;
+    const enLiq = sedeStock ? infoLiquidacionActiva(sedeStock) : false;
+    const key = genKey();
     const newItem: ItemLinea = {
-      key: genKey(),
+      key,
       productoId: producto.id,
       descripcion: producto.nombre,
       cantidad: 1,
-      precioUnitario: sedeStock?.precio ?? 0,
+      precioBase,
+      precioUnitario: precioBase,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
       tipoAfectacion: producto.tipoAfectacionIgv === 'EXONERADO' ? '20' : producto.tipoAfectacionIgv === 'INAFECTO' ? '30' : '10',
       icbper: producto.aplicaIcbper ? 0.5 : 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
+      niveles: [],
+      enLiquidacion: enLiq,
     };
-    // Si ya está en la lista (mismo producto sin variante) → incrementar cantidad
     setItems(prev => {
-      const idx = prev.findIndex(it => it.productoId === producto.id && !it.varianteId);
+      const idx = prev.findIndex(it => it.productoId === producto.id && !it.varianteId && !it.origenComboId);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + 1 };
+        next[idx] = recalcItemNiveles(next[idx], next[idx].cantidad + 1);
         return next;
       }
       return [...prev, newItem];
     });
-  }, [stockDeSede]);
+    // Niveles por mayor (async): al llegar, recalcular el precio a la cantidad actual
+    if (!enLiq) {
+      try {
+        const niveles = await precioNivelService.getNivelesByProducto(producto.id);
+        if (niveles.length) {
+          setItems(prev => prev.map(it => (it.key === key && !it.precioManual)
+            ? recalcItemNiveles({ ...it, niveles }, it.cantidad) : it));
+        }
+      } catch { /* sin niveles */ }
+    }
+  }, [stockDeSede, expandirCombo]);
 
   // ── Add variante seleccionada ───────────────────────────────────────────────
-  const addVarianteItem = useCallback((producto: Producto, variante: ProductoVariante, cantidad: number = 1) => {
+  const addVarianteItem = useCallback(async (producto: Producto, variante: ProductoVariante, cantidad: number = 1) => {
     const sedeStock = stockDeSede(variante.stocksPorSede);
+    const precioBase = sedeStock ? Number(infoPrecioEfectivo(sedeStock) ?? sedeStock.precio ?? 0) : 0;
+    const enLiq = sedeStock ? infoLiquidacionActiva(sedeStock) : false;
+    const key = genKey();
     const newItem: ItemLinea = {
-      key: genKey(),
+      key,
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: `${producto.nombre} - ${variante.nombre}`,
       cantidad,
-      precioUnitario: sedeStock?.precio ?? 0,
+      precioBase,
+      precioUnitario: precioBase,
       descuento: 0,
       porcentajeIGV: producto.impuestoPorcentaje ?? 18,
       tipoAfectacion: producto.tipoAfectacionIgv === 'EXONERADO' ? '20' : producto.tipoAfectacionIgv === 'INAFECTO' ? '30' : '10',
       icbper: producto.aplicaIcbper ? 0.5 : 0,
       precioIncluyeIgv: sedeStock?.precioIncluyeIgv ?? true,
+      niveles: [],
+      enLiquidacion: enLiq,
     };
-    // Si ya está (mismo producto + misma variante) → incrementar cantidad
     setItems(prev => {
       const idx = prev.findIndex(it => it.productoId === producto.id && it.varianteId === variante.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + cantidad };
+        next[idx] = recalcItemNiveles(next[idx], next[idx].cantidad + cantidad);
         return next;
       }
       return [...prev, newItem];
     });
     setVariantePicker(null);
+    if (!enLiq) {
+      try {
+        const niveles = await precioNivelService.getNivelesByVariante(variante.id);
+        if (niveles.length) {
+          setItems(prev => prev.map(it => (it.key === key && !it.precioManual)
+            ? recalcItemNiveles({ ...it, niveles }, it.cantidad) : it));
+        }
+      } catch { /* sin niveles */ }
+    }
   }, [stockDeSede]);
 
   // ── Add manual item ─────────────────────────────────────────────────────────
@@ -280,14 +415,17 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       key: genKey(),
       descripcion: '',
       cantidad: 1,
+      precioBase: 0,
       precioUnitario: 0,
       descuento: 0,
       porcentajeIGV: 18,
       tipoAfectacion: '10',
       icbper: 0,
-      // Items manuales: el precio ingresado es el FINAL al cliente (paridad Flutter:
-      // "Mesa S/800 → total S/800; si fuera false sumaría 18% y daría S/944")
+      // Items manuales: el precio ingresado es el FINAL al cliente (paridad Flutter)
       precioIncluyeIgv: true,
+      niveles: [],
+      precioManual: true,
+      enLiquidacion: false,
     }]);
     setCompatibilidad(null);
   }, []);
@@ -295,6 +433,25 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const updateItem = useCallback((key: string, field: keyof ItemLinea, value: string | number | boolean) => {
     setItems(prev => prev.map(item => (item.key === key ? ({ ...item, [field]: value } as ItemLinea) : item)));
     if (field === 'tipoAfectacion' || field === 'productoId') setCompatibilidad(null);
+  }, []);
+
+  // Cantidad: recalcula precio por niveles (salvo precio manual o liquidación)
+  const setCantidad = useCallback((key: string, n: number) => {
+    setItems(prev => prev.map(it => it.key === key ? recalcItemNiveles(it, n) : it));
+    setCompatibilidad(null);
+  }, []);
+
+  // Precio editable: marca el ítem como manual (deja de auto-recalcular niveles)
+  const setPrecio = useCallback((key: string, v: number) => {
+    setItems(prev => prev.map(it => it.key === key
+      ? { ...it, precioUnitario: Math.max(0, v || 0), precioManual: true, nivelAplicado: null }
+      : it));
+  }, []);
+
+  // Descuento por línea en % (gated por autorización vía la UI)
+  const setDescuentoPct = useCallback((key: string, v: number) => {
+    const pct = Math.min(100, Math.max(0, v || 0));
+    setItems(prev => prev.map(it => it.key === key ? { ...it, descuento: pct } : it));
   }, []);
 
   const removeItem = useCallback((key: string) => {
@@ -596,6 +753,15 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                     {checkingCompat ? 'Verificando...' : 'Compatibilidad'}
                   </button>
                 )}
+                {!puedeDescuento && (
+                  <button
+                    type="button"
+                    onClick={() => setAuthDescuentoOpen(true)}
+                    className="rounded-lg border border-amber-300 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                  >
+                    🔒 Autorizar descuentos
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={addManualItem}
@@ -619,38 +785,54 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="max-h-[34rem] overflow-y-auto">
-              {/* Encabezado de columnas */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                <span className="min-w-0 flex-1">Producto</span>
-                <span className="w-16 shrink-0 text-center">Cant.</span>
-                <span className="w-20 shrink-0 text-right">P. Unit.</span>
-                <span className="w-24 shrink-0 text-right">Total</span>
-                <span className="w-6 shrink-0" />
-              </div>
-              {/* Lista de items (una fila por ítem) */}
+              {/* Lista de items (card compacta: descripción arriba; cant/precio/desc/total abajo) */}
               <div className="divide-y divide-gray-100">
                 {items.map(item => {
                   const c = calcItem(item);
                   return (
-                    <div key={item.key} className="flex items-center gap-2 px-3 py-1.5">
-                      <input
-                        type="text"
-                        value={item.descripcion}
-                        onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
-                        placeholder="Descripcion"
-                        className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
-                      />
-                      <input type="number" min={0.01} step="any" value={item.cantidad}
-                        onChange={e => updateItem(item.key, 'cantidad', parseFloat(e.target.value) || 0)}
-                        className={`${INPUT_STD} w-16 shrink-0 text-center text-xs ring-blue-400`}
-                      />
-                      <span className="w-20 shrink-0 whitespace-nowrap text-right text-xs font-medium text-gray-700">{currSymbol} {fmt(item.precioUnitario)}</span>
-                      <span className="w-24 shrink-0 whitespace-nowrap text-right text-xs font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</span>
-                      <button type="button" onClick={() => removeItem(item.key)} className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                    <div key={item.key} className={`px-3 py-2 ${item.origenComboId ? 'bg-purple-50/40' : ''}`}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={item.descripcion}
+                          onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
+                          placeholder="Descripcion"
+                          className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
+                        />
+                        <button type="button" onClick={() => removeItem(item.key)} className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <label className="flex items-center gap-1 text-[10px] text-gray-400">Cant
+                          <input type="number" min={0.01} step="any" value={item.cantidad}
+                            onChange={e => setCantidad(item.key, parseFloat(e.target.value) || 0)}
+                            className={`${INPUT_STD} w-14 text-center text-xs ring-blue-400`} />
+                        </label>
+                        <label className="flex items-center gap-1 text-[10px] text-gray-400">P.U
+                          <input type="number" min={0} step="any" value={item.precioUnitario}
+                            onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
+                            className={`${INPUT_STD} w-20 text-right text-xs ring-blue-400`} />
+                        </label>
+                        <label className="flex items-center gap-1 text-[10px] text-gray-400">Desc%
+                          <input type="number" min={0} max={100} step="any" value={item.descuento || ''}
+                            disabled={!puedeDescuento}
+                            onChange={e => setDescuentoPct(item.key, parseFloat(e.target.value))}
+                            placeholder="0"
+                            title={puedeDescuento ? undefined : 'Requiere autorización (botón "Autorizar descuentos")'}
+                            className={`${INPUT_STD} w-14 text-right text-xs ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed`} />
+                        </label>
+                        <span className="ml-auto whitespace-nowrap text-right text-xs font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</span>
+                      </div>
+                      {(item.nivelAplicado || item.enLiquidacion || item.origenComboId) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {item.origenComboId && <span className="rounded bg-purple-100 px-1 text-[9px] font-bold text-purple-700">COMBO{item.origenComboNombre ? ` · ${item.origenComboNombre}` : ''}</span>}
+                          {item.nivelAplicado && <span className="rounded bg-blue-100 px-1 text-[9px] font-medium text-blue-700">{item.nivelAplicado}</span>}
+                          {item.enLiquidacion && <span className="rounded bg-red-100 px-1 text-[9px] font-bold text-red-600">LIQUIDACIÓN</span>}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -735,7 +917,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                 value={fechaVencimiento}
                 onChange={e => setFechaVencimiento(e.target.value)}
                 className={`${INPUT_STD} w-full text-xs ring-blue-400`}
-              />
+
+/>
             </div>
 
             <div>
@@ -966,8 +1149,18 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       {variantePicker && (
         <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#004A94"
           onClose={() => setVariantePicker(null)}
-          onConfirm={(v, c) => addVarianteItem(variantePicker, v, c)} />
+          onConfirm={(v, c) => { void addVarianteItem(variantePicker, v, c); }} />
       )}
+
+      {/* Autorización para habilitar descuentos (paridad VR, operacion APLICAR_DESCUENTO) */}
+      <AutorizacionDialog
+        isOpen={authDescuentoOpen}
+        operacion="APLICAR_DESCUENTO"
+        titulo="Autorizar descuentos"
+        descripcion="Un administrador debe autorizar la aplicación de descuentos en esta cotización."
+        onAuthorized={() => { setAuthDescuentoOpen(false); setDescuentoDesbloqueado(true); }}
+        onClose={() => setAuthDescuentoOpen(false)}
+      />
     </div>
   );
 }
