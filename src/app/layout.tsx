@@ -1,28 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Space_Grotesk, Sora, Orbitron } from "next/font/google";
+import { Orbitron } from "next/font/google";
 import { Providers } from "@/core/providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-});
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-});
-
+// Fuente principal de toda la web: Amazon Ember (definida vía @font-face +
+// --font-sans en globals.css). Solo Orbitron se carga aparte (titulares landing).
 const orbitron = Orbitron({
   variable: "--font-orbitron",
   subsets: ["latin"],
@@ -43,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${sora.variable} ${orbitron.variable} antialiased`}
+        className={`${orbitron.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>
