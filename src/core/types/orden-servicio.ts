@@ -120,6 +120,9 @@ export interface OrdenServicio {
   metodoPagoAdelanto?: string | null;
   fechaEntrega?: string | null;
   numeroReingresos?: number;
+  // Cobro: comprobanteId (factura/boleta) o ventaDetalle (ticket vinculado) ⇒ orden ya cobrada.
+  comprobanteId?: string | null;
+  ventaDetalle?: { id: string } | null;
   origenOrden?: OrigenOrden;
   tercerizacionOrigen?: TercerizacionRef | null;
   tercerizacionDestino?: TercerizacionRef | null;
@@ -260,6 +263,15 @@ export function saldoOrden(o: { costoTotal?: number | null; adelanto?: number | 
   return Math.max(0, Number(o.costoTotal ?? 0) - Number(o.adelanto ?? 0) - Number(o.descuento ?? 0));
 }
 
+/**
+ * ¿La orden ya fue cobrada? Señal precisa, alineada con Flutter (estaCobrada):
+ * venta vinculada (ticket) o comprobante fiscal emitido. NO se basa en el estado,
+ * porque una orden puede finalizarse sin cobrar.
+ */
+export function estaCobradaOrden(o: { comprobanteId?: string | null; ventaDetalle?: { id: string } | null }): boolean {
+  return !!o.ventaDetalle || o.comprobanteId != null;
+}
+
 /** Costo neto = costoTotal − descuento (precio de la línea de venta al cobrar vía VR; el adelanto va aparte). */
 export function costoNetoOrden(o: { costoTotal?: number | null; descuento?: number | null }): number {
   return Math.round((Number(o.costoTotal ?? 0) - Number(o.descuento ?? 0)) * 100) / 100;
@@ -270,15 +282,21 @@ export const ESTADOS_OS_COBRABLES: EstadoOrdenServicio[] = ['REPARADO', 'LISTO_E
 // ── Componentes ──
 
 export type TipoAccionComponente =
-  | 'DIAGNOSTICAR' | 'REPARAR' | 'REEMPLAZAR' | 'LIMPIAR' | 'ACTUALIZAR'
+  | 'DIAGNOSTICAR' | 'REPARAR' | 'REEMPLAZAR' | 'COMPRAR' | 'LIMPIAR' | 'ACTUALIZAR'
   | 'INSTALAR' | 'DESMONTAR' | 'PROBAR' | 'CALIBRAR';
 
 export const TIPOS_ACCION: TipoAccionComponente[] = [
-  'DIAGNOSTICAR', 'REPARAR', 'REEMPLAZAR', 'LIMPIAR', 'ACTUALIZAR', 'INSTALAR', 'DESMONTAR', 'PROBAR', 'CALIBRAR',
+  'DIAGNOSTICAR', 'REPARAR', 'REEMPLAZAR', 'COMPRAR', 'LIMPIAR', 'ACTUALIZAR', 'INSTALAR', 'DESMONTAR', 'PROBAR', 'CALIBRAR',
 ];
 export const TIPO_ACCION_LABEL: Record<TipoAccionComponente, string> = {
-  DIAGNOSTICAR: 'Diagnosticar', REPARAR: 'Reparar', REEMPLAZAR: 'Reemplazar', LIMPIAR: 'Limpiar',
+  DIAGNOSTICAR: 'Diagnosticar', REPARAR: 'Reparar', REEMPLAZAR: 'Reemplazar', COMPRAR: 'Comprar (repuesto)', LIMPIAR: 'Limpiar',
   ACTUALIZAR: 'Actualizar', INSTALAR: 'Instalar', DESMONTAR: 'Desmontar', PROBAR: 'Probar', CALIBRAR: 'Calibrar',
+};
+/** Color del chip de acción (COMPRAR resalta en ámbar, igual que Flutter). */
+export const TIPO_ACCION_COLOR: Record<TipoAccionComponente, string> = {
+  DIAGNOSTICAR: 'text-teal-600', REPARAR: 'text-teal-600', REEMPLAZAR: 'text-teal-600',
+  COMPRAR: 'text-amber-600', LIMPIAR: 'text-teal-600', ACTUALIZAR: 'text-teal-600',
+  INSTALAR: 'text-teal-600', DESMONTAR: 'text-teal-600', PROBAR: 'text-teal-600', CALIBRAR: 'text-teal-600',
 };
 
 export interface TipoComponente {
@@ -309,6 +327,19 @@ export interface CreateServicioComponenteDto {
   pruebaRealizada?: boolean;
   observaciones?: string;
   garantiaMeses?: number;
+}
+
+/** Body PATCH /ordenes-servicio/:id/componentes/:componenteId (parcial; null limpia el campo). */
+export interface UpdateServicioComponenteDto {
+  tipoAccion?: TipoAccionComponente;
+  descripcionAccion?: string | null;
+  costoAccion?: number | null;
+  tiempoAccion?: number | null;
+  costoRepuestos?: number | null;
+  resultadoAccion?: string | null;
+  pruebaRealizada?: boolean;
+  observaciones?: string | null;
+  garantiaMeses?: number | null;
 }
 
 export interface Tecnico {

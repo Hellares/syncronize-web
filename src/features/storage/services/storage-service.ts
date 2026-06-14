@@ -19,8 +19,8 @@ export interface ArchivoResponse {
   creadoEn: string;
 }
 
-export type EntidadTipo = 'PRODUCTO' | 'PRODUCTO_VARIANTE' | 'SERVICIO' | 'EMPRESA';
-export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL';
+export type EntidadTipo = 'PRODUCTO' | 'PRODUCTO_VARIANTE' | 'SERVICIO' | 'SERVICIO_COMPONENTE' | 'EMPRESA';
+export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL' | 'EVIDENCIA';
 
 export async function uploadFile(params: {
   file: File;
@@ -39,7 +39,13 @@ export async function uploadFile(params: {
   if (params.categoria) formData.append('categoria', params.categoria);
   if (params.orden != null) formData.append('orden', String(params.orden));
 
-  const res = await apiClient.post<ArchivoResponse>('/storage/upload', formData, {
+  // Evidencia de componentes: endpoint dedicado con permiso MANAGE_ORDERS
+  // (técnicos suben fotos sin MANAGE_SETTINGS). Paridad con Flutter.
+  const endpoint = params.entidadTipo === 'SERVICIO_COMPONENTE'
+    ? '/storage/upload-componente-imagen'
+    : '/storage/upload';
+
+  const res = await apiClient.post<ArchivoResponse>(endpoint, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: (e) => {
       if (params.onProgress && e.total) {
@@ -50,8 +56,11 @@ export async function uploadFile(params: {
   return res.data;
 }
 
-export async function deleteFile(archivoId: string, empresaId: string): Promise<void> {
-  await apiClient.delete(`/storage/${archivoId}?empresaId=${empresaId}`);
+export async function deleteFile(archivoId: string, empresaId: string, entidadTipo?: EntidadTipo): Promise<void> {
+  const path = entidadTipo === 'SERVICIO_COMPONENTE'
+    ? `/storage/componente-imagen/${archivoId}`
+    : `/storage/${archivoId}`;
+  await apiClient.delete(`${path}?empresaId=${empresaId}`);
 }
 
 export async function getFilesByEntity(

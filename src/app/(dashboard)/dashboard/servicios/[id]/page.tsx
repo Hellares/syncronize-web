@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AxiosError } from 'axios';
-import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, TipoAccionComponente, Tecnico } from '@/core/types/orden-servicio';
+import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, TipoAccionComponente, Tecnico, OrdenServicioComponente } from '@/core/types/orden-servicio';
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
-  TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, saldoOrden,
+  TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, TIPO_ACCION_COLOR,
+  saldoOrden, estaCobradaOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -18,6 +19,7 @@ import { DatosPersonalizadosView } from '@/features/ordenes-servicio/components/
 import { MensajesOrden } from '@/features/ordenes-servicio/components/mensajes-orden';
 import { OrdenServicioPrintMenu } from '@/features/ordenes-servicio/components/orden-servicio-print-menu';
 import { TiempoServicioCard, TercerizacionCard } from '@/features/ordenes-servicio/components/orden-servicio-tiempo-b2b';
+import { ComponenteDetailDialog } from '@/features/ordenes-servicio/components/componente-detail-dialog';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -44,6 +46,7 @@ export default function OrdenDetailPage() {
   const [transicionOpen, setTransicionOpen] = useState(false);
   const [tecnicoOpen, setTecnicoOpen] = useState(false);
   const [componenteOpen, setComponenteOpen] = useState(false);
+  const [componenteDetalle, setComponenteDetalle] = useState<OrdenServicioComponente | null>(null);
 
   const cargar = useCallback(async () => {
     setIsLoading(true);
@@ -92,9 +95,10 @@ export default function OrdenDetailPage() {
 
   const cfg = ESTADO_OS_CONFIG[orden.estado];
   const prio = PRIORIDAD_CONFIG[orden.prioridad];
-  const saldo = saldoOrden(orden);
+  const cobrada = estaCobradaOrden(orden);
+  const saldo = cobrada ? 0 : saldoOrden(orden);
   const transiciones = (TRANSICIONES_VALIDAS[orden.estado] ?? []).filter(e => e !== 'TERCERIZADO');
-  const esCobrable = ESTADOS_OS_COBRABLES.includes(orden.estado) && Number(orden.costoTotal ?? 0) > 0;
+  const esCobrable = !cobrada && ESTADOS_OS_COBRABLES.includes(orden.estado) && Number(orden.costoTotal ?? 0) > 0;
 
   const cobrar = async () => {
     setError(null);
@@ -119,12 +123,13 @@ export default function OrdenDetailPage() {
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[orden.prioridad]}</span>
         {orden.origenOrden === 'B2B_ENVIADO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📤 Tercerizada</span>}
         {orden.origenOrden === 'B2B_RECIBIDO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📥 B2B recibida</span>}
+        {cobrada && <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">✓ Pagado</span>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <OrdenServicioPrintMenu orden={orden} />
           {permissions.canManageOrders && esCobrable && (
             <button onClick={cobrar}
               className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700">
-              Cobrar {saldo > 0.005 ? `S/ ${fmt(saldo)}` : '(pagado)'}
+              Cobrar {saldo > 0.005 ? `S/ ${fmt(saldo)}` : ''}
             </button>
           )}
           {permissions.canManageOrders && transiciones.length > 0 && (
@@ -206,7 +211,7 @@ export default function OrdenDetailPage() {
             <div className="flex justify-between text-gray-600"><span>Costo total</span><span>{fmt(orden.costoTotal)}</span></div>
             {(orden.descuento ?? 0) > 0 && <div className="flex justify-between text-amber-600"><span>Descuento</span><span>−{fmt(orden.descuento)}</span></div>}
             {(orden.adelanto ?? 0) > 0 && <div className="flex justify-between text-blue-600"><span>Adelanto{orden.metodoPagoAdelanto ? ` (${METODO_PAGO_LABEL[orden.metodoPagoAdelanto] ?? orden.metodoPagoAdelanto})` : ''}</span><span>−{fmt(orden.adelanto)}</span></div>}
-            <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-bold"><span className="text-gray-700">Saldo</span><span className={saldo > 0.005 ? 'text-amber-600' : 'text-green-600'}>{fmt(saldo)}</span></div>
+            <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-bold"><span className="text-gray-700">{cobrada ? 'Estado' : 'Saldo'}</span><span className={saldo > 0.005 ? 'text-amber-600' : 'text-green-600'}>{cobrada ? 'Pagado ✓' : fmt(saldo)}</span></div>
           </div>
         </div>
       )}
@@ -224,20 +229,25 @@ export default function OrdenDetailPage() {
             <p className="text-xs text-gray-400">Sin componentes registrados.</p>
           ) : (
             <div className="space-y-1.5">
-              {orden.componentes!.map(c => (
-                <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
-                  <div className="min-w-0">
-                    <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className="text-teal-600">{TIPO_ACCION_LABEL[c.tipoAccion as TipoAccionComponente] ?? c.tipoAccion}</span></span>
-                    {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
+              {orden.componentes!.map(c => {
+                const accion = c.tipoAccion as TipoAccionComponente;
+                const total = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
+                return (
+                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
+                    <button onClick={() => setComponenteDetalle(c)} className="min-w-0 flex-1 text-left hover:opacity-70">
+                      <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className={TIPO_ACCION_COLOR[accion] ?? 'text-teal-600'}>{TIPO_ACCION_LABEL[accion] ?? c.tipoAccion}</span></span>
+                      {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
+                      {total > 0 && <p className="text-[10px] text-gray-400">M.O. {fmt(c.costoAccion)} · Repuesto/compra {fmt(c.costoRepuestos)}</p>}
+                    </button>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="text-gray-500">{fmt(total)}</span>
+                      {permissions.canManageOrders && (
+                        <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
+                      )}
+                    </span>
                   </div>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="text-gray-500">{fmt((Number(c.costoAccion ?? 0)) + (Number(c.costoRepuestos ?? 0)))}</span>
-                    {permissions.canManageOrders && (
-                      <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
-                    )}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -291,6 +301,16 @@ export default function OrdenDetailPage() {
         <ComponenteDialog ordenId={id}
           onClose={() => setComponenteOpen(false)}
           onSuccess={() => { setComponenteOpen(false); flash('Componente agregado'); cargar(); }} />
+      )}
+      {componenteDetalle && (
+        <ComponenteDetailDialog
+          ordenId={id}
+          empresaId={orden.empresaId}
+          componente={componenteDetalle}
+          canManage={permissions.canManageOrders}
+          onClose={() => setComponenteDetalle(null)}
+          onChanged={() => { setComponenteDetalle(null); flash('Componente actualizado'); cargar(); }}
+        />
       )}
     </div>
   );

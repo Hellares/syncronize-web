@@ -11,6 +11,7 @@ import type {
   TipoComponente,
   FindOrCreateComponenteDto,
   CreateServicioComponenteDto,
+  UpdateServicioComponenteDto,
   Tecnico,
   MensajeServicio,
 } from '@/core/types/orden-servicio';
@@ -95,6 +96,12 @@ export async function contarMensajesNoLeidos(ordenId: string): Promise<number> {
 
 export async function addComponente(ordenId: string, data: CreateServicioComponenteDto): Promise<OrdenServicioComponente> {
   const res = await apiClient.post<OrdenServicioComponente>(`${BASE}/${ordenId}/componentes`, data);
+  return res.data;
+}
+
+/** Edita la acción/costos de un componente ya agregado (DTO parcial; null limpia). */
+export async function updateComponente(ordenId: string, componenteId: string, data: UpdateServicioComponenteDto): Promise<OrdenServicioComponente> {
+  const res = await apiClient.patch<OrdenServicioComponente>(`${BASE}/${ordenId}/componentes/${componenteId}`, data);
   return res.data;
 }
 
