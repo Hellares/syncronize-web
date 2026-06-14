@@ -29,6 +29,15 @@ export interface OrdenResumen {
   prioridad?: string | null;
   descripcionProblema?: string | null;
   costoTotal?: number | null;
+  descuento?: number | null;
+  componentes?: Array<{ costoAccion?: number | null; costoRepuestos?: number | null }> | null;
+}
+
+/** Total real cobrado al cliente por la orden = costoTotal (servicio) + componentes − descuento. */
+export function totalOrdenResumen(o?: OrdenResumen | null): number | null {
+  if (!o) return null;
+  const comp = (o.componentes ?? []).reduce((s, c) => s + Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0), 0);
+  return Number(o.costoTotal ?? 0) + comp - Number(o.descuento ?? 0);
 }
 
 /** Componente denormalizado dentro de componentesData. */

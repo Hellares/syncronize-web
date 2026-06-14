@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Tercerizacion, TercerizacionNota, TercerizacionComponente, DatoAdicional, OrdenResumen } from '@/core/types/tercerizacion';
-import { ESTADO_TERCERIZACION_CONFIG, NOTA_TIPO_CONFIG, METODOS_PAGO_B2B } from '@/core/types/tercerizacion';
+import { ESTADO_TERCERIZACION_CONFIG, NOTA_TIPO_CONFIG, METODOS_PAGO_B2B, totalOrdenResumen } from '@/core/types/tercerizacion';
 import * as service from '@/features/tercerizacion/services/tercerizacion-service';
 import { descargarHojaDerivacion } from '@/features/tercerizacion/components/tercerizacion-pdf';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
@@ -269,7 +269,8 @@ function OrdenRow({ label, orden, accesible, onOpen }: { label: string; orden: O
 function PagoTerceroCard({ item, canManage, acting, onPagar }: { item: Tercerizacion; canManage: boolean; acting: boolean; onPagar: (metodo: string) => void }) {
   const [pickMetodo, setPickMetodo] = useState(false);
   const precio = item.precioB2B ?? 0;
-  const cobrado = item.ordenOrigen?.costoTotal ?? null;
+  // Total REAL que cobró la empresa origen al cliente (servicio + repuestos − descuento).
+  const cobrado = totalOrdenResumen(item.ordenOrigen);
   const ganancia = cobrado != null ? cobrado - precio : null;
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
