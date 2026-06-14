@@ -272,35 +272,40 @@ export function estaCobradaOrden(o: { comprobanteId?: string | null; ventaDetall
   return !!o.ventaDetalle || o.comprobanteId != null;
 }
 
-// ── Cálculo de costos (paridad 1:1 con los getters de Flutter en orden_servicio.dart) ──
+// ── Cálculo de costos ──
+// MODELO DE NEGOCIO: el cliente paga `costoTotal` (precio final acordado). Los
+// costos de los componentes (costoAccion = mano de obra, costoRepuestos) son
+// INTERNOS — sirven para trazabilidad y margen, NO se suman al precio del
+// cliente. El backend cobra exactamente costoTotal − descuento − adelanto
+// (orden-servicio.service.ts), así que el display se alinea con eso.
+// (Diverge a propósito de Flutter, que los suma por error → doble conteo.)
 
-/** Subtotal de componentes = Σ(costoAccion + costoRepuestos). */
+/** Subtotal de componentes = Σ(costoAccion + costoRepuestos). Costo INTERNO. */
 export function subtotalComponentesOrden(o: { componentes?: OrdenServicioComponente[] }): number {
   return (o.componentes ?? []).reduce(
     (s, c) => s + Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0), 0,
   );
 }
 
-/** Subtotal = costoTotal (servicio) + componentes. null si no hay ninguno. */
-export function subtotalOrden(o: { costoTotal?: number | null; componentes?: OrdenServicioComponente[] }): number | null {
-  const comp = subtotalComponentesOrden(o);
-  if (o.costoTotal == null && comp === 0) return null;
-  return Number(o.costoTotal ?? 0) + comp;
+/** Costo final que paga el cliente = costoTotal − descuento. */
+export function costoFinalOrden(o: { costoTotal?: number | null; descuento?: number | null }): number | null {
+  if (o.costoTotal == null) return null;
+  return Number(o.costoTotal) - Number(o.descuento ?? 0);
 }
 
-/** Costo final = subtotal − descuento. */
-export function costoFinalOrden(o: { costoTotal?: number | null; descuento?: number | null; componentes?: OrdenServicioComponente[] }): number | null {
-  const sub = subtotalOrden(o);
-  if (sub == null) return null;
-  return sub - Number(o.descuento ?? 0);
-}
-
-/** Saldo pendiente = costoFinal − adelanto. 0 si ya está cobrada. */
+/** Saldo pendiente = costoFinal − adelanto. 0 si ya está cobrada. Coincide con el cobro del backend. */
 export function saldoPendienteOrden(o: OrdenServicio): number | null {
   if (estaCobradaOrden(o)) return 0;
   const cf = costoFinalOrden(o);
   if (cf == null) return null;
   return cf - Number(o.adelanto ?? 0);
+}
+
+/** Margen estimado = precio al cliente (costoFinal) − costo interno (componentes). */
+export function margenOrden(o: { costoTotal?: number | null; descuento?: number | null; componentes?: OrdenServicioComponente[] }): number | null {
+  const cf = costoFinalOrden(o);
+  if (cf == null) return null;
+  return cf - subtotalComponentesOrden(o);
 }
 
 /** Costo neto = costoTotal − descuento (precio de la línea de venta al cobrar vía VR; el adelanto va aparte). */

@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { OrdenServicio } from '@/core/types/orden-servicio';
 import {
-  subtotalComponentesOrden, subtotalOrden, costoFinalOrden, saldoPendienteOrden,
+  subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden, margenOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -44,12 +44,13 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
   const costoTotal = orden.costoTotal ?? null;
   const adelanto = orden.adelanto ?? null;
   const descuento = orden.descuento ?? null;
-  const subtotal = subtotalOrden(orden);
-  const costoFinal = costoFinalOrden(orden);
+  const costoFinal = costoFinalOrden(orden);   // precio al cliente = costoTotal − descuento
   const saldo = saldoPendienteOrden(orden);
+  const margen = margenOrden(orden);
 
   const isTerminal = orden.estado === 'CANCELADO' || orden.estado === 'FINALIZADO';
   const hasCosts = subtotalComp > 0 || costoTotal != null;
+  const compsConCosto = componentes.filter(c => Number(c.costoAccion ?? 0) > 0 || Number(c.costoRepuestos ?? 0) > 0);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -62,65 +63,64 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
         )}
       </div>
 
-      {/* Desglose por componente */}
-      {subtotalComp > 0 && componentes.filter(c => Number(c.costoAccion ?? 0) > 0 || Number(c.costoRepuestos ?? 0) > 0).map(c => {
-        const mo = Number(c.costoAccion ?? 0), rep = Number(c.costoRepuestos ?? 0);
-        const nombre = `${c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}${c.componente?.modelo ? ` ${c.componente.modelo}` : ''}`;
-        return (
-          <div key={c.id} className="mb-1.5">
-            <div className="flex items-center justify-between">
-              <span className="truncate text-xs text-gray-700">🔧 {nombre}</span>
-              <span className="text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
-            </div>
-            <div className="ml-5 flex flex-wrap gap-x-4 text-[10px] text-gray-500">
-              {mo > 0 && <span>Mano obra: <b className="text-gray-600">{fmt(mo)}</b></span>}
-              {rep > 0 && <span>Repuesto/compra: <b className="text-gray-600">{fmt(rep)}</b></span>}
-            </div>
-          </div>
-        );
-      })}
-
-      {subtotalComp > 0 && (
-        <div className="my-2 border-t border-gray-100 pt-1">
-          {totalMO > 0 && <CostoRow label="Mano de obra" valor={totalMO} />}
-          {totalRep > 0 && <CostoRow label="Repuestos" valor={totalRep} />}
-          {totalMO > 0 && totalRep > 0 && <CostoRow label="Subtotal componentes" valor={subtotalComp} bold />}
-        </div>
-      )}
-
-      {/* Costo del servicio + desglose */}
-      {costoTotal != null && (
-        <div className={subtotalComp > 0 ? 'border-t border-gray-100 pt-1' : ''}>
+      {/* Precio al cliente (lo que se cobra) */}
+      {costoTotal != null ? (
+        <>
           <CostoRow label="Costo del servicio" valor={costoTotal} />
-          {subtotalComp > 0 && subtotal != null && <CostoRow label="Subtotal" valor={subtotal} bold />}
           {descuento != null && descuento > 0 && <CostoRow label="Descuento" valor={-descuento} color="text-green-700" showSign />}
-          {costoFinal != null && <CostoRow label="Costo final" valor={costoFinal} bold color="text-[#004A94]" size="text-sm" />}
-        </div>
+          {costoFinal != null && <CostoRow label="Costo final (cliente)" valor={costoFinal} bold color="text-[#004A94]" size="text-sm" />}
+
+          <div className="mt-2 rounded-lg bg-[#437EFF]/5 p-2.5">
+            {adelanto != null && adelanto > 0 && (
+              <>
+                <CostoRow label="Adelanto" valor={adelanto} color="text-green-700" />
+                {orden.metodoPagoAdelanto && <p className="mb-1 text-[10px] text-gray-500">{METODO_PAGO_LABEL[orden.metodoPagoAdelanto as MetodoPagoVenta] ?? orden.metodoPagoAdelanto}</p>}
+              </>
+            )}
+            {saldo != null && (
+              <CostoRow
+                label={saldo <= 0.005 ? 'PAGADO' : 'SALDO PENDIENTE'}
+                valor={saldo <= 0.005 ? 0 : saldo}
+                bold size="text-sm"
+                color={saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="py-1 text-[11px] text-gray-400">Aún sin precio del servicio. {canManage && !isTerminal ? 'Usa “Agregar” para definir el costo al cliente.' : ''}</p>
       )}
 
-      {/* Pagos */}
-      {costoFinal != null && (adelanto != null || saldo != null) ? (
-        <div className="mt-2 rounded-lg bg-[#437EFF]/5 p-2.5">
-          {adelanto != null && adelanto > 0 && (
-            <>
-              <CostoRow label="Adelanto" valor={adelanto} color="text-green-700" />
-              {orden.metodoPagoAdelanto && <p className="mb-1 text-[10px] text-gray-500">{METODO_PAGO_LABEL[orden.metodoPagoAdelanto as MetodoPagoVenta] ?? orden.metodoPagoAdelanto}</p>}
-            </>
-          )}
-          {saldo != null && (
-            <CostoRow
-              label={saldo <= 0.005 ? 'PAGADO' : 'SALDO PENDIENTE'}
-              valor={saldo <= 0.005 ? 0 : saldo}
-              bold size="text-sm"
-              color={saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}
-            />
-          )}
+      {/* Desglose interno (no se factura al cliente) — trazabilidad + margen */}
+      {subtotalComp > 0 && (
+        <div className="mt-3 border-t border-dashed border-gray-200 pt-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400">Costo interno (no facturado)</p>
+          {compsConCosto.map(c => {
+            const mo = Number(c.costoAccion ?? 0), rep = Number(c.costoRepuestos ?? 0);
+            const nombre = `${c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}${c.componente?.modelo ? ` ${c.componente.modelo}` : ''}`;
+            return (
+              <div key={c.id} className="mb-1">
+                <div className="flex items-center justify-between">
+                  <span className="truncate text-[11px] text-gray-600">🔧 {nombre}</span>
+                  <span className="text-[11px] font-semibold text-gray-600">{fmt(mo + rep)}</span>
+                </div>
+                <div className="ml-5 flex flex-wrap gap-x-4 text-[10px] text-gray-400">
+                  {mo > 0 && <span>Mano de obra: <b className="text-gray-500">{fmt(mo)}</b></span>}
+                  {rep > 0 && <span>Repuesto/compra: <b className="text-gray-500">{fmt(rep)}</b></span>}
+                </div>
+              </div>
+            );
+          })}
+          <div className="mt-1 border-t border-gray-100 pt-1">
+            <CostoRow label="Costo interno total" valor={subtotalComp} size="text-[11px]" />
+            {margen != null && (
+              <CostoRow label="Margen (precio − costo interno)" valor={margen} bold size="text-[11px]"
+                color={margen >= 0 ? 'text-green-700' : 'text-red-600'} />
+            )}
+          </div>
+          <p className="mt-1 text-[9.5px] leading-tight text-gray-400">La mano de obra y los repuestos son costos internos (trazabilidad y margen); el cliente paga el costo final.</p>
         </div>
-      ) : costoTotal == null && subtotalComp > 0 ? (
-        <div className="mt-1 rounded-lg bg-[#437EFF]/5 p-2.5">
-          <CostoRow label="TOTAL COMPONENTES" valor={subtotalComp} bold color="text-[#004A94]" size="text-sm" />
-        </div>
-      ) : null}
+      )}
 
       {!hasCosts && <p className="py-2 text-center text-[11px] text-gray-400">Sin costos registrados</p>}
 
@@ -144,9 +144,9 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
   const costo = parseFloat(costoTotal || '0');
   const desc = parseFloat(descuento || '0');
   const adel = parseFloat(adelanto || '0');
-  const subtotalCalc = costo + compCost;
-  const costoFinalCalc = subtotalCalc - desc;
+  const costoFinalCalc = costo - desc;        // precio al cliente
   const saldoCalc = costoFinalCalc - adel;
+  const margenCalc = costoFinalCalc - compCost;
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
 
   const submit = async () => {
@@ -191,17 +191,19 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
 
         {(costo > 0 || compCost > 0) && (
           <div className="mt-3 rounded-lg border border-[#437EFF]/30 bg-[#437EFF]/5 p-2.5">
-            {compCost > 0 && costo > 0 && (<>
-              <CostoRow label="Componentes" valor={compCost} />
-              <CostoRow label="Servicio" valor={costo} />
-              <div className="my-1 border-t border-gray-200" />
-              <CostoRow label="Subtotal" valor={subtotalCalc} bold />
-            </>)}
+            {costo > 0 && <CostoRow label="Costo del servicio" valor={costo} />}
             {desc > 0 && <CostoRow label="Descuento" valor={-desc} color="text-green-700" showSign />}
-            <CostoRow label="Costo final" valor={costoFinalCalc} bold color="text-[#004A94]" />
+            <CostoRow label="Costo final (cliente)" valor={costoFinalCalc} bold color="text-[#004A94]" />
             {adel > 0 && <CostoRow label="Adelanto" valor={adel} color="text-green-700" />}
             <div className="my-1 border-t border-gray-200" />
             <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? 0 : saldoCalc} bold size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
+            {compCost > 0 && (
+              <>
+                <div className="my-1 border-t border-dashed border-gray-300" />
+                <CostoRow label="Costo interno (no facturado)" valor={compCost} size="text-[11px]" />
+                <CostoRow label="Margen" valor={margenCalc} bold size="text-[11px]" color={margenCalc >= 0 ? 'text-green-700' : 'text-red-600'} />
+              </>
+            )}
           </div>
         )}
 
