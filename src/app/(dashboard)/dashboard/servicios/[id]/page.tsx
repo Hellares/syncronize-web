@@ -449,6 +449,8 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   }, [tipoComponenteId, crearNuevoTipo]);
 
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+  // Combos (tipo de componente / acción) con fuente 2px más chica.
+  const comboClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-[12px] outline-none focus:border-[#437EFF] bg-white';
   const linkClass = 'mt-1 text-[11px] font-semibold text-[#437EFF] hover:underline';
 
   const nombreComp = (c: Componente) =>
@@ -525,7 +527,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-gray-900">Agregar componente</h3>
+        <h3 className="text-sm font-medium text-gray-900">Agregar componente</h3>
         {loadingTipos ? (
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
         ) : (
@@ -535,7 +537,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
               <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de componente *</label>
               {!crearNuevoTipo && tipos.length > 0 ? (
                 <>
-                  <select className={`${inputClass} bg-white`} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
+                  <select className={comboClass} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
                   </select>
                   <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(true)}>+ Crear nuevo tipo</button>
@@ -589,7 +591,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
             {/* 3. Acción sobre el componente */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Acción *</label>
-              <select className={`${inputClass} bg-white`} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
+              <select className={comboClass} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
                 {TIPOS_ACCION.map(a => <option key={a} value={a}>{TIPO_ACCION_LABEL[a]}</option>)}
               </select>
             </div>
