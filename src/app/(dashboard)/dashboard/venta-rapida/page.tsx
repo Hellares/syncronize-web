@@ -414,7 +414,7 @@ function VentaRapidaInner() {
         <div className="lg:col-span-2 space-y-3">
           <div className="rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-              <p className="text-sm font-semibold text-gray-800">Carrito ({items.length})</p>
+              <p className="text-sm font-medium text-gray-800">Carrito ({items.length})</p>
               {items.length > 0 && (
                 <button onClick={() => setDescGlobalOpen(true)}
                   className="rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-50">
@@ -457,7 +457,7 @@ function VentaRapidaInner() {
                         </div>
                       )}
                       <div className="text-right">
-                        <p className="text-sm font-bold text-gray-900">S/ {fmt(c.total)}</p>
+                        <p className="text-sm font-medium text-gray-900">S/ {fmt(c.total)}</p>
                         <p className="text-[9px] text-gray-400">
                           S/ {fmt(it.precioUnitario)} c/u
                           {it.nivelAplicado && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700">{it.nivelAplicado}</span>}
@@ -479,7 +479,7 @@ function VentaRapidaInner() {
                 {totales.descuento > 0 && <div className="flex justify-between text-amber-600"><span>Descuentos</span><span>−S/ {fmt(totales.descuento)}</span></div>}
                 <div className="flex justify-between text-gray-500"><span>IGV</span><span>S/ {fmt(totales.igv)}</span></div>
                 {totales.icbper > 0 && <div className="flex justify-between text-gray-500"><span>ICBPER</span><span>S/ {fmt(totales.icbper)}</span></div>}
-                <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-bold text-gray-900">
+                <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-medium text-gray-900">
                   <span>Total</span><span>S/ {fmt(totales.total)}</span>
                 </div>
               </div>
