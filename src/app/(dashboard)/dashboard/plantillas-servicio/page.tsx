@@ -111,7 +111,7 @@ function PlantillaCard({ plantilla, canManage, onEdit, onDelete, onAddCampo }: {
     <div className="rounded-xl border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-900">{plantilla.nombre}</p>
+          <p className="text-sm font-semibold text-gray-900">{plantilla.nombre}</p>
           {plantilla.descripcion && <p className="text-xs text-gray-500">{plantilla.descripcion}</p>}
         </div>
         {canManage && (
@@ -321,7 +321,7 @@ function CatalogoDialog({ onClose, onCreated }: { onClose: () => void; onCreated
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">{p.icon}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-[#004A94]">{p.nombre}</p>
+                    <p className="text-sm font-semibold text-[#004A94]">{p.nombre}</p>
                     <p className="text-[11px] text-gray-500">{p.descripcion}</p>
                     <p className="mt-0.5 text-[10px] text-gray-400">{p.campos.length} campos</p>
                   </div>
