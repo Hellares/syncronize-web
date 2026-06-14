@@ -112,7 +112,7 @@ function PlantillaCard({ plantilla, canManage, onEdit, onDelete, onAddCampo }: {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900">{plantilla.nombre}</p>
-          {plantilla.descripcion && <p className="text-xs text-gray-500">{plantilla.descripcion}</p>}
+          {plantilla.descripcion && <p className="text-[13px] text-gray-500">{plantilla.descripcion}</p>}
         </div>
         {canManage && (
           <div className="flex shrink-0 gap-2 text-[11px] font-semibold">
