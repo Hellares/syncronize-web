@@ -91,7 +91,7 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
 
           {costoTotal != null && <CostoRow label="Costo del servicio" valor={costoTotal} />}
           {descuento != null && descuento > 0 && <CostoRow label="Descuento" valor={-descuento} color="text-green-700" showSign />}
-          {costoFinal != null && <CostoRow label="Total al cliente" valor={costoFinal} bold color="text-[#004A94]" size="text-sm" />}
+          {costoFinal != null && <CostoRow label="Total al cliente" valor={costoFinal} color="text-[#004A94]" size="text-sm" />}
 
           <div className="mt-2 rounded-lg bg-[#437EFF]/5 p-2.5">
             {adelanto != null && adelanto > 0 && (
