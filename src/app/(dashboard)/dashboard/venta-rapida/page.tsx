@@ -574,7 +574,7 @@ function CobrablesSheet({ onPick, onClose }: { onPick: (o: OrdenCobrable) => voi
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="border-b border-gray-100 p-4">
-          <h3 className="text-sm font-semibold text-gray-900">Cobrar orden de servicio</h3>
+          <h3 className="text-sm font-medium text-[#004A94]">Cobrar orden de servicio</h3>
           <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
             value={search} onChange={e => onSearch(e.target.value)} placeholder="Buscar por código, equipo o cliente..." autoFocus />
         </div>
@@ -628,7 +628,7 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-gray-900">Descuento de línea</h3>
+        <h3 className="text-sm font-medium text-[#004A94]">Descuento de línea</h3>
         <p className="mt-0.5 text-xs text-gray-500 truncate">{item.descripcion} · línea S/ {fmt(bruto)}</p>
         <div className="mt-3 flex gap-2">
           <button onClick={() => setModo('monto')} className={`flex-1 rounded-lg border p-1.5 text-xs ${modo === 'monto' ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold' : 'border-gray-200 text-gray-500'}`}>S/ Monto</button>
@@ -651,7 +651,7 @@ function DescuentoGlobalDialog({ onApply, onClose }: { onApply: (pct: number) =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-gray-900">Descuento global</h3>
+        <h3 className="text-sm font-medium text-[#004A94]">Descuento global</h3>
         <p className="mt-0.5 text-xs text-gray-500">Se aplica como descuento por línea a todo el carrito.</p>
         <input className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right outline-none focus:border-[#437EFF]"
           type="number" step="0.5" min="0" max="100" value={pct} onChange={e => setPct(e.target.value)} autoFocus placeholder="% descuento" />
