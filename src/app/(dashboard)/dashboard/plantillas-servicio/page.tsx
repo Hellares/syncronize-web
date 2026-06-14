@@ -126,7 +126,7 @@ function PlantillaCard({ plantilla, canManage, onEdit, onDelete, onAddCampo }: {
         {campos.length === 0 ? (
           <span className="text-[11px] text-gray-400">Sin campos. Usa “+ Campo” para agregar.</span>
         ) : campos.map(c => (
-          <span key={c.id} className="rounded bg-[#437EFF]/5 px-1.5 py-0.5 text-[10px] text-[#004A94]">
+          <span key={c.id} className="rounded bg-[#437EFF]/5 px-1.5 py-0.5 text-[11px] text-[#004A94]">
             {c.nombre}{c.esRequerido ? ' *' : ''}
           </span>
         ))}
@@ -336,7 +336,7 @@ function CatalogoDialog({ onClose, onCreated }: { onClose: () => void; onCreated
                 {abierta && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {p.campos.map((c, i) => (
-                      <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                      <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600">
                         {c.nombre} <span className="text-gray-400">· {TIPO_CAMPO_LABEL[c.tipoCampo as TipoCampoServicio] ?? c.tipoCampo}</span>{c.esRequerido ? ' *' : ''}
                       </span>
                     ))}
