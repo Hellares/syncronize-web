@@ -120,7 +120,7 @@ export default function OrdenDetailPage() {
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => router.push('/dashboard/servicios')} className="text-gray-400 hover:text-gray-600">←</button>
-        <h1 className="font-mono text-xl font-bold text-gray-900">{orden.codigo}</h1>
+        <h1 className="rounded-md bg-[#437EFF]/10 px-2.5 py-1 text-lg font-bold text-[#004A94]">{orden.codigo}</h1>
         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[orden.prioridad]}</span>
         {orden.origenOrden === 'B2B_ENVIADO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📤 Tercerizada</span>}
