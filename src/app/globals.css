@@ -43,17 +43,13 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-Regular.ttf') format('truetype');
-  font-weight: 350 449;
-  font-style: normal;
-  font-display: swap;
-}
+/* El regular "AmazonEmber-Regular.ttf" es un corte V2 (familia interna distinta)
+   que desentona con Bold/Medium (V1). Usamos AmazonEmber-Medium (V1) para el
+   rango normal (350-599) para mantener TODO en V1 consistente. */
 @font-face {
   font-family: 'Amazon Ember';
   src: url('/fonts/AmazonEmber-Medium.ttf') format('truetype');
-  font-weight: 450 599;
+  font-weight: 350 599;
   font-style: normal;
   font-display: swap;
 }
