@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { AxiosError } from 'axios';
-import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, TipoAccionComponente, Tecnico, OrdenServicioComponente } from '@/core/types/orden-servicio';
+import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, Componente, TipoAccionComponente, Tecnico, OrdenServicioComponente } from '@/core/types/orden-servicio';
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
   TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, TIPO_ACCION_COLOR,
@@ -392,11 +392,18 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   const [tipoComponenteId, setTipoComponenteId] = useState('');
   const [nombreTipo, setNombreTipo] = useState('');
   const [categoriaTipo, setCategoriaTipo] = useState<osService.CategoriaComponente>('HARDWARE');
-  // Marca / modelo: texto llenable con sugerencias de los existentes
+  // Componentes ya registrados del tipo (reutilizar por id; evita duplicados/spam)
+  const [componentes, setComponentes] = useState<Componente[]>([]);
+  const [cargandoComp, setCargandoComp] = useState(false);
+  const [componenteSel, setComponenteSel] = useState<Componente | null>(null);
+  const [mostrarFormNuevo, setMostrarFormNuevo] = useState(false);
+  const [buscar, setBuscar] = useState('');
+  // Form "nuevo componente"
   const [marca, setMarca] = useState('');
   const [modelo, setModelo] = useState('');
+  const [serie, setSerie] = useState('');
   const [marcas, setMarcas] = useState<string[]>([]);
-  const [modelos, setModelos] = useState<string[]>([]);
+  // Acción
   const [tipoAccion, setTipoAccion] = useState<TipoAccionComponente>('REPARAR');
   const [descripcionAccion, setDescripcionAccion] = useState('');
   const [costoAccion, setCostoAccion] = useState('');
@@ -412,31 +419,45 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
       .finally(() => setLoadingTipos(false));
   }, []);
 
-  // Sugerencias de marcas al elegir un tipo existente
+  // Al elegir un tipo: cargar componentes registrados + marcas conocidas.
   useEffect(() => {
     let active = true;
     const load = async () => {
-      if (crearNuevoTipo || !tipoComponenteId) { if (active) setMarcas([]); return; }
-      try { const m = await osService.getMarcasComponente(tipoComponenteId); if (active) setMarcas(m); }
-      catch { if (active) setMarcas([]); }
+      setComponenteSel(null); setBuscar(''); setMarca(''); setModelo(''); setSerie('');
+      if (crearNuevoTipo || !tipoComponenteId) {
+        if (active) { setComponentes([]); setMarcas([]); setMostrarFormNuevo(true); }
+        return;
+      }
+      setCargandoComp(true);
+      try {
+        const [comps, mks] = await Promise.all([
+          osService.getComponentes(tipoComponenteId),
+          osService.getMarcasComponente(tipoComponenteId).catch(() => [] as string[]),
+        ]);
+        if (!active) return;
+        setComponentes(comps);
+        setMarcas(mks);
+        setMostrarFormNuevo(comps.length === 0); // sin registrados → form directo
+      } catch {
+        if (active) { setComponentes([]); setMostrarFormNuevo(true); }
+      } finally {
+        if (active) setCargandoComp(false);
+      }
     };
     load();
     return () => { active = false; };
   }, [tipoComponenteId, crearNuevoTipo]);
 
-  // Sugerencias de modelos al escribir la marca (debounced)
-  useEffect(() => {
-    let active = true;
-    const t = setTimeout(async () => {
-      if (crearNuevoTipo || !tipoComponenteId || !marca.trim()) { if (active) setModelos([]); return; }
-      try { const m = await osService.getModelosComponente(tipoComponenteId, marca.trim()); if (active) setModelos(m); }
-      catch { if (active) setModelos([]); }
-    }, 400);
-    return () => { active = false; clearTimeout(t); };
-  }, [marca, tipoComponenteId, crearNuevoTipo]);
-
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
   const linkClass = 'mt-1 text-[11px] font-semibold text-[#437EFF] hover:underline';
+
+  const nombreComp = (c: Componente) =>
+    [c.tipoComponente?.nombre ?? c.marca, c.modelo, c.numeroSerie].filter(Boolean).join(' · ') || c.codigo || 'Componente';
+  const compsFiltrados = componentes.filter(c => {
+    const q = buscar.trim().toLowerCase();
+    if (!q) return true;
+    return [c.marca, c.modelo, c.numeroSerie, c.codigo].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
 
   const submit = async () => {
     setError('');
@@ -451,11 +472,20 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
       } else if (!tipoId) {
         setError('Selecciona el tipo de componente'); setIsSubmitting(false); return;
       }
-      // 2) Buscar o crear el componente físico
-      const comp = await osService.findOrCreateComponente({ tipoComponenteId: tipoId, marca: marca.trim() || undefined, modelo: modelo.trim() || undefined });
+      // 2) Resolver el componente: reutilizar el registrado seleccionado (por id),
+      //    o registrar/buscar uno nuevo con find-or-create (red de seguridad).
+      let componenteId: string;
+      if (!crearNuevoTipo && !mostrarFormNuevo && componenteSel) {
+        componenteId = componenteSel.id;
+      } else {
+        const m = marca.trim() || undefined, mo = modelo.trim() || undefined, s = serie.trim() || undefined;
+        if (!m && !mo && !s) { setError('Selecciona un componente registrado o ingresa marca/modelo'); setIsSubmitting(false); return; }
+        const comp = await osService.findOrCreateComponente({ tipoComponenteId: tipoId, marca: m, modelo: mo, numeroSerie: s });
+        componenteId = comp.id;
+      }
       // 3) Agregarlo a la orden
       await osService.addComponente(ordenId, {
-        componenteId: comp.id,
+        componenteId,
         tipoAccion,
         descripcionAccion: descripcionAccion.trim() || undefined,
         costoAccion: costoAccion ? parseFloat(costoAccion) : undefined,
@@ -470,6 +500,28 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
     }
   };
 
+  // Form de "nuevo componente" (marca con chips de marcas conocidas + modelo + serie).
+  const nuevoCompForm = (
+    <div className="space-y-2">
+      <div>
+        <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Marca (Samsung, HP...)" />
+        {marcas.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {marcas.map(m => (
+              <button key={m} type="button" onClick={() => setMarca(m)}
+                className="rounded border border-[#437EFF]/30 bg-[#437EFF]/5 px-2 py-0.5 text-[10px] text-[#437EFF] hover:bg-[#437EFF]/10">{m}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} placeholder="Modelo (Galaxy S24...)" />
+      <input className={inputClass} value={serie} onChange={e => setSerie(e.target.value)} placeholder="N° de serie (opcional — crea registro único)" />
+      {!crearNuevoTipo && componentes.length > 0 && (
+        <button type="button" className={linkClass} onClick={() => { setMostrarFormNuevo(false); setMarca(''); setModelo(''); setSerie(''); }}>← Ver componentes registrados</button>
+      )}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -478,7 +530,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
         ) : (
           <div className="mt-3 space-y-3">
-            {/* Tipo de componente: elegir existente o crear nuevo */}
+            {/* 1. Tipo de componente: elegir existente o crear nuevo */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de componente *</label>
               {!crearNuevoTipo && tipos.length > 0 ? (
@@ -486,7 +538,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
                   <select className={`${inputClass} bg-white`} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
                   </select>
-                  <button type="button" className={linkClass} onClick={() => { setCrearNuevoTipo(true); setMarca(''); setModelo(''); }}>+ Crear nuevo tipo</button>
+                  <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(true)}>+ Crear nuevo tipo</button>
                 </>
               ) : (
                 <>
@@ -500,19 +552,41 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
                 </>
               )}
             </div>
-            {/* Marca / modelo: texto llenable con sugerencias */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Marca</label>
-                <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} list="marcas-comp" placeholder="Samsung, HP..." />
-                <datalist id="marcas-comp">{marcas.map(m => <option key={m} value={m} />)}</datalist>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Modelo</label>
-                <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} list="modelos-comp" placeholder="Galaxy S24..." />
-                <datalist id="modelos-comp">{modelos.map(m => <option key={m} value={m} />)}</datalist>
-              </div>
+
+            {/* 2. Componente: reutilizar registrado o registrar nuevo (sin duplicar) */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Componente *</label>
+              {crearNuevoTipo ? (
+                nuevoCompForm
+              ) : cargandoComp ? (
+                <div className="flex justify-center py-3"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
+              ) : mostrarFormNuevo ? (
+                nuevoCompForm
+              ) : componenteSel ? (
+                <div className="rounded-lg border border-[#437EFF] bg-[#437EFF]/5 px-3 py-2">
+                  <p className="text-xs font-semibold text-[#004A94]">{nombreComp(componenteSel)}</p>
+                  <button type="button" className={linkClass} onClick={() => setComponenteSel(null)}>↺ Elegir otro componente</button>
+                </div>
+              ) : (
+                <>
+                  <input className={inputClass} value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por marca, modelo o serie..." />
+                  <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                    {compsFiltrados.length === 0 ? (
+                      <p className="px-3 py-2 text-[11px] text-gray-400">Sin coincidencias. Registra uno nuevo.</p>
+                    ) : compsFiltrados.map(c => (
+                      <button key={c.id} type="button" onClick={() => setComponenteSel(c)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-[#437EFF]/5">
+                        <span className="text-gray-300">○</span>
+                        <span className="min-w-0 truncate text-gray-700">{nombreComp(c)}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className={linkClass} onClick={() => { setMostrarFormNuevo(true); setComponenteSel(null); }}>+ Registrar nuevo componente</button>
+                </>
+              )}
             </div>
+
+            {/* 3. Acción sobre el componente */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Acción *</label>
               <select className={`${inputClass} bg-white`} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
@@ -525,7 +599,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
               <div><label className="mb-1 block text-[10px] text-gray-400">Repuestos</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
               <div><label className="mb-1 block text-[10px] text-gray-400">Garantía (m)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
             </div>
-            <p className="text-[10px] text-gray-400">Los costos de componentes no modifican el costo total de la orden (se ajusta en la transición de estado).</p>
+            <p className="text-[10px] text-gray-400">Mano de obra y repuestos se suman al total al cliente.</p>
             {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
           </div>
         )}

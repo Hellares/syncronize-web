@@ -334,6 +334,17 @@ export interface TipoComponente {
   [key: string]: unknown;
 }
 
+/** Componente físico registrado (catálogo reutilizable por tipo). */
+export interface Componente {
+  id: string;
+  codigo?: string;
+  marca?: string | null;
+  modelo?: string | null;
+  numeroSerie?: string | null;
+  tipoComponente?: { id?: string; nombre?: string; categoria?: string } | null;
+  [key: string]: unknown;
+}
+
 /** Body POST /componentes/find-or-create */
 export interface FindOrCreateComponenteDto {
   tipoComponenteId: string;

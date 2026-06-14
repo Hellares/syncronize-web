@@ -9,6 +9,7 @@ import type {
   OrdenCobrable,
   OrdenServicioComponente,
   TipoComponente,
+  Componente,
   FindOrCreateComponenteDto,
   CreateServicioComponenteDto,
   UpdateServicioComponenteDto,
@@ -131,6 +132,14 @@ export async function getMarcasComponente(tipoComponenteId: string): Promise<str
 /** Modelos existentes para un tipo + marca (sugerencias del input de modelo). */
 export async function getModelosComponente(tipoComponenteId: string, marca: string): Promise<string[]> {
   const res = await apiClient.get(`/componentes/modelos?tipoComponenteId=${encodeURIComponent(tipoComponenteId)}&marca=${encodeURIComponent(marca)}`);
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+/** Lista los componentes ya registrados de un tipo (para reutilizar y no duplicar). */
+export async function getComponentes(tipoComponenteId: string, search?: string): Promise<Componente[]> {
+  const q = new URLSearchParams({ tipoComponenteId, limit: '100' });
+  if (search?.trim()) q.set('search', search.trim());
+  const res = await apiClient.get(`/componentes?${q.toString()}`);
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }
 
