@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { OrdenServicio, EstadoOrdenServicio, TipoServicio, PrioridadServicio } from '@/core/types/orden-servicio';
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
-  TIPOS_SERVICIO, PRIORIDADES, saldoOrden, nombreClienteOrden,
+  TIPOS_SERVICIO, PRIORIDADES, costoFinalOrden, saldoPendienteOrden, nombreClienteOrden,
 } from '@/core/types/orden-servicio';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
@@ -137,7 +137,8 @@ export default function ServiciosPage() {
           {items.map(o => {
             const cfg = ESTADO_OS_CONFIG[o.estado];
             const prio = PRIORIDAD_CONFIG[o.prioridad];
-            const saldo = saldoOrden(o);
+            const total = costoFinalOrden(o);              // total al cliente = servicio + componentes − descuento
+            const saldo = saldoPendienteOrden(o) ?? 0;
             return (
               <button key={o.id} onClick={() => router.push(`/dashboard/servicios/${o.id}`)}
                 className="rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-[#437EFF]/40 hover:bg-[#437EFF]/5">
@@ -158,10 +159,17 @@ export default function ServiciosPage() {
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[o.prioridad]}</span>
                     <span className="text-[10px] text-gray-400">{fmtFecha(o.creadoEn)}</span>
                   </div>
-                  {(o.costoTotal ?? 0) > 0 && (
-                    <span className={`text-xs font-bold ${saldo > 0.005 ? 'text-amber-600' : 'text-green-600'}`}>
-                      {saldo > 0.005 ? `Saldo ${fmt(saldo)}` : 'Pagado'}
-                    </span>
+                  {total != null && total > 0 && (
+                    (o.adelanto ?? 0) > 0 ? (
+                      <div className="text-right">
+                        <p className="text-[9px] text-gray-400">Total {fmt(total)}</p>
+                        <p className={`text-xs font-bold ${saldo > 0.005 ? 'text-amber-600' : 'text-green-600'}`}>
+                          {saldo > 0.005 ? `Saldo ${fmt(saldo)}` : 'Pagado'}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold text-[#004A94]">{fmt(total)}</span>
+                    )
                   )}
                 </div>
               </button>
