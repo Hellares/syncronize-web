@@ -154,8 +154,9 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
     if (adel > 0 && !metodoPago) { setError('Selecciona el medio de pago del adelanto'); return; }
     setSaving(true);
     try {
+      // El UpdateOrdenServicioDto del backend NO acepta empresaId (whitelist
+      // forbidNonWhitelisted) — el tenant va por header x-tenant-id.
       await osService.actualizarOrden(orden.id, {
-        empresaId: orden.empresaId,
         costoTotal: costoTotal.trim() ? costo : undefined,
         descuento: descuento.trim() ? desc : undefined,
         adelanto: adelanto.trim() ? adel : undefined,
