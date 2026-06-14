@@ -31,8 +31,24 @@ export interface PlantillaServicio {
   id: string;
   nombre: string;
   descripcion?: string | null;
+  isActive?: boolean;
   serviciosCount?: number;
+  campos?: CampoServicio[];
   [key: string]: unknown;
+}
+
+export interface CreatePlantillaServicioDto {
+  nombre: string;
+  descripcion?: string | null;
+  campos?: ConfiguracionCampoDto[];
+}
+
+/** Plantilla predefinida del catálogo (hardcodeada, reutilizable). */
+export interface CatalogoPlantilla {
+  nombre: string;
+  descripcion: string;
+  icon: string;
+  campos: ConfiguracionCampoDto[];
 }
 
 export type TipoCampoServicio =

@@ -1,5 +1,5 @@
 import { apiClient } from '@/core/api/client';
-import type { Servicio, CreateServicioDto, PlantillaServicio, CampoServicio } from '@/core/types/servicio-catalogo';
+import type { Servicio, CreateServicioDto, PlantillaServicio, CampoServicio, CreatePlantillaServicioDto, ConfiguracionCampoDto } from '@/core/types/servicio-catalogo';
 
 export async function getServicios(params: { search?: string; page?: number; limit?: number } = {}): Promise<Servicio[]> {
   const q = new URLSearchParams();
@@ -33,6 +33,27 @@ export async function deleteServicio(id: string): Promise<void> {
 export async function getPlantillas(): Promise<PlantillaServicio[]> {
   const res = await apiClient.get('/plantillas-servicio');
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+/** Crea una plantilla (con campos opcionales — usado por el catálogo predefinido). */
+export async function crearPlantilla(data: CreatePlantillaServicioDto): Promise<PlantillaServicio> {
+  const res = await apiClient.post<PlantillaServicio>('/plantillas-servicio', data);
+  return res.data;
+}
+
+export async function actualizarPlantilla(id: string, data: { nombre?: string; descripcion?: string | null }): Promise<PlantillaServicio> {
+  const res = await apiClient.put<PlantillaServicio>(`/plantillas-servicio/${id}`, data);
+  return res.data;
+}
+
+export async function eliminarPlantilla(id: string): Promise<void> {
+  await apiClient.delete(`/plantillas-servicio/${id}`);
+}
+
+/** Agrega un campo a una plantilla existente. */
+export async function addCampoPlantilla(plantillaId: string, campo: ConfiguracionCampoDto): Promise<CampoServicio> {
+  const res = await apiClient.post<CampoServicio>(`/plantillas-servicio/${plantillaId}/campos`, campo);
+  return res.data;
 }
 
 /** Campos de la plantilla vinculada a un servicio (para renderizar datosPersonalizados). */

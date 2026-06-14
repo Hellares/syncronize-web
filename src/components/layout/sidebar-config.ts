@@ -123,6 +123,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Servicios', href: '/dashboard/servicios', permission: 'canViewServices' },
       { label: 'Catálogo de Servicios', href: '/dashboard/catalogo-servicios', permission: 'canViewServices' },
       { label: 'Campos de Servicio', href: '/dashboard/campos-servicio', permission: 'canViewServices' },
+      { label: 'Plantillas de Servicio', href: '/dashboard/plantillas-servicio', permission: 'canViewServices' },
       { label: 'Tercerización B2B', href: '/dashboard/tercerizacion', permission: 'canManageOrders' },
       { label: 'Citas', href: '/dashboard/citas', permission: 'canManageOrders' },
     ],
