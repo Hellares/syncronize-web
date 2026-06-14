@@ -46,7 +46,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
-const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
+const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-[12px] outline-none focus:border-[#437EFF] bg-white";
 
 export default function ProductoForm({ empresaId, producto }: Props) {
   const { form, updateField, isSubmitting, error, errors, handleSubmit, isEditing } = useProductoForm(empresaId, producto);
