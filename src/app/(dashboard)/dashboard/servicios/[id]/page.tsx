@@ -344,7 +344,7 @@ function TecnicoDialog({ ordenId, actualId, onClose, onSuccess }: { ordenId: str
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="flex max-h-[80vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="border-b border-gray-100 p-4">
-          <h3 className="text-sm font-semibold text-gray-900">Asignar técnico</h3>
+          <h3 className="text-sm font-medium text-gray-900">Asignar técnico</h3>
           <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
             value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." autoFocus />
         </div>
@@ -671,7 +671,7 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-gray-900">Cambiar estado</h3>
+        <h3 className="text-sm font-medium text-gray-900">Cambiar estado</h3>
         <div className="mt-3 space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Nuevo estado</label>
