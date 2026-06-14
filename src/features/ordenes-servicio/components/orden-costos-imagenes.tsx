@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { OrdenServicio } from '@/core/types/orden-servicio';
 import {
-  subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden, margenOrden,
+  subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -44,9 +44,8 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
   const costoTotal = orden.costoTotal ?? null;
   const adelanto = orden.adelanto ?? null;
   const descuento = orden.descuento ?? null;
-  const costoFinal = costoFinalOrden(orden);   // precio al cliente = costoTotal − descuento
+  const costoFinal = costoFinalOrden(orden);   // total al cliente = componentes + servicio − descuento
   const saldo = saldoPendienteOrden(orden);
-  const margen = margenOrden(orden);
 
   const isTerminal = orden.estado === 'CANCELADO' || orden.estado === 'FINALIZADO';
   const hasCosts = subtotalComp > 0 || costoTotal != null;
@@ -63,12 +62,36 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
         )}
       </div>
 
-      {/* Precio al cliente (lo que se cobra) */}
-      {costoTotal != null ? (
+      {!hasCosts ? (
+        <p className="py-2 text-center text-[11px] text-gray-400">Sin costos registrados</p>
+      ) : (
         <>
-          <CostoRow label="Costo del servicio" valor={costoTotal} />
+          {/* Repuestos / componentes (el cliente los paga) */}
+          {compsConCosto.length > 0 && (
+            <div className="mb-1">
+              {compsConCosto.map(c => {
+                const mo = Number(c.costoAccion ?? 0), rep = Number(c.costoRepuestos ?? 0);
+                const nombre = `${c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}${c.componente?.modelo ? ` ${c.componente.modelo}` : ''}`;
+                return (
+                  <div key={c.id} className="mb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="truncate text-xs text-gray-700">🔧 {nombre}</span>
+                      <span className="text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
+                    </div>
+                    <div className="ml-5 flex flex-wrap gap-x-4 text-[10px] text-gray-400">
+                      {mo > 0 && <span>Mano de obra: <b className="text-gray-500">{fmt(mo)}</b></span>}
+                      {rep > 0 && <span>Repuesto/compra: <b className="text-gray-500">{fmt(rep)}</b></span>}
+                    </div>
+                  </div>
+                );
+              })}
+              <CostoRow label="Repuestos / componentes" valor={subtotalComp} bold />
+            </div>
+          )}
+
+          {costoTotal != null && <CostoRow label="Costo del servicio" valor={costoTotal} />}
           {descuento != null && descuento > 0 && <CostoRow label="Descuento" valor={-descuento} color="text-green-700" showSign />}
-          {costoFinal != null && <CostoRow label="Costo final (cliente)" valor={costoFinal} bold color="text-[#004A94]" size="text-sm" />}
+          {costoFinal != null && <CostoRow label="Total al cliente" valor={costoFinal} bold color="text-[#004A94]" size="text-sm" />}
 
           <div className="mt-2 rounded-lg bg-[#437EFF]/5 p-2.5">
             {adelanto != null && adelanto > 0 && (
@@ -87,42 +110,7 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
             )}
           </div>
         </>
-      ) : (
-        <p className="py-1 text-[11px] text-gray-400">Aún sin precio del servicio. {canManage && !isTerminal ? 'Usa “Agregar” para definir el costo al cliente.' : ''}</p>
       )}
-
-      {/* Desglose interno (no se factura al cliente) — trazabilidad + margen */}
-      {subtotalComp > 0 && (
-        <div className="mt-3 border-t border-dashed border-gray-200 pt-2">
-          <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400">Costo interno (no facturado)</p>
-          {compsConCosto.map(c => {
-            const mo = Number(c.costoAccion ?? 0), rep = Number(c.costoRepuestos ?? 0);
-            const nombre = `${c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}${c.componente?.modelo ? ` ${c.componente.modelo}` : ''}`;
-            return (
-              <div key={c.id} className="mb-1">
-                <div className="flex items-center justify-between">
-                  <span className="truncate text-[11px] text-gray-600">🔧 {nombre}</span>
-                  <span className="text-[11px] font-semibold text-gray-600">{fmt(mo + rep)}</span>
-                </div>
-                <div className="ml-5 flex flex-wrap gap-x-4 text-[10px] text-gray-400">
-                  {mo > 0 && <span>Mano de obra: <b className="text-gray-500">{fmt(mo)}</b></span>}
-                  {rep > 0 && <span>Repuesto/compra: <b className="text-gray-500">{fmt(rep)}</b></span>}
-                </div>
-              </div>
-            );
-          })}
-          <div className="mt-1 border-t border-gray-100 pt-1">
-            <CostoRow label="Costo interno total" valor={subtotalComp} size="text-[11px]" />
-            {margen != null && (
-              <CostoRow label="Margen (precio − costo interno)" valor={margen} bold size="text-[11px]"
-                color={margen >= 0 ? 'text-green-700' : 'text-red-600'} />
-            )}
-          </div>
-          <p className="mt-1 text-[9.5px] leading-tight text-gray-400">La mano de obra y los repuestos son costos internos (trazabilidad y margen); el cliente paga el costo final.</p>
-        </div>
-      )}
-
-      {!hasCosts && <p className="py-2 text-center text-[11px] text-gray-400">Sin costos registrados</p>}
 
       {editOpen && (
         <EditarCostosDialog orden={orden} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); onChanged(); }} />
@@ -144,9 +132,8 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
   const costo = parseFloat(costoTotal || '0');
   const desc = parseFloat(descuento || '0');
   const adel = parseFloat(adelanto || '0');
-  const costoFinalCalc = costo - desc;        // precio al cliente
+  const costoFinalCalc = compCost + costo - desc; // total al cliente = repuestos + servicio − descuento
   const saldoCalc = costoFinalCalc - adel;
-  const margenCalc = costoFinalCalc - compCost;
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
 
   const submit = async () => {
@@ -176,7 +163,10 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
         <h3 className="text-sm font-semibold text-[#004A94]">Costos del servicio</h3>
         <p className="text-[11px] text-gray-500">Editar precios y pagos</p>
         <div className="mt-3 space-y-2">
-          <div><label className="mb-1 block text-[10px] text-gray-400">Costo del servicio</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
+          {compCost > 0 && (
+            <div className="rounded-lg bg-gray-50 px-3 py-2 text-[11px] text-gray-500">Repuestos / componentes: <b className="text-gray-700">{fmt(compCost)}</b> <span className="text-gray-400">(se suman al total)</span></div>
+          )}
+          <div><label className="mb-1 block text-[10px] text-gray-400">Costo del servicio (mano de obra / diagnóstico)</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
           <div><label className="mb-1 block text-[10px] text-gray-400">Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-2">
             <div><label className="mb-1 block text-[10px] text-gray-400">Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} /></div>
@@ -191,19 +181,13 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
 
         {(costo > 0 || compCost > 0) && (
           <div className="mt-3 rounded-lg border border-[#437EFF]/30 bg-[#437EFF]/5 p-2.5">
+            {compCost > 0 && <CostoRow label="Repuestos / componentes" valor={compCost} />}
             {costo > 0 && <CostoRow label="Costo del servicio" valor={costo} />}
             {desc > 0 && <CostoRow label="Descuento" valor={-desc} color="text-green-700" showSign />}
-            <CostoRow label="Costo final (cliente)" valor={costoFinalCalc} bold color="text-[#004A94]" />
+            <CostoRow label="Total al cliente" valor={costoFinalCalc} bold color="text-[#004A94]" />
             {adel > 0 && <CostoRow label="Adelanto" valor={adel} color="text-green-700" />}
             <div className="my-1 border-t border-gray-200" />
             <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? 0 : saldoCalc} bold size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
-            {compCost > 0 && (
-              <>
-                <div className="my-1 border-t border-dashed border-gray-300" />
-                <CostoRow label="Costo interno (no facturado)" valor={compCost} size="text-[11px]" />
-                <CostoRow label="Margen" valor={margenCalc} bold size="text-[11px]" color={margenCalc >= 0 ? 'text-green-700' : 'text-red-600'} />
-              </>
-            )}
           </div>
         )}
 
