@@ -430,7 +430,7 @@ function VentaRapidaInner() {
                 return (
                   <div key={it.key} className={`px-3 py-2 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
+                      <p className="min-w-0 flex-1 truncate text-xs font-medium text-[#004A94]">
                         {it.esOrdenServicio && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
                         {it.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO</span>}
                         {it.descripcion}
@@ -447,7 +447,7 @@ function VentaRapidaInner() {
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center rounded-lg border border-gray-200">
                             <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)} className="px-2 text-gray-400 hover:text-gray-700">−</button>
-                            <span className="w-7 text-center text-xs font-medium">{it.cantidad}</span>
+                            <span className="w-7 text-center text-xs font-medium text-[#004A94]">{it.cantidad}</span>
                             <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)} className="px-2 text-gray-400 hover:text-gray-700">+</button>
                           </div>
                           <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
@@ -457,7 +457,7 @@ function VentaRapidaInner() {
                         </div>
                       )}
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">S/ {fmt(c.total)}</p>
+                        <p className="text-sm font-medium text-[#004A94]">S/ {fmt(c.total)}</p>
                         <p className="text-[9px] text-gray-400">
                           S/ {fmt(it.precioUnitario)} c/u
                           {it.nivelAplicado && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700">{it.nivelAplicado}</span>}
