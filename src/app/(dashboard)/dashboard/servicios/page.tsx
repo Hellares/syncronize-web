@@ -144,12 +144,12 @@ export default function ServiciosPage() {
                 className="rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-[#437EFF]/40 hover:bg-[#437EFF]/5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-semibold text-gray-900">{o.codigo}</span>
+                    <span className="rounded-md bg-[#437EFF]/10 px-2 py-0.5 text-[11px] font-semibold text-[#004A94]">{o.codigo}</span>
                     {(o.mensajesNoLeidos ?? 0) > 0 && <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{o.mensajesNoLeidos}</span>}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
                 </div>
-                <p className="mt-1 text-sm font-medium text-gray-800 truncate">{nombreClienteOrden(o)}</p>
+                <p className="mt-1 text-[12px] font-medium text-gray-800 truncate">{nombreClienteOrden(o)}</p>
                 <p className="text-xs text-gray-500 truncate">
                   {TIPO_SERVICIO_LABEL[o.tipoServicio]}
                   {o.tipoEquipo ? ` · ${o.tipoEquipo}` : ''}{o.marcaEquipo ? ` ${o.marcaEquipo}` : ''}
