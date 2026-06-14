@@ -54,7 +54,7 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase text-gray-400">Resumen de costos</p>
+        <p className="text-xs font-medium uppercase text-gray-400">Resumen de costos</p>
         {canManage && !isTerminal && (
           <button onClick={() => setEditOpen(true)} className="rounded bg-[#437EFF]/10 px-2 py-1 text-[11px] font-semibold text-[#437EFF] hover:bg-[#437EFF]/20">
             ✎ {hasCosts ? 'Editar' : 'Agregar'}
@@ -184,10 +184,10 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
             {compCost > 0 && <CostoRow label="Repuestos / componentes" valor={compCost} />}
             {costo > 0 && <CostoRow label="Costo del servicio" valor={costo} />}
             {desc > 0 && <CostoRow label="Descuento" valor={-desc} color="text-green-700" showSign />}
-            <CostoRow label="Total al cliente" valor={costoFinalCalc} bold color="text-[#004A94]" />
+            <CostoRow label="Total al cliente" valor={costoFinalCalc} color="text-[#004A94]" />
             {adel > 0 && <CostoRow label="Adelanto" valor={adel} color="text-green-700" />}
             <div className="my-1 border-t border-gray-200" />
-            <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? 0 : saldoCalc} bold size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
+            <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? 0 : saldoCalc} size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
           </div>
         )}
 
