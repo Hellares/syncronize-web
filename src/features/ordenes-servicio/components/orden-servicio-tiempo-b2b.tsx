@@ -4,6 +4,7 @@
 // Paridad con cronometro_servicio_calculator + vista B2B de Flutter.
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TercerizacionRef } from '@/core/types/orden-servicio';
 import { ESTADO_OS_CONFIG, ESTADO_TERCERIZACION_CONFIG } from '@/core/types/orden-servicio';
 
@@ -99,6 +100,9 @@ function TercerizacionBloque({ t, rol }: { t: TercerizacionRef; rol: 'enviada' |
         {t.notasDestino && <p>Notas destino: {t.notasDestino}</p>}
         {t.motivoRechazo && <p className="text-red-600">Motivo rechazo: {t.motivoRechazo}</p>}
       </div>
+      <Link href={`/dashboard/tercerizacion/${t.id}`} className="mt-2 inline-block text-[11px] font-semibold text-purple-700 hover:underline">
+        Ver detalle (bitácora, pago, hoja de derivación) →
+      </Link>
     </div>
   );
 }
