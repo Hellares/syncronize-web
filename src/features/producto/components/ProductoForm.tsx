@@ -25,7 +25,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-5 py-3 text-left hover:bg-gray-50"
       >
-        <span className="text-sm font-semibold text-gray-900">{title}</span>
+        <span className="text-sm font-medium text-[#004A94]">{title}</span>
         <svg className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
