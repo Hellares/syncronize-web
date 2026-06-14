@@ -32,32 +32,35 @@
   font-display: swap;
 }
 
-/* Amazon Ember — fuente principal de la web (copiada de los assets de Flutter) */
+/* Amazon Ember — fuente principal de la web (copiada de los assets de Flutter).
+   font-weight con RANGOS: Amazon Ember solo trae caras 300/400/500/700, así que
+   pesos intermedios (p.ej. 600 = font-semibold) deben mapear a una cara real y
+   NO caer a la fuente del sistema. Cada cara cubre un rango. */
 @font-face {
   font-family: 'Amazon Ember';
   src: url('/fonts/AmazonEmber-DisplayLight.ttf') format('truetype');
-  font-weight: 300;
+  font-weight: 1 349;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
   src: url('/fonts/AmazonEmber-Regular.ttf') format('truetype');
-  font-weight: 400;
+  font-weight: 350 449;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
   src: url('/fonts/AmazonEmber-Medium.ttf') format('truetype');
-  font-weight: 500;
+  font-weight: 450 599;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
   src: url('/fonts/AmazonEmber-Bold.ttf') format('truetype');
-  font-weight: 700;
+  font-weight: 600 1000;
   font-style: normal;
   font-display: swap;
 }
