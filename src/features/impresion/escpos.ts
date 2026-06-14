@@ -5,7 +5,7 @@ import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import type { OrdenServicio } from '@/core/types/orden-servicio';
 import {
   TIPO_SERVICIO_LABEL, ESTADO_OS_CONFIG, PRIORIDAD_LABEL, TIPO_ACCION_LABEL,
-  nombreClienteOrden, saldoOrden,
+  nombreClienteOrden, subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden,
 } from '@/core/types/orden-servicio';
 import type { TipoServicio, PrioridadServicio, TipoAccionComponente } from '@/core/types/orden-servicio';
 
@@ -336,18 +336,22 @@ export function generarTicketOrdenServicio(orden: OrdenServicio, empresa: Empres
   // --- Notas ---
   if (orden.notas) b.hr().text('NOTAS').text(orden.notas);
 
-  // --- Costos ---
-  if (Number(orden.costoTotal ?? 0) > 0) {
+  // --- Costos (modelo aditivo: repuestos/componentes + servicio − descuento) ---
+  const compSub = subtotalComponentesOrden(orden);
+  const totalCli = costoFinalOrden(orden);
+  if (totalCli != null) {
     b.hr().text('COSTOS');
-    b.kv('Costo servicio:', `S/ ${fmt(orden.costoTotal)}`);
+    if (compSub > 0) b.kv('Repuestos/componentes:', `S/ ${fmt(compSub)}`);
+    if (Number(orden.costoTotal ?? 0) > 0) b.kv('Costo servicio:', `S/ ${fmt(orden.costoTotal)}`);
     if (Number(orden.descuento ?? 0) > 0) b.kv('Descuento:', `-S/ ${fmt(orden.descuento)}`);
+    b.kv('Total al cliente:', `S/ ${fmt(totalCli)}`);
     if (Number(orden.adelanto ?? 0) > 0) {
       const met = orden.metodoPagoAdelanto ? ` (${orden.metodoPagoAdelanto})` : '';
       b.kv(`Adelanto${met}:`, `-S/ ${fmt(orden.adelanto)}`);
     }
-    const saldo = saldoOrden(orden);
+    const saldo = saldoPendienteOrden(orden) ?? 0;
     b.hr().bold(true).sizeDoubleHeight(true);
-    b.kv(saldo <= 0.005 ? 'PAGADO:' : 'SALDO:', `S/ ${fmt(saldo)}`);
+    b.kv(saldo <= 0.005 ? 'PAGADO:' : 'SALDO:', `S/ ${fmt(saldo <= 0.005 ? 0 : saldo)}`);
     b.sizeDoubleHeight(false).bold(false);
   }
 

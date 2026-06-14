@@ -4,7 +4,7 @@
 import type { OrdenServicio } from '@/core/types/orden-servicio';
 import {
   TIPO_SERVICIO_LABEL, ESTADO_OS_CONFIG, PRIORIDAD_LABEL, TIPO_ACCION_LABEL,
-  nombreClienteOrden, saldoOrden,
+  nombreClienteOrden, subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden,
 } from '@/core/types/orden-servicio';
 import type { TipoServicio, PrioridadServicio, TipoAccionComponente } from '@/core/types/orden-servicio';
 
@@ -184,19 +184,32 @@ export async function descargarPdfOrdenServicio(orden: OrdenServicio, empresa: E
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  // Costos
-  if (Number(orden.costoTotal ?? 0) > 0) {
+  // Costos (modelo aditivo: repuestos/componentes + servicio − descuento)
+  const compSub = subtotalComponentesOrden(orden);
+  const totalCli = costoFinalOrden(orden);
+  if (totalCli != null) {
     const totalsX = pageWidth - margin - 60;
     doc.setFontSize(9).setFont('helvetica', 'normal');
-    doc.text('Costo del servicio:', totalsX, y);
-    doc.text(`S/ ${fmt(orden.costoTotal)}`, pageWidth - margin, y, { align: 'right' });
-    y += 5;
+    if (compSub > 0) {
+      doc.text('Repuestos/componentes:', totalsX, y);
+      doc.text(`S/ ${fmt(compSub)}`, pageWidth - margin, y, { align: 'right' });
+      y += 5;
+    }
+    if (Number(orden.costoTotal ?? 0) > 0) {
+      doc.text('Costo del servicio:', totalsX, y);
+      doc.text(`S/ ${fmt(orden.costoTotal)}`, pageWidth - margin, y, { align: 'right' });
+      y += 5;
+    }
     if (Number(orden.descuento ?? 0) > 0) {
       doc.setTextColor(220, 38, 38);
       doc.text('Descuento:', totalsX, y);
       doc.text(`-S/ ${fmt(orden.descuento)}`, pageWidth - margin, y, { align: 'right' });
       doc.setTextColor(0, 0, 0); y += 5;
     }
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total al cliente:', totalsX, y);
+    doc.text(`S/ ${fmt(totalCli)}`, pageWidth - margin, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); y += 5;
     if (Number(orden.adelanto ?? 0) > 0) {
       doc.setTextColor(37, 99, 235);
       doc.text(`Adelanto${orden.metodoPagoAdelanto ? ` (${orden.metodoPagoAdelanto})` : ''}:`, totalsX, y);
@@ -204,10 +217,10 @@ export async function descargarPdfOrdenServicio(orden: OrdenServicio, empresa: E
       doc.setTextColor(0, 0, 0); y += 5;
     }
     doc.setDrawColor(200, 200, 200).line(totalsX, y, pageWidth - margin, y); y += 5;
-    const saldo = saldoOrden(orden);
+    const saldo = saldoPendienteOrden(orden) ?? 0;
     doc.setFontSize(11).setFont('helvetica', 'bold');
     doc.text(saldo <= 0.005 ? 'PAGADO:' : 'SALDO:', totalsX, y);
-    doc.text(`S/ ${fmt(saldo)}`, pageWidth - margin, y, { align: 'right' });
+    doc.text(`S/ ${fmt(saldo <= 0.005 ? 0 : saldo)}`, pageWidth - margin, y, { align: 'right' });
     y += 10;
   }
 

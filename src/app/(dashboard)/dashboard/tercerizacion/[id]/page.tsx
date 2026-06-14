@@ -60,7 +60,9 @@ export default function TercerizacionDetailPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>;
+  // Esperar también a que cargue la empresa: sin empresaId no se puede saber si
+  // es enviada/recibida → badge y barra de acciones saldrían mal.
+  if (loading || !empresaId) return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>;
   if (!item) {
     return (
       <div className="space-y-3">
@@ -76,7 +78,7 @@ export default function TercerizacionDetailPage() {
   const canManage = permissions.canManageOrders;
   const eq = (item.datosEquipo ?? {}) as Record<string, unknown>;
   const comps: TercerizacionComponente[] = Array.isArray(item.componentesData) ? (item.componentesData as TercerizacionComponente[]) : [];
-  const adicionales: DatoAdicional[] = item.datosAdicionales ?? [];
+  const adicionales: DatoAdicional[] = Array.isArray(item.datosAdicionales) ? item.datosAdicionales : [];
   const sintomas: string[] = Array.isArray(item.sintomas) ? (item.sintomas as unknown[]).map(String) : [];
 
   const generarPdf = async () => {
