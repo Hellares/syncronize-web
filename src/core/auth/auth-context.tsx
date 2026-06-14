@@ -112,6 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Re-sincroniza la cookie del middleware (sync_logged_in, caduca a 7d) con el
+    // flag persistente de localStorage. Si la cookie expiró o se perdió, esto evita
+    // el bucle /login↔/dashboard (middleware ve "no auth", cliente ve "auth").
+    // Si la sesión está realmente muerta, la validación de abajo / el interceptor 401
+    // limpian todo (clearAll borra también la cookie).
+    tokenService.setLoggedIn(true);
+
     // If we have tokens and user data locally, authenticate immediately
     const localUser = tokenService.getUser();
     const localTenant = tokenService.getTenantInfo();

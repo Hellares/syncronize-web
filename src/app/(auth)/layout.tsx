@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/core/auth/auth-context';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (state.status === 'authenticated') {
-      router.replace('/dashboard');
+      // Respeta el ?redirect= que pone el middleware (solo rutas internas, anti open-redirect).
+      const target = new URLSearchParams(window.location.search).get('redirect');
+      router.replace(target && target.startsWith('/') ? target : '/dashboard');
     }
   }, [state.status, router]);
 
@@ -47,9 +50,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Footer link */}
         <p className="mt-6 text-center text-sm text-white/60">
-          <a href="/" className="hover:text-white transition-colors">
+          <Link href="/" className="hover:text-white transition-colors">
             &larr; Volver al inicio
-          </a>
+          </Link>
         </p>
       </div>
     </div>
