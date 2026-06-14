@@ -7,7 +7,7 @@ import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, T
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
   TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, TIPO_ACCION_COLOR,
-  saldoOrden, estaCobradaOrden,
+  saldoPendienteOrden, estaCobradaOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -20,6 +20,7 @@ import { MensajesOrden } from '@/features/ordenes-servicio/components/mensajes-o
 import { OrdenServicioPrintMenu } from '@/features/ordenes-servicio/components/orden-servicio-print-menu';
 import { TiempoServicioCard, TercerizacionCard } from '@/features/ordenes-servicio/components/orden-servicio-tiempo-b2b';
 import { ComponenteDetailDialog } from '@/features/ordenes-servicio/components/componente-detail-dialog';
+import { ResumenCostosCard, OrdenImagenesSection } from '@/features/ordenes-servicio/components/orden-costos-imagenes';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -96,7 +97,8 @@ export default function OrdenDetailPage() {
   const cfg = ESTADO_OS_CONFIG[orden.estado];
   const prio = PRIORIDAD_CONFIG[orden.prioridad];
   const cobrada = estaCobradaOrden(orden);
-  const saldo = cobrada ? 0 : saldoOrden(orden);
+  const saldo = saldoPendienteOrden(orden) ?? 0;
+  const forceShowImagenes = !!orden.datosPersonalizados && Object.values(orden.datosPersonalizados).some(v => v === true);
   const transiciones = (TRANSICIONES_VALIDAS[orden.estado] ?? []).filter(e => e !== 'TERCERIZADO');
   const esCobrable = !cobrada && ESTADOS_OS_COBRABLES.includes(orden.estado) && Number(orden.costoTotal ?? 0) > 0;
 
@@ -129,7 +131,7 @@ export default function OrdenDetailPage() {
           {permissions.canManageOrders && esCobrable && (
             <button onClick={cobrar}
               className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700">
-              Cobrar {saldo > 0.005 ? `S/ ${fmt(saldo)}` : ''}
+              Cobrar {saldo > 0.005 ? fmt(saldo) : ''}
             </button>
           )}
           {permissions.canManageOrders && transiciones.length > 0 && (
@@ -203,18 +205,11 @@ export default function OrdenDetailPage() {
         <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
       )}
 
-      {/* Costos */}
-      {(orden.costoTotal ?? 0) > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Costos</p>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between text-gray-600"><span>Costo total</span><span>{fmt(orden.costoTotal)}</span></div>
-            {(orden.descuento ?? 0) > 0 && <div className="flex justify-between text-amber-600"><span>Descuento</span><span>−{fmt(orden.descuento)}</span></div>}
-            {(orden.adelanto ?? 0) > 0 && <div className="flex justify-between text-blue-600"><span>Adelanto{orden.metodoPagoAdelanto ? ` (${METODO_PAGO_LABEL[orden.metodoPagoAdelanto] ?? orden.metodoPagoAdelanto})` : ''}</span><span>−{fmt(orden.adelanto)}</span></div>}
-            <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-bold"><span className="text-gray-700">{cobrada ? 'Estado' : 'Saldo'}</span><span className={saldo > 0.005 ? 'text-amber-600' : 'text-green-600'}>{cobrada ? 'Pagado ✓' : fmt(saldo)}</span></div>
-          </div>
-        </div>
-      )}
+      {/* Imágenes de la orden (+ firma del cliente) */}
+      <OrdenImagenesSection orden={orden} canManageSettings={permissions.canManageSettings} forceShow={forceShowImagenes} />
+
+      {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
+      <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
 
       {/* Componentes */}
       {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
@@ -229,6 +224,7 @@ export default function OrdenDetailPage() {
             <p className="text-xs text-gray-400">Sin componentes registrados.</p>
           ) : (
             <div className="space-y-1.5">
+              <p className="text-[10px] text-gray-400">Toca un componente para editar su acción/costos o agregar imágenes.</p>
               {orden.componentes!.map(c => {
                 const accion = c.tipoAccion as TipoAccionComponente;
                 const total = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);

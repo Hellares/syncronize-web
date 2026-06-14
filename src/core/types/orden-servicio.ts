@@ -272,6 +272,37 @@ export function estaCobradaOrden(o: { comprobanteId?: string | null; ventaDetall
   return !!o.ventaDetalle || o.comprobanteId != null;
 }
 
+// ── Cálculo de costos (paridad 1:1 con los getters de Flutter en orden_servicio.dart) ──
+
+/** Subtotal de componentes = Σ(costoAccion + costoRepuestos). */
+export function subtotalComponentesOrden(o: { componentes?: OrdenServicioComponente[] }): number {
+  return (o.componentes ?? []).reduce(
+    (s, c) => s + Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0), 0,
+  );
+}
+
+/** Subtotal = costoTotal (servicio) + componentes. null si no hay ninguno. */
+export function subtotalOrden(o: { costoTotal?: number | null; componentes?: OrdenServicioComponente[] }): number | null {
+  const comp = subtotalComponentesOrden(o);
+  if (o.costoTotal == null && comp === 0) return null;
+  return Number(o.costoTotal ?? 0) + comp;
+}
+
+/** Costo final = subtotal − descuento. */
+export function costoFinalOrden(o: { costoTotal?: number | null; descuento?: number | null; componentes?: OrdenServicioComponente[] }): number | null {
+  const sub = subtotalOrden(o);
+  if (sub == null) return null;
+  return sub - Number(o.descuento ?? 0);
+}
+
+/** Saldo pendiente = costoFinal − adelanto. 0 si ya está cobrada. */
+export function saldoPendienteOrden(o: OrdenServicio): number | null {
+  if (estaCobradaOrden(o)) return 0;
+  const cf = costoFinalOrden(o);
+  if (cf == null) return null;
+  return cf - Number(o.adelanto ?? 0);
+}
+
 /** Costo neto = costoTotal − descuento (precio de la línea de venta al cobrar vía VR; el adelanto va aparte). */
 export function costoNetoOrden(o: { costoTotal?: number | null; descuento?: number | null }): number {
   return Math.round((Number(o.costoTotal ?? 0) - Number(o.descuento ?? 0)) * 100) / 100;

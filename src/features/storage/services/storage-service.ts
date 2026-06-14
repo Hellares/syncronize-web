@@ -19,8 +19,8 @@ export interface ArchivoResponse {
   creadoEn: string;
 }
 
-export type EntidadTipo = 'PRODUCTO' | 'PRODUCTO_VARIANTE' | 'SERVICIO' | 'SERVICIO_COMPONENTE' | 'EMPRESA';
-export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL' | 'EVIDENCIA';
+export type EntidadTipo = 'PRODUCTO' | 'PRODUCTO_VARIANTE' | 'SERVICIO' | 'SERVICIO_COMPONENTE' | 'ORDEN_SERVICIO' | 'EMPRESA';
+export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL' | 'EVIDENCIA' | 'FIRMA';
 
 export async function uploadFile(params: {
   file: File;
