@@ -551,3 +551,15 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
+
+/* Amazon Ember explícita en controles de formulario y diálogos (no solo por
+   herencia): inputs/selects/textarea/botones de los modales. El desplegable
+   NATIVO del <select> lo dibuja el SO y no siempre respeta la fuente. */
+input,
+select,
+textarea,
+button,
+optgroup,
+[role='dialog'] {
+  font-family: var(--font-sans);
+}
