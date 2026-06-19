@@ -135,6 +135,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     items: [
       { label: 'Perfil de Empresa', href: '/dashboard/empresa' },
       { label: 'Configuración', href: '/dashboard/configuracion' },
+      { label: 'Integración Yape', href: '/dashboard/integraciones/yape' },
       { label: 'Usuarios', href: '/dashboard/usuarios', permission: 'canViewUsers' },
       { label: 'Sedes', href: '/dashboard/sedes', permission: 'canManageSedes' },
       { label: 'Personalización', href: '/dashboard/personalizacion' },
