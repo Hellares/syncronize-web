@@ -256,6 +256,21 @@ export default function CuentasCobrarPage() {
                     {(c.totalMora ?? 0) > 0 && <span className="text-red-500"> Total con mora: {fmt(totalConMora)}.</span>}
                   </div>
                 )}
+
+                {/* Historial de abonos */}
+                {abierta && (c.pagos ?? []).length > 0 && (
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-3">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase text-gray-400">Abonos realizados</p>
+                    <div className="space-y-1">
+                      {c.pagos!.map(p => (
+                        <div key={p.id} className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-xs">
+                          <span className="text-gray-600">{p.metodoPago} · {fmtFecha(p.fechaPago)}</span>
+                          <span className="font-semibold text-green-700">{fmt(p.monto)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
