@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { TesoreriaResumen, TesoreriaMovimiento, TesoreriaFiltros } from '@/core/types/tesoreria';
@@ -137,6 +138,10 @@ export default function TesoreriaPage() {
           <p className="text-sm text-gray-500">Caja central · {resumen?.sede.nombre ?? 'consolidado por sede'}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/dashboard/tesoreria/consolidado"
+            className="rounded-lg border border-[#004A94] px-4 py-2 text-sm font-medium text-[#004A94] hover:bg-blue-50">
+            Bancos / Consolidado
+          </Link>
           {sedesActivas.length > 1 && (
             <select value={sedeId} onChange={e => setSedeId(e.target.value)}
               className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
