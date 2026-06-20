@@ -46,9 +46,17 @@ export default function ComprasPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-4">
-        <h1 className="text-lg font-semibold text-[#004A94]">Compras</h1>
-        <p className="text-xs text-gray-500">Recepciones de compra. Al confirmar generan stock y, según el pago, van a Cuentas por Pagar.</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-[#004A94]">Compras</h1>
+          <p className="text-xs text-gray-500">Recepciones de compra. Al confirmar generan stock y, según el pago, van a Cuentas por Pagar.</p>
+        </div>
+        <button
+          onClick={() => router.push('/dashboard/compras/nueva')}
+          className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74]"
+        >
+          + Nueva compra
+        </button>
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">

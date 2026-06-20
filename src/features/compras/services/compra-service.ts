@@ -6,6 +6,7 @@ import type {
   ComprasFiltros,
   PagoContadoCompra,
   BancoEmpresa,
+  CrearCompraInput,
 } from '@/core/types/compra';
 
 const emp = () => getTenantId() ?? '';
@@ -21,6 +22,11 @@ export async function listarCompras(filtros: ComprasFiltros = {}): Promise<Compr
   const res = await apiClient.get(`${BASE()}?${q.toString()}`);
   // Cursor-paginado: { data, total, ... } o array directo.
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+}
+
+export async function crearCompra(dto: CrearCompraInput): Promise<CompraDetalle> {
+  const res = await apiClient.post(BASE(), dto);
+  return res.data;
 }
 
 export async function getCompra(id: string): Promise<CompraDetalle> {

@@ -61,3 +61,21 @@ export interface ComprasFiltros {
   search?: string;
   limit?: number;
 }
+
+export interface CrearCompraLinea {
+  productoId?: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+}
+
+export interface CrearCompraInput {
+  sedeId: string;
+  proveedorId: string;
+  moneda: string;
+  terminosPago?: string;
+  fechaRecepcion?: string;
+  serieDocumentoProveedor?: string;
+  numeroDocumentoProveedor?: string;
+  detalles: CrearCompraLinea[];
+}
