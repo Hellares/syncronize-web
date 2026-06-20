@@ -16,6 +16,8 @@ const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 const sim = (m: string) => (m === 'USD' ? '$' : 'S/');
 const TERMINOS = ['CONTADO', 'CREDITO_7', 'CREDITO_15', 'CREDITO_30', 'CREDITO_45', 'CREDITO_60', 'CREDITO_90', 'PERSONALIZADO'];
 
+type LineaForm = { productoId?: string; descripcion: string; cantidad: string; precioUnitario: string };
+
 export default function NuevaCompraPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -27,7 +29,9 @@ export default function NuevaCompraPage() {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [serie, setSerie] = useState('');
   const [numero, setNumero] = useState('');
-  const [lineas, setLineas] = useState<CrearCompraLinea[]>([]);
+  // Cantidad/precio se editan como TEXTO (para permitir decimales y campo vacío);
+  // se convierten a número al guardar.
+  const [lineas, setLineas] = useState<LineaForm[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,22 +62,28 @@ export default function NuevaCompraPage() {
   }, []);
 
   const agregarProducto = (p: Producto) => {
-    setLineas((l) => [...l, { productoId: p.id, descripcion: p.nombre, cantidad: 1, precioUnitario: 0 }]);
+    setLineas((l) => [...l, { productoId: p.id, descripcion: p.nombre, cantidad: '1', precioUnitario: '' }]);
     setQ(''); setResultados([]);
   };
-  const agregarManual = () => setLineas((l) => [...l, { descripcion: '', cantidad: 1, precioUnitario: 0 }]);
-  const actualizar = (i: number, campo: keyof CrearCompraLinea, valor: string | number) =>
+  const agregarManual = () => setLineas((l) => [...l, { descripcion: '', cantidad: '1', precioUnitario: '' }]);
+  const actualizar = (i: number, campo: keyof LineaForm, valor: string) =>
     setLineas((l) => l.map((x, idx) => (idx === i ? { ...x, [campo]: valor } : x)));
   const quitar = (i: number) => setLineas((l) => l.filter((_, idx) => idx !== i));
 
-  const total = lineas.reduce((s, l) => s + (Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0), 0);
+  const numVal = (s: string) => parseFloat((s || '').replace(',', '.')) || 0;
+  const total = lineas.reduce((s, l) => s + numVal(l.cantidad) * numVal(l.precioUnitario), 0);
 
   const guardar = async () => {
     if (!proveedorId) return setError('Seleccioná un proveedor');
     if (!sedeId) return setError('Seleccioná una sede');
-    const detalles = lineas
-      .filter((l) => l.descripcion.trim() && Number(l.cantidad) > 0)
-      .map((l) => ({ ...l, cantidad: Math.trunc(Number(l.cantidad)), precioUnitario: Number(l.precioUnitario) || 0 }));
+    const detalles: CrearCompraLinea[] = lineas
+      .filter((l) => l.descripcion.trim() && numVal(l.cantidad) > 0)
+      .map((l) => ({
+        ...(l.productoId ? { productoId: l.productoId } : {}),
+        descripcion: l.descripcion.trim(),
+        cantidad: Math.trunc(numVal(l.cantidad)),
+        precioUnitario: numVal(l.precioUnitario),
+      }));
     if (detalles.length === 0) return setError('Agregá al menos un producto/línea con cantidad');
     setGuardando(true); setError(null);
     try {
@@ -185,12 +195,12 @@ export default function NuevaCompraPage() {
                   <input className="w-full rounded border border-gray-200 px-2 py-1 text-sm" value={l.descripcion} onChange={(e) => actualizar(i, 'descripcion', e.target.value)} />
                 </td>
                 <td className="px-2 py-1.5">
-                  <input type="number" min={1} className="w-16 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', Number(e.target.value))} />
+                  <input type="text" inputMode="numeric" className="w-16 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
                 </td>
                 <td className="px-2 py-1.5">
-                  <input type="number" min={0} step="0.01" className="w-24 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" placeholder="0.00" className="w-24 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
                 </td>
-                <td className="px-2 py-1.5 text-right font-medium">{sim(moneda)} {((Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0)).toFixed(2)}</td>
+                <td className="px-2 py-1.5 text-right font-medium">{sim(moneda)} {(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}</td>
                 <td className="px-2 py-1.5 text-right"><button onClick={() => quitar(i)} className="text-xs text-red-500 hover:underline">Quitar</button></td>
               </tr>
             ))}
