@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import type { EstadoCuentaTercero, EcDoc } from '@/core/types/proveedor';
 import { estadoCuentaTercero } from '@/features/proveedores/services/proveedor-service';
+import { descargarEstadoCuentaTercero } from '@/features/proveedores/components/estado-cuenta-tercero-pdf';
+import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 const sim = (m?: string) => (m === 'USD' ? '$' : m === 'PEN' || !m ? 'S/' : `${m} `);
 const money = (m: string, v: number) => `${sim(m)} ${v.toFixed(2)}`;
@@ -12,6 +14,7 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
 export default function EstadoCuentaProveedorPage() {
   const params = useParams();
+  const { empresa } = useEmpresa();
   const id = String(params.id);
   const hoy = new Date();
   const [desde, setDesde] = useState(ymd(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
@@ -49,8 +52,18 @@ export default function EstadoCuentaProveedorPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-lg font-semibold text-[#004A94]">Estado de cuenta</h1>
-      <p className="mb-4 text-sm text-gray-600">{data.proveedor.nombre} · {data.proveedor.numeroDocumento}</p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-[#004A94]">Estado de cuenta</h1>
+          <p className="text-sm text-gray-600">{data.proveedor.nombre} · {data.proveedor.numeroDocumento}</p>
+        </div>
+        <button
+          onClick={() => descargarEstadoCuentaTercero(data, empresa?.razonSocial ?? empresa?.nombre ?? 'Mi empresa', empresa?.ruc ?? undefined)}
+          className="rounded-lg border border-[#004A94] px-4 py-2 text-sm font-medium text-[#004A94] hover:bg-blue-50"
+        >
+          Descargar PDF
+        </button>
+      </div>
 
       {/* Neto */}
       <div className="mb-3 rounded-xl border border-gray-100 bg-white p-4">
