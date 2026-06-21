@@ -117,6 +117,16 @@ export default function BulkUploadPage() {
             </button>
           </div>
 
+          {/* Aviso límite de filas */}
+          <div className="flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3">
+            <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <p className="text-xs text-orange-700">
+              El archivo puede contener hasta <span className="font-semibold">1000 registros</span> por carga. Si tienes más productos, divide el archivo en partes.
+            </p>
+          </div>
+
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Seleccionar Archivo</h3>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileSelect} className="hidden" />
