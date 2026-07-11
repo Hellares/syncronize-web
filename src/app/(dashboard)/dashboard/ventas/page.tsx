@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Venta, EstadoVenta } from '@/core/types/venta';
+import type { Venta, EstadoVenta, CanalVenta } from '@/core/types/venta';
 import { ESTADO_VENTA_CONFIG } from '@/core/types/venta';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as ventaService from '@/features/venta/services/venta-service';
@@ -16,6 +16,24 @@ const ESTADOS: Array<{ value: EstadoVenta | ''; label: string }> = [
   { value: 'ANULADA', label: 'Anulada' },
   { value: 'BORRADOR', label: 'Borrador' },
 ];
+
+const CANALES: Array<{ value: CanalVenta | ''; label: string }> = [
+  { value: '', label: 'Todos los canales' },
+  { value: 'POS', label: 'Mostrador' },
+  { value: 'ONLINE', label: 'Marketplace' },
+  { value: 'COTIZACION', label: 'Cotización' },
+];
+
+/** Prefijo del chip de comprobante (paridad Flutter _ComprobanteChip) */
+const CHIP_COMPROBANTE: Record<string, string> = {
+  FACTURA: 'FEL', BOLETA: 'BEL', NOTA_CREDITO: 'NCE', NOTA_DEBITO: 'NDE',
+};
+
+function sunatDotColor(status?: string | null): string {
+  if (status === 'ACEPTADO') return 'bg-green-500';
+  if (status === 'RECHAZADO') return 'bg-red-500';
+  return 'bg-amber-400';
+}
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -50,6 +68,7 @@ export default function VentasPage() {
 
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState<EstadoVenta | ''>('');
+  const [canal, setCanal] = useState<CanalVenta | ''>('');
   const [sedeId, setSedeId] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
@@ -63,6 +82,7 @@ export default function VentasPage() {
       const data = await ventaService.getVentas({
         search: (q ?? search) || undefined,
         estado: estado || undefined,
+        canalVenta: canal || undefined,
         sedeId: sedeId || undefined,
         // Backend espera datetime: día completo local (paridad DateFormatter start/endOfDay)
         fechaDesde: fechaDesde ? new Date(`${fechaDesde}T00:00:00`).toISOString() : undefined,
@@ -74,11 +94,11 @@ export default function VentasPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, estado, sedeId, fechaDesde, fechaHasta]);
+  }, [search, estado, canal, sedeId, fechaDesde, fechaHasta]);
 
   // Refetch al cambiar filtros (search va con debounce propio)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetch(); }, [estado, sedeId, fechaDesde, fechaHasta]);
+  useEffect(() => { fetch(); }, [estado, canal, sedeId, fechaDesde, fechaHasta]);
 
   const handleSearch = (q: string) => {
     setSearch(q);
@@ -127,6 +147,10 @@ export default function VentasPage() {
         <select value={estado} onChange={e => setEstado(e.target.value as EstadoVenta | '')}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
           {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+        </select>
+        <select value={canal} onChange={e => setCanal(e.target.value as CanalVenta | '')}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+          {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         {sedes.filter(s => s.isActive).length > 1 && (
           <select value={sedeId} onChange={e => setSedeId(e.target.value)}
@@ -190,6 +214,15 @@ export default function VentasPage() {
                         <span key={os.codigo} className="ml-1 rounded bg-blue-100 px-1 py-0.5 text-[9px] text-blue-700">{os.codigo}</span>
                       ))}
                       {v.cotizacionCodigo && <span className="ml-1 rounded bg-teal-100 px-1 py-0.5 text-[9px] text-teal-700">{v.cotizacionCodigo}</span>}
+                      {v.conEnvio && (
+                        <span className={`ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold ${v.envio?.rotuloImpresoEn ? 'bg-purple-100 text-purple-700' : 'bg-purple-50 text-purple-500'}`}
+                          title={v.envio?.rotuloImpresoEn ? 'Envío — rótulo impreso' : 'Envío — rótulo pendiente'}>
+                          🚚 {v.envio?.rotuloImpresoEn ? 'Envío · IMP' : 'Envío'}
+                        </span>
+                      )}
+                      {v.canalVenta === 'ONLINE' && (
+                        <span className="ml-1 rounded bg-teal-100 px-1 py-0.5 text-[9px] font-semibold text-teal-700">Marketplace</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">{fmtFecha(v.fechaVenta ?? v.creadoEn)}</td>
                     <td className="px-4 py-2.5">
@@ -199,14 +232,14 @@ export default function VentasPage() {
                     <td className="px-4 py-2.5 text-xs text-gray-500 hidden lg:table-cell">{(v.vendedorAlias || v.vendedorNombre) ?? '—'}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell">
                       {v.codigoComprobante ? (
-                        <div>
-                          <p className="font-mono text-[10px] text-gray-600">{v.tipoComprobante} {v.codigoComprobante}</p>
-                          {v.comprobanteSunatStatus && (
-                            <span className={`text-[9px] font-semibold ${v.comprobanteSunatStatus === 'ACEPTADO' ? 'text-green-600' : v.comprobanteSunatStatus === 'RECHAZADO' ? 'text-red-500' : 'text-amber-500'}`}>
-                              SUNAT: {v.comprobanteSunatStatus}
-                            </span>
-                          )}
-                        </div>
+                        // Chip BEL:/FEL: con punto de color por estado SUNAT (paridad app)
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5"
+                          title={`SUNAT: ${v.comprobanteSunatStatus ?? 'sin estado'}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${sunatDotColor(v.comprobanteSunatStatus)}`} />
+                          <span className="font-mono text-[10px] font-medium text-gray-700">
+                            {CHIP_COMPROBANTE[v.tipoComprobante ?? ''] ?? 'CPE'}: {v.codigoComprobante}
+                          </span>
+                        </span>
                       ) : (
                         <span className="text-[10px] text-gray-400">{v.tipoComprobante ?? 'TICKET'}</span>
                       )}

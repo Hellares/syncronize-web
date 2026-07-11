@@ -166,8 +166,10 @@ export default function MonitorFacturacionPage() {
 
   // Reglas de acciones (paridad Flutter)
   const esNota = (c: ComprobanteItem) => c.tipoComprobante === 'NOTA_CREDITO' || c.tipoComprobante === 'NOTA_DEBITO';
+  // RECHAZADOS también se reenvían: el backend auto-repara correlativos duplicados
+  // y Syncrofact reemplaza documentos rechazados (para SUNAT nunca existieron)
   const puedeReenviar = (c: ComprobanteItem) =>
-    (c.sunatStatus === 'PENDIENTE' || c.sunatStatus === 'ERROR_COMUNICACION') &&
+    (c.sunatStatus === 'PENDIENTE' || c.sunatStatus === 'ERROR_COMUNICACION' || c.sunatStatus === 'RECHAZADO') &&
     !(c.proveedorEmisor && PROVEEDOR_ARCHIVADO[c.proveedorEmisor]);
   const puedeNota = (c: ComprobanteItem) =>
     c.sunatStatus === 'ACEPTADO' && !c.anulado && !!c.sedeId && (c.tipoComprobante === 'FACTURA' || c.tipoComprobante === 'BOLETA');

@@ -96,6 +96,23 @@ export interface DivergenciaPrecio {
 
 export type EstadoVenta = 'BORRADOR' | 'CONFIRMADA' | 'PAGADA_PARCIAL' | 'PAGADA_COMPLETA' | 'ANULADA';
 
+// --- Envío (rótulo de agencia, VentaEnvio 1:1) ---
+
+/** Datos de envío de la venta (upsert PUT /ventas/:id/envio) */
+export interface VentaEnvio {
+  destinatarioNombre: string;
+  destinatarioDni?: string | null;
+  destinatarioCelular?: string | null;
+  agenciaNombre?: string | null;
+  destinoDepartamento?: string | null;
+  destinoProvincia?: string | null;
+  agenciaDireccion?: string | null;
+  /** Fecha de impresión del rótulo (chip IMPRESO) */
+  rotuloImpresoEn?: string | null;
+}
+
+export type VentaEnvioDto = Omit<VentaEnvio, 'rotuloImpresoEn'>;
+
 export const ESTADO_VENTA_CONFIG: Record<EstadoVenta, { label: string; color: string; bg: string }> = {
   BORRADOR: { label: 'Borrador', color: 'text-gray-600', bg: 'bg-gray-100' },
   CONFIRMADA: { label: 'Confirmada', color: 'text-blue-700', bg: 'bg-blue-100' },
@@ -112,6 +129,8 @@ export interface VentaFiltros {
   fechaHasta?: string;
   clienteId?: string;
   search?: string;
+  /** Canal: POS (mostrador) / ONLINE (marketplace) / COTIZACION */
+  canalVenta?: CanalVenta;
 }
 
 export interface PagoVenta {
@@ -141,7 +160,13 @@ export interface VentaDetalle {
   total?: number;
   origenComboId?: string | null;
   origenComboNombre?: string | null;
+  nivelAplicadoSnapshot?: string | null;
   [key: string]: unknown;
+}
+
+/** Línea gratuita (regalo/bonificación catálogo 07: 15/21/31): subtotal 0 con precio de lista como referencial */
+export function esLineaGratuita(d: VentaDetalle): boolean {
+  return Number(d.subtotal ?? 0) === 0 && Number(d.descuento ?? 0) > 0;
 }
 
 export interface Venta {
@@ -177,7 +202,19 @@ export interface Venta {
   comprobanteSunatXmlUrl?: string | null;
   comprobanteSunatPdfUrl?: string | null;
   comprobanteEnlaceProveedor?: string | null;
+  comprobanteErrorProveedor?: string | null;
   comprobanteAnulado?: boolean;
+  // Montos fiscales del comprobante (desglose SUNAT en el detalle)
+  comprobanteGravada?: number | null;
+  comprobanteExonerada?: number | null;
+  comprobanteInafecta?: number | null;
+  /** Σ valores referenciales de líneas gratuitas — informativo, NO suma al total */
+  comprobanteGratuitas?: number | null;
+  comprobanteIgv?: number | null;
+  comprobanteIcbper?: number | null;
+  // Envío (rótulo de agencia)
+  conEnvio?: boolean;
+  envio?: VentaEnvio | null;
   creadoEn?: string;
   fechaVenta?: string;
   fechaVencimientoPago?: string | null;
