@@ -134,10 +134,16 @@ export default function ComboComponentesList({ comboId }: Props) {
       ) : (
         <div className="space-y-2">
           {combo.componentes.map(comp => {
-            // Precio unitario efectivo: override del combo > precio regular del componente
-            const precioRegular = comp.componenteInfo?.precio != null ? Number(comp.componenteInfo.precio) : null;
-            const precioUnit = comp.precioEnCombo != null ? Number(comp.precioEnCombo) : precioRegular;
-            const tieneOverride = comp.precioEnCombo != null && precioRegular != null && Number(comp.precioEnCombo) !== precioRegular;
+            const info = comp.componenteInfo;
+            const precioRegular = info?.precio != null ? Number(info.precio) : null;
+            // precioEfectivo del backend ya resuelve override/oferta/liquidación
+            // (liquidación gana SIEMPRE, incluso sobre precioEnCombo — no recalcular local)
+            const precioUnit = info?.precioEfectivo != null
+              ? Number(info.precioEfectivo)
+              : comp.precioEnCombo != null ? Number(comp.precioEnCombo) : precioRegular;
+            const conRebaja = precioUnit != null && precioRegular != null && precioUnit !== precioRegular;
+            const enLiq = info?.enLiquidacion === true;
+            const enOferta = !enLiq && info?.enOferta === true && info?.precioOferta != null;
             return (
               <div key={comp.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
                 <div className="flex items-center gap-3 min-w-0">
@@ -145,19 +151,25 @@ export default function ComboComponentesList({ comboId }: Props) {
                     <img src={comp.componenteInfo.imagen} alt="" className="h-8 w-8 rounded object-cover" />
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{comp.componenteInfo?.nombre || 'Producto'}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{info?.nombre || 'Producto'}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>x{comp.cantidad}</span>
-                      {comp.componenteInfo?.stock != null && <span>Stock: {comp.componenteInfo.stock}</span>}
+                      {info?.stock != null && <span>Stock: {info.stock}</span>}
+                      {enLiq && (
+                        <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700" title="Componente en liquidación — gana sobre el precio en combo">LIQ</span>
+                      )}
+                      {enOferta && (
+                        <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700" title="Componente con oferta activa">OFERTA</span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    {tieneOverride && (
+                    {conRebaja && (
                       <p className="text-[10px] text-gray-400 line-through">S/ {precioRegular!.toFixed(2)}</p>
                     )}
-                    <p className={`text-sm font-semibold ${tieneOverride ? 'text-green-600' : 'text-gray-800'}`}>
+                    <p className={`text-sm font-semibold ${enLiq ? 'text-red-600' : conRebaja ? 'text-green-600' : 'text-gray-800'}`}>
                       {precioUnit != null ? `S/ ${precioUnit.toFixed(2)}` : '—'}
                     </p>
                     {precioUnit != null && comp.cantidad > 1 && (

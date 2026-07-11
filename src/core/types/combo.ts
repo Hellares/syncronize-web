@@ -11,6 +11,16 @@ export interface ComponenteInfo {
   imagen?: string;
   productoNombre?: string;
   varianteNombre?: string;
+  // Oferta/liquidación del componente (backend getComponenteInfo). El precio del
+  // combo se calcula con precioEfectivo; liquidación gana SIEMPRE, incluso sobre precioEnCombo.
+  enOferta?: boolean;
+  precioOferta?: number | null;
+  fechaInicioOferta?: string | null;
+  fechaFinOferta?: string | null;
+  /** min(base/override, oferta vigente, liquidación vigente) — precio al que el backend valida la venta */
+  precioEfectivo?: number;
+  enLiquidacion?: boolean;
+  precioLiquidacion?: number | null;
 }
 
 export interface ComponenteCombo {
@@ -119,6 +129,10 @@ export interface CreateComboDto {
   precioFijo?: number;
   sku?: string;
   codigoBarras?: string;
+  detalles?: string;
+  stockMinimo?: number;
+  videoUrl?: string;
+  impuestoPorcentaje?: number;
   visibleMarketplace?: boolean;
   destacado?: boolean;
   imagenesIds?: string[];

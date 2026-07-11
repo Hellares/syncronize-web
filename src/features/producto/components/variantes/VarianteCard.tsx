@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProductoVariante } from '@/core/types/producto';
+import { infoPrecioEfectivo, infoOfertaActiva, infoLiquidacionActiva } from '@/core/types/producto';
 
 interface Props {
   variante: ProductoVariante;
@@ -13,7 +14,11 @@ interface Props {
 export default function VarianteCard({ variante, canManage, onView, onEdit, onDelete }: Props) {
   const stockTotal = variante.stocksPorSede?.reduce((sum, s) => sum + s.cantidad, 0) ?? 0;
   const stockConPrecio = variante.stocksPorSede?.find(s => s.precioConfigurado);
-  const precio = stockConPrecio?.enOferta ? stockConPrecio.precioOferta : stockConPrecio?.precio;
+  // Precio efectivo con la misma prioridad que Flutter/backend: liquidación > oferta vigente > base
+  const precio = stockConPrecio ? infoPrecioEfectivo(stockConPrecio) : undefined;
+  const liqActiva = stockConPrecio ? infoLiquidacionActiva(stockConPrecio) : false;
+  const ofertaActiva = !liqActiva && stockConPrecio ? infoOfertaActiva(stockConPrecio) : false;
+  const precioBase = stockConPrecio?.precio;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow">
@@ -71,10 +76,21 @@ export default function VarianteCard({ variante, canManage, onView, onEdit, onDe
       {/* Precio y Stock */}
       <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
         <div>
-          <p className="text-[10px] font-medium uppercase text-gray-400">Precio</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] font-medium uppercase text-gray-400">Precio</p>
+            {liqActiva && (
+              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">LIQ</span>
+            )}
+            {ofertaActiva && (
+              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">OFERTA</span>
+            )}
+          </div>
           {precio != null ? (
-            <p className={`text-sm font-bold ${stockConPrecio?.enOferta ? 'text-green-600' : 'text-gray-900'}`}>
+            <p className={`text-sm font-bold ${liqActiva ? 'text-red-600' : ofertaActiva ? 'text-green-600' : 'text-gray-900'}`}>
               S/ {Number(precio).toFixed(2)}
+              {(liqActiva || ofertaActiva) && precioBase != null && precioBase !== precio && (
+                <span className="ml-1.5 text-xs font-normal text-gray-400 line-through">S/ {Number(precioBase).toFixed(2)}</span>
+              )}
             </p>
           ) : (
             <p className="text-xs text-gray-400">Sin precio</p>

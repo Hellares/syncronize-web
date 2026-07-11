@@ -55,6 +55,7 @@ export interface ProductoStock {
   stockReservado: number;
   stockReservadoVenta: number;
   stockReservadoCombo: number;
+  stockReservadoCotizacion: number;
   stockDanado: number;
   stockEnGarantia: number;
   // Config
@@ -92,12 +93,13 @@ export function stockDisponible(s: ProductoStock): number {
   return s.stockActual - s.stockReservado;
 }
 
+// Misma fórmula que el backend (guard de venta): resta TODAS las reservas, incluida cotización
 export function stockDisponibleVenta(s: ProductoStock): number {
-  return s.stockActual - s.stockReservado - s.stockReservadoVenta - s.stockReservadoCombo - s.stockDanado - s.stockEnGarantia;
+  return s.stockActual - s.stockReservado - s.stockReservadoVenta - s.stockReservadoCombo - (s.stockReservadoCotizacion ?? 0) - s.stockDanado - s.stockEnGarantia;
 }
 
 export function stockComprometido(s: ProductoStock): number {
-  return s.stockReservado + s.stockReservadoVenta + s.stockReservadoCombo;
+  return s.stockReservado + s.stockReservadoVenta + s.stockReservadoCombo + (s.stockReservadoCotizacion ?? 0);
 }
 
 export function stockNoVendible(s: ProductoStock): number {
