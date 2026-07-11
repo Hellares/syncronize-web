@@ -21,6 +21,7 @@ import { OrdenServicioPrintMenu } from '@/features/ordenes-servicio/components/o
 import { TiempoServicioCard, TercerizacionCard } from '@/features/ordenes-servicio/components/orden-servicio-tiempo-b2b';
 import { ComponenteDetailDialog } from '@/features/ordenes-servicio/components/componente-detail-dialog';
 import { ResumenCostosCard, OrdenImagenesSection } from '@/features/ordenes-servicio/components/orden-costos-imagenes';
+import AdelantosOrdenWidget from '@/features/ordenes-servicio/components/adelantos-orden-widget';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 
 function fmt(n: number | undefined | null): string {
@@ -210,6 +211,11 @@ export default function OrdenDetailPage() {
 
       {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
       <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+
+      {/* Libro de adelantos (modelo acumulativo 07-07) */}
+      {(permissions.canManageOrders || (orden.adelantos ?? []).length > 0) && (
+        <AdelantosOrdenWidget orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+      )}
 
       {/* Componentes */}
       {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (

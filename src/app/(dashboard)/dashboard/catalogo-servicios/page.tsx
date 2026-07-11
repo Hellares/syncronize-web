@@ -154,7 +154,8 @@ function ServicioFormDialog({ servicio, onClose, onSuccess }: { servicio?: Servi
         tipoServicio: tipoServicio || undefined,
         duracionMinutos: duracionMinutos ? parseInt(duracionMinutos, 10) : undefined,
         impuestoPorcentaje: impuestoPorcentaje ? parseFloat(impuestoPorcentaje) : undefined,
-        plantillaServicioId: plantillaServicioId || undefined,
+        // Al editar, '' debe DESVINCULAR la plantilla (null explícito); undefined = sin cambio
+        plantillaServicioId: plantillaServicioId || (esEdicion ? null : undefined),
       };
       if (esEdicion && servicio) { await catalogoService.updateServicio(servicio.id, dto); onSuccess('Servicio actualizado'); }
       else { await catalogoService.createServicio(dto); onSuccess('Servicio creado'); }

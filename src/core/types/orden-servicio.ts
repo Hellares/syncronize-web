@@ -137,7 +137,27 @@ export interface OrdenServicio {
   modeloEquipo?: { marca?: string; modelo?: string } | null;
   servicio?: { id?: string; nombre?: string } | null;
   componentes?: OrdenServicioComponente[];
+  /** Libro de adelantos (07-07): OrdenServicio.adelanto = Σ filas no anuladas */
+  adelantos?: AdelantoOrden[];
   [key: string]: unknown;
+}
+
+/** Fila del libro de adelantos. Monto negativo = ajuste/corrección (no anulable). */
+export interface AdelantoOrden {
+  id: string;
+  monto: number;
+  metodoPago?: string | null;
+  nota?: string | null;
+  creadoPorNombre?: string | null;
+  creadoEn: string;
+  anulado?: boolean;
+  anuladoEn?: string | null;
+}
+
+export interface AgregarAdelantoDto {
+  monto: number;
+  metodoPago?: string;
+  nota?: string;
 }
 
 export interface HistorialOS {

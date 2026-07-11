@@ -15,6 +15,8 @@ import type {
   UpdateServicioComponenteDto,
   Tecnico,
   MensajeServicio,
+  AdelantoOrden,
+  AgregarAdelantoDto,
 } from '@/core/types/orden-servicio';
 
 const BASE = '/ordenes-servicio';
@@ -59,6 +61,19 @@ export async function transicionarEstado(id: string, data: TransitionEstadoDto):
 export async function asignarTecnico(id: string, tecnicoId: string): Promise<OrdenServicio> {
   const res = await apiClient.patch<OrdenServicio>(`${BASE}/${id}/tecnico`, { tecnicoId });
   return res.data;
+}
+
+// --- Libro de adelantos (modelo acumulativo: cada abono SUMA, nunca reemplaza) ---
+
+/** Registra un abono (INGRESO en caja con su método; delta a OrdenServicio.adelanto) */
+export async function agregarAdelanto(ordenId: string, data: AgregarAdelantoDto): Promise<AdelantoOrden> {
+  const res = await apiClient.post(`${BASE}/${ordenId}/adelantos`, data);
+  return res.data;
+}
+
+/** Anula un abono (EGRESO en caja; resta del total). Los ajustes negativos no se anulan. */
+export async function anularAdelanto(ordenId: string, adelantoId: string): Promise<void> {
+  await apiClient.patch(`${BASE}/${ordenId}/adelantos/${adelantoId}/anular`);
 }
 
 export async function getHistorial(id: string): Promise<HistorialOS[]> {

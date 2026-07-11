@@ -23,7 +23,8 @@ export interface CreateServicioDto {
   precioPorHora?: number;
   duracionMinutos?: number;
   tipoServicio?: TipoServicio;
-  plantillaServicioId?: string;
+  /** null = desvincular la plantilla al editar; undefined = sin cambio */
+  plantillaServicioId?: string | null;
   impuestoPorcentaje?: number;
 }
 
