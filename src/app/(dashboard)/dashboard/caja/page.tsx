@@ -7,6 +7,7 @@ import type { Caja, ResumenCaja, MovimientoCaja } from '@/core/types/caja';
 import { METODO_PAGO_LABEL, CATEGORIA_MOVIMIENTO_LABEL } from '@/core/types/caja';
 import * as cajaService from '@/features/caja/services/caja-service';
 import NuevoMovimientoDialog from '@/features/caja/components/NuevoMovimientoDialog';
+import ArqueoDialog from '@/features/caja/components/ArqueoDialog';
 import AnularMovimientoDialog from '@/features/caja/components/AnularMovimientoDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
@@ -65,6 +66,7 @@ export default function CajaPage() {
   const [info, setInfo] = useState('');
 
   const [nuevoMovOpen, setNuevoMovOpen] = useState(false);
+  const [arqueoOpen, setArqueoOpen] = useState(false);
   const [anularTarget, setAnularTarget] = useState<MovimientoCaja | null>(null);
 
   const reload = useCallback(async () => {
@@ -121,10 +123,16 @@ export default function CajaPage() {
             </>
           )}
           {caja && permissions.canManageCaja && (
-            <Link href="/dashboard/caja/cerrar"
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700">
-              Cerrar Caja
-            </Link>
+            <>
+              <button onClick={() => setArqueoOpen(true)}
+                className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
+                Arqueo
+              </button>
+              <Link href="/dashboard/caja/cerrar"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700">
+                Cerrar Caja
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -284,6 +292,13 @@ export default function CajaPage() {
           </div>
 
           {/* Dialogs */}
+          <ArqueoDialog
+            isOpen={arqueoOpen}
+            cajaId={caja.id}
+            resumen={resumen}
+            onSuccess={() => { setArqueoOpen(false); setInfo('Arqueo registrado'); reload(); }}
+            onClose={() => setArqueoOpen(false)}
+          />
           <NuevoMovimientoDialog
             isOpen={nuevoMovOpen}
             cajaId={caja.id}

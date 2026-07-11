@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 import type { Caja, ResumenCaja, CierreCaja, MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL, DIFERENCIA_THRESHOLD } from '@/core/types/caja';
 import * as cajaService from '@/features/caja/services/caja-service';
+import DesgloseEfectivoDialog from '@/features/caja/components/DesgloseEfectivoDialog';
 
 const inputClass = "w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm text-right outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
 
@@ -22,6 +23,9 @@ export default function CerrarCajaPage() {
   const [error, setError] = useState('');
   const [conteos, setConteos] = useState<Record<string, string>>({});
   const [observaciones, setObservaciones] = useState('');
+  // Desglose de billetes (denominación → cantidad); su suma llena el conteo de EFECTIVO
+  const [desgloseEfectivo, setDesgloseEfectivo] = useState<Record<string, number> | null>(null);
+  const [showDesglose, setShowDesglose] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cierreResult, setCierreResult] = useState<CierreCaja | null>(null);
@@ -78,6 +82,7 @@ export default function CerrarCajaPage() {
       const res = await cajaService.cerrarCaja(caja.id, {
         conteos: filas.map(f => ({ metodoPago: f.metodo as MetodoPagoVenta, conteoFisico: f.conteo })),
         observaciones: observaciones.trim() || undefined,
+        ...(desgloseEfectivo && Object.keys(desgloseEfectivo).length > 0 ? { desgloseEfectivo } : {}),
       });
       setCierreResult(res.cierre ?? null);
       setShowConfirm(false);
@@ -168,7 +173,7 @@ export default function CerrarCajaPage() {
           <p className="text-sm font-semibold text-gray-800">Conteo físico por método</p>
         </div>
         <div className="divide-y divide-gray-50">
-          {filas.map(({ metodo, esperado, diferencia, hayDiferencia, conteo }) => (
+          {filas.map(({ metodo, esperado, diferencia, hayDiferencia }) => (
             <div key={metodo} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-800">{METODO_PAGO_LABEL[metodo] ?? metodo}</p>
@@ -185,8 +190,19 @@ export default function CerrarCajaPage() {
                     <span className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">✓ Cuadra</span>
                   )
                 )}
+                {metodo === 'EFECTIVO' && (
+                  <button type="button" onClick={() => setShowDesglose(true)}
+                    title="Contar billetes y monedas"
+                    className={`rounded-lg border px-2 py-1.5 text-xs font-medium ${desgloseEfectivo ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    💵 {desgloseEfectivo ? 'Billetes ✓' : 'Contar billetes'}
+                  </button>
+                )}
                 <input className={inputClass} type="number" step="0.01" min="0" value={conteos[metodo]}
-                  onChange={e => setConteos(prev => ({ ...prev, [metodo]: e.target.value }))} placeholder="0.00" />
+                  onChange={e => {
+                    setConteos(prev => ({ ...prev, [metodo]: e.target.value }));
+                    // Editar a mano el EFECTIVO invalida el desglose (dejaría de cuadrar)
+                    if (metodo === 'EFECTIVO') setDesgloseEfectivo(null);
+                  }} placeholder="0.00" />
               </div>
             </div>
           ))}
@@ -207,6 +223,19 @@ export default function CerrarCajaPage() {
         Cerrar Caja
       </button>
       <p className="text-center text-[10px] text-gray-400">Los métodos sin conteo se registran como 0.</p>
+
+      {showDesglose && (
+        <DesgloseEfectivoDialog
+          isOpen={showDesglose}
+          initial={desgloseEfectivo}
+          onConfirm={(desglose, total) => {
+            setDesgloseEfectivo(desglose);
+            setConteos(prev => ({ ...prev, EFECTIVO: String(total) }));
+            setShowDesglose(false);
+          }}
+          onClose={() => setShowDesglose(false)}
+        />
+      )}
 
       {/* Confirmación (pre-check conforme/diferencias, paridad Flutter) */}
       {showConfirm && (

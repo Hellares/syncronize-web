@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { AxiosError } from 'axios';
-import type { TipoMovimientoCaja, CategoriaMovimientoCaja, MetodoPagoVenta } from '@/core/types/caja';
-import { CATEGORIA_MOVIMIENTO_LABEL, METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { TipoMovimientoCaja, CategoriaMovimientoCaja, MetodoPagoVenta, CategoriaGasto } from '@/core/types/caja';
+import {
+  CATEGORIA_MOVIMIENTO_LABEL, METODO_PAGO_LABEL,
+  CATEGORIAS_INGRESO_MANUAL, CATEGORIAS_EGRESO_MANUAL, CATEGORIAS_CON_GASTO_PERSONALIZADO,
+} from '@/core/types/caja';
 import * as cajaService from '../services/caja-service';
 
 interface Props {
@@ -16,10 +19,7 @@ interface Props {
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
 const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
 
-// Categorías para movimientos MANUALES (paridad nuevo_movimiento_page Flutter; excluye tesorería)
-const CATEGORIAS_INGRESO: CategoriaMovimientoCaja[] = ['OTRO_INGRESO'];
-const CATEGORIAS_EGRESO: CategoriaMovimientoCaja[] = ['GASTO_OPERATIVO', 'PAGO_PROVEEDOR', 'REPOSICION_CAJA_CHICA', 'OTRO_EGRESO'];
-const METODOS: MetodoPagoVenta[] = ['EFECTIVO', 'TARJETA', 'YAPE', 'PLIN', 'TRANSFERENCIA'];
+const METODOS: MetodoPagoVenta[] = ['EFECTIVO', 'TARJETA', 'YAPE', 'PLIN', 'TRANSFERENCIA', 'CREDITO'];
 
 export default function NuevoMovimientoDialog({ isOpen, cajaId, onSuccess, onClose }: Props) {
   const [tipo, setTipo] = useState<TipoMovimientoCaja>('EGRESO');
@@ -27,21 +27,33 @@ export default function NuevoMovimientoDialog({ isOpen, cajaId, onSuccess, onClo
   const [metodoPago, setMetodoPago] = useState<MetodoPagoVenta>('EFECTIVO');
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>([]);
+  const [categoriaGastoId, setCategoriaGastoId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setTipo('EGRESO'); setCategoria('GASTO_OPERATIVO'); setMetodoPago('EFECTIVO');
-      setMonto(''); setDescripcion(''); setError('');
+      setMonto(''); setDescripcion(''); setCategoriaGastoId(''); setError('');
     }
   }, [isOpen]);
 
-  const categorias = tipo === 'INGRESO' ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+  const categorias = tipo === 'INGRESO' ? CATEGORIAS_INGRESO_MANUAL : CATEGORIAS_EGRESO_MANUAL;
+  const permiteGastoPersonalizado = CATEGORIAS_CON_GASTO_PERSONALIZADO.includes(categoria);
+
+  // Categorías de gasto personalizadas del tipo actual (solo si la categoría las admite)
+  useEffect(() => {
+    if (!isOpen || !permiteGastoPersonalizado) return;
+    cajaService.getCategoriasGasto(tipo)
+      .then(list => setCategoriasGasto(list.filter(c => c.isActive !== false)))
+      .catch(() => setCategoriasGasto([]));
+  }, [isOpen, tipo, permiteGastoPersonalizado]);
 
   const handleTipo = (t: TipoMovimientoCaja) => {
     setTipo(t);
     setCategoria(t === 'INGRESO' ? 'OTRO_INGRESO' : 'GASTO_OPERATIVO');
+    setCategoriaGastoId('');
   };
 
   const handleSubmit = async () => {
@@ -56,6 +68,7 @@ export default function NuevoMovimientoDialog({ isOpen, cajaId, onSuccess, onClo
         metodoPago,
         monto: m,
         descripcion: descripcion.trim() || undefined,
+        categoriaGastoId: permiteGastoPersonalizado && categoriaGastoId ? categoriaGastoId : undefined,
       });
       onSuccess();
     } catch (err) {
@@ -86,10 +99,20 @@ export default function NuevoMovimientoDialog({ isOpen, cajaId, onSuccess, onClo
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Categoría *</label>
-            <select className={selectClass} value={categoria} onChange={e => setCategoria(e.target.value as CategoriaMovimientoCaja)}>
+            <select className={selectClass} value={categoria} onChange={e => { setCategoria(e.target.value as CategoriaMovimientoCaja); setCategoriaGastoId(''); }}>
               {categorias.map(c => <option key={c} value={c}>{CATEGORIA_MOVIMIENTO_LABEL[c]}</option>)}
             </select>
           </div>
+
+          {permiteGastoPersonalizado && categoriasGasto.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Categoría de gasto (opcional)</label>
+              <select className={selectClass} value={categoriaGastoId} onChange={e => setCategoriaGastoId(e.target.value)}>
+                <option value="">Sin categoría específica</option>
+                {categoriasGasto.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

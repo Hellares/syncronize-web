@@ -13,9 +13,17 @@ import type {
   CierreCaja,
   CajaMonitorData,
   CajaAuditoria,
+  CategoriaGasto,
+  TipoMovimientoCaja,
 } from '@/core/types/caja';
 
 const BASE = '/caja';
+
+/** Categorías de gasto personalizadas (para GASTO_OPERATIVO / OTRO_EGRESO / OTRO_INGRESO) */
+export async function getCategoriasGasto(tipo?: TipoMovimientoCaja): Promise<CategoriaGasto[]> {
+  const res = await apiClient.get<CategoriaGasto[]>(`/categorias-gasto${tipo ? `?tipo=${tipo}` : ''}`);
+  return res.data;
+}
 
 // --- Apertura / caja activa ---
 

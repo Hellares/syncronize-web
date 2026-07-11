@@ -35,6 +35,16 @@ export async function marcarPrincipal(id: string): Promise<unknown> {
   return res.data;
 }
 
+export async function eliminarBanco(id: string): Promise<void> {
+  await apiClient.delete(`/empresa-banco/${id}`);
+}
+
+/** Mueve el digital histórico acumulado en tesorería a los bancos según el mapeo de recaudación (idempotente) */
+export async function migrarDigitalHistorico(): Promise<{ totalMovido?: number;[key: string]: unknown }> {
+  const res = await apiClient.post('/caja/tesoreria/migrar-digital-historico', {});
+  return res.data;
+}
+
 export async function getEstadoCuentaBanco(id: string, fechaDesde?: string, fechaHasta?: string): Promise<EstadoCuentaBanco> {
   const q = new URLSearchParams();
   if (fechaDesde) q.set('fechaDesde', fechaDesde);

@@ -7,6 +7,7 @@ import type { ConsolidadoTesoreria, CuentaRecaudacion } from '@/core/types/tesor
 import type { BancoEmpresa } from '@/core/types/compra';
 import {
   getConsolidado, getCuentasRecaudacion, setCuentaRecaudacion, removeCuentaRecaudacion,
+  migrarDigitalHistorico, eliminarBanco,
 } from '@/features/tesoreria/services/bancos-service';
 import BancoFormDialog from '@/features/tesoreria/components/BancoFormDialog';
 
@@ -45,6 +46,28 @@ export default function TesoreriaConsolidadoPage() {
     } catch { showToast('No se pudo guardar el mapeo'); }
   };
 
+  const [migrando, setMigrando] = useState(false);
+  const onMigrarDigital = async () => {
+    setMigrando(true);
+    try {
+      const res = await migrarDigitalHistorico();
+      showToast(`Digital movido a los bancos: S/ ${Number(res.totalMovido ?? 0).toFixed(2)}`);
+      cargar();
+    } catch { showToast('No se pudo migrar el digital histórico'); }
+    finally { setMigrando(false); }
+  };
+
+  const [deleteTarget, setDeleteTarget] = useState<BancoEmpresa | null>(null);
+  const onEliminarBanco = async () => {
+    if (!deleteTarget) return;
+    try {
+      await eliminarBanco(deleteTarget.id);
+      showToast('Cuenta eliminada');
+      setDeleteTarget(null);
+      cargar();
+    } catch { showToast('No se pudo eliminar (¿tiene recaudación asignada?)'); setDeleteTarget(null); }
+  };
+
   if (loading) return <div className="p-6 text-sm text-gray-500">Cargando…</div>;
   if (!data) return <div className="p-6 text-sm text-red-600">Sin datos</div>;
 
@@ -74,6 +97,21 @@ export default function TesoreriaConsolidadoPage() {
       </div>
       {bancosUsd !== 0 && <p className="mb-3 text-xs text-gray-500">+ $ {bancosUsd.toFixed(2)} en cuentas USD</p>}
 
+      {/* Digital histórico acumulado en tesorería (pre-mapeo de recaudación) */}
+      {(data.totalDigitalHistorico ?? 0) > 0.001 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div>
+            <p className="text-xs font-medium text-amber-700">Digital histórico en Tesorería (aún no asignado a bancos)</p>
+            <p className="text-lg font-bold text-amber-800">S/ {data.totalDigitalHistorico.toFixed(2)}</p>
+          </div>
+          <button onClick={onMigrarDigital} disabled={migrando}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+            title="Mueve el digital acumulado a los bancos según el mapeo de recaudación (idempotente)">
+            {migrando ? 'Moviendo…' : 'Mover a los bancos →'}
+          </button>
+        </div>
+      )}
+
       {/* Desglose digital por método */}
       {metodos.length > 0 && (
         <div className="mb-4 rounded-xl border border-gray-100 bg-white p-4">
@@ -99,6 +137,12 @@ export default function TesoreriaConsolidadoPage() {
               <div>
                 <div className="font-medium text-gray-800">{b.nombreBanco}{b.esPrincipal && <span className="ml-1 text-[10px] text-[#437EFF]">★</span>}</div>
                 <div className="text-xs text-gray-500">·· {b.numeroCuenta} ({b.moneda ?? 'PEN'})</div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => { setEditing(b); setDialogOpen(true); }} title="Editar"
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">✎</button>
+                <button onClick={() => setDeleteTarget(b)} title="Eliminar cuenta"
+                  className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">🗑</button>
               </div>
             </div>
             <div className="mt-2 text-xl font-bold text-[#004A94]">{sim(b.moneda ?? 'PEN')} {(b.saldoActual ?? 0).toFixed(2)}</div>
@@ -131,6 +175,24 @@ export default function TesoreriaConsolidadoPage() {
       </div>
 
       <BancoFormDialog isOpen={dialogOpen} banco={editing} onClose={() => setDialogOpen(false)} onSuccess={(m) => { setDialogOpen(false); showToast(m); cargar(); }} />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-red-700">Eliminar cuenta bancaria</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              ¿Eliminar <strong>{deleteTarget.nombreBanco}</strong> (·· {deleteTarget.numeroCuenta})?
+              {(deleteTarget.saldoActual ?? 0) > 0 && (
+                <span className="mt-1 block text-xs text-amber-600">⚠ La cuenta tiene saldo S/ {(deleteTarget.saldoActual ?? 0).toFixed(2)}.</span>
+              )}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setDeleteTarget(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={onEliminarBanco} className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>}
     </div>
   );

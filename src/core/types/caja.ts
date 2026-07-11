@@ -13,7 +13,7 @@ export type CategoriaMovimientoCaja =
   | 'OTRO_INGRESO' | 'PAGO_PROVEEDOR' | 'GASTO_OPERATIVO' | 'OTRO_EGRESO'
   | 'REPOSICION_CAJA_CHICA' | 'DEPOSITO_AGENTE' | 'RETIRO_AGENTE' | 'COMISION_AGENTE'
   | 'PAGO_PLANILLA' | 'ADELANTO_EMPLEADO' | 'BONIFICACION_EMPLEADO'
-  | 'DEPOSITO_TESORERIA' | 'RETIRO_TESORERIA' | 'REVERSO_TESORERIA' | 'AJUSTE_TESORERIA';
+  | 'DEPOSITO_TESORERIA' | 'RETIRO_TESORERIA' | 'REVERSO_CAJA_CERRADA' | 'AJUSTE_TESORERIA';
 
 export const METODO_PAGO_LABEL: Record<string, string> = {
   EFECTIVO: 'Efectivo',
@@ -46,16 +46,36 @@ export const CATEGORIA_MOVIMIENTO_LABEL: Record<string, string> = {
   BONIFICACION_EMPLEADO: 'Bonificación empleado',
   DEPOSITO_TESORERIA: 'Depósito tesorería',
   RETIRO_TESORERIA: 'Retiro tesorería',
-  REVERSO_TESORERIA: 'Reverso tesorería',
   REVERSO_CAJA_CERRADA: 'Reverso caja cerrada',
   AJUSTE_TESORERIA: 'Ajuste tesorería',
 };
 
-/** Categorías que el cajero puede usar en movimientos MANUALES */
-export const CATEGORIAS_INGRESO_MANUAL: CategoriaMovimientoCaja[] = ['OTRO_INGRESO'];
-export const CATEGORIAS_EGRESO_MANUAL: CategoriaMovimientoCaja[] = [
-  'GASTO_OPERATIVO', 'PAGO_PROVEEDOR', 'OTRO_EGRESO', 'REPOSICION_CAJA_CHICA',
+/** Categorías que el cajero puede usar en movimientos MANUALES
+ *  (paridad CategoriaMovimientoCaja.porTipo de Flutter: todo lo no-tesorería;
+ *  el backend valida polaridad y rechaza las solo-sistema) */
+export const CATEGORIAS_INGRESO_MANUAL: CategoriaMovimientoCaja[] = [
+  'VENTA', 'PEDIDO_MARKETPLACE', 'ADELANTO_SERVICIO', 'ADELANTO_COTIZACION', 'OTRO_INGRESO',
 ];
+export const CATEGORIAS_EGRESO_MANUAL: CategoriaMovimientoCaja[] = [
+  'COMPRA', 'DEVOLUCION', 'DEVOLUCION_ADELANTO_COTIZACION', 'PAGO_PROVEEDOR',
+  'GASTO_OPERATIVO', 'OTRO_EGRESO', 'REPOSICION_CAJA_CHICA', 'ADELANTO_EMPLEADO', 'PAGO_PLANILLA',
+];
+
+/** Categorías que permiten una categoría de gasto personalizada (dropdown condicional) */
+export const CATEGORIAS_CON_GASTO_PERSONALIZADO: CategoriaMovimientoCaja[] = [
+  'GASTO_OPERATIVO', 'OTRO_EGRESO', 'OTRO_INGRESO',
+];
+
+/** Categoría de gasto personalizada (GET /categorias-gasto?tipo=) */
+export interface CategoriaGasto {
+  id: string;
+  nombre: string;
+  tipo: TipoMovimientoCaja;
+  isActive?: boolean;
+}
+
+/** Denominaciones de billetes/monedas para el desglose de efectivo (S/) */
+export const DENOMINACIONES_PEN = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1] as const;
 
 // --- Entidades ---
 
@@ -259,6 +279,8 @@ export interface ConteoMetodoPagoDto {
 export interface CerrarCajaDto {
   conteos: ConteoMetodoPagoDto[];
   observaciones?: string;
+  /** Desglose de billetes/monedas (denominación → cantidad); su suma debe cuadrar con el conteo EFECTIVO (tolerancia 1 centavo) */
+  desgloseEfectivo?: Record<string, number>;
 }
 
 export interface AnularMovimientoCajaDto {
