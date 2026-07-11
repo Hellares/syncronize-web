@@ -223,6 +223,22 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     initialData?.fechaVencimiento ? initialData.fechaVencimiento.slice(0, 10) : '',
   );
 
+  // ── Reserva de stock + adelanto (solo al CREAR, paridad cotización rápida Flutter) ──
+  const [reservarStock, setReservarStock] = useState(false);
+  const [adelantoMonto, setAdelantoMonto] = useState('');
+  const [cajaActiva, setCajaActiva] = useState<{ id: string; codigo?: string } | null>(null);
+  const [cajaChecked, setCajaChecked] = useState(false);
+
+  // Caja abierta del usuario: requisito para registrar el adelanto en caja
+  useEffect(() => {
+    if (mode !== 'create') return;
+    import('@/features/caja/services/caja-service')
+      .then(svc => svc.getCajaActiva())
+      .then(c => setCajaActiva(c ? { id: c.id, codigo: (c as { codigo?: string }).codigo } : null))
+      .catch(() => setCajaActiva(null))
+      .finally(() => setCajaChecked(true));
+  }, [mode]);
+
   // ── Submission ──────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -549,8 +565,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         precioIncluyeIgv: item.precioIncluyeIgv,
         tipoAfectacion: item.tipoAfectacion,
         icbper: item.icbper || undefined,
+        // Hubo rebaja por nivel/mayorista → informar el precio regular ("Cliente ahorra")
+        precioRegular: item.nivelAplicado && item.precioBase > item.precioUnitario ? item.precioBase : undefined,
       }));
 
+      const adelanto = parseFloat(adelantoMonto) || 0;
       const dto: CreateCotizacionDto = {
         sedeId,
         vendedorId: authState.user.id,
@@ -567,6 +586,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         condiciones: condiciones.trim() || undefined,
         fechaVencimiento: fechaVencimiento || undefined,
         detalles,
+        ...(mode === 'create' && reservarStock ? { reservarStock: true } : {}),
+        ...(mode === 'create' && adelanto > 0 && cajaActiva ? { adelantoMonto: adelanto, cajaId: cajaActiva.id } : {}),
       };
 
       if (mode === 'edit' && cotizacionId) {
@@ -943,6 +964,41 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
               />
             </div>
           </div>
+
+          {/* Reserva de stock + adelanto (solo crear; el backend los procesa en el POST) */}
+          {mode === 'create' && (
+            <div className="bg-white rounded-xl shadow-sm border border-green-100 p-6 space-y-4">
+              <h2 className="text-sm font-semibold text-green-800">🔖 Reserva y adelanto (opcional)</h2>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={reservarStock} onChange={e => setReservarStock(e.target.checked)}
+                  className="mt-0.5 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                <span>
+                  <span className="font-medium text-gray-800">Reservar stock para el cliente</span>
+                  <span className="block text-xs text-gray-500">
+                    Aparta las unidades del catálogo (no se pueden vender a otros). Se libera sola si la cotización vence sin adelanto; con adelanto la liberación es manual.
+                  </span>
+                </span>
+              </label>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Adelanto del cliente (S/)</label>
+                <input
+                  type="number" min={0} step="0.01" value={adelantoMonto}
+                  onChange={e => setAdelantoMonto(e.target.value)}
+                  placeholder="0.00"
+                  disabled={!cajaActiva}
+                  className={`${INPUT_STD} w-full text-xs ring-blue-400 disabled:opacity-50`}
+                />
+                {cajaChecked && !cajaActiva && (
+                  <p className="mt-1 text-[11px] text-amber-600">⚠ Necesitas una caja abierta para registrar un adelanto (se registra como ADELANTO_COTIZACION).</p>
+                )}
+                {cajaActiva && (
+                  <p className="mt-1 text-[11px] text-gray-400">Se registrará como ingreso ADELANTO_COTIZACION en tu caja abierta.</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

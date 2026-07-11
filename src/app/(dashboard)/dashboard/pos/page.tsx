@@ -101,6 +101,9 @@ export default function ColaPOSPage() {
                       {reservado && (
                         <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">🔖 Reservado</span>
                       )}
+                      {c.vencida && (
+                        <span className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">VENCIDA</span>
+                      )}
                     </div>
                     <span className="text-[10px] text-amber-600">⏱ {tiempoEspera(c.creadoEn)}</span>
                   </div>

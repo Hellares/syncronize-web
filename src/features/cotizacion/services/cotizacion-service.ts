@@ -79,7 +79,7 @@ export async function getColaPOS(sedeId?: string): Promise<ColaPOSItem[]> {
   return res.data;
 }
 
-export async function convertirAVenta(cotizacionId: string, dto: CreateVentaDesdeCotizacionDto): Promise<any> {
+export async function convertirAVenta(cotizacionId: string, dto: CreateVentaDesdeCotizacionDto): Promise<Record<string, unknown>> {
   const res = await apiClient.post(`/ventas/desde-cotizacion/${cotizacionId}`, dto);
   return res.data;
 }

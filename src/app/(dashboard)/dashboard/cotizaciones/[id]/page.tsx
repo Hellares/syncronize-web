@@ -7,8 +7,12 @@ import { useCotizacionDetail } from '@/features/cotizacion/hooks/use-cotizacion-
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import { ESTADO_COTIZACION_CONFIG } from '@/core/types/cotizacion';
 import type { EstadoCotizacion, StockValidationResult, CreateVentaDesdeCotizacionDto } from '@/core/types/cotizacion';
-import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
+import { useAuth } from '@/core/auth/auth-context';
 import CotizacionPdfGenerator from '@/features/cotizacion/components/CotizacionPdfGenerator';
+import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
+
+const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 
 // --- Helpers ---
 
@@ -30,14 +34,20 @@ type TransitionAction = {
   hoverColor: string;
 };
 
+// Transiciones válidas del backend (validarTransicionEstado). VENCIDA manual libera
+// la reserva de stock y DEVUELVE el adelanto (por eso las vencidas con adelanto no auto-expiran).
 function getTransitions(estado: EstadoCotizacion): TransitionAction[] {
   switch (estado) {
     case 'BORRADOR':
-      return [{ label: 'Enviar', targetEstado: 'PENDIENTE', color: 'bg-orange-600', hoverColor: 'hover:bg-orange-700' }];
+      return [
+        { label: 'Enviar', targetEstado: 'PENDIENTE', color: 'bg-orange-600', hoverColor: 'hover:bg-orange-700' },
+        { label: 'Marcar vencida', targetEstado: 'VENCIDA', color: 'bg-gray-500', hoverColor: 'hover:bg-gray-600' },
+      ];
     case 'PENDIENTE':
       return [
         { label: 'Aprobar', targetEstado: 'APROBADA', color: 'bg-green-600', hoverColor: 'hover:bg-green-700' },
         { label: 'Rechazar', targetEstado: 'RECHAZADA', color: 'bg-red-600', hoverColor: 'hover:bg-red-700' },
+        { label: 'Marcar vencida', targetEstado: 'VENCIDA', color: 'bg-gray-500', hoverColor: 'hover:bg-gray-600' },
       ];
     default:
       return [];
@@ -58,6 +68,10 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const { cotizacion, isLoading, error, reload, cambiarEstado, duplicar } = useCotizacionDetail(id);
   const permissions = usePermissions();
   const canManage = permissions.canManageCotizaciones;
+  const { userRoles } = useEmpresa();
+  const { state: authState } = useAuth();
+  const userId = authState.status === 'authenticated' ? authState.user.id : '';
+  const esAutorizador = userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -74,6 +88,10 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const [convertData, setConvertData] = useState<CreateVentaDesdeCotizacionDto>({});
   const [stockValidation, setStockValidation] = useState<StockValidationResult | null>(null);
   const [validatingStock, setValidatingStock] = useState(false);
+  // Descuento global al cobrar (requiere autorización) + reintento venta bajo costo
+  const [descGlobalInput, setDescGlobalInput] = useState('');
+  const [descEsPorcentaje, setDescEsPorcentaje] = useState(false);
+  const [authPendiente, setAuthPendiente] = useState<null | 'DESCUENTO' | 'BAJO_COSTO'>(null);
 
   // PDF
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -139,20 +157,60 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
     }
   }, [id]);
 
-  async function handleConvertir() {
+  // Monto de descuento global efectivo (S/ o % sobre el total)
+  function montoDescuentoGlobal(): number {
+    const v = parseFloat(descGlobalInput) || 0;
+    if (v <= 0 || !cotizacion) return 0;
+    return descEsPorcentaje ? (Number(cotizacion.total) * Math.min(v, 100)) / 100 : v;
+  }
+
+  async function ejecutarConversion(dto: CreateVentaDesdeCotizacionDto) {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await cotizacionService.convertirAVenta(id, convertData);
+      await cotizacionService.convertirAVenta(id, dto);
       setShowConvertModal(false);
+      setDescGlobalInput('');
       setSuccessMsg('Cotizacion convertida a venta exitosamente');
       reload();
-    } catch (err: any) {
-      setErrorMsg(err?.response?.data?.message || 'Error al convertir a venta');
+    } catch (err) {
+      const msg: string = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
+      // Guard de margen negativo: pedir autorización y reintentar (paridad cobrar_cotizacion Flutter)
+      if (msg.includes('BAJO_COSTO') || msg.toLowerCase().includes('bajo costo')) {
+        if (esAutorizador && userId && !dto.ventaBajoCostoAutorizadaPorId) {
+          return ejecutarConversion({ ...dto, ventaBajoCostoAutorizadaPorId: userId });
+        }
+        setConvertData(dto);
+        setAuthPendiente('BAJO_COSTO');
+        return;
+      }
+      setErrorMsg(msg || 'Error al convertir a venta');
       setShowConvertModal(false);
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleConvertir() {
+    const desc = montoDescuentoGlobal();
+    const dto: CreateVentaDesdeCotizacionDto = {
+      ...convertData,
+      ...(desc > 0 ? {
+        descuentoGlobal: Number(desc.toFixed(2)),
+        ...(descEsPorcentaje ? { descuentoGlobalPorcentaje: parseFloat(descGlobalInput) } : {}),
+      } : {}),
+    };
+    if (desc > 0 && !dto.descuentoAutorizadoPorId) {
+      // Admin se auto-autoriza; otros roles piden credenciales de un autorizador
+      if (esAutorizador && userId) {
+        dto.descuentoAutorizadoPorId = userId;
+      } else {
+        setConvertData(dto);
+        setAuthPendiente('DESCUENTO');
+        return;
+      }
+    }
+    await ejecutarConversion(dto);
   }
 
   // --- Loading / Error states ---
@@ -308,6 +366,25 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
+      {/* Venta resultante (CONVERTIDA) */}
+      {c.estado === 'CONVERTIDA' && c.venta?.id && (
+        <Link href={`/dashboard/ventas/${c.venta.id}`}
+          className="block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 hover:bg-blue-100">
+          <p className="text-xs font-semibold text-blue-700">
+            ✅ VENDIDA — {c.venta.codigo ?? 'ver venta'}{c.venta.total != null ? ` · ${formatCurrency(Number(c.venta.total), c.moneda)}` : ''}. Ver venta →
+          </p>
+        </Link>
+      )}
+
+      {/* Origen marketplace */}
+      {(c.solicitudOrigen?.length ?? 0) > 0 && (
+        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5">
+          <p className="text-xs font-semibold text-purple-700">
+            🛒 Responde a la solicitud de cotización {c.solicitudOrigen![0].codigo ?? ''} del marketplace
+          </p>
+        </div>
+      )}
+
       {/* Info Cards */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Card 1 - Informacion General */}
@@ -416,11 +493,22 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
               <tbody>
                 {c.detalles
                   .sort((a, b) => a.orden - b.orden)
-                  .map((det, idx) => (
-                    <tr key={det.id} className="border-b border-gray-100">
+                  .map((det, idx) => {
+                    // Línea excluida al convertir: reserva liberada en cotización CONVERTIDA
+                    const excluida = c.estado === 'CONVERTIDA' && det.reservaEstado === 'LIBERADA';
+                    return (
+                    <tr key={det.id} className={`border-b border-gray-100 ${excluida ? 'opacity-45' : ''}`}>
                       <td className="px-4 py-2.5 text-center text-gray-400">{idx + 1}</td>
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-gray-900">{det.descripcion}</p>
+                        <p className="font-medium text-gray-900">
+                          {det.reservaEstado === 'ACTIVA' && (
+                            <span className="mr-1 rounded bg-green-100 px-1 py-0.5 text-[8px] font-bold text-green-700" title="Stock apartado para este cliente">APARTADO</span>
+                          )}
+                          {excluida && (
+                            <span className="mr-1 rounded bg-gray-200 px-1 py-0.5 text-[8px] font-bold text-gray-500">NO INCLUIDO EN LA VENTA</span>
+                          )}
+                          {det.descripcion}
+                        </p>
                         {det.producto && (
                           <p className="text-xs text-gray-400">
                             {det.producto.codigoEmpresa || det.producto.sku || ''}
@@ -428,6 +516,12 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                         )}
                         {det.variante && (
                           <p className="text-xs text-[#004A94]">{det.variante.nombre}</p>
+                        )}
+                        {det.precioRegular != null && Number(det.precioRegular) > Number(det.precioUnitario) && (
+                          <p className="text-[10px] text-blue-600">Precio especial — regular <span className="line-through">{formatCurrency(Number(det.precioRegular), c.moneda)}</span></p>
+                        )}
+                        {det.precioAntesOferta != null && Number(det.precioAntesOferta) > Number(det.precioUnitario) && (
+                          <p className="text-[10px] text-green-600">En oferta — antes {formatCurrency(Number(det.precioAntesOferta), c.moneda)}</p>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right">{det.cantidad}</td>
@@ -452,7 +546,8 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                       )}
                       <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(det.total, c.moneda)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -529,6 +624,13 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
               <span className="font-semibold">{ESTADO_COTIZACION_CONFIG[estadoTarget.targetEstado].label}</span>?
             </p>
             <p className="mt-1 text-xs text-gray-400">Cotizacion: {c.codigo}</p>
+            {(estadoTarget.targetEstado === 'VENCIDA' || estadoTarget.targetEstado === 'RECHAZADA') &&
+              (c.tieneReservaActiva || (c.adelantoMonto ?? 0) > 0) && (
+              <p className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                ⚠ {c.tieneReservaActiva ? 'Se liberará el stock reservado. ' : ''}
+                {(c.adelantoMonto ?? 0) > 0 ? `Se devolverá el adelanto de ${formatCurrency(Number(c.adelantoMonto), c.moneda)} (egreso en caja).` : ''}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => { setShowEstadoModal(false); setEstadoTarget(null); }}
@@ -709,6 +811,54 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                 </div>
               )}
 
+              {/* Descuento global (requiere autorización de admin/gerente) */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Descuento global (opcional)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number" min={0} step="0.01" value={descGlobalInput}
+                    onChange={e => setDescGlobalInput(e.target.value)}
+                    placeholder="0.00"
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+                  />
+                  <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                    {([['S/', false], ['%', true]] as const).map(([lbl, esP]) => (
+                      <button key={lbl} type="button" onClick={() => setDescEsPorcentaje(esP)}
+                        className={`px-3 text-xs font-bold ${descEsPorcentaje === esP ? 'bg-[#004A94] text-white' : 'bg-white text-gray-500'}`}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {montoDescuentoGlobal() > 0 && (
+                  <p className="mt-1 text-[11px] text-amber-700">
+                    Descuento: {formatCurrency(montoDescuentoGlobal(), c.moneda)}
+                    {!esAutorizador && ' — se pedirá autorización de un administrador'}
+                  </p>
+                )}
+              </div>
+
+              {/* Total a cobrar (descuenta adelanto ya pagado) */}
+              <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm">
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Total cotización</span><span>{formatCurrency(c.total, c.moneda)}</span>
+                </div>
+                {montoDescuentoGlobal() > 0 && (
+                  <div className="flex justify-between text-xs text-amber-600">
+                    <span>Descuento global</span><span>−{formatCurrency(montoDescuentoGlobal(), c.moneda)}</span>
+                  </div>
+                )}
+                {(c.adelantoMonto ?? 0) > 0 && (
+                  <div className="flex justify-between text-xs text-green-600">
+                    <span>Adelanto ya pagado</span><span>−{formatCurrency(Number(c.adelantoMonto), c.moneda)}</span>
+                  </div>
+                )}
+                <div className="mt-1 flex justify-between border-t border-green-200 pt-1 font-bold text-green-800">
+                  <span>Total a cobrar</span>
+                  <span>{formatCurrency(Math.max(0, Number(c.total) - montoDescuentoGlobal() - Number(c.adelantoMonto ?? 0)), c.moneda)}</span>
+                </div>
+              </div>
+
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Observaciones</label>
                 <textarea
@@ -745,6 +895,27 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
       {showPdfModal && (
         <CotizacionPdfGenerator cotizacion={c} onClose={() => setShowPdfModal(false)} />
       )}
+
+      {/* ========== Autorización (descuento global / venta bajo costo) ========== */}
+      <AutorizacionDialog
+        isOpen={authPendiente !== null}
+        operacion={authPendiente === 'BAJO_COSTO' ? 'VENTA_BAJO_COSTO' : 'DESCUENTO_VENTA'}
+        titulo={authPendiente === 'BAJO_COSTO' ? 'Autorizar venta bajo costo' : 'Autorizar descuento'}
+        descripcion={authPendiente === 'BAJO_COSTO'
+          ? 'Una o más líneas quedan con margen negativo. Requiere autorización de un administrador o gerente.'
+          : 'Aplicar un descuento global requiere autorización de un administrador o gerente.'}
+        motivo={`Conversión de cotización ${c.codigo}`}
+        onAuthorized={(auth) => {
+          const tipo = authPendiente;
+          setAuthPendiente(null);
+          const dto: CreateVentaDesdeCotizacionDto = tipo === 'BAJO_COSTO'
+            ? { ...convertData, ventaBajoCostoAutorizadaPorId: auth.autorizadoPorId }
+            : { ...convertData, descuentoAutorizadoPorId: auth.autorizadoPorId };
+          setConvertData(dto);
+          ejecutarConversion(dto);
+        }}
+        onClose={() => setAuthPendiente(null)}
+      />
     </div>
   );
 }

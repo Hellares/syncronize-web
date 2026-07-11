@@ -2,6 +2,9 @@
 
 export type EstadoCotizacion = 'BORRADOR' | 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' | 'VENCIDA' | 'CONVERTIDA';
 
+/** Estado de la reserva de stock por línea (null = nunca reservó) */
+export type ReservaCotizacionEstado = 'ACTIVA' | 'LIBERADA' | 'CONVERTIDA';
+
 export interface CotizacionDetalle {
   id: string;
   cotizacionId: string;
@@ -12,6 +15,12 @@ export interface CotizacionDetalle {
   cantidad: number;
   precioUnitario: number;
   descuento: number;
+  /** Precio antes de nivel por mayor / VIP (informativo, para "Cliente ahorra") */
+  precioRegular?: number | null;
+  /** Precio antes de oferta pública (chip "En oferta") */
+  precioAntesOferta?: number | null;
+  /** ACTIVA = stock apartado; en CONVERTIDA, LIBERADA = línea excluida de la venta */
+  reservaEstado?: ReservaCotizacionEstado | null;
   tipoAfectacion: string;
   porcentajeIGV: number;
   igv: number;
@@ -62,9 +71,17 @@ export interface Cotizacion {
   vendedorAlias?: string | null;
   /** Stock apartado para el cliente (badge Reservado verde) */
   tieneReservaActiva?: boolean;
-  /** Pago adelantado registrado en caja (categoría ADELANTO_COTIZACION) */
+  /** Pago adelantado registrado en caja (categoría ADELANTO_COTIZACION); Yape marketplace acumula aquí */
   adelantoMonto?: number | null;
   movimientoCajaId?: string | null;
+  /** Adelanto que la empresa PIDE para separar en marketplace (se paga con Yape al aceptar) */
+  adelantoRequerido?: number | null;
+  clienteEmpresaId?: string | null;
+  comprobanteId?: string | null;
+  /** Venta resultante (estado CONVERTIDA) */
+  venta?: { id: string; codigo?: string; total?: number } | null;
+  /** Origen marketplace (respuesta a una solicitud de cotización) */
+  solicitudOrigen?: Array<{ id: string; codigo?: string }> | null;
 }
 
 /** Vendedor para el ticket: alias si existe, si no el nombre (paridad Cotizacion.vendedorParaTicket Flutter) */
@@ -115,6 +132,10 @@ export interface CreateCotizacionDetalleDto {
   precioIncluyeIgv?: boolean;
   tipoAfectacion?: string;
   icbper?: number;
+  /** Precio antes de nivel por mayor / VIP (se envía cuando hubo rebaja por nivel) */
+  precioRegular?: number;
+  /** Precio antes de oferta pública (informativo) */
+  precioAntesOferta?: number;
 }
 
 export interface CreateCotizacionDto {
@@ -133,9 +154,17 @@ export interface CreateCotizacionDto {
   condiciones?: string;
   fechaVencimiento?: string;
   detalles: CreateCotizacionDetalleDto[];
+  /** Apartar stock del catálogo (incrementa ProductoStock.stockReservadoCotizacion, detalles ACTIVA) */
+  reservarStock?: boolean;
+  /** Adelanto que deja el cliente (>0 crea MovimientoCaja ADELANTO_COTIZACION — requiere cajaId) */
+  adelantoMonto?: number;
+  /** Caja abierta donde se registra el adelanto */
+  cajaId?: string;
+  /** Adelanto que se pedirá en marketplace para separar (pago Yape al aceptar) */
+  adelantoRequerido?: number;
 }
 
-export interface UpdateCotizacionDto extends Partial<CreateCotizacionDto> {}
+export type UpdateCotizacionDto = Partial<CreateCotizacionDto>;
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -184,6 +213,11 @@ export interface ColaPOSItem {
   moneda: string;
   totalItems: number;
   creadoEn: string;
+  /** Badge verde Reservado (stock apartado) */
+  tieneReservaActiva?: boolean;
+  /** Badge rojo VENCIDA (cobrable pero fuera de vigencia) */
+  vencida?: boolean;
+  adelantoMonto?: number | null;
 }
 
 // --- Convertir a Venta ---
@@ -194,6 +228,20 @@ export interface PagoDto {
   monedaOriginal?: string;
   montoOriginal?: number;
   tipoCambio?: number;
+}
+
+export interface ItemAdicionalDto {
+  productoId?: string;
+  varianteId?: string;
+  servicioId?: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  descuento?: number;
+  porcentajeIGV?: number;
+  precioIncluyeIgv?: boolean;
+  tipoAfectacion?: string;
+  icbper?: number;
 }
 
 export interface CreateVentaDesdeCotizacionDto {
@@ -210,6 +258,21 @@ export interface CreateVentaDesdeCotizacionDto {
   pagos?: PagoDto[];
   excluirDetalleIds?: string[];
   ajustarCantidades?: Record<string, number>;
+  /** Ajuste de descuento por línea al cobrar (detalleId → monto) */
+  ajustarDescuentos?: Record<string, number>;
+  itemsAdicionales?: ItemAdicionalDto[];
+  // Descuento global con autorización (admin se auto-autoriza; otros roles vía /auth/autorizar-operacion)
+  descuentoGlobal?: number;
+  descuentoGlobalPorcentaje?: number;
+  descuentoAutorizadoPorId?: string;
+  /** Requerido si alguna línea queda con margen negativo y NO está en liquidación */
+  ventaBajoCostoAutorizadaPorId?: string;
+  // Override de cliente al cobrar (ej. FACTURA con RUC)
+  clienteId?: string;
+  clienteEmpresaId?: string;
+  nombreCliente?: string;
+  documentoCliente?: string;
+  direccionCliente?: string;
 }
 
 // Estado colors/labels

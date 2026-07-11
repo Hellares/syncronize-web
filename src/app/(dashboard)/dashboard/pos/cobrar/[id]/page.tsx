@@ -273,7 +273,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
         ...(Object.keys(ajustar).length > 0 && { ajustarCantidades: ajustar }),
         ...(itemsAdicionales.length > 0 && { itemsAdicionales }),
       } as Parameters<typeof cotizacionService.convertirAVenta>[1]);
-      setVentaOk({ id: venta?.id, codigo: venta?.codigo });
+      setVentaOk({ id: venta?.id as string | undefined, codigo: venta?.codigo as string | undefined });
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al cobrar la cotización');
