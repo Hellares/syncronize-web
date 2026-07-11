@@ -80,8 +80,14 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               {producto.categoria && <div><span className="text-gray-500">Categoría:</span> <span className="font-medium">{producto.categoria.nombre}</span></div>}
               {producto.marca && <div><span className="text-gray-500">Marca:</span> <span className="font-medium">{producto.marca.nombre}</span></div>}
               {producto.unidadMedida && <div><span className="text-gray-500">Unidad:</span> <span className="font-medium">{producto.unidadMedida.nombre}</span></div>}
+              {producto.unidadCompra && producto.factorCompra != null && (
+                <div><span className="text-gray-500">Unidad compra:</span> <span className="font-medium">1 {producto.unidadCompra.nombre} = {Number(producto.factorCompra)} {producto.unidadMedida?.nombre || 'unid.'}</span></div>
+              )}
               {producto.peso != null && <div><span className="text-gray-500">Peso:</span> <span className="font-medium">{producto.peso} kg</span></div>}
+              <div><span className="text-gray-500">Afectación IGV:</span> <span className="font-medium">{producto.tipoAfectacionIgv === 'EXONERADO' ? 'Exonerado' : producto.tipoAfectacionIgv === 'INAFECTO' ? 'Inafecto' : 'Gravado'}</span></div>
               <div><span className="text-gray-500">IGV:</span> <span className="font-medium">{producto.impuestoPorcentaje != null ? `${producto.impuestoPorcentaje}% (personalizado)` : 'Usa IGV global de la empresa'}</span></div>
+              {producto.aplicaIcbper && <div><span className="text-gray-500">ICBPER:</span> <span className="font-medium text-amber-600">Sí (bolsa plástica)</span></div>}
+              {producto.codigoProductoSunat && <div><span className="text-gray-500">Cód. SUNAT:</span> <span className="font-medium font-mono">{producto.codigoProductoSunat}</span></div>}
               <div><span className="text-gray-500">Estado:</span> <span className={`font-medium ${producto.isActive ? 'text-green-600' : 'text-gray-400'}`}>{producto.isActive ? 'Activo' : 'Inactivo'}</span></div>
             </div>
             {producto.descripcion && (
@@ -209,6 +215,10 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               <div className="flex justify-between">
                 <span className="text-gray-500">Combo</span>
                 <span>{producto.esCombo ? `Sí (${producto.tipoPrecioCombo})` : 'No'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Insumo</span>
+                <span className={producto.esInsumo ? 'text-amber-600' : 'text-gray-400'}>{producto.esInsumo ? 'Sí (materia prima)' : 'No'}</span>
               </div>
             </div>
           </div>

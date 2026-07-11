@@ -64,6 +64,9 @@ export default function VarianteDetailDialog({ isOpen, variante, onClose }: Prop
             {variante.peso != null && (
               <InfoRow icon="weight" label="Peso" value={`${variante.peso} kg`} />
             )}
+            {variante.unidadMedida && (
+              <InfoRow icon="tag" label="Unidad" value={variante.unidadMedida.nombre} />
+            )}
           </div>
 
           {/* Dimensiones */}

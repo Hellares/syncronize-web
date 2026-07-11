@@ -32,6 +32,7 @@ interface FormState {
   configuracionPrecioId: string;
   tipoAfectacionIgv: string;
   aplicaIcbper: boolean;
+  codigoProductoSunat: string;
 }
 
 const INITIAL_STATE: FormState = {
@@ -60,6 +61,7 @@ const INITIAL_STATE: FormState = {
   configuracionPrecioId: '',
   tipoAfectacionIgv: 'GRAVADO',
   aplicaIcbper: false,
+  codigoProductoSunat: '',
 };
 
 export function useProductoForm(empresaId: string, producto?: Producto | null) {
@@ -92,6 +94,7 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       configuracionPrecioId: producto.configuracionPrecioId || '',
       tipoAfectacionIgv: producto.tipoAfectacionIgv || 'GRAVADO',
       aplicaIcbper: producto.aplicaIcbper || false,
+      codigoProductoSunat: producto.codigoProductoSunat || '',
       atributos: (() => {
         const map: Record<string, string> = {};
         producto.atributosValores?.forEach(av => { map[av.atributoId] = av.valor; });
@@ -154,6 +157,8 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       configuracionPrecioId: form.configuracionPrecioId || undefined,
       tipoAfectacionIgv: form.tipoAfectacionIgv,
       aplicaIcbper: form.aplicaIcbper || undefined,
+      // null explícito = quitar código en backend (igual que Flutter: ''→null)
+      codigoProductoSunat: form.codigoProductoSunat || null,
       atributosEstructurados: (() => {
         const entries = Object.entries(form.atributos).filter(([, v]) => v.trim());
         return entries.length > 0 ? entries.map(([atributoId, valor]) => ({ atributoId, valor: valor.trim() })) : undefined;

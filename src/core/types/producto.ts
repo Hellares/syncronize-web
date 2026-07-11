@@ -105,6 +105,7 @@ export interface ProductoVariante {
   atributosValores: AtributoValor[];
   peso?: number;
   dimensiones?: Record<string, number>;
+  unidadMedida?: { id: string; nombre: string; abreviatura?: string };
   isActive: boolean;
   orden: number;
   archivos?: ProductoArchivo[];
@@ -132,6 +133,8 @@ export interface Producto {
   descuentoMaximo?: number;
   tipoAfectacionIgv?: 'GRAVADO' | 'EXONERADO' | 'INAFECTO';
   aplicaIcbper?: boolean;
+  /** Código producto SUNAT (UNSPSC catálogo 25, 8 dígitos). Solo viaja al XML si está seteado. */
+  codigoProductoSunat?: string;
   visibleMarketplace: boolean;
   destacado: boolean;
   ordenMarketplace?: number;
@@ -226,6 +229,8 @@ export interface CreateProductoDto {
   descuentoMaximo?: number;
   tipoAfectacionIgv?: string;
   aplicaIcbper?: boolean;
+  /** Código producto SUNAT (catálogo 25, 8 dígitos, de la lista curada). null = quitar. */
+  codigoProductoSunat?: string | null;
   visibleMarketplace?: boolean;
   destacado?: boolean;
   tieneVariantes?: boolean;

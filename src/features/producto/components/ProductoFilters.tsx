@@ -174,6 +174,29 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
           ))}
         </select>
 
+        {/* Toggles rápidos (mismos filtros que la app Flutter) */}
+        {([
+          { label: '🏷 En oferta', key: 'enOferta' },
+          { label: '⚠ Stock bajo', key: 'stockBajo' },
+          { label: '★ Destacados', key: 'destacado' },
+          { label: '🛒 Marketplace', key: 'visibleMarketplace' },
+        ] as const).map((t) => {
+          const active = filtros[t.key] === true;
+          return (
+            <button
+              key={t.key}
+              onClick={() => onUpdate({ [t.key]: active ? undefined : true })}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+
         <button
           onClick={onReset}
           className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"

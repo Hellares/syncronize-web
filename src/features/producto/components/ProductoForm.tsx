@@ -11,6 +11,7 @@ import * as catalogoService from '@/features/catalogo/services/catalogo-service'
 import * as varianteService from '../services/variante-service';
 import * as configPrecioService from '../services/configuracion-precio-service';
 import ImageUploader from './ImageUploader';
+import CodigoProductoSunatSelector from './CodigoProductoSunatSelector';
 
 interface Props {
   empresaId: string;
@@ -428,6 +429,12 @@ export default function ProductoForm({ empresaId, producto }: Props) {
             <input className={inputClass} type="number" step="0.01" value={form.descuentoMaximo} onChange={(e) => updateField('descuentoMaximo', e.target.value)} />
           </Field>
         </div>
+
+        {/* Código Producto SUNAT (catálogo 25) */}
+        <CodigoProductoSunatSelector
+          value={form.codigoProductoSunat}
+          onChange={(codigo) => updateField('codigoProductoSunat', codigo)}
+        />
 
         {/* ICBPER */}
         <label className="flex items-center gap-2 text-sm mt-2">

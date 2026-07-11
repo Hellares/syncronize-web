@@ -17,6 +17,7 @@ function buildQueryParams(filtros: ProductoFiltros): string {
   if (filtros.sedeId) params.set('sedeId', filtros.sedeId);
   if (filtros.visibleMarketplace !== undefined) params.set('visibleMarketplace', String(filtros.visibleMarketplace));
   if (filtros.destacado !== undefined) params.set('destacado', String(filtros.destacado));
+  if (filtros.enOferta !== undefined) params.set('enOferta', String(filtros.enOferta));
   if (filtros.stockBajo !== undefined) params.set('stockBajo', String(filtros.stockBajo));
   if (filtros.soloProductos) params.set('soloProductos', 'true');
   if (filtros.soloCombos) params.set('soloCombos', 'true');
