@@ -1,3 +1,24 @@
+export interface ClienteEmpresaContacto {
+  id: string;
+  nombre: string;
+  cargo?: string | null;
+  dni?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  telefonoMovil?: string | null;
+  esPrincipal?: boolean;
+}
+
+export interface CreateContactoDto {
+  nombre: string;
+  cargo?: string;
+  dni?: string;
+  email?: string;
+  telefono?: string;
+  telefonoMovil?: string;
+  esPrincipal?: boolean;
+}
+
 export interface ClienteEmpresa {
   id: string;
   empresaId: string;
@@ -18,6 +39,8 @@ export interface ClienteEmpresa {
   condicionContribuyente?: string;
   notas?: string;
   isActive: boolean;
+  motivoInactivo?: string | null;
+  contactos?: ClienteEmpresaContacto[];
 }
 
 export interface CreateClienteEmpresaDto {

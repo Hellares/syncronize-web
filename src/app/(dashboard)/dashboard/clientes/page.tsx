@@ -8,6 +8,8 @@ import type { ClienteEmpresa } from '@/core/types/cliente-empresa';
 import * as personaService from '@/features/clientes/services/cliente-persona-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
+import ContactosClienteEmpresaDialog from '@/features/clientes/components/ContactosClienteEmpresaDialog';
+import * as clienteEmpresaService from '@/features/cotizacion/services/cliente-service';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 type Tab = 'personas' | 'empresas';
@@ -33,6 +35,7 @@ export default function ClientesPage() {
 
   const [personaForm, setPersonaForm] = useState<{ open: boolean; cliente?: ClientePersona | null }>({ open: false });
   const [empresaForm, setEmpresaForm] = useState<{ open: boolean; cliente?: ClienteEmpresa | null }>({ open: false });
+  const [contactosDe, setContactosDe] = useState<ClienteEmpresa | null>(null);
 
   const fetchData = useCallback(async (opts?: { page?: number; search?: string }) => {
     setIsLoading(true);
@@ -81,6 +84,32 @@ export default function ClientesPage() {
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se pudo desactivar el cliente');
+    }
+  };
+
+  // Crear acceso al app: login=DNI, password=DNI con cambio obligatorio (idempotente)
+  const crearAcceso = async (c: ClientePersona) => {
+    if (!confirm(`¿Crear acceso al app para ${c.nombreCompleto}? Usuario y contraseña inicial = su DNI (con cambio obligatorio al entrar).`)) return;
+    try {
+      const res = await personaService.crearAcceso(c.id);
+      flash((res.mensaje as string) || 'Acceso creado — usuario y contraseña: su DNI');
+      fetchData();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo crear el acceso');
+    }
+  };
+
+  const desactivarEmpresa = async (c: ClienteEmpresa) => {
+    const motivo = prompt(`¿Desactivar a ${c.razonSocial}? Indica el motivo (opcional):`);
+    if (motivo === null) return; // canceló
+    try {
+      await clienteEmpresaService.desactivarClienteEmpresa(empresaId, c.id, motivo.trim() || undefined);
+      flash('Cliente empresa desactivado');
+      fetchData();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo desactivar el cliente empresa');
     }
   };
 
@@ -155,7 +184,12 @@ export default function ClientesPage() {
                     </td>
                     {puedeGestionar && (
                       <td className="px-4 py-2.5 text-right">
-                        <button onClick={() => setPersonaForm({ open: true, cliente: c })} className="rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50">Editar</button>
+                        {/* Acceso al app: solo con DNI real y sin Usuario aún (paridad cliente_detail_sheet) */}
+                        {!c.usuarioId && c.dni && c.dni !== '00000000' && c.isActive && (
+                          <button onClick={() => crearAcceso(c)} title="Crear acceso al app (login = DNI)"
+                            className="rounded border border-[#437EFF]/40 px-2 py-1 text-[10px] text-[#437EFF] hover:bg-[#437EFF]/5">🔑 Acceso</button>
+                        )}
+                        <button onClick={() => setPersonaForm({ open: true, cliente: c })} className="ml-1 rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50">Editar</button>
                         {c.isActive && <button onClick={() => eliminarPersona(c)} className="ml-1 rounded border border-red-200 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50">Desactivar</button>}
                       </td>
                     )}
@@ -199,7 +233,10 @@ export default function ClientesPage() {
                     </td>
                     {puedeGestionar && (
                       <td className="px-4 py-2.5 text-right">
-                        <button onClick={() => setEmpresaForm({ open: true, cliente: c })} className="rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50">Editar</button>
+                        <button onClick={() => setContactosDe(c)} title="Gestionar contactos"
+                          className="rounded border border-teal-200 px-2 py-1 text-[10px] text-teal-700 hover:bg-teal-50">👥 Contactos</button>
+                        <button onClick={() => setEmpresaForm({ open: true, cliente: c })} className="ml-1 rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50">Editar</button>
+                        {c.isActive && <button onClick={() => desactivarEmpresa(c)} className="ml-1 rounded border border-red-200 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50">Desactivar</button>}
                       </td>
                     )}
                   </tr>
@@ -235,6 +272,14 @@ export default function ClientesPage() {
         onClose={() => setEmpresaForm({ open: false })}
         onSuccess={(msg) => { setEmpresaForm({ open: false }); flash(msg); fetchData(); }}
       />
+      {contactosDe && (
+        <ContactosClienteEmpresaDialog
+          isOpen={!!contactosDe}
+          empresaId={empresaId}
+          cliente={contactosDe}
+          onClose={() => setContactosDe(null)}
+        />
+      )}
     </div>
   );
 }

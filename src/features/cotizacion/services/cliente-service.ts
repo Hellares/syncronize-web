@@ -1,7 +1,9 @@
 import { apiClient } from '@/core/api/client';
 import type {
   ClienteEmpresa,
+  ClienteEmpresaContacto,
   CreateClienteEmpresaDto,
+  CreateContactoDto,
   ConsultaRucResult,
   ConsultaDniResult,
 } from '@/core/types/cliente-empresa';
@@ -37,10 +39,8 @@ export async function getClientesPersona(search?: string): Promise<ClientePerson
   const res = await apiClient.get(
     `/clientes?${params.toString()}`,
   );
-  console.log('[getClientesPersona] raw response:', res.data);
-  const body = res.data as any;
-  const list = Array.isArray(body) ? body : (body.data ?? []);
-  return list;
+  const body = res.data as ClientePersona[] | { data?: ClientePersona[] };
+  return Array.isArray(body) ? body : (body.data ?? []);
 }
 
 // Buscar en ambas tablas (unificado)
@@ -116,6 +116,27 @@ export async function updateCliente(
     data,
   );
   return res.data;
+}
+
+/** Desactiva el cliente B2B (soft-delete con motivo) */
+export async function desactivarClienteEmpresa(empresaId: string, id: string, motivo?: string): Promise<void> {
+  await apiClient.delete(`/empresas/${empresaId}/clientes-empresa/${id}`, { data: motivo ? { motivo } : {} });
+}
+
+// --- Contactos del cliente B2B ---
+
+export async function agregarContacto(empresaId: string, clienteEmpresaId: string, data: CreateContactoDto): Promise<ClienteEmpresaContacto> {
+  const res = await apiClient.post(`/empresas/${empresaId}/clientes-empresa/${clienteEmpresaId}/contactos`, data);
+  return res.data;
+}
+
+export async function editarContacto(empresaId: string, clienteEmpresaId: string, contactoId: string, data: Partial<CreateContactoDto>): Promise<ClienteEmpresaContacto> {
+  const res = await apiClient.put(`/empresas/${empresaId}/clientes-empresa/${clienteEmpresaId}/contactos/${contactoId}`, data);
+  return res.data;
+}
+
+export async function eliminarContacto(empresaId: string, clienteEmpresaId: string, contactoId: string): Promise<void> {
+  await apiClient.delete(`/empresas/${empresaId}/clientes-empresa/${clienteEmpresaId}/contactos/${contactoId}`);
 }
 
 export async function consultarRuc(ruc: string): Promise<ConsultaRucResult> {

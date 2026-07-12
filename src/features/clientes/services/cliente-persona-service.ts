@@ -46,3 +46,10 @@ export async function updateCliente(id: string, data: UpdateClienteDto): Promise
 export async function deleteCliente(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
 }
+
+/** Crea acceso al app para el cliente (login=DNI, password=DNI con cambio obligatorio). Idempotente.
+ *  No válido para el cliente genérico (DNI 00000000) ni clientes sin DNI. */
+export async function crearAcceso(id: string): Promise<{ mensaje?: string;[key: string]: unknown }> {
+  const res = await apiClient.post(`${BASE}/${id}/crear-acceso`);
+  return res.data;
+}
