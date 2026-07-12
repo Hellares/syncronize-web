@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
-import type { CuentaPorCobrar, ResumenCuentasCobrar, EstadoCuenta, ConfiguracionMora } from '@/core/types/cuentas-cobrar';
+import type { CuentaPorCobrar, ResumenCuentasCobrar, EstadoCuenta, ConfiguracionMora, FuenteIngreso } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { BancoEmpresa } from '@/core/types/compra';
+import { getBancos } from '@/features/compras/services/compra-service';
 import * as cxcService from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
-import * as ventaService from '@/features/venta/services/venta-service';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 const ESTADOS: Array<{ value: EstadoCuenta | ''; label: string }> = [
@@ -81,6 +82,20 @@ export default function CuentasCobrarPage() {
   };
 
   const flash = (m: string) => { setAccionMsg(m); setTimeout(() => setAccionMsg(''), 4000); };
+
+  const anularAbono = async (pagoId: string) => {
+    const motivo = prompt('¿Anular este abono? Se revierte el ingreso (caja/banco) y se recomputan las cuotas. Motivo (opcional):');
+    if (motivo === null) return;
+    try {
+      await cxcService.anularAbono(pagoId, motivo.trim() || undefined);
+      flash('Abono anulado — ingreso revertido');
+      fetchCuentas();
+      fetchResumen();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo anular el abono');
+    }
+  };
 
   const onAbonoSuccess = () => {
     setAbonoTarget(null);
@@ -263,9 +278,19 @@ export default function CuentasCobrarPage() {
                     <p className="mb-1.5 text-[10px] font-semibold uppercase text-gray-400">Abonos realizados</p>
                     <div className="space-y-1">
                       {c.pagos!.map(p => (
-                        <div key={p.id} className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-xs">
-                          <span className="text-gray-600">{p.metodoPago} · {fmtFecha(p.fechaPago)}</span>
-                          <span className="font-semibold text-green-700">{fmt(p.monto)}</span>
+                        <div key={p.id} className={`flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-xs ${p.anulado ? 'opacity-50' : ''}`}>
+                          <span className="text-gray-600">
+                            {p.metodoPago} · {fmtFecha(p.fechaPago)}
+                            {p.fuente && <span className="ml-1 text-[9px] text-gray-400">→ {p.fuente}</span>}
+                            {p.anulado && <span className="ml-1 rounded bg-red-100 px-1 text-[8px] font-bold text-red-600">ANULADO</span>}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className={`font-semibold ${p.anulado ? 'text-gray-400 line-through' : 'text-green-700'}`}>{fmt(p.monto)}</span>
+                            {puedeGestionar && !p.anulado && c.estado !== 'PAGADA' && (
+                              <button onClick={() => anularAbono(p.id)} title="Anular abono (revierte el ingreso y recomputa cuotas)"
+                                className="rounded p-0.5 text-gray-300 hover:bg-red-50 hover:text-red-500">✕</button>
+                            )}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -285,36 +310,54 @@ export default function CuentasCobrarPage() {
   );
 }
 
-/* --- Registrar abono (reusa POST /ventas/:id/pago con cuotaVentaId opcional) --- */
+/* --- Registrar abono (endpoint canónico CxC con fuente de ingreso, paridad abono_cliente_sheet).
+       El backend imputa en cascada mora → interés → principal sobre las cuotas. --- */
 function AbonoDialog({ cuenta, onSuccess, onClose }: { cuenta: CuentaPorCobrar; onSuccess: () => void; onClose: () => void }) {
-  const cuotasPendientes = (cuenta.cuotas ?? []).filter(c => c.saldoPendiente > 0.005);
-  const [cuotaId, setCuotaId] = useState<string>(cuenta.proximaCuota?.id ?? '');
-  const cuotaSel = cuotasPendientes.find(c => c.id === cuotaId);
-  const sugerido = cuotaSel ? cuotaSel.saldoPendiente + (cuotaSel.montoMora ?? 0) : cuenta.saldoPendiente;
+  const maxAbono = cuenta.saldoPendiente + (cuenta.totalMora ?? 0);
 
   const [metodoPago, setMetodoPago] = useState<MetodoPagoVenta>('EFECTIVO');
-  const [monto, setMonto] = useState(sugerido > 0 ? sugerido.toFixed(2) : '');
+  const [fuente, setFuente] = useState<FuenteIngreso>('TESORERIA');
+  const [bancoId, setBancoId] = useState('');
+  const [bancos, setBancos] = useState<BancoEmpresa[]>([]);
+  const [monto, setMonto] = useState(maxAbono > 0 ? maxAbono.toFixed(2) : '');
   const [referencia, setReferencia] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const cambiarCuota = (id: string) => {
-    setCuotaId(id);
-    const c = cuotasPendientes.find(x => x.id === id);
-    setMonto(((c ? c.saldoPendiente + (c.montoMora ?? 0) : cuenta.saldoPendiente)).toFixed(2));
+  // EFECTIVO no entra a banco (paridad Flutter); digitales default BANCO
+  const fuentesValidas: FuenteIngreso[] = metodoPago === 'EFECTIVO' ? ['TESORERIA', 'CAJA'] : ['BANCO', 'TESORERIA', 'CAJA'];
+
+  useEffect(() => { getBancos().then(setBancos).catch(() => setBancos([])); }, []);
+  useEffect(() => {
+    if (fuente === 'BANCO' && !bancoId && bancos.length > 0) {
+      const principal = bancos.find(b => b.esPrincipal) ?? bancos[0];
+      setBancoId(principal.id);
+    }
+  }, [fuente, bancoId, bancos]);
+
+  const onMetodo = (m: MetodoPagoVenta) => {
+    setMetodoPago(m);
+    const f: FuenteIngreso = m === 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
+    setFuente(f);
+    if (f !== 'BANCO') setBancoId('');
+    // Bancarización: digitales llevan referencia (default 00000 como la app)
+    if (m !== 'EFECTIVO' && !referencia) setReferencia('00000');
   };
 
   const submit = async () => {
     const m = parseFloat(monto);
     if (isNaN(m) || m <= 0) { setError('Monto inválido'); return; }
+    if (m > maxAbono + 0.005) { setError(`El abono no puede superar ${fmt(maxAbono)} (saldo + mora)`); return; }
+    if (fuente === 'BANCO' && !bancoId) { setError('Selecciona la cuenta bancaria'); return; }
     setIsSubmitting(true);
     setError('');
     try {
-      await ventaService.procesarPago(cuenta.ventaId, {
+      await cxcService.registrarAbono(cuenta.ventaId, {
         metodoPago,
         monto: m,
-        referencia: metodoPago !== 'EFECTIVO' ? (referencia.trim() || undefined) : undefined,
-        cuotaVentaId: cuotaId || undefined,
+        referencia: metodoPago !== 'EFECTIVO' ? (referencia.trim() || '00000') : undefined,
+        fuente,
+        ...(fuente === 'BANCO' ? { bancoId } : {}),
       });
       onSuccess();
     } catch (err) {
@@ -329,23 +372,16 @@ function AbonoDialog({ cuenta, onSuccess, onClose }: { cuenta: CuentaPorCobrar; 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-semibold text-gray-900">Abono a {cuenta.codigo}</h3>
-        <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">Saldo total: <strong>{fmt(cuenta.saldoPendiente)}</strong>{(cuenta.totalMora ?? 0) > 0 && <> · mora {fmt(cuenta.totalMora)}</>}</p>
-
-        {cuotasPendientes.length > 0 && (
-          <div className="mt-3">
-            <label className="mb-1 block text-xs font-medium text-gray-600">Aplicar a cuota</label>
-            <select className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]" value={cuotaId} onChange={e => cambiarCuota(e.target.value)}>
-              <option value="">Distribuir automáticamente</option>
-              {cuotasPendientes.map(c => (
-                <option key={c.id} value={c.id}>Cuota #{c.numero} · {fmt(c.saldoPendiente + (c.montoMora ?? 0))}</option>
-              ))}
-            </select>
-          </div>
+        <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Saldo total: <strong>{fmt(cuenta.saldoPendiente)}</strong>{(cuenta.totalMora ?? 0) > 0 && <> · mora {fmt(cuenta.totalMora)}</>}
+        </p>
+        {(cuenta.cuotas ?? []).length > 0 && (
+          <p className="mt-1.5 text-[10px] text-gray-400">El abono se imputa automáticamente en cascada: mora → interés → capital de las cuotas más antiguas.</p>
         )}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {METODOS_PAGO.map(m => (
-            <button key={m} onClick={() => setMetodoPago(m)}
+            <button key={m} onClick={() => onMetodo(m)}
               className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${metodoPago === m ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500'}`}>
               {METODO_PAGO_LABEL[m]}
             </button>
@@ -356,9 +392,33 @@ function AbonoDialog({ cuenta, onSuccess, onClose }: { cuenta: CuentaPorCobrar; 
             type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" />
           {metodoPago !== 'EFECTIVO' && (
             <input className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
-              value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Referencia" />
+              value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="N° operación" />
           )}
         </div>
+
+        {/* Fuente del ingreso: a dónde ENTRA el dinero */}
+        <div className="mt-2">
+          <label className="mb-1 block text-xs font-medium text-gray-600">Entra a</label>
+          <select className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+            value={fuente} onChange={e => { setFuente(e.target.value as FuenteIngreso); if (e.target.value !== 'BANCO') setBancoId(''); }}>
+            {fuentesValidas.map(f => (
+              <option key={f} value={f}>
+                {f === 'TESORERIA' ? 'Tesorería (Caja Central)' : f === 'CAJA' ? 'Caja (mi caja abierta)' : 'Banco (cuenta de la empresa)'}
+              </option>
+            ))}
+          </select>
+        </div>
+        {fuente === 'BANCO' && (
+          bancos.length === 0 ? (
+            <p className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700">No hay cuentas bancarias. Crea una en Tesorería.</p>
+          ) : (
+            <select className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+              value={bancoId} onChange={e => setBancoId(e.target.value)}>
+              {bancos.map(b => <option key={b.id} value={b.id}>{b.nombreBanco} ·· {b.numeroCuenta} ({b.moneda ?? 'PEN'})</option>)}
+            </select>
+          )
+        )}
+
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>

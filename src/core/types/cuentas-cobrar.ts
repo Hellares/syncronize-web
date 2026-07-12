@@ -46,11 +46,39 @@ export interface CuentaPorCobrar {
   fechaVencimiento?: string | null;
   diasVencimiento?: number | null;
   estado: EstadoCuenta;
-  pagos?: Array<{ id: string; monto: number; metodoPago: string; fechaPago: string }>;
+  pagos?: Array<{ id: string; monto: number; metodoPago: string; fechaPago: string; anulado?: boolean; fuente?: string | null }>;
   numeroCuotas?: number;
   totalMora: number;
   cuotas?: CuotaCxC[];
   proximaCuota?: ProximaCuota | null;
+}
+
+/** Fuente del INGRESO del abono (espejo de FuentePagoCompra): a dónde entra el dinero */
+export type FuenteIngreso = 'TESORERIA' | 'CAJA' | 'BANCO';
+
+/** POST /cuentas-por-cobrar/:ventaId/abono — imputación en cascada mora → interés → principal */
+export interface RegistrarAbonoDto {
+  metodoPago: string;
+  monto: number;
+  referencia?: string;
+  banco?: string;
+  /** Default backend: EFECTIVO→TESORERIA, digital→BANCO */
+  fuente?: FuenteIngreso;
+  /** Obligatorio si fuente=BANCO */
+  bancoId?: string;
+}
+
+/** GET /cuentas-por-cobrar/por-cliente */
+export interface DeudaCliente {
+  clienteId?: string | null;
+  clienteEmpresaId?: string | null;
+  nombreCliente: string;
+  totalDeuda: number;
+  totalVencido: number;
+  totalMora?: number;
+  cantidadVentas: number;
+  proximoVencimiento?: string | null;
+  [key: string]: unknown;
 }
 
 export interface TopDeudor {

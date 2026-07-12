@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
@@ -16,7 +16,19 @@ const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 const sim = (m: string) => (m === 'USD' ? '$' : 'S/');
 const TERMINOS = ['CONTADO', 'CREDITO_7', 'CREDITO_15', 'CREDITO_30', 'CREDITO_45', 'CREDITO_60', 'CREDITO_90', 'PERSONALIZADO'];
 
-type LineaForm = { productoId?: string; descripcion: string; cantidad: string; precioUnitario: string };
+type LineaForm = {
+  productoId?: string;
+  descripcion: string;
+  cantidad: string;
+  precioUnitario: string;
+  // Empaque variable (solo productos con unidad de compra configurada)
+  unidadCompraNombre?: string;
+  unidadBaseNombre?: string;
+  factorProducto?: number;      // factor configurado en el producto
+  usaUnidadCompra?: boolean;    // toggle "Comprar por {unidadCompra}"
+  factor?: string;              // override editable por línea (default = factorProducto)
+  nuevoPrecioVenta?: string;    // ajustar precio de venta al confirmar
+};
 
 export default function NuevaCompraPage() {
   const router = useRouter();
@@ -62,7 +74,21 @@ export default function NuevaCompraPage() {
   }, []);
 
   const agregarProducto = (p: Producto) => {
-    setLineas((l) => [...l, { productoId: p.id, descripcion: p.nombre, cantidad: '1', precioUnitario: '' }]);
+    const factor = p.factorCompra != null ? Number(p.factorCompra) : undefined;
+    setLineas((l) => [...l, {
+      productoId: p.id,
+      descripcion: p.nombre,
+      cantidad: '1',
+      precioUnitario: '',
+      // Empaque variable disponible solo si el producto tiene unidad de compra + factor
+      ...(p.unidadCompra && factor && factor > 0 ? {
+        unidadCompraNombre: p.unidadCompra.nombre,
+        unidadBaseNombre: p.unidadMedida?.nombre ?? 'unid.',
+        factorProducto: factor,
+        usaUnidadCompra: true,
+        factor: String(factor),
+      } : {}),
+    }]);
     setQ(''); setResultados([]);
   };
   const agregarManual = () => setLineas((l) => [...l, { descripcion: '', cantidad: '1', precioUnitario: '' }]);
@@ -78,12 +104,20 @@ export default function NuevaCompraPage() {
     if (!sedeId) return setError('Seleccioná una sede');
     const detalles: CrearCompraLinea[] = lineas
       .filter((l) => l.descripcion.trim() && numVal(l.cantidad) > 0)
-      .map((l) => ({
-        ...(l.productoId ? { productoId: l.productoId } : {}),
-        descripcion: l.descripcion.trim(),
-        cantidad: Math.trunc(numVal(l.cantidad)),
-        precioUnitario: numVal(l.precioUnitario),
-      }));
+      .map((l) => {
+        const usaEmpaque = !!(l.usaUnidadCompra && l.factorProducto);
+        const factorLinea = usaEmpaque ? (numVal(l.factor ?? '') || l.factorProducto!) : undefined;
+        const nuevoPV = numVal(l.nuevoPrecioVenta ?? '');
+        return {
+          ...(l.productoId ? { productoId: l.productoId } : {}),
+          descripcion: l.descripcion.trim(),
+          // Con empaque: cantidad/precio van en unidad de COMPRA y el backend convierte con el factor
+          cantidad: Math.trunc(numVal(l.cantidad)),
+          precioUnitario: numVal(l.precioUnitario),
+          ...(usaEmpaque ? { usaUnidadCompra: true, factorCompra: factorLinea } : {}),
+          ...(nuevoPV > 0 ? { nuevoPrecioVenta: nuevoPV } : {}),
+        };
+      });
     if (detalles.length === 0) return setError('Agregá al menos un producto/línea con cantidad');
     setGuardando(true); setError(null);
     try {
@@ -189,21 +223,74 @@ export default function NuevaCompraPage() {
           <tbody className="divide-y divide-gray-100">
             {lineas.length === 0 ? (
               <tr><td colSpan={5} className="px-3 py-6 text-center text-xs text-gray-400">Buscá un producto o agregá una línea manual.</td></tr>
-            ) : lineas.map((l, i) => (
-              <tr key={i}>
+            ) : lineas.map((l, i) => {
+              const conEmpaque = !!l.unidadCompraNombre && !!l.factorProducto;
+              const factorVigente = numVal(l.factor ?? '') || l.factorProducto || 0;
+              return (
+              <Fragment key={i}>
+              <tr>
                 <td className="px-3 py-1.5">
                   <input className="w-full rounded border border-gray-200 px-2 py-1 text-sm" value={l.descripcion} onChange={(e) => actualizar(i, 'descripcion', e.target.value)} />
                 </td>
                 <td className="px-2 py-1.5">
                   <input type="text" inputMode="numeric" className="w-16 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
+                  {conEmpaque && l.usaUnidadCompra && <p className="text-center text-[9px] text-gray-400">{l.unidadCompraNombre}</p>}
                 </td>
                 <td className="px-2 py-1.5">
                   <input type="text" inputMode="decimal" placeholder="0.00" className="w-24 rounded border border-gray-200 px-2 py-1 text-right text-sm" value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
+                  {conEmpaque && l.usaUnidadCompra && <p className="text-center text-[9px] text-gray-400">por {l.unidadCompraNombre}</p>}
                 </td>
                 <td className="px-2 py-1.5 text-right font-medium">{sim(moneda)} {(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}</td>
                 <td className="px-2 py-1.5 text-right"><button onClick={() => quitar(i)} className="text-xs text-red-500 hover:underline">Quitar</button></td>
               </tr>
-            ))}
+              {(conEmpaque || l.productoId) && (
+                <tr className="bg-gray-50/50">
+                  <td colSpan={5} className="px-3 pb-2 pt-0">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+                      {conEmpaque && (
+                        <>
+                          <label className="flex items-center gap-1.5">
+                            <input type="checkbox" checked={!!l.usaUnidadCompra}
+                              onChange={(e) => setLineas(ls => ls.map((x, idx) => idx === i ? { ...x, usaUnidadCompra: e.target.checked } : x))}
+                              className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+                            <span className="text-gray-600">Comprar por <strong>{l.unidadCompraNombre}</strong></span>
+                          </label>
+                          {l.usaUnidadCompra && (
+                            <span className="flex items-center gap-1 text-gray-500">
+                              1 {l.unidadCompraNombre} =
+                              <input type="text" inputMode="decimal" value={l.factor ?? ''}
+                                onChange={(e) => actualizar(i, 'factor', e.target.value)}
+                                className="w-16 rounded border border-gray-200 px-1.5 py-0.5 text-right text-[11px]" />
+                              {l.unidadBaseNombre}
+                              {factorVigente !== l.factorProducto && (
+                                <button onClick={() => actualizar(i, 'factor', String(l.factorProducto))}
+                                  className="text-[10px] text-[#437EFF] hover:underline" title={`Restablecer a ${l.factorProducto}`}>↺</button>
+                              )}
+                              {factorVigente > 0 && numVal(l.cantidad) > 0 && (
+                                <span className="text-gray-400">
+                                  → {Math.trunc(numVal(l.cantidad)) * factorVigente} {l.unidadBaseNombre} a {sim(moneda)} {(numVal(l.precioUnitario) / factorVigente).toFixed(4)} c/u
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {l.productoId && (
+                        <label className="flex items-center gap-1.5 text-gray-600">
+                          Nuevo precio venta al confirmar:
+                          <input type="text" inputMode="decimal" placeholder="—" value={l.nuevoPrecioVenta ?? ''}
+                            onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
+                            className="w-20 rounded border border-gray-200 px-1.5 py-0.5 text-right text-[11px]"
+                            title="Opcional: actualiza el precio de venta del producto al confirmar la compra (queda en el historial de precios)" />
+                        </label>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

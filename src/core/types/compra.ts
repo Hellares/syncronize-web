@@ -64,9 +64,16 @@ export interface ComprasFiltros {
 
 export interface CrearCompraLinea {
   productoId?: string;
+  varianteId?: string;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
+  /** Empaque variable: cantidad/precio vienen en unidad de COMPRA; el backend convierte con el factor */
+  usaUnidadCompra?: boolean;
+  /** Override puntual del factor solo para esta compra (ej: saco de 40 en vez de 50) */
+  factorCompra?: number;
+  /** Ajusta el precio de venta del producto al confirmar la compra (+ historial) */
+  nuevoPrecioVenta?: number;
 }
 
 export interface CrearCompraInput {
