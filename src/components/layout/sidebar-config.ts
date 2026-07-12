@@ -20,7 +20,6 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4',
     items: [
       { label: 'Dashboard', href: '/dashboard' },
-      { label: 'Mi Dashboard', href: '/dashboard/vendedor', permission: 'canViewVentas' },
     ],
   },
   {
@@ -75,7 +74,6 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Cuentas por Cobrar', href: '/dashboard/cuentas-cobrar', permission: 'canViewVentas' },
       { label: 'Cuentas por Pagar', href: '/dashboard/cuentas-pagar', permission: 'canViewCompras' },
       { label: 'Devoluciones', href: '/dashboard/devoluciones', permission: 'canViewDevoluciones' },
-      { label: 'Tipo de Cambio', href: '/dashboard/tipo-cambio', permission: 'canViewVentas' },
       { label: 'Reportes de Ventas', href: '/dashboard/reportes-ventas', permission: 'canViewVentas' },
       { label: 'Resumen Financiero', href: '/dashboard/resumen-financiero', permission: 'canViewReports' },
     ],
@@ -87,9 +85,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     items: [
       { label: 'Compras', href: '/dashboard/compras' },
       { label: 'Órdenes de Compra', href: '/dashboard/ordenes-compra' },
-      { label: 'Recepciones', href: '/dashboard/recepciones' },
       { label: 'Proveedores', href: '/dashboard/proveedores', permission: 'canViewProveedores' },
-      { label: 'Lotes', href: '/dashboard/lotes' },
     ],
   },
   {
@@ -102,19 +98,8 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Configuración', href: '/dashboard/facturacion/configuracion' },
     ],
   },
-  {
-    label: 'Recursos Humanos',
-    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-    permission: 'canViewEmpleados',
-    items: [
-      { label: 'Dashboard RRHH', href: '/dashboard/rrhh' },
-      { label: 'Empleados', href: '/dashboard/empleados' },
-      { label: 'Turnos y Horarios', href: '/dashboard/turnos' },
-      { label: 'Asistencia', href: '/dashboard/asistencia', permission: 'canViewAsistencia' },
-      { label: 'Planilla', href: '/dashboard/planilla', permission: 'canViewPlanilla' },
-      { label: 'Adelantos', href: '/dashboard/adelantos', permission: 'canViewPlanilla' },
-    ],
-  },
+  // NOTA: la sección RRHH se retiró del sidebar — sus páginas no existen aún en la web
+  // (rrhh/empleados/turnos/asistencia/planilla/adelantos viven solo en la app Flutter).
   {
     label: 'Clientes',
     icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
@@ -127,7 +112,6 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       { label: 'Campos de Servicio', href: '/dashboard/campos-servicio', permission: 'canViewServices' },
       { label: 'Plantillas de Servicio', href: '/dashboard/plantillas-servicio', permission: 'canViewServices' },
       { label: 'Tercerización B2B', href: '/dashboard/tercerizacion', permission: 'canManageOrders' },
-      { label: 'Citas', href: '/dashboard/citas', permission: 'canManageOrders' },
     ],
   },
   {
@@ -135,12 +119,8 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
     permission: 'canManageSettings',
     items: [
-      { label: 'Perfil de Empresa', href: '/dashboard/empresa' },
-      { label: 'Configuración', href: '/dashboard/configuracion' },
+      // Perfil/Configuración/Usuarios/Sedes/Personalización: páginas aún no construidas en web
       { label: 'Integración Yape', href: '/dashboard/integraciones/yape' },
-      { label: 'Usuarios', href: '/dashboard/usuarios', permission: 'canViewUsers' },
-      { label: 'Sedes', href: '/dashboard/sedes', permission: 'canManageSedes' },
-      { label: 'Personalización', href: '/dashboard/personalizacion' },
     ],
   },
 ];
