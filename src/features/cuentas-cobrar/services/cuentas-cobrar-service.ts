@@ -6,6 +6,7 @@ import type {
   CuentasCobrarFiltros,
   RegistrarAbonoDto,
   DeudaCliente,
+  EstadoCuentaCliente,
 } from '@/core/types/cuentas-cobrar';
 
 const BASE = '/cuentas-por-cobrar';
@@ -30,7 +31,7 @@ export async function getPorCliente(): Promise<DeudaCliente[]> {
 }
 
 /** Estado de cuenta del cliente (ventas crédito + abonos + saldo) */
-export async function getEstadoCuentaCliente(params: { clienteId?: string; clienteEmpresaId?: string }): Promise<Record<string, unknown>> {
+export async function getEstadoCuentaCliente(params: { clienteId?: string; clienteEmpresaId?: string }): Promise<EstadoCuentaCliente> {
   const q = new URLSearchParams();
   if (params.clienteId) q.set('clienteId', params.clienteId);
   if (params.clienteEmpresaId) q.set('clienteEmpresaId', params.clienteEmpresaId);

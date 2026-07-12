@@ -238,6 +238,19 @@ export default function CuentasCobrarPage() {
                     <button onClick={() => setAbonoTarget(c)}
                       className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700">Abonar</button>
                   )}
+                  {(c.clienteId || c.clienteEmpresaId) && (
+                    <button
+                      onClick={() => {
+                        // Prioridad clienteEmpresaId (B2B) sobre clienteId, paridad app
+                        const q = new URLSearchParams(
+                          c.clienteEmpresaId ? { clienteEmpresaId: c.clienteEmpresaId } : { clienteId: c.clienteId! },
+                        );
+                        if (c.nombreCliente) q.set('nombre', c.nombreCliente);
+                        router.push(`/dashboard/cuentas-cobrar/estado-cuenta?${q.toString()}`);
+                      }}
+                      title="Estado de cuenta del cliente"
+                      className="rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-500 hover:bg-gray-50">Estado de cuenta</button>
+                  )}
                   <button onClick={() => router.push(`/dashboard/ventas/${c.ventaId}`)}
                     className="rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-500 hover:bg-gray-50">Venta</button>
                 </div>

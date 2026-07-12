@@ -33,6 +33,8 @@ export interface ProximaCuota {
 export interface CuentaPorCobrar {
   ventaId: string;
   codigo: string;
+  clienteId?: string | null;
+  clienteEmpresaId?: string | null;
   nombreCliente: string;
   documentoCliente?: string | null;
   telefonoCliente?: string | null;
@@ -68,17 +70,57 @@ export interface RegistrarAbonoDto {
   bancoId?: string;
 }
 
-/** GET /cuentas-por-cobrar/por-cliente */
+/** GET /cuentas-por-cobrar/por-cliente — shape real del backend (getPorCliente):
+ *  agrupa por documento/nombre, separa deuda por moneda y NO trae IDs de cliente. */
 export interface DeudaCliente {
-  clienteId?: string | null;
-  clienteEmpresaId?: string | null;
-  nombreCliente: string;
-  totalDeuda: number;
-  totalVencido: number;
-  totalMora?: number;
-  cantidadVentas: number;
-  proximoVencimiento?: string | null;
-  [key: string]: unknown;
+  nombre: string;
+  documento: string | null;
+  deudaPorMoneda: Record<string, number>;
+  cantidad: number;
+  cantidadVencidas: number;
+}
+
+/** GET /cuentas-por-cobrar/estado-cuenta-cliente (espejo estado_cuenta_cliente.dart) */
+export interface EstadoCuentaCliente {
+  cliente: {
+    id?: string | null;
+    tipo: 'PERSONA' | 'EMPRESA';
+    nombre: string | null;
+    documento: string | null;
+  };
+  resumen: {
+    saldoPendiente: number;
+    totalVendido: number;
+    totalAbonado: number;
+    totalMora: number;
+    cantidadVentas: number;
+    ventasConSaldo: number;
+  };
+  ventas: VentaCreditoEC[];
+  abonos: AbonoEC[];
+}
+
+export interface VentaCreditoEC {
+  ventaId: string;
+  codigo: string;
+  fechaVenta?: string | null;
+  total: number;
+  totalPagado: number;
+  saldoPendiente: number;
+  estado: EstadoCuenta;
+  fechaVencimiento?: string | null;
+  diasVencimiento?: number | null;
+  numeroCuotas?: number;
+  totalMora: number;
+}
+
+export interface AbonoEC {
+  id: string;
+  monto: number;
+  metodoPago: string;
+  fuente?: string | null;
+  fechaPago?: string | null;
+  ventaCodigo?: string | null;
 }
 
 export interface TopDeudor {
