@@ -7,6 +7,7 @@ import type {
   PagoContadoCompra,
   BancoEmpresa,
   CrearCompraInput,
+  HistorialCompraProducto,
 } from '@/core/types/compra';
 
 const emp = () => getTenantId() ?? '';
@@ -44,6 +45,18 @@ export async function confirmarCompra(id: string, pago?: PagoContadoCompra): Pro
 export async function anularCompra(id: string): Promise<CompraDetalle> {
   const res = await apiClient.post(`${BASE()}/${id}/anular`, {});
   return res.data;
+}
+
+/** Elimina una compra en BORRADOR (única eliminable) */
+export async function eliminarCompra(id: string): Promise<void> {
+  await apiClient.delete(`${BASE()}/${id}`);
+}
+
+/** Últimas compras del producto — hint de costo al agregar línea (paridad historial_compras_producto_panel) */
+export async function getHistorialComprasProducto(productoId: string, limit = 3): Promise<HistorialCompraProducto[]> {
+  const res = await apiClient.get(`/productos/${productoId}/historial-compras?limit=${limit}`);
+  const body = res.data;
+  return Array.isArray(body) ? body : body?.data ?? body?.compras ?? [];
 }
 
 /** Cuentas bancarias de la empresa (para fuente=BANCO al pagar). */

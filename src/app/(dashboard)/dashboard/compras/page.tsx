@@ -3,7 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CompraListItem, EstadoCompra } from '@/core/types/compra';
+import type { Proveedor } from '@/core/types/proveedor';
 import { listarCompras } from '@/features/compras/services/compra-service';
+import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
+import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const num = (v: number | string) => Number(v ?? 0);
@@ -24,23 +27,34 @@ const FILTROS: { label: string; value?: EstadoCompra }[] = [
 
 export default function ComprasPage() {
   const router = useRouter();
+  const { sedes } = useEmpresa();
   const [items, setItems] = useState<CompraListItem[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [estado, setEstado] = useState<EstadoCompra | undefined>(undefined);
+  const [sedeId, setSedeId] = useState('');
+  const [proveedorId, setProveedorId] = useState('');
   const [search, setSearch] = useState('');
+
+  useEffect(() => { listarProveedores().then(setProveedores).catch(() => {}); }, []);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setItems(await listarCompras({ estado, search: search.trim() || undefined }));
+      setItems(await listarCompras({
+        estado,
+        sedeId: sedeId || undefined,
+        proveedorId: proveedorId || undefined,
+        search: search.trim() || undefined,
+      }));
     } catch {
       setError('No se pudieron cargar las compras');
     } finally {
       setLoading(false);
     }
-  }, [estado, search]);
+  }, [estado, sedeId, proveedorId, search]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -71,6 +85,18 @@ export default function ComprasPage() {
             </button>
           ))}
         </div>
+        {sedes.filter(s => s.isActive).length > 1 && (
+          <select value={sedeId} onChange={(e) => setSedeId(e.target.value)}
+            className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]">
+            <option value="">Todas las sedes</option>
+            {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+          </select>
+        )}
+        <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
+          className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]">
+          <option value="">Todos los proveedores</option>
+          {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+        </select>
         <input
           className="ml-auto w-full max-w-xs rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
           placeholder="Buscar por código o proveedor…"

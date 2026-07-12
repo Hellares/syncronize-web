@@ -25,15 +25,42 @@ export interface CompraDetalleItem {
   precioUnitario: number | string;
   subtotal: number | string;
   total: number | string;
+  // Snapshot empaque variable (cantidad/precio SIEMPRE en unidad atómica; esto es la doble vista)
+  usaUnidadCompra?: boolean;
+  cantidadOriginal?: number | string | null;
+  unidadOriginalSimbolo?: string | null;
+  factorAplicado?: number | string | null;
+  nuevoPrecioVenta?: number | string | null;
+  loteId?: string | null;
 }
+
+export const TIPOS_DOC_PROVEEDOR = ['FACTURA', 'BOLETA', 'GUIA', 'TICKET'] as const;
+export type TipoDocProveedor = typeof TIPOS_DOC_PROVEEDOR[number];
 
 export interface CompraDetalle extends CompraListItem {
   subtotal: number | string;
   descuento: number | string;
   impuestos: number | string;
+  tipoDocumentoProveedor?: string | null;
   serieDocumentoProveedor?: string | null;
   numeroDocumentoProveedor?: string | null;
+  diasCredito?: number | null;
+  fechaVencimientoPago?: string | null;
+  observaciones?: string | null;
+  /** true (default backend): los precios de las líneas YA incluyen IGV (se extrae, no se suma) */
+  precioIncluyeIgv?: boolean;
   detalles: CompraDetalleItem[];
+}
+
+/** GET /productos/:id/historial-compras — última(s) compras del producto (hint de costo) */
+export interface HistorialCompraProducto {
+  compraId?: string;
+  compraCodigo?: string;
+  proveedorNombre?: string | null;
+  cantidad?: number;
+  precioUnitario?: number | string;
+  fechaRecepcion?: string;
+  [key: string]: unknown;
 }
 
 export interface PagoContadoCompra {
@@ -81,8 +108,14 @@ export interface CrearCompraInput {
   proveedorId: string;
   moneda: string;
   terminosPago?: string;
+  /** Días de crédito (términos PERSONALIZADO) */
+  diasCredito?: number;
   fechaRecepcion?: string;
+  tipoDocumentoProveedor?: string;
   serieDocumentoProveedor?: string;
   numeroDocumentoProveedor?: string;
+  observaciones?: string;
+  /** default backend true: los precios YA incluyen IGV (se extrae en vez de sumarse) */
+  precioIncluyeIgv?: boolean;
   detalles: CrearCompraLinea[];
 }

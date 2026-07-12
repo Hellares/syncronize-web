@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { CompraDetalle, PagoContadoCompra } from '@/core/types/compra';
-import { getCompra, confirmarCompra, anularCompra } from '@/features/compras/services/compra-service';
+import { getCompra, confirmarCompra, anularCompra, eliminarCompra } from '@/features/compras/services/compra-service';
 import ConfirmarPagoDialog from '@/features/compras/components/ConfirmarPagoDialog';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
@@ -13,6 +14,7 @@ const fmtFecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-P
 
 export default function CompraDetallePage() {
   const params = useParams();
+  const router = useRouter();
   const id = String(params.id);
   const [c, setC] = useState<CompraDetalle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,17 @@ export default function CompraDetallePage() {
     } finally { setBusy(false); }
   };
 
+  const onEliminar = async () => {
+    if (!confirm('¿Eliminar este borrador de compra? Esta acción no se puede deshacer.')) return;
+    setBusy(true);
+    try { await eliminarCompra(id); router.push('/dashboard/compras'); }
+    catch (e) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(msg ?? 'No se pudo eliminar');
+      setBusy(false);
+    }
+  };
+
   if (loading) return <div className="p-6 text-sm text-gray-500">Cargando…</div>;
   if (error || !c) return <div className="p-6 text-sm text-red-600">{error ?? 'Sin datos'}</div>;
 
@@ -77,15 +90,28 @@ export default function CompraDetallePage() {
           <h1 className="text-lg font-semibold text-[#004A94]">{c.codigo}</h1>
           <p className="text-sm text-gray-700">{c.nombreProveedor}</p>
           <p className="text-xs text-gray-500">
-            {fmtFecha(c.fechaRecepcion)} · {c.terminosPago?.replace('_', ' ') ?? 'CONTADO'} · {c.estado}
+            {fmtFecha(c.fechaRecepcion)} · {c.terminosPago?.replace('_', ' ') ?? 'CONTADO'}
+            {c.diasCredito ? ` (${c.diasCredito} días)` : ''} · {c.estado}
             {c.estado === 'CONFIRMADA' && (c.pagoPendiente ? ' · CxP pendiente' : ' · pagada')}
           </p>
+          {(c.serieDocumentoProveedor || c.numeroDocumentoProveedor) && (
+            <p className="text-xs text-gray-400">
+              {c.tipoDocumentoProveedor ?? 'Doc.'} {c.serieDocumentoProveedor ?? ''}{c.serieDocumentoProveedor && c.numeroDocumentoProveedor ? '-' : ''}{c.numeroDocumentoProveedor ?? ''}
+              {c.sede?.nombre ? ` · ${c.sede.nombre}` : ''}
+            </p>
+          )}
+          {c.observaciones && <p className="mt-0.5 text-xs italic text-gray-400">{c.observaciones}</p>}
         </div>
         <div className="flex gap-2">
           {c.estado === 'BORRADOR' && (
-            <button onClick={onConfirmar} disabled={busy} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
-              Confirmar
-            </button>
+            <>
+              <button onClick={onEliminar} disabled={busy} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-60">
+                Eliminar
+              </button>
+              <button onClick={onConfirmar} disabled={busy} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
+                Confirmar
+              </button>
+            </>
           )}
           {c.estado === 'CONFIRMADA' && (
             <button onClick={onAnular} disabled={busy} className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60">
@@ -109,7 +135,18 @@ export default function CompraDetallePage() {
           <tbody className="divide-y divide-gray-100">
             {(c.detalles ?? []).map((d) => (
               <tr key={d.id}>
-                <td className="px-3 py-2 text-gray-800">{d.descripcion}</td>
+                <td className="px-3 py-2 text-gray-800">
+                  {d.descripcion}
+                  {/* Doble vista empaque: lo comprado en unidad de compra vs lo que entra en unidad base */}
+                  {d.usaUnidadCompra && d.cantidadOriginal != null && (
+                    <span className="block text-[10px] text-gray-400">
+                      Comprado: {num(d.cantidadOriginal)} {d.unidadOriginalSimbolo ?? 'paq.'} × {num(d.factorAplicado ?? 0)} = {num(d.cantidad)} unid. base
+                    </span>
+                  )}
+                  {d.nuevoPrecioVenta != null && num(d.nuevoPrecioVenta) > 0 && (
+                    <span className="block text-[10px] text-blue-600">Nuevo precio venta al confirmar: {sim(c.moneda)} {num(d.nuevoPrecioVenta).toFixed(2)}</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">{num(d.cantidad)}</td>
                 <td className="px-3 py-2 text-right">{sim(c.moneda)} {num(d.precioUnitario).toFixed(2)}</td>
                 <td className="px-3 py-2 text-right font-medium">{sim(c.moneda)} {num(d.total).toFixed(2)}</td>

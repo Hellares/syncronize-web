@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import type { Proveedor } from '@/core/types/proveedor';
 import type { CrearCompraLinea } from '@/core/types/compra';
+import { TIPOS_DOC_PROVEEDOR } from '@/core/types/compra';
+import { getStockByProductoSede } from '@/features/stock/services/stock-service';
 import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
-import { crearCompra } from '@/features/compras/services/compra-service';
+import { crearCompra, getHistorialComprasProducto } from '@/features/compras/services/compra-service';
 import { getProductos } from '@/features/producto/services/producto-service';
 import type { Producto } from '@/core/types/producto';
 
@@ -28,6 +30,10 @@ type LineaForm = {
   usaUnidadCompra?: boolean;    // toggle "Comprar por {unidadCompra}"
   factor?: string;              // override editable por línea (default = factorProducto)
   nuevoPrecioVenta?: string;    // ajustar precio de venta al confirmar
+  // Contexto (no viaja al backend): hint de costo/última compra
+  costoActual?: number | null;
+  precioVentaActual?: number | null;
+  ultimaCompra?: { proveedor?: string | null; precio?: number; fecha?: string } | null;
 };
 
 export default function NuevaCompraPage() {
@@ -39,8 +45,13 @@ export default function NuevaCompraPage() {
   const [moneda, setMoneda] = useState('PEN');
   const [terminosPago, setTerminosPago] = useState('CONTADO');
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [tipoDoc, setTipoDoc] = useState('FACTURA');
   const [serie, setSerie] = useState('');
   const [numero, setNumero] = useState('');
+  const [diasCredito, setDiasCredito] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  // Los precios de las líneas YA incluyen IGV (default backend true: se EXTRAE, no se suma)
+  const [precioIncluyeIgv, setPrecioIncluyeIgv] = useState(true);
   // Cantidad/precio se editan como TEXTO (para permitir decimales y campo vacío);
   // se convierten a número al guardar.
   const [lineas, setLineas] = useState<LineaForm[]>([]);
@@ -73,16 +84,18 @@ export default function NuevaCompraPage() {
     }, 300);
   }, []);
 
-  const agregarProducto = (p: Producto) => {
+  const agregarProducto = async (p: Producto) => {
     const factor = p.factorCompra != null ? Number(p.factorCompra) : undefined;
+    const conEmpaque = !!(p.unidadCompra && factor && factor > 0);
+    const idx = lineas.length;
     setLineas((l) => [...l, {
       productoId: p.id,
       descripcion: p.nombre,
       cantidad: '1',
       precioUnitario: '',
       // Empaque variable disponible solo si el producto tiene unidad de compra + factor
-      ...(p.unidadCompra && factor && factor > 0 ? {
-        unidadCompraNombre: p.unidadCompra.nombre,
+      ...(conEmpaque ? {
+        unidadCompraNombre: p.unidadCompra!.nombre,
         unidadBaseNombre: p.unidadMedida?.nombre ?? 'unid.',
         factorProducto: factor,
         usaUnidadCompra: true,
@@ -90,6 +103,39 @@ export default function NuevaCompraPage() {
       } : {}),
     }]);
     setQ(''); setResultados([]);
+
+    // Contexto asíncrono: costo actual en sede (precio default, paridad Flutter) + última compra
+    if (sedeId) {
+      getStockByProductoSede(p.id, sedeId)
+        .then(stock => {
+          const costo = stock?.precioCosto != null ? Number(stock.precioCosto) : null;
+          const pv = stock?.precio != null ? Number(stock.precio) : null;
+          setLineas(ls => ls.map((x, i2) => {
+            if (i2 !== idx || x.productoId !== p.id) return x;
+            // Default = costo actual: en unidad de compra si aplica empaque (costo × factor)
+            const base = costo != null && costo > 0
+              ? (x.usaUnidadCompra && x.factorProducto ? costo * x.factorProducto : costo)
+              : null;
+            return {
+              ...x,
+              costoActual: costo,
+              precioVentaActual: pv,
+              ...(base != null && !x.precioUnitario ? { precioUnitario: base.toFixed(2) } : {}),
+            };
+          }));
+        })
+        .catch(() => {});
+    }
+    getHistorialComprasProducto(p.id, 1)
+      .then(hist => {
+        const u = hist[0];
+        if (!u) return;
+        setLineas(ls => ls.map((x, i2) => i2 === idx && x.productoId === p.id ? {
+          ...x,
+          ultimaCompra: { proveedor: u.proveedorNombre, precio: u.precioUnitario != null ? Number(u.precioUnitario) : undefined, fecha: u.fechaRecepcion },
+        } : x));
+      })
+      .catch(() => {});
   };
   const agregarManual = () => setLineas((l) => [...l, { descripcion: '', cantidad: '1', precioUnitario: '' }]);
   const actualizar = (i: number, campo: keyof LineaForm, valor: string) =>
@@ -123,8 +169,12 @@ export default function NuevaCompraPage() {
     try {
       const compra = await crearCompra({
         sedeId, proveedorId, moneda, terminosPago, fechaRecepcion: fecha,
+        ...(terminosPago === 'PERSONALIZADO' && parseInt(diasCredito) > 0 ? { diasCredito: parseInt(diasCredito) } : {}),
+        tipoDocumentoProveedor: (serie.trim() || numero.trim()) ? tipoDoc : undefined,
         serieDocumentoProveedor: serie.trim() || undefined,
         numeroDocumentoProveedor: numero.trim() || undefined,
+        observaciones: observaciones.trim() || undefined,
+        precioIncluyeIgv,
         detalles,
       });
       router.push(`/dashboard/compras/${compra.id}`);
@@ -174,16 +224,40 @@ export default function NuevaCompraPage() {
           <label className={labelClass}>Fecha</label>
           <input type="date" className={inputClass} value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div>
-            <label className={labelClass}>Serie doc.</label>
+            <label className={labelClass}>Doc. proveedor</label>
+            <select className={inputClass} value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
+              {TIPOS_DOC_PROVEEDOR.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Serie</label>
             <input className={inputClass} value={serie} onChange={(e) => setSerie(e.target.value)} placeholder="F001" />
           </div>
           <div>
-            <label className={labelClass}>N° doc.</label>
+            <label className={labelClass}>N°</label>
             <input className={inputClass} value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="00012" />
           </div>
         </div>
+        {terminosPago === 'PERSONALIZADO' && (
+          <div>
+            <label className={labelClass}>Días de crédito *</label>
+            <input className={inputClass} type="number" min="1" value={diasCredito} onChange={(e) => setDiasCredito(e.target.value)} placeholder="Ej: 20" />
+          </div>
+        )}
+        <div className="md:col-span-2">
+          <label className={labelClass}>Observaciones</label>
+          <input className={inputClass} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Opcional" />
+        </div>
+        <label className="flex items-start gap-2 self-end pb-1 text-sm">
+          <input type="checkbox" checked={precioIncluyeIgv} onChange={(e) => setPrecioIncluyeIgv(e.target.checked)}
+            className="mt-0.5 rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+          <span>
+            <span className="font-medium text-gray-800">Precios YA incluyen IGV</span>
+            <span className="block text-[10px] text-gray-500">Si lo desmarcas, el IGV se SUMA sobre los precios de las líneas.</span>
+          </span>
+        </label>
       </div>
 
       {/* Buscador de producto */}
@@ -285,6 +359,26 @@ export default function NuevaCompraPage() {
                         </label>
                       )}
                     </div>
+                    {/* Hints de costo (paridad historial_compras_producto_panel + card de margen Flutter) */}
+                    {l.productoId && (l.costoActual != null || l.precioVentaActual != null || l.ultimaCompra) && (() => {
+                      const factorVig = l.usaUnidadCompra ? (numVal(l.factor ?? '') || l.factorProducto || 1) : 1;
+                      const costoUnitNuevo = numVal(l.precioUnitario) > 0 ? numVal(l.precioUnitario) / factorVig : null;
+                      const superaPV = costoUnitNuevo != null && l.precioVentaActual != null && l.precioVentaActual > 0 && costoUnitNuevo > l.precioVentaActual;
+                      return (
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-gray-400">
+                          {l.costoActual != null && l.costoActual > 0 && <span>Costo actual: {sim(moneda)} {l.costoActual.toFixed(2)}</span>}
+                          {l.precioVentaActual != null && l.precioVentaActual > 0 && <span>Precio venta: {sim(moneda)} {l.precioVentaActual.toFixed(2)}</span>}
+                          {l.ultimaCompra?.precio != null && (
+                            <span>Última compra: {sim(moneda)} {l.ultimaCompra.precio.toFixed(2)}{l.ultimaCompra.proveedor ? ` (${l.ultimaCompra.proveedor})` : ''}</span>
+                          )}
+                          {superaPV && (
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
+                              ⚠ El costo ({sim(moneda)} {costoUnitNuevo!.toFixed(2)}/u) supera el precio de venta — ajusta el precio de venta
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               )}
