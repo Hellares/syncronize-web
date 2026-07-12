@@ -86,6 +86,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     permission: 'canViewCompras',
     items: [
       { label: 'Compras', href: '/dashboard/compras' },
+      { label: 'Órdenes de Compra', href: '/dashboard/ordenes-compra' },
       { label: 'Recepciones', href: '/dashboard/recepciones' },
       { label: 'Proveedores', href: '/dashboard/proveedores', permission: 'canViewProveedores' },
       { label: 'Lotes', href: '/dashboard/lotes' },
