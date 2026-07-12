@@ -120,6 +120,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     permission: 'canViewClients',
     items: [
       { label: 'Clientes', href: '/dashboard/clientes' },
+      { label: 'Políticas VIP', href: '/dashboard/politicas-vip', permission: 'canViewDiscounts' },
       { label: 'Servicios', href: '/dashboard/servicios', permission: 'canViewServices' },
       { label: 'Catálogo de Servicios', href: '/dashboard/catalogo-servicios', permission: 'canViewServices' },
       { label: 'Campos de Servicio', href: '/dashboard/campos-servicio', permission: 'canViewServices' },
