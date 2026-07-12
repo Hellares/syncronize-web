@@ -7,7 +7,7 @@ import type {
   PagoContadoCompra,
   BancoEmpresa,
   CrearCompraInput,
-  HistorialCompraProducto,
+  HistorialComprasProducto,
 } from '@/core/types/compra';
 
 const emp = () => getTenantId() ?? '';
@@ -52,11 +52,14 @@ export async function eliminarCompra(id: string): Promise<void> {
   await apiClient.delete(`${BASE()}/${id}`);
 }
 
-/** Últimas compras del producto — hint de costo al agregar línea (paridad historial_compras_producto_panel) */
-export async function getHistorialComprasProducto(productoId: string, limit = 3): Promise<HistorialCompraProducto[]> {
-  const res = await apiClient.get(`/productos/${productoId}/historial-compras?limit=${limit}`);
-  const body = res.data;
-  return Array.isArray(body) ? body : body?.data ?? body?.compras ?? [];
+/** Historial de compras del producto: últimas compras + agregado por proveedor + mejor proveedor
+ *  (paridad historial_compras_producto_panel de Flutter) */
+export async function getHistorialComprasProducto(productoId: string, opts: { varianteId?: string; limit?: number } = {}): Promise<HistorialComprasProducto> {
+  const q = new URLSearchParams();
+  if (opts.varianteId) q.set('varianteId', opts.varianteId);
+  q.set('limit', String(opts.limit ?? 10));
+  const res = await apiClient.get(`/productos/${productoId}/historial-compras?${q.toString()}`);
+  return res.data;
 }
 
 /** Cuentas bancarias de la empresa (para fuente=BANCO al pagar). */

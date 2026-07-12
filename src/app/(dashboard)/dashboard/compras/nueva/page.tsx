@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import type { Proveedor } from '@/core/types/proveedor';
-import type { CrearCompraLinea } from '@/core/types/compra';
+import type { CrearCompraLinea, HistorialComprasProducto } from '@/core/types/compra';
 import { TIPOS_DOC_PROVEEDOR } from '@/core/types/compra';
 import { getStockByProductoSede } from '@/features/stock/services/stock-service';
 import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
@@ -30,10 +30,11 @@ type LineaForm = {
   usaUnidadCompra?: boolean;    // toggle "Comprar por {unidadCompra}"
   factor?: string;              // override editable por línea (default = factorProducto)
   nuevoPrecioVenta?: string;    // ajustar precio de venta al confirmar
-  // Contexto (no viaja al backend): hint de costo/última compra
+  // Contexto (no viaja al backend): hint de costo + historial de compras
   costoActual?: number | null;
   precioVentaActual?: number | null;
-  ultimaCompra?: { proveedor?: string | null; precio?: number; fecha?: string } | null;
+  historial?: HistorialComprasProducto | null;
+  historialAbierto?: boolean;
 };
 
 export default function NuevaCompraPage() {
@@ -126,14 +127,9 @@ export default function NuevaCompraPage() {
         })
         .catch(() => {});
     }
-    getHistorialComprasProducto(p.id, 1)
+    getHistorialComprasProducto(p.id, { limit: 10 })
       .then(hist => {
-        const u = hist[0];
-        if (!u) return;
-        setLineas(ls => ls.map((x, i2) => i2 === idx && x.productoId === p.id ? {
-          ...x,
-          ultimaCompra: { proveedor: u.proveedorNombre, precio: u.precioUnitario != null ? Number(u.precioUnitario) : undefined, fecha: u.fechaRecepcion },
-        } : x));
+        setLineas(ls => ls.map((x, i2) => i2 === idx && x.productoId === p.id ? { ...x, historial: hist } : x));
       })
       .catch(() => {});
   };
@@ -359,17 +355,34 @@ export default function NuevaCompraPage() {
                         </label>
                       )}
                     </div>
-                    {/* Hints de costo (paridad historial_compras_producto_panel + card de margen Flutter) */}
-                    {l.productoId && (l.costoActual != null || l.precioVentaActual != null || l.ultimaCompra) && (() => {
+                    {/* Hints de costo + historial (paridad historial_compras_producto_panel Flutter) */}
+                    {l.productoId && (l.costoActual != null || l.precioVentaActual != null || l.historial) && (() => {
                       const factorVig = l.usaUnidadCompra ? (numVal(l.factor ?? '') || l.factorProducto || 1) : 1;
                       const costoUnitNuevo = numVal(l.precioUnitario) > 0 ? numVal(l.precioUnitario) / factorVig : null;
                       const superaPV = costoUnitNuevo != null && l.precioVentaActual != null && l.precioVentaActual > 0 && costoUnitNuevo > l.precioVentaActual;
+                      const ultimoCosto = l.historial?.ultimoCosto ?? null;
+                      const variacion = costoUnitNuevo != null && ultimoCosto != null && ultimoCosto > 0
+                        ? ((costoUnitNuevo - ultimoCosto) / ultimoCosto) * 100 : null;
                       return (
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-gray-400">
                           {l.costoActual != null && l.costoActual > 0 && <span>Costo actual: {sim(moneda)} {l.costoActual.toFixed(2)}</span>}
                           {l.precioVentaActual != null && l.precioVentaActual > 0 && <span>Precio venta: {sim(moneda)} {l.precioVentaActual.toFixed(2)}</span>}
-                          {l.ultimaCompra?.precio != null && (
-                            <span>Última compra: {sim(moneda)} {l.ultimaCompra.precio.toFixed(2)}{l.ultimaCompra.proveedor ? ` (${l.ultimaCompra.proveedor})` : ''}</span>
+                          {ultimoCosto != null && (
+                            <span>
+                              Último costo: {sim(moneda)} {Number(ultimoCosto).toFixed(2)}
+                              {l.historial!.compras[0]?.proveedor ? ` (${l.historial!.compras[0].proveedor})` : ''}
+                            </span>
+                          )}
+                          {variacion != null && Math.abs(variacion) >= 0.5 && (
+                            <span className={`rounded px-1.5 py-0.5 font-semibold ${variacion > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                              {variacion > 0 ? '▲' : '▼'} {Math.abs(variacion).toFixed(1)}% vs último costo
+                            </span>
+                          )}
+                          {(l.historial?.compras.length ?? 0) > 0 && (
+                            <button type="button" onClick={() => setLineas(ls => ls.map((x, i2) => i2 === i ? { ...x, historialAbierto: !x.historialAbierto } : x))}
+                              className="font-semibold text-[#437EFF] hover:underline">
+                              📊 {l.historialAbierto ? 'Ocultar historial' : `Historial (${l.historial!.compras.length})`}
+                            </button>
                           )}
                           {superaPV && (
                             <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
@@ -379,6 +392,47 @@ export default function NuevaCompraPage() {
                         </div>
                       );
                     })()}
+                    {/* Panel expandible: últimas compras + agregado por proveedor + MEJOR proveedor */}
+                    {l.historialAbierto && l.historial && (
+                      <div className="mt-2 grid gap-3 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400">Últimas compras</p>
+                          <div className="space-y-1">
+                            {l.historial.compras.slice(0, 6).map((h, hi) => (
+                              <div key={`${h.compraId}-${hi}`} className="flex items-center justify-between gap-2 text-[11px]">
+                                <span className="min-w-0 truncate text-gray-600">
+                                  {new Date(h.fecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })} · {h.proveedor}
+                                  <span className="ml-1 text-gray-400">
+                                    ×{h.usaUnidadCompra && h.cantidadOriginal != null ? `${h.cantidadOriginal} ${h.unidadOriginalSimbolo ?? 'paq.'}` : h.cantidad}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 font-medium text-gray-800">{sim(h.moneda)} {Number(h.costoUnitario).toFixed(2)}/u</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400">Por proveedor</p>
+                          <div className="space-y-1">
+                            {l.historial.proveedores.slice(0, 5).map((pv, pi) => (
+                              <div key={`${pv.proveedorId ?? pv.proveedor}-${pi}`} className="flex items-center justify-between gap-2 text-[11px]">
+                                <span className="min-w-0 truncate text-gray-600">
+                                  {pv.proveedor}
+                                  {pv.proveedorId != null && pv.proveedorId === l.historial!.mejorProveedorId && (
+                                    <span className="ml-1 rounded bg-green-100 px-1 text-[8px] font-bold text-green-700" title="Menor costo promedio">MEJOR</span>
+                                  )}
+                                  <span className="ml-1 text-gray-400">({pv.veces}×)</span>
+                                </span>
+                                <span className="shrink-0 text-gray-800">
+                                  prom {sim(moneda)} {Number(pv.costoPromedio).toFixed(2)}
+                                  {pv.ultimoCosto != null && <span className="text-gray-400"> · últ {Number(pv.ultimoCosto).toFixed(2)}</span>}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}

@@ -52,15 +52,39 @@ export interface CompraDetalle extends CompraListItem {
   detalles: CompraDetalleItem[];
 }
 
-/** GET /productos/:id/historial-compras — última(s) compras del producto (hint de costo) */
-export interface HistorialCompraProducto {
-  compraId?: string;
-  compraCodigo?: string;
-  proveedorNombre?: string | null;
-  cantidad?: number;
-  precioUnitario?: number | string;
-  fechaRecepcion?: string;
-  [key: string]: unknown;
+/** GET /productos/:id/historial-compras — shape exacto de producto-trazabilidad.service */
+export interface HistorialCompraRow {
+  compraId: string;
+  codigo: string;
+  fecha: string;
+  proveedorId?: string | null;
+  proveedor: string;
+  moneda: string;
+  cantidad: number;
+  precioUnitario: number;
+  total: number;
+  /** total/cantidad — el costo real por unidad base */
+  costoUnitario: number;
+  usaUnidadCompra?: boolean;
+  cantidadOriginal?: number | null;
+  unidadOriginalSimbolo?: string | null;
+}
+
+export interface HistorialProveedorAgg {
+  proveedorId?: string | null;
+  proveedor: string;
+  veces: number;
+  cantidadAcum: number;
+  costoPromedio: number;
+  ultimoCosto?: number | null;
+  ultimaFecha?: string | null;
+}
+
+export interface HistorialComprasProducto {
+  compras: HistorialCompraRow[];
+  proveedores: HistorialProveedorAgg[];
+  ultimoCosto?: number | null;
+  mejorProveedorId?: string | null;
 }
 
 export interface PagoContadoCompra {
