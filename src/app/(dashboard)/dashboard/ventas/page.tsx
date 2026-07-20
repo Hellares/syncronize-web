@@ -21,6 +21,7 @@ const CANALES: Array<{ value: CanalVenta | ''; label: string }> = [
   { value: '', label: 'Todos los canales' },
   { value: 'POS', label: 'Mostrador' },
   { value: 'ONLINE', label: 'Marketplace' },
+  { value: 'WHATSAPP_IA', label: 'Agente IA (WhatsApp)' },
   { value: 'COTIZACION', label: 'Cotización' },
 ];
 
@@ -222,6 +223,9 @@ export default function VentasPage() {
                       )}
                       {v.canalVenta === 'ONLINE' && (
                         <span className="ml-1 rounded bg-teal-100 px-1 py-0.5 text-[9px] font-semibold text-teal-700">Marketplace</span>
+                      )}
+                      {v.canalVenta === 'WHATSAPP_IA' && (
+                        <span className="ml-1 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">🤖 Agente IA</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">{fmtFecha(v.fechaVenta ?? v.creadoEn)}</td>

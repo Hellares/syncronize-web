@@ -3,7 +3,7 @@
 import type { MetodoPagoVenta } from './caja';
 export type { MetodoPagoVenta };
 
-export type CanalVenta = 'POS' | 'COTIZACION' | 'ONLINE';
+export type CanalVenta = 'POS' | 'COTIZACION' | 'ONLINE' | 'WHATSAPP_IA';
 export type TipoComprobanteVenta = 'TICKET' | 'BOLETA' | 'FACTURA';
 
 /** CreateVentaDetalleDto — el backend RECALCULA precios server-side (recálculo seguro):
