@@ -115,14 +115,17 @@ export default function TrackingClient({ token }: { token: string }) {
         if (data?.destino) {
           L.marker([data.destino.lat, data.destino.lon], {
             icon: L.divIcon({
-              html: '<div style="font-size:24px;line-height:1">📍</div>',
+              html: '<div style="font-size:28px;line-height:1">📍</div>',
               className: '',
-              iconSize: [24, 24],
-              iconAnchor: [12, 22],
+              iconSize: [28, 28],
+              iconAnchor: [14, 26],
             }),
           }).addTo(mapa);
         }
         mapaRef.current = mapa;
+        // El contenedor usa alturas por viewport (50vh/65vh): asegurar que
+        // Leaflet mida el tamaño real ya pintado.
+        setTimeout(() => mapaRef.current?.invalidateSize(), 150);
       } else {
         markerRef.current?.setLatLng([pos.lat, pos.lon]);
         mapaRef.current.panTo([pos.lat, pos.lon]);
@@ -135,15 +138,15 @@ export default function TrackingClient({ token }: { token: string }) {
 
   if (cargando) {
     return (
-      <Shell>
+      <ShellAngosto>
         <p className="text-center text-sm text-zinc-500 py-16">Cargando seguimiento…</p>
-      </Shell>
+      </ShellAngosto>
     );
   }
 
   if (noEncontrado || !data) {
     return (
-      <Shell>
+      <ShellAngosto>
         <div className="text-center py-16">
           <div className="text-4xl mb-3">🔍</div>
           <p className="text-sm text-zinc-600">
@@ -152,107 +155,135 @@ export default function TrackingClient({ token }: { token: string }) {
             Verifica el link que te enviaron por WhatsApp.
           </p>
         </div>
-      </Shell>
+      </ShellAngosto>
     );
   }
 
   const cancelado = data.estado === 'CANCELADO';
-  const costo = Number(data.costoDelivery) || 0;
-  const pasoActivo = cancelado
-    ? -1
-    : PASOS.reduce((acc, p, i) => (data[p.clave] ? i : acc), 0);
+  const conMapa = !cancelado && !!data.posicion;
 
   return (
-    <Shell>
-      <div className="text-center mb-5">
-        <div className="text-3xl mb-1">🛵</div>
-        <h1 className="text-base font-bold text-[#004A94]">Seguimiento de tu pedido</h1>
-        {data.codigo && (
-          <p className="text-xs text-zinc-500 mt-0.5">{data.codigo}</p>
-        )}
-      </div>
+    <main className="min-h-screen bg-zinc-50 flex justify-center px-3 py-4 md:py-8">
+      <div className={`w-full ${conMapa ? 'max-w-5xl' : 'max-w-md'}`}>
+        <Cabecera codigo={data.codigo} />
 
-      {cancelado ? (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
-          Este delivery fue cancelado. Si tienes dudas, escríbenos por WhatsApp.
-        </div>
-      ) : (
-        <>
-          {/* Mapa en vivo — solo mientras el repartidor va en camino */}
-          {data.posicion && (
-            <div className="mb-4">
+        {cancelado ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 text-center">
+              Este delivery fue cancelado. Si tienes dudas, escríbenos por WhatsApp.
+            </div>
+            <PiePagina />
+          </div>
+        ) : conMapa ? (
+          // ── CON MAPA: protagonista. Celular: mapa 50% de la pantalla y
+          // timeline abajo; PC: mapa grande a la izquierda, timeline al lado.
+          <div className="md:grid md:grid-cols-[1fr_340px] md:gap-5">
+            <div>
               <div
                 ref={mapaDivRef}
-                className="h-64 w-full rounded-xl border border-zinc-200 overflow-hidden"
+                className="h-[50vh] md:h-[65vh] w-full rounded-xl border border-zinc-200 overflow-hidden"
               />
               <p className="text-[10px] text-zinc-400 text-center mt-1">
                 Posición del repartidor · se actualiza cada 10 s
               </p>
             </div>
-          )}
-
-          {/* Timeline de estados */}
-          <ol className="space-y-0">
-            {PASOS.map((paso, i) => {
-              const hecho = !!data[paso.clave];
-              const activo = i === pasoActivo && !data.entregadoEn;
-              return (
-                <li key={paso.clave} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                        hecho
-                          ? 'bg-green-500 text-white'
-                          : 'bg-zinc-200 text-zinc-400'
-                      } ${activo ? 'ring-4 ring-green-100' : ''}`}
-                    >
-                      {hecho ? '✓' : i + 1}
-                    </div>
-                    {i < PASOS.length - 1 && (
-                      <div
-                        className={`w-0.5 flex-1 min-h-6 ${
-                          data[PASOS[i + 1].clave] ? 'bg-green-500' : 'bg-zinc-200'
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <div className="pb-5">
-                    <p
-                      className={`text-sm font-semibold ${
-                        hecho ? 'text-zinc-800' : 'text-zinc-400'
-                      }`}
-                    >
-                      {paso.titulo}
-                      {hecho && (
-                        <span className="ml-2 text-[10px] font-normal text-zinc-400">
-                          {horaLocal(data[paso.clave] as string | null)}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-zinc-500">{paso.detalle}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-
-          {costo > 0 && !data.entregadoEn && (
-            <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-xs text-amber-800 text-center">
-              Al recibir tu pedido, paga <b>S/ {costo.toFixed(2)}</b> del
-              delivery al repartidor. Tu producto ya está pagado ✅
+            <div className="mt-4 md:mt-0 bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 h-fit">
+              <Timeline data={data} />
+              <AvisoTarifa data={data} />
+              <PiePagina />
             </div>
-          )}
-        </>
-      )}
-
-      <p className="text-[10px] text-zinc-400 text-center mt-6">
-        Powered by Syncronize
-      </p>
-    </Shell>
+          </div>
+        ) : (
+          // ── SIN MAPA (aún no sale / ya entregado): card angosta clásica.
+          <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
+            <Timeline data={data} />
+            <AvisoTarifa data={data} />
+            <PiePagina />
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Cabecera({ codigo }: { codigo: string | null }) {
+  return (
+    <div className="text-center mb-4">
+      <h1 className="text-base font-bold text-[#004A94]">
+        🛵 Seguimiento de tu pedido
+      </h1>
+      {codigo && <p className="text-xs text-zinc-500 mt-0.5">{codigo}</p>}
+    </div>
+  );
+}
+
+function Timeline({ data }: { data: TrackingData }) {
+  const pasoActivo = PASOS.reduce((acc, p, i) => (data[p.clave] ? i : acc), 0);
+  return (
+    <ol className="space-y-0">
+      {PASOS.map((paso, i) => {
+        const hecho = !!data[paso.clave];
+        const activo = i === pasoActivo && !data.entregadoEn;
+        return (
+          <li key={paso.clave} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                  hecho ? 'bg-green-500 text-white' : 'bg-zinc-200 text-zinc-400'
+                } ${activo ? 'ring-4 ring-green-100' : ''}`}
+              >
+                {hecho ? '✓' : i + 1}
+              </div>
+              {i < PASOS.length - 1 && (
+                <div
+                  className={`w-0.5 flex-1 min-h-6 ${
+                    data[PASOS[i + 1].clave] ? 'bg-green-500' : 'bg-zinc-200'
+                  }`}
+                />
+              )}
+            </div>
+            <div className="pb-5">
+              <p
+                className={`text-sm font-semibold ${
+                  hecho ? 'text-zinc-800' : 'text-zinc-400'
+                }`}
+              >
+                {paso.titulo}
+                {hecho && (
+                  <span className="ml-2 text-[10px] font-normal text-zinc-400">
+                    {horaLocal(data[paso.clave] as string | null)}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-zinc-500">{paso.detalle}</p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function AvisoTarifa({ data }: { data: TrackingData }) {
+  const costo = Number(data.costoDelivery) || 0;
+  if (costo <= 0 || data.entregadoEn) return null;
+  return (
+    <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-xs text-amber-800 text-center">
+      Al recibir tu pedido, paga <b>S/ {costo.toFixed(2)}</b> del delivery al
+      repartidor. Tu producto ya está pagado ✅
+    </div>
+  );
+}
+
+function PiePagina() {
+  return (
+    <p className="text-[10px] text-zinc-400 text-center mt-6">
+      Powered by Syncronize
+    </p>
+  );
+}
+
+function ShellAngosto({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-zinc-50 flex justify-center px-4 py-8">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-zinc-100 p-6 h-fit">
