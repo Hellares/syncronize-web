@@ -18,6 +18,7 @@ interface TrackingData {
   canceladoEn: string | null;
   posicion: { lat: number; lon: number; en: string | null } | null;
   destino: { lat: number; lon: number } | null;
+  pinEntrega: string | null;
 }
 
 const PASOS: {
@@ -188,6 +189,7 @@ export default function TrackingClient({ token }: { token: string }) {
               </p>
             </div>
             <div className="mt-4 md:mt-0 bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 h-fit">
+              <PinEntrega data={data} />
               <Timeline data={data} />
               <AvisoTarifa data={data} />
               <PiePagina />
@@ -196,6 +198,7 @@ export default function TrackingClient({ token }: { token: string }) {
         ) : (
           // ── SIN MAPA (aún no sale / ya entregado): card angosta clásica.
           <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
+            <PinEntrega data={data} />
             <Timeline data={data} />
             <AvisoTarifa data={data} />
             <PiePagina />
@@ -261,6 +264,23 @@ function Timeline({ data }: { data: TrackingData }) {
         );
       })}
     </ol>
+  );
+}
+
+function PinEntrega({ data }: { data: TrackingData }) {
+  if (!data.pinEntrega) return null;
+  return (
+    <div className="mb-4 rounded-xl border-2 border-[#004A94] bg-blue-50 px-4 py-3 text-center">
+      <p className="text-[11px] font-semibold text-[#004A94] mb-1">
+        🔐 TU CÓDIGO DE ENTREGA
+      </p>
+      <p className="text-3xl font-black tracking-[0.3em] text-[#004A94]">
+        {data.pinEntrega}
+      </p>
+      <p className="text-[10px] text-zinc-500 mt-1">
+        Dáselo al repartidor SOLO al recibir tu pedido
+      </p>
+    </div>
   );
 }
 
