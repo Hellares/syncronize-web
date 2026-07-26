@@ -170,24 +170,46 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   const totalPagado = (venta.pagos ?? []).reduce((a, p) => a + Number(p.monto), 0);
   const esMixto = (venta.pagos ?? []).length > 1;
 
+  // Punto de color del estado sobre el hero azul
+  const dotEstado =
+    venta.estado === 'PAGADA_COMPLETA' ? 'bg-green-300'
+    : venta.estado === 'ANULADA' ? 'bg-red-300'
+    : venta.estado === 'PAGADA_PARCIAL' ? 'bg-amber-300'
+    : 'bg-blue-200';
+
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <Link href="/dashboard/ventas" className="text-sm text-gray-500 hover:text-[#004A94]">← Ventas</Link>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">{venta.codigo}</h1>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg?.color ?? ''} ${cfg?.bg ?? 'bg-gray-100'}`}>{cfg?.label ?? venta.estado}</span>
-            {venta.esCredito && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">📅 Crédito</span>}
-            {venta.cotizacionCodigo && <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[10px] text-teal-700">{venta.cotizacionCodigo}</span>}
+      {/* Hero: identidad de la venta + total protagonista */}
+      <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-md">
+        <div className="bg-gradient-to-r from-[#004A94] via-[#0f5cae] to-[#2f6fd8] px-5 py-4 text-white">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <Link href="/dashboard/ventas" className="text-xs text-blue-200 transition-colors hover:text-white">← Ventas</Link>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight">{venta.codigo}</h1>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
+                  <span className={`h-1.5 w-1.5 rounded-full ${dotEstado}`} />
+                  {cfg?.label ?? venta.estado}
+                </span>
+                {venta.esCredito && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold">📅 Crédito</span>}
+                {venta.cotizacionCodigo && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px]">{venta.cotizacionCodigo}</span>}
+              </div>
+              <p className="mt-1.5 text-xs text-blue-100/90">
+                {fmtFecha(venta.fechaVenta ?? venta.creadoEn)} · {venta.sedeNombre ?? ''} · {(venta.vendedorAlias || venta.vendedorNombre) ?? ''}
+                {venta.cajeroNombre ? ` · cobró ${venta.cajeroNombre}` : ''}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-200">Total</p>
+              <p className={`text-3xl font-bold leading-tight ${venta.estado === 'ANULADA' ? 'line-through opacity-60' : ''}`}>{fmt(venta.total)}</p>
+              {saldo > 0.005 && venta.estado !== 'ANULADA' && (
+                <p className="text-[11px] font-bold text-amber-300">Saldo pendiente {fmt(saldo)}</p>
+              )}
+            </div>
           </div>
-          <p className="mt-0.5 text-xs text-gray-400">
-            {fmtFecha(venta.fechaVenta ?? venta.creadoEn)} · {venta.sedeNombre ?? ''} · {(venta.vendedorAlias || venta.vendedorNombre) ?? ''}
-            {venta.cajeroNombre ? ` · cobró ${venta.cajeroNombre}` : ''}
-          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Barra de acciones */}
+        <div className="flex flex-wrap items-center gap-2 bg-white px-4 py-2.5">
           <Link href={`/dashboard/ventas/${id}/ticket`}
             className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
             🖨 Ticket
@@ -251,15 +273,21 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Cliente + comprobante */}
         <div className="space-y-4 lg:col-span-1">
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase text-gray-400 mb-2">Cliente</p>
-            <p className="text-sm font-medium text-gray-900">{venta.nombreCliente ?? '—'}</p>
-            {venta.documentoCliente && <p className="text-xs text-gray-500">{venta.documentoCliente}</p>}
-            {(venta as { telefonoCliente?: string }).telefonoCliente && <p className="text-xs text-gray-500">📞 {(venta as { telefonoCliente?: string }).telefonoCliente}</p>}
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">👤</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Cliente</p>
+            </div>
+            <p className="text-sm font-semibold text-gray-900">{venta.nombreCliente ?? '—'}</p>
+            {venta.documentoCliente && <p className="mt-0.5 font-mono text-xs text-gray-500">{venta.documentoCliente}</p>}
+            {(venta as { telefonoCliente?: string }).telefonoCliente && <p className="mt-0.5 text-xs text-gray-500">📞 {(venta as { telefonoCliente?: string }).telefonoCliente}</p>}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase text-gray-400 mb-2">Comprobante</p>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-[13px]">🧾</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Comprobante</p>
+            </div>
             {venta.codigoComprobante ? (
               <>
                 <p className="font-mono text-sm font-medium text-gray-900">{venta.tipoComprobante} {venta.codigoComprobante}</p>
@@ -308,9 +336,12 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
             const dcfg = ESTADO_DELIVERY_CONFIG[d.estado] ?? { label: d.estado, color: 'text-gray-600', bg: 'bg-gray-100' };
             const coords = d.coordenadas;
             return (
-              <div className="rounded-xl border border-orange-200 bg-white p-4">
+              <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase text-gray-400">🛵 Delivery</p>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[13px]">🛵</span>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Delivery</p>
+                  </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${dcfg.color} ${dcfg.bg}`}>
                     {d.estado === 'SOLICITADO' && d.esInterno ? 'Por salir (interno)' : dcfg.label}
                   </span>
@@ -368,8 +399,11 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           })()}
 
           {/* Pago */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase text-gray-400 mb-2">Pago{esMixto ? ' (MIXTO)' : ''}</p>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-[13px]">💳</span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Pago{esMixto ? ' (MIXTO)' : ''}</p>
+            </div>
             {(venta.pagos ?? []).length === 0 ? (
               <p className="text-xs text-gray-400">{venta.esCredito ? 'Crédito — sin pagos aún' : 'Sin pagos registrados'}</p>
             ) : (
@@ -391,8 +425,11 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* Cuotas crédito */}
           {venta.esCredito && (venta.cuotas ?? []).length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase text-gray-400 mb-2">Cuotas ({venta.cuotas!.length})</p>
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-[13px]">📅</span>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Cuotas ({venta.cuotas!.length})</p>
+              </div>
               <div className="space-y-1">
                 {venta.cuotas!.map((c, i) => (
                   <div key={c.id} className="flex items-center justify-between rounded-md bg-gray-50 px-2 py-1.5 text-xs">
@@ -413,9 +450,11 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white">
-            <div className="border-b border-gray-100 px-4 py-3">
-              <p className="text-sm font-semibold text-gray-800">Items ({(venta.detalles ?? []).length})</p>
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">🛒</span>
+              <p className="text-sm font-bold text-gray-800">Items</p>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{(venta.detalles ?? []).length}</span>
             </div>
             <div className="divide-y divide-gray-50">
               {(venta.detalles ?? []).map(d => {
@@ -440,7 +479,7 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                 );
               })}
             </div>
-            <div className="space-y-0.5 border-t border-gray-100 px-4 py-3 text-sm">
+            <div className="space-y-0.5 border-t border-gray-100 bg-gray-50/60 px-4 py-3 text-sm">
               {venta.codigoComprobante ? (
                 // Desglose fiscal SUNAT (paridad footer Flutter): el descuento fiscal excluye
                 // el "descuento" de líneas gratuitas (esas van como Op. Gratuitas referenciales)
@@ -470,13 +509,19 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="flex justify-between text-xs text-gray-500"><span>IGV</span><span>{fmt(venta.impuestos)}</span></div>
                 </>
               )}
-              <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-bold text-gray-900"><span>Total</span><span>{fmt(venta.total)}</span></div>
+              <div className="mt-1 flex items-center justify-between border-t border-gray-200 pt-2">
+                <span className="text-sm font-bold text-gray-700">Total</span>
+                <span className="text-xl font-bold text-[#004A94]">{fmt(venta.total)}</span>
+              </div>
             </div>
           </div>
 
           {venta.observaciones && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase text-gray-400 mb-1">Observaciones</p>
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 text-[13px]">📝</span>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Observaciones</p>
+              </div>
               <p className="text-sm text-gray-600">{venta.observaciones}</p>
             </div>
           )}
