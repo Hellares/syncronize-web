@@ -19,6 +19,15 @@ const textareaClass =
   'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200 resize-none';
 const labelClass = 'mb-1 block text-[11px] font-medium text-gray-600';
 const helpClass = 'mt-0.5 text-[10px] text-gray-400';
+/**
+ * Mismo lenguaje visual que el input, para los campos que no son una caja de
+ * texto sino un contenedor (selección múltiple, objeto, patrón, inspección,
+ * avisos). Sin esto quedaban con borde gris al lado de inputs de ring azul y
+ * parecían de otro formulario. Sin color de fondo: cada uso elige el suyo
+ * (zinc como el input, o blanco cuando lleva inputs dentro y hay que
+ * despegarlos).
+ */
+const boxClass = 'w-full ring-1 ring-blue-400 rounded-[6px] shadow-md transition-all duration-300';
 
 /** Tipos que ocupan las dos columnas: no se leen bien en media fila. */
 const TIPOS_ANCHOS = new Set<string>([
@@ -175,10 +184,10 @@ function CampoInput({ campo, value, onChange }: {
           {url ? (
             <a href={url} target="_blank" rel="noreferrer" className="block">
               <img src={url} alt={campo.nombre}
-                className="h-24 rounded-lg border border-gray-200 object-contain p-1" />
+                className="h-24 rounded-[6px] bg-zinc-100 object-contain p-1 shadow-md ring-1 ring-blue-400" />
             </a>
           ) : (
-            <div className="flex items-center gap-2 rounded-[6px] bg-zinc-100 px-3 py-2 ring-1 ring-zinc-300">
+            <div className={`${boxClass} flex items-center gap-2 bg-zinc-100 px-3 py-2`}>
               <span className="text-[11px] text-gray-500">{TIPOS_SOLO_APP[campo.tipoCampo]}</span>
             </div>
           )}
@@ -194,7 +203,7 @@ function CampoInput({ campo, value, onChange }: {
       return (
         <div>
           {label}
-          <div className="rounded-[6px] bg-zinc-100 px-3 py-2 ring-1 ring-zinc-300">
+          <div className={`${boxClass} bg-zinc-100 px-3 py-2`}>
             <p className="text-[11px] text-gray-500">
               {filas > 0
                 ? `${filas} ${filas === 1 ? 'fila registrada' : 'filas registradas'} — se editan desde la app o en el detalle de la orden`
@@ -357,10 +366,10 @@ function MultiSelect({ campo, value, onChange }: { campo: CampoServicio; value: 
   };
 
   return (
-    <div className="space-y-1 rounded-lg border border-gray-200 p-2">
-      {ops.length === 0 && !permiteOtro && <p className="text-[11px] text-gray-400">Sin opciones configuradas</p>}
+    <div className={`${boxClass} space-y-0.5 bg-zinc-100 p-2`}>
+      {ops.length === 0 && !permiteOtro && <p className="text-[11px] text-zinc-500">Sin opciones configuradas</p>}
       {ops.map((op) => (
-        <label key={op} className="flex items-center gap-2 text-xs text-gray-700">
+        <label key={op} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs text-[#004A94] hover:bg-blue-50">
           <input type="checkbox" className="h-4 w-4 accent-[#437EFF]" checked={arr.includes(op)} onChange={() => toggle(op)} />
           {op}
         </label>
@@ -390,7 +399,7 @@ function PatronPicker({ value, onChange }: { value: unknown; onChange: (v: unkno
 
   return (
     <div>
-      <div className="inline-grid grid-cols-3 gap-2 rounded-lg border border-gray-200 p-3">
+      <div className={`${boxClass} inline-grid w-auto grid-cols-3 gap-2 bg-zinc-100 p-3`}>
         {Array.from({ length: 9 }, (_, i) => {
           const pos = nodos.indexOf(i);
           const activo = pos >= 0;
@@ -438,7 +447,7 @@ function InspeccionEditor({ campo, value, onChange }: { campo: CampoServicio; va
         {TIPOS_DANO.map((t) => <option key={t} value={t}>{t}</option>)}
       </select>
       <div onClick={agregar}
-        className="relative h-44 w-full cursor-crosshair overflow-hidden rounded-lg border border-gray-300 bg-gray-50">
+        className={`${boxClass} relative h-44 cursor-crosshair overflow-hidden bg-zinc-100`}>
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] text-gray-300">Toca para marcar daños</span>
         {puntos.map((p, i) => (
           <span key={i} title={p.tipo}
@@ -480,7 +489,7 @@ function ObjetoInput({ campo, value, onChange, label, help }: {
   return (
     <div>
       {label}{help}
-      <div className="mt-1 space-y-3 rounded-lg border border-gray-200 p-3">
+      <div className={`${boxClass} mt-1 space-y-3 bg-white p-3`}>
         {subs.map((sc, i) => (
           <SubCampoInput key={sc.nombre || i} sub={sc} value={obj[sc.nombre]}
             onChange={(v) => onChange({ ...obj, [sc.nombre]: v })} />
