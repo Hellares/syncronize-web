@@ -6,7 +6,22 @@
 
 import type { CampoServicio, TipoCampoServicio } from '@/core/types/servicio-catalogo';
 
-interface Entrada { nombre: string; valor: unknown; tipo?: TipoCampoServicio }
+interface Entrada {
+  nombre: string;
+  valor: unknown;
+  tipo?: TipoCampoServicio;
+  /** Orden declarado de columnas cuando el campo es TABLA. */
+  columnas?: string[];
+}
+
+/** Una TABLA es una lista NO vacía de objetos: una fila por objeto. */
+function esTabla(v: unknown): v is Record<string, unknown>[] {
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    v.every((e) => e != null && typeof e === 'object' && !Array.isArray(e))
+  );
+}
 
 export function DatosPersonalizadosView({ datos, campos }: {
   datos: Record<string, unknown>;
@@ -20,7 +35,16 @@ export function DatosPersonalizadosView({ datos, campos }: {
       <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Datos del servicio</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
         {entradas.map((e) => (
-          <div key={e.nombre} className={e.tipo === 'INSPECCION_VISUAL' || e.tipo === 'TEXTO_AREA' ? 'col-span-2' : ''}>
+          <div
+            key={e.nombre}
+            className={
+              e.tipo === 'INSPECCION_VISUAL' ||
+              e.tipo === 'TEXTO_AREA' ||
+              esTabla(e.valor)
+                ? 'col-span-2'
+                : ''
+            }
+          >
             <p className="text-[10px] uppercase text-gray-400">{e.nombre}</p>
             <Valor entrada={e} />
           </div>
@@ -32,20 +56,118 @@ export function DatosPersonalizadosView({ datos, campos }: {
 
 function ordenarEntradas(datos: Record<string, unknown>, campos?: CampoServicio[]): Entrada[] {
   const tipoPorNombre = new Map<string, { tipo: TipoCampoServicio; orden: number }>();
-  (campos ?? []).forEach((c, i) => tipoPorNombre.set(c.nombre, { tipo: c.tipoCampo, orden: c.orden ?? i }));
+  const columnasPorNombre = new Map<string, string[]>();
+  (campos ?? []).forEach((c, i) => {
+    tipoPorNombre.set(c.nombre, { tipo: c.tipoCampo, orden: c.orden ?? i });
+    // Las columnas de una TABLA viven en `opciones`, igual que los
+    // sub-campos de OBJETO: [{ nombre, tipo, ... }].
+    if (c.tipoCampo === 'TABLA' && Array.isArray(c.opciones)) {
+      columnasPorNombre.set(
+        c.nombre,
+        (c.opciones as unknown[])
+          .filter((o): o is Record<string, unknown> => !!o && typeof o === 'object')
+          .map((o) => String(o.nombre ?? ''))
+          .filter(Boolean),
+      );
+    }
+  });
 
   return Object.entries(datos)
     .filter(([, v]) => v != null && v !== '')
-    .map(([nombre, valor]) => ({ nombre, valor, tipo: tipoPorNombre.get(nombre)?.tipo }))
+    .map(([nombre, valor]) => ({
+      nombre,
+      valor,
+      tipo: tipoPorNombre.get(nombre)?.tipo,
+      columnas: columnasPorNombre.get(nombre),
+    }))
     .sort((a, b) => (tipoPorNombre.get(a.nombre)?.orden ?? 999) - (tipoPorNombre.get(b.nombre)?.orden ?? 999));
 }
 
+/**
+ * Tabla de solo lectura con fila de totales.
+ *
+ * El ORDEN de las columnas sale de la definición del campo: `datosPersonalizados`
+ * es jsonb y Postgres reordena las claves de un objeto, así que deducirlo del
+ * dato daría un orden arbitrario. Las claves presentes en los datos que ya no
+ * estén declaradas se agregan al final para no ocultar información.
+ */
+function TablaValor({ filas, columnas }: { filas: Record<string, unknown>[]; columnas?: string[] }) {
+  const cols = [...(columnas ?? [])];
+  for (const f of filas) {
+    for (const k of Object.keys(f)) if (!cols.includes(k)) cols.push(k);
+  }
+  if (cols.length === 0) return null;
+
+  const totales = new Map<string, number>();
+  for (const c of cols) {
+    const vals = filas
+      .map((f) => f[c])
+      .filter((v) => v != null && String(v).trim() !== '');
+    if (vals.length === 0) continue;
+    const nums = vals.map((v) => Number(v));
+    if (nums.every((n) => !Number.isNaN(n))) {
+      totales.set(c, nums.reduce((a, n) => a + n, 0));
+    }
+  }
+
+  const texto = (v: unknown) => (typeof v === 'boolean' ? (v ? 'Sí' : 'No') : v == null ? '' : String(v));
+
+  return (
+    <div className="mt-1 overflow-x-auto rounded-lg border border-gray-200">
+      <table className="w-full min-w-max border-collapse text-[11px]">
+        <thead>
+          <tr className="bg-gray-50">
+            {cols.map((c) => (
+              <th
+                key={c}
+                className={`border-b border-gray-200 px-2 py-1.5 font-semibold text-[#004A94] ${
+                  totales.has(c) ? 'text-right' : 'text-left'
+                }`}
+              >
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map((f, i) => (
+            <tr key={i} className="border-b border-gray-100 last:border-0">
+              {cols.map((c) => (
+                <td key={c} className={`px-2 py-1.5 ${totales.has(c) ? 'text-right tabular-nums' : ''}`}>
+                  {texto(f[c])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        {totales.size > 0 && (
+          <tfoot>
+            <tr className="bg-gray-50 font-semibold text-[#004A94]">
+              {cols.map((c, i) => (
+                <td key={c} className={`px-2 py-1.5 ${totales.has(c) ? 'text-right tabular-nums' : ''}`}>
+                  {totales.has(c) ? totales.get(c)!.toFixed(2) : i === 0 ? 'Total' : ''}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  );
+}
+
 function Valor({ entrada }: { entrada: Entrada }) {
-  const { valor, tipo } = entrada;
+  const { valor, tipo, columnas } = entrada;
 
   // Booleano
   if (typeof valor === 'boolean') {
     return <p className={`text-xs font-medium ${valor ? 'text-green-600' : 'text-gray-400'}`}>{valor ? 'Sí' : 'No'}</p>;
+  }
+
+  // TABLA → va ANTES de los chips: si no, cada fila se renderiza con
+  // String(objeto) y sale "[object Object]".
+  if (esTabla(valor)) {
+    return <TablaValor filas={valor} columnas={columnas} />;
   }
 
   // Array → chips
