@@ -92,9 +92,15 @@ function ordenarEntradas(datos: Record<string, unknown>, campos?: CampoServicio[
  * estén declaradas se agregan al final para no ocultar información.
  */
 function TablaValor({ filas, columnas }: { filas: Record<string, unknown>[]; columnas?: string[] }) {
+  // Si la plantilla define columnas, MANDAN ELLAS: quitar una columna no
+  // borra sus valores del JSON, así que agregar las claves sueltas del dato
+  // mostraría columnas ya eliminadas. El respaldo por claves solo aplica
+  // cuando no hay definición (orden vieja, plantilla borrada).
   const cols = [...(columnas ?? [])];
-  for (const f of filas) {
-    for (const k of Object.keys(f)) if (!cols.includes(k)) cols.push(k);
+  if (cols.length === 0) {
+    for (const f of filas) {
+      for (const k of Object.keys(f)) if (!cols.includes(k)) cols.push(k);
+    }
   }
   if (cols.length === 0) return null;
 
