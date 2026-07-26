@@ -10,10 +10,40 @@ import type React from 'react';
 import type { CampoServicio, TipoCampoServicio } from '@/core/types/servicio-catalogo';
 import { opcionesAStrings } from '@/core/types/servicio-catalogo';
 
-const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
-const selectClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white';
-const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+// Estilo estándar de la web (ver feedback_web_estilo_input_std): 30px, r6,
+// fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra.
+const inputClass =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const selectClass = inputClass;
+const textareaClass =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200 resize-none';
+const labelClass = 'mb-1 block text-[11px] font-medium text-gray-600';
 const helpClass = 'mt-0.5 text-[10px] text-gray-400';
+
+/** Tipos que ocupan las dos columnas: no se leen bien en media fila. */
+const TIPOS_ANCHOS = new Set<string>([
+  'TEXTO_AREA',
+  'OBJETO',
+  'INSPECCION_VISUAL',
+  'TABLA',
+  'OPCION_MULTIPLE',
+  'CHECKBOX_MULTIPLE',
+  'FIRMA',
+  'FOTO',
+]);
+
+/**
+ * Tipos que se capturan CON EL CELULAR y no tienen equivalente en el
+ * navegador (cámara, lienzo de firma, escáner). Se muestran como aviso en
+ * vez de una caja de texto: dejarlos editables permitía escribir cualquier
+ * cosa donde el backend espera una URL o una lista, y eso reventaba al
+ * guardar.
+ */
+const TIPOS_SOLO_APP: Record<string, string> = {
+  FOTO: 'Se toma desde la app móvil',
+  FIRMA: 'El cliente firma desde la app móvil',
+  PATRON_DESBLOQUEO: '',
+};
 
 const OTRO = '__OTRO__';
 const TIPOS_DANO = ['RAYON', 'ABOLLADURA', 'ROTURA', 'FALTANTE', 'MANCHA', 'OTRO'];
@@ -50,6 +80,11 @@ function esVacio(v: unknown): boolean {
 /** Valida campos requeridos del lado cliente (el backend también valida). */
 export function validarCamposRequeridos(campos: CampoServicio[], datos: Record<string, unknown>): string | null {
   for (const c of campos) {
+    // Los tipos que solo se capturan con el celular (foto, firma, tabla) no
+    // se pueden exigir aquí: si la plantilla los marca requeridos, el
+    // formulario web quedaría imposible de enviar. Se completan después,
+    // desde la app o el detalle de la orden.
+    if (TIPOS_SOLO_APP[c.tipoCampo] !== undefined || c.tipoCampo === 'TABLA') continue;
     if (c.esRequerido && esVacio(datos[c.nombre])) return `El campo "${c.nombre}" es requerido`;
   }
   return null;
@@ -87,14 +122,24 @@ export function DynamicFieldsForm({ campos, values, onChange }: {
   if (campos.length === 0) return null;
   const grupos = agrupar(campos);
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {grupos.map(([cat, items]) => (
-        <div key={cat} className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase text-gray-400">{catLabel(cat)}</p>
-          {items.map((campo) => (
-            <CampoInput key={campo.id} campo={campo} value={values[campo.nombre]}
-              onChange={(v) => onChange(campo.nombre, v)} />
-          ))}
+        <div key={cat}>
+          {/* La categoría separa visualmente: una plantilla larga sin esto
+              es una lista plana imposible de recorrer. */}
+          <div className="mb-2 flex items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#004A94]">{catLabel(cat)}</p>
+            <div className="h-px flex-1 bg-gray-100" />
+            <span className="text-[10px] text-gray-300">{items.length}</span>
+          </div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            {items.map((campo) => (
+              <div key={campo.id} className={TIPOS_ANCHOS.has(campo.tipoCampo) ? 'sm:col-span-2' : ''}>
+                <CampoInput campo={campo} value={values[campo.nombre]}
+                  onChange={(v) => onChange(campo.nombre, v)} />
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -116,8 +161,86 @@ function CampoInput({ campo, value, onChange }: {
 
   switch (campo.tipoCampo) {
     case 'TEXTO_AREA':
-      return wrap(<textarea className={`${inputClass} resize-none`} rows={2}
+      return wrap(<textarea className={textareaClass} rows={3}
         value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} placeholder={ph} />);
+
+    // Se captura con el celular: en el navegador solo se muestra lo que ya
+    // exista, nunca una caja de texto editable.
+    case 'FOTO':
+    case 'FIRMA': {
+      const url = typeof value === 'string' && value.trim() !== '' ? value : null;
+      return (
+        <div>
+          {label}
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer" className="block">
+              <img src={url} alt={campo.nombre}
+                className="h-24 rounded-lg border border-gray-200 object-contain p-1" />
+            </a>
+          ) : (
+            <div className="flex items-center gap-2 rounded-[6px] bg-zinc-100 px-3 py-2 ring-1 ring-zinc-300">
+              <span className="text-[11px] text-gray-500">{TIPOS_SOLO_APP[campo.tipoCampo]}</span>
+            </div>
+          )}
+          {help}
+        </div>
+      );
+    }
+
+    // Igual que la vista de detalle: la web muestra la tabla, pero llenarla
+    // celda por celda es cosa de la app.
+    case 'TABLA': {
+      const filas = Array.isArray(value) ? value.length : 0;
+      return (
+        <div>
+          {label}
+          <div className="rounded-[6px] bg-zinc-100 px-3 py-2 ring-1 ring-zinc-300">
+            <p className="text-[11px] text-gray-500">
+              {filas > 0
+                ? `${filas} ${filas === 1 ? 'fila registrada' : 'filas registradas'} — se editan desde la app o en el detalle de la orden`
+                : 'Se llena desde la app o en el detalle de la orden, una vez creada'}
+            </p>
+          </div>
+          {help}
+        </div>
+      );
+    }
+
+    case 'MONEDA':
+      return wrap(
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-zinc-500">S/</span>
+          <input className={`${inputClass} pl-8 text-right tabular-nums`} type="number" step="0.01" min="0"
+            value={String(value ?? '')} placeholder="0.00"
+            onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))} />
+        </div>,
+      );
+
+    case 'PIN_CLAVE':
+      // type=password: quien recibe el equipo suele tener al cliente al lado.
+      return wrap(<input className={inputClass} type="password" autoComplete="off"
+        value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} placeholder={ph || 'PIN o contraseña'} />);
+
+    case 'CODIGO_BARRAS':
+      // Un lector USB se comporta como teclado: basta el campo enfocado.
+      return wrap(<input className={inputClass} value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)} placeholder={ph || 'Escanea con el lector o escribe'} />);
+
+    case 'DOCUMENTO_IDENTIDAD':
+      return wrap(<input className={inputClass} inputMode="numeric" value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)} placeholder={ph || 'DNI (8), CE (9) o RUC (11)'} />);
+
+    case 'PLACA_VEHICULO':
+      return wrap(<input className={`${inputClass} uppercase`} value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value.toUpperCase())} placeholder={ph || 'ABC-123'} />);
+
+    case 'LICENCIA_CONDUCIR':
+      return wrap(<input className={inputClass} value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)} placeholder={ph || 'N° de licencia'} />);
+
+    case 'PRODUCTO_CATALOGO':
+      return wrap(<input className={inputClass} value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)} placeholder={ph || 'Nombre del producto'} />);
 
     case 'OPCION_SIMPLES':
       return wrap(<OpcionSimple campo={campo} value={value} onChange={onChange} />);

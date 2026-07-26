@@ -62,7 +62,10 @@ export default function NuevaOrdenPage() {
 
   // Contacto de la empresa cliente: quién entrega/recibe el equipo. El
   // backend lo acepta (contactoClienteEmpresaId) y Flutter ya lo pedía.
-  const [contactos, setContactos] = useState<ClienteEmpresaContacto[]>([]);
+  // Se guarda junto al id del cliente al que pertenecen: así los contactos
+  // del cliente anterior se descartan al derivar, sin un setState de
+  // limpieza en el efecto (que además mostraba los viejos por un frame).
+  const [contactosDe, setContactosDe] = useState<{ clienteId: string; lista: ClienteEmpresaContacto[] } | null>(null);
   const [contactoId, setContactoId] = useState('');
 
   const [sedeId, setSedeId] = useState('');
@@ -92,7 +95,8 @@ export default function NuevaOrdenPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sede por defecto: la primera del contexto (la orden se registra en una).
-  useEffect(() => { if (!sedeId && sedes.length > 0) setSedeId(sedes[0].id); }, [sedes, sedeId]);
+  // Derivada, no un setState en efecto: así el <select> ya nace elegido.
+  const sedeIdEfectiva = sedeId || sedes[0]?.id || '';
 
   const onPersonaCreada = (_msg: string, c?: ClientePersona) => {
     setPersonaDialog(false);
@@ -122,22 +126,28 @@ export default function NuevaOrdenPage() {
   // Contactos solo aplican a clientes EMPRESA. Best-effort: si falla, el
   // selector no aparece y la orden se crea igual.
   useEffect(() => {
-    setContactoId('');
-    setContactos([]);
     if (cliente?.tipo !== 'empresa' || !empresaId) return;
+    const clienteId = cliente.id;
+    let vigente = true;
     apiClient
       .get<{ contactos?: ClienteEmpresaContacto[] }>(
-        `/empresas/${empresaId}/clientes-empresa/${cliente.id}`,
+        `/empresas/${empresaId}/clientes-empresa/${clienteId}`,
       )
       .then((r) => {
+        if (!vigente) return; // cambió de cliente mientras respondía
         const cs = r.data?.contactos ?? [];
-        setContactos(cs);
+        setContactosDe({ clienteId, lista: cs });
         // Se preselecciona el principal: es quien firma en la mayoría de casos.
         const principal = cs.find((c) => c.esPrincipal) ?? cs[0];
-        if (principal) setContactoId(principal.id);
+        setContactoId(principal?.id ?? '');
       })
       .catch(() => {});
+    return () => { vigente = false; };
   }, [cliente, empresaId]);
+
+  // Solo valen si son del cliente actualmente elegido.
+  const contactos = contactosDe && cliente && contactosDe.clienteId === cliente.id ? contactosDe.lista : [];
+  const contactoIdValido = contactos.some((c) => c.id === contactoId) ? contactoId : '';
 
   const elegirServicio = async (id: string) => {
     setServicioId(id);
@@ -182,12 +192,12 @@ export default function NuevaOrdenPage() {
         empresaId,
         tipoServicio,
         prioridad,
-        ...(sedeId ? { sedeId } : {}),
+        ...(sedeIdEfectiva ? { sedeId: sedeIdEfectiva } : {}),
         ...(servicioId ? { servicioId } : {}),
         ...(Object.keys(datosLimpios).length > 0 ? { datosPersonalizados: datosLimpios } : {}),
         ...(cliente?.tipo === 'persona' ? { clienteId: cliente.id } : {}),
         ...(cliente?.tipo === 'empresa' ? { clienteEmpresaId: cliente.id } : {}),
-        ...(cliente?.tipo === 'empresa' && contactoId ? { contactoClienteEmpresaId: contactoId } : {}),
+        ...(cliente?.tipo === 'empresa' && contactoIdValido ? { contactoClienteEmpresaId: contactoIdValido } : {}),
         tipoEquipo: tipoEquipo.trim() || undefined,
         marcaEquipo: marcaEquipo.trim() || undefined,
         numeroSerie: numeroSerie.trim() || undefined,
@@ -284,7 +294,7 @@ export default function NuevaOrdenPage() {
             {cliente?.tipo === 'empresa' && contactos.length > 0 && (
               <div className="mt-3 border-t border-gray-100 pt-3">
                 <label className={LABEL}>Contacto que entrega el equipo</label>
-                <select className={INPUT_STD} value={contactoId} onChange={e => setContactoId(e.target.value)}>
+                <select className={INPUT_STD} value={contactoIdValido} onChange={e => setContactoId(e.target.value)}>
                   <option value="">Sin contacto específico</option>
                   {contactos.map(c => (
                     <option key={c.id} value={c.id}>
@@ -330,7 +340,7 @@ export default function NuevaOrdenPage() {
               {sedes.length > 1 && (
                 <div className="sm:col-span-2">
                   <label className={LABEL}>Sede</label>
-                  <select className={INPUT_STD} value={sedeId} onChange={e => setSedeId(e.target.value)}>
+                  <select className={INPUT_STD} value={sedeIdEfectiva} onChange={e => setSedeId(e.target.value)}>
                     {sedes.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                   </select>
                 </div>
