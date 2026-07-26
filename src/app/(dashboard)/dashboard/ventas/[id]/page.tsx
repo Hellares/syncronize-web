@@ -9,6 +9,7 @@ import EnvioVentaCard from '@/features/venta/components/EnvioVentaCard';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as ventaService from '@/features/venta/services/venta-service';
 import * as deliveryService from '@/features/venta/services/delivery-service';
+import AbonoDialog from '@/features/cuentas-cobrar/components/abono-dialog';
 import * as devolucionService from '@/features/devoluciones/services/devolucion-service';
 import type { Devolucion } from '@/core/types/devolucion';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
@@ -48,6 +49,7 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   const [showAutorizacion, setShowAutorizacion] = useState(false);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [showPago, setShowPago] = useState(false);
+  const [showAbono, setShowAbono] = useState(false);
   const [showComprobante, setShowComprobante] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -228,9 +230,13 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
             </button>
           )}
           {puedePagarVenta(venta) && saldo > 0.005 && permissions.canManageVentas && (
-            <button onClick={() => setShowPago(true)}
+            // Las ventas a crédito cobran por el circuito de CxC: ahí se
+            // elige a dónde ENTRA la plata (Tesorería/Caja/Banco). El pago
+            // directo asienta siempre en la caja del cajero, que solo es
+            // correcto para el saldo de una venta al contado.
+            <button onClick={() => venta.esCredito ? setShowAbono(true) : setShowPago(true)}
               className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700">
-              Registrar Pago
+              {venta.esCredito ? 'Registrar Abono' : 'Registrar Pago'}
             </button>
           )}
           {puedeAnularVenta(venta) && permissions.canManageVentas && (
@@ -561,6 +567,21 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
       />
 
       {/* Dialog pago */}
+      {showAbono && (
+        <AbonoDialog
+          ventaId={id}
+          codigo={venta.codigo ?? ''}
+          // El saldo de un crédito sale de las cuotas; sin cronograma, del total.
+          saldoPendiente={(venta.cuotas ?? []).length > 0
+            ? (venta.cuotas ?? []).reduce((a, c) => a + Number(c.saldoPendiente ?? 0), 0)
+            : saldo}
+          totalMora={(venta.cuotas ?? []).reduce((a, c) => a + Number(c.montoMora ?? 0), 0)}
+          tieneCuotas={(venta.cuotas ?? []).length > 0}
+          onSuccess={() => { setShowAbono(false); setInfo('Abono registrado'); reload(); }}
+          onClose={() => setShowAbono(false)}
+        />
+      )}
+
       {showPago && (
         <RegistrarPagoDialog
           ventaId={id}
