@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Venta, EstadoVenta, CanalVenta } from '@/core/types/venta';
-import { ESTADO_VENTA_CONFIG } from '@/core/types/venta';
+import type { Venta, EstadoVenta, CanalVenta, TipoEntregaFiltro } from '@/core/types/venta';
+import { ESTADO_VENTA_CONFIG, tieneDeliveryActivo } from '@/core/types/venta';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
+import type { Emisor } from '@/core/types/facturacion';
 import * as ventaService from '@/features/venta/services/venta-service';
+import * as facturacionService from '@/features/facturacion/services/facturacion-service';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 const ESTADOS: Array<{ value: EstadoVenta | ''; label: string }> = [
@@ -23,6 +25,14 @@ const CANALES: Array<{ value: CanalVenta | ''; label: string }> = [
   { value: 'ONLINE', label: 'Marketplace' },
   { value: 'WHATSAPP_IA', label: 'Agente IA (WhatsApp)' },
   { value: 'COTIZACION', label: 'Cotización' },
+];
+
+const ENTREGAS: Array<{ value: TipoEntregaFiltro | ''; label: string }> = [
+  { value: '', label: 'Toda entrega' },
+  { value: 'ENVIO', label: '🚚 Envío agencia' },
+  { value: 'DELIVERY', label: '🛵 Delivery' },
+  { value: 'RECOJO', label: '🏬 Recoge en tienda' },
+  { value: 'FISICA', label: 'Venta física' },
 ];
 
 /** Prefijo del chip de comprobante (paridad Flutter _ComprobanteChip) */
@@ -71,12 +81,22 @@ export default function VentasPage() {
   const [estado, setEstado] = useState<EstadoVenta | ''>('');
   const [canal, setCanal] = useState<CanalVenta | ''>('');
   const [sedeId, setSedeId] = useState('');
+  const [tipoEntrega, setTipoEntrega] = useState<TipoEntregaFiltro | ''>('');
+  const [entregaBusqueda, setEntregaBusqueda] = useState('');
+  const [rucEmisor, setRucEmisor] = useState('');
+  const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [atajo, setAtajo] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entregaDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetch = useCallback(async (q?: string) => {
+  // Emisores (multi-RUC): el filtro solo aparece con 2+
+  useEffect(() => {
+    facturacionService.getEmisores().then(setEmisores).catch(() => setEmisores([]));
+  }, []);
+
+  const fetch = useCallback(async (q?: string, eb?: string) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -85,6 +105,9 @@ export default function VentasPage() {
         estado: estado || undefined,
         canalVenta: canal || undefined,
         sedeId: sedeId || undefined,
+        tipoEntrega: tipoEntrega || undefined,
+        entregaBusqueda: (eb ?? entregaBusqueda) || undefined,
+        rucEmisor: rucEmisor || undefined,
         // Backend espera datetime: día completo local (paridad DateFormatter start/endOfDay)
         fechaDesde: fechaDesde ? new Date(`${fechaDesde}T00:00:00`).toISOString() : undefined,
         fechaHasta: fechaHasta ? new Date(`${fechaHasta}T23:59:59.999`).toISOString() : undefined,
@@ -95,16 +118,22 @@ export default function VentasPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, estado, canal, sedeId, fechaDesde, fechaHasta]);
+  }, [search, estado, canal, sedeId, tipoEntrega, entregaBusqueda, rucEmisor, fechaDesde, fechaHasta]);
 
-  // Refetch al cambiar filtros (search va con debounce propio)
+  // Refetch al cambiar filtros (search y entregaBusqueda van con debounce propio)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetch(); }, [estado, canal, sedeId, fechaDesde, fechaHasta]);
+  useEffect(() => { fetch(); }, [estado, canal, sedeId, tipoEntrega, rucEmisor, fechaDesde, fechaHasta]);
 
   const handleSearch = (q: string) => {
     setSearch(q);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetch(q), 400);
+  };
+
+  const handleEntregaBusqueda = (q: string) => {
+    setEntregaBusqueda(q);
+    if (entregaDebRef.current) clearTimeout(entregaDebRef.current);
+    entregaDebRef.current = setTimeout(() => fetch(undefined, q), 400);
   };
 
   const aplicarAtajo = (a: string) => {
@@ -158,6 +187,24 @@ export default function VentasPage() {
             className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
             <option value="">Todas las sedes</option>
             {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+          </select>
+        )}
+        <select value={tipoEntrega} onChange={e => setTipoEntrega(e.target.value as TipoEntregaFiltro | '')}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+          {ENTREGAS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        {(tipoEntrega === 'ENVIO' || tipoEntrega === 'DELIVERY' || tipoEntrega === '') && (
+          <input
+            className="w-44 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+            value={entregaBusqueda} onChange={e => handleEntregaBusqueda(e.target.value)}
+            placeholder={tipoEntrega === 'DELIVERY' ? 'Dirección o distrito...' : tipoEntrega === 'ENVIO' ? 'Agencia o destino...' : 'Agencia, dirección, destino...'} />
+        )}
+        {emisores.length >= 2 && (
+          <select value={rucEmisor} onChange={e => setRucEmisor(e.target.value)}
+            className="rounded-lg border border-teal-200 px-3 py-2 text-sm bg-white outline-none focus:border-teal-500 text-teal-800">
+            <option value="">Todos los emisores</option>
+            {emisores.map(em => <option key={em.ruc} value={em.ruc}>{em.razonSocial} ({em.ruc})</option>)}
+            <option value="SIN_COMPROBANTE">Ticket sin comprobante</option>
           </select>
         )}
         <input type="date" value={fechaDesde} onChange={e => { setFechaDesde(e.target.value); setAtajo(''); }}
@@ -215,12 +262,22 @@ export default function VentasPage() {
                         <span key={os.codigo} className="ml-1 rounded bg-blue-100 px-1 py-0.5 text-[9px] text-blue-700">{os.codigo}</span>
                       ))}
                       {v.cotizacionCodigo && <span className="ml-1 rounded bg-teal-100 px-1 py-0.5 text-[9px] text-teal-700">{v.cotizacionCodigo}</span>}
-                      {v.conEnvio && (
+                      {/* Delivery manda sobre el chip de envío (paridad card Flutter) */}
+                      {tieneDeliveryActivo(v) ? (
+                        <span className={`ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold ${v.deliveryLocal!.estado === 'ENTREGADO' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
+                          title={[v.deliveryLocal?.direccion, v.deliveryLocal?.distrito].filter(Boolean).join(' — ') || 'Delivery local'}>
+                          🛵 {v.deliveryLocal!.estado === 'ENTREGADO' ? 'Delivery ✓' : v.deliveryLocal!.estado === 'EN_CAMINO' ? 'Delivery · EN CAMINO' : 'Delivery'}
+                        </span>
+                      ) : v.conEnvio ? (
                         <span className={`ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold ${v.envio?.rotuloImpresoEn ? 'bg-purple-100 text-purple-700' : 'bg-purple-50 text-purple-500'}`}
-                          title={v.envio?.rotuloImpresoEn ? 'Envío — rótulo impreso' : 'Envío — rótulo pendiente'}>
+                          title={[v.envio?.rotuloImpresoEn ? 'Rótulo impreso' : 'Rótulo pendiente', v.envio?.agenciaNombre, [v.envio?.destinoDepartamento, v.envio?.destinoProvincia].filter(Boolean).join(' / ')].filter(Boolean).join(' — ')}>
                           🚚 {v.envio?.rotuloImpresoEn ? 'Envío · IMP' : 'Envío'}
                         </span>
-                      )}
+                      ) : (v.canalVenta === 'ONLINE' || v.canalVenta === 'WHATSAPP_IA') ? (
+                        <span className="ml-1 rounded bg-cyan-50 px-1 py-0.5 text-[9px] font-semibold text-cyan-700" title="Recoge en tienda (venta remota sin envío ni delivery)">
+                          🏬 Recojo
+                        </span>
+                      ) : null}
                       {v.canalVenta === 'ONLINE' && (
                         <span className="ml-1 rounded bg-teal-100 px-1 py-0.5 text-[9px] font-semibold text-teal-700">Marketplace</span>
                       )}

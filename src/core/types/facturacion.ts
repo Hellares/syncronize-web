@@ -84,13 +84,15 @@ export interface ProbarConexionResponse {
 // ── Emisores (GET /sunat/emisores) ──
 
 export interface Emisor {
-  id: string | null; // null = empresa, sedeId = sede
-  tipo: 'EMPRESA' | 'SEDE';
+  id: string | null; // null = emisor principal (empresa), id = EmisorFacturacion socio
+  tipo: 'EMPRESA' | 'EMISOR';
   ruc: string;
   razonSocial: string;
   nombreComercial: string | null;
   sedeNombre: string | null;
   activo: boolean;
+  /** Sede cuyas series representan al emisor PRINCIPAL (los socios no la usan). */
+  sedeIdSeries: string | null;
 }
 
 // ── Comprobantes (GET /sunat/comprobantes) ──
@@ -132,12 +134,16 @@ export interface ComprobanteItem {
   comprobanteOrigenId: string | null;
   ventaId: string | null;
   sedeId: string | null;
+  /** RUC con el que se emitió (multi-RUC: principal o socio) */
+  rucEmisor: string | null;
   proveedorEmisor: ProveedorFacturacion | null;
 }
 
 export interface ListarComprobantesParams {
   tipo?: TipoComprobante;
   sunatStatus?: SunatStatus;
+  /** Multi-RUC: filtra por el RUC emisor del comprobante */
+  rucEmisor?: string;
   fechaDesde?: string;
   fechaHasta?: string;
   busqueda?: string;

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AxiosError } from 'axios';
 import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
 import { requiereAutorizacionBajoCosto, recalcularPorNiveles, UMBRAL_BANCARIZACION_PEN } from '@/core/types/venta';
+import type { Emisor } from '@/core/types/facturacion';
+import * as facturacionService from '@/features/facturacion/services/facturacion-service';
 import * as ventaService from '../services/venta-service';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useAuth } from '@/core/auth/auth-context';
@@ -49,6 +51,24 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
 
   // Comprobante + cliente (pre-cargado si viene de una orden)
   const [tipoComprobante, setTipoComprobante] = useState<'TICKET' | 'BOLETA' | 'FACTURA'>('TICKET');
+
+  // Multi-RUC: emisores activos de la empresa. Sin emisor activo la venta
+  // solo puede ser TICKET (gating de facturación, paridad Flutter); con 2+
+  // se elige con cuál RUC se emite (emisorId solo para socios, id != null).
+  const [emisores, setEmisores] = useState<Emisor[]>([]);
+  const [emisorSel, setEmisorSel] = useState<Emisor | null>(null);
+  useEffect(() => {
+    facturacionService.getEmisores()
+      .then(ems => {
+        setEmisores(ems);
+        const activos = ems.filter(e => e.activo);
+        // Pre-selección: el principal (EMPRESA) si está activo, si no el primero
+        setEmisorSel(activos.find(e => e.tipo === 'EMPRESA') ?? activos[0] ?? null);
+      })
+      .catch(() => setEmisores([]));
+  }, []);
+  const emisoresActivos = useMemo(() => emisores.filter(e => e.activo), [emisores]);
+  const puedeEmitir = emisoresActivos.length > 0;
   const [documento, setDocumento] = useState(initialCliente?.documento ?? '');
   const [clienteNombre, setClienteNombre] = useState(initialCliente?.nombre ?? '');
   const [clienteId, setClienteId] = useState<string | undefined>(initialCliente?.clienteId);
@@ -167,6 +187,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         moneda: 'PEN',
         tipoComprobante,
         tipoDocumentoCliente: tipoComprobante === 'FACTURA' ? '6' : '1',
+        // Multi-RUC: emisorId solo para socios (el principal va sin él)
+        ...(tipoComprobante !== 'TICKET' && emisorSel?.id ? { emisorId: emisorSel.id } : {}),
         esCredito,
         ...(esCredito && { plazoCredito: plazoDias, numeroCuotas }),
         ...(pagos.length > 0 && {
@@ -234,7 +256,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, esCredito, plazoDias, numeroCuotas, totalPagado, onSuccess]);
+  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, onSuccess]);
 
   const handleCobrar = () => {
     setError('');
@@ -342,13 +364,34 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm font-semibold text-gray-800 mb-2">Comprobante</p>
             <div className="flex gap-2">
-              {(['TICKET', 'BOLETA', 'FACTURA'] as const).map(t => (
-                <button key={t} onClick={() => setTipoComprobante(t)}
-                  className={`flex-1 rounded-lg border p-2 text-xs font-medium ${tipoComprobante === t ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500'}`}>
-                  {t}
-                </button>
-              ))}
+              {(['TICKET', 'BOLETA', 'FACTURA'] as const).map(t => {
+                const bloqueado = t !== 'TICKET' && !puedeEmitir;
+                return (
+                  <button key={t} onClick={() => !bloqueado && setTipoComprobante(t)} disabled={bloqueado}
+                    title={bloqueado ? 'Configura la facturación electrónica para emitir boletas/facturas' : undefined}
+                    className={`flex-1 rounded-lg border p-2 text-xs font-medium ${tipoComprobante === t ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : bloqueado ? 'border-gray-100 text-gray-300 cursor-not-allowed' : 'border-gray-200 text-gray-500'}`}>
+                    {t}
+                  </button>
+                );
+              })}
             </div>
+            {!puedeEmitir && (
+              <p className="mt-2 text-[10px] text-amber-600">⚠ Sin facturación electrónica configurada — solo Ticket interno.</p>
+            )}
+            {/* Selector de emisor (multi-RUC): solo con 2+ activos y comprobante electrónico */}
+            {emisoresActivos.length >= 2 && tipoComprobante !== 'TICKET' && (
+              <div className="mt-3 rounded-lg border border-teal-200 bg-teal-50/50 px-3 py-2">
+                <label className="mb-1 block text-[10px] font-semibold uppercase text-teal-700">Emisor (RUC)</label>
+                <select
+                  className="w-full rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-xs text-teal-900 outline-none focus:border-teal-500"
+                  value={emisorSel?.ruc ?? ''}
+                  onChange={e => setEmisorSel(emisoresActivos.find(em => em.ruc === e.target.value) ?? null)}>
+                  {emisoresActivos.map(em => (
+                    <option key={em.ruc} value={em.ruc}>{em.razonSocial} — {em.ruc}{em.tipo === 'EMPRESA' ? ' (principal)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-4">

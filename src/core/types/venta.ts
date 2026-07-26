@@ -71,8 +71,10 @@ export interface CrearYCobrarVentaDto {
   // Comprobante
   tipoComprobante?: string;
   tipoDocumentoCliente?: string;
-  /** Multi-RUC: sede emisora si difiere de la operativa */
+  /** Multi-RUC legacy: sede emisora si difiere de la operativa */
   sedeFacturacionId?: string;
+  /** Multi-RUC: EmisorFacturacion (RUC socio) con el que se emite */
+  emisorId?: string;
   condicionPago?: string;
   // Descuento global con autorización
   descuentoGlobal?: number;
@@ -113,6 +115,40 @@ export interface VentaEnvio {
 
 export type VentaEnvioDto = Omit<VentaEnvio, 'rotuloImpresoEn'>;
 
+// --- Delivery local (repartidor, DeliveryLocal 1:1) ---
+
+export type EstadoDeliveryLocal = 'SOLICITADO' | 'TOMADO' | 'EN_CAMINO' | 'ENTREGADO' | 'CANCELADO' | string;
+
+/** Listado trae {estado, direccion, distrito}; el detalle el registro completo. */
+export interface VentaDeliveryLocal {
+  id?: string;
+  estado: EstadoDeliveryLocal;
+  direccion?: string | null;
+  distrito?: string | null;
+  referencia?: string | null;
+  destinatarioNombre?: string | null;
+  destinatarioCelular?: string | null;
+  coordenadas?: { lat?: number; lon?: number } | null;
+  costoDelivery?: number | string | null;
+  repartidorId?: string | null;
+  entregadoEn?: string | null;
+  esInterno?: boolean;
+  encargadoInterno?: string | null;
+}
+
+export const ESTADO_DELIVERY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  SOLICITADO: { label: 'Solicitado', color: 'text-orange-700', bg: 'bg-orange-100' },
+  TOMADO: { label: 'Tomado', color: 'text-orange-700', bg: 'bg-orange-100' },
+  EN_CAMINO: { label: 'En camino', color: 'text-orange-700', bg: 'bg-orange-100' },
+  ENTREGADO: { label: 'Entregado', color: 'text-green-700', bg: 'bg-green-100' },
+  CANCELADO: { label: 'Cancelado', color: 'text-red-700', bg: 'bg-red-100' },
+};
+
+/** Delivery vigente (excluye cancelado) — criterio de los chips y filtros. */
+export function tieneDeliveryActivo(v: { deliveryLocal?: VentaDeliveryLocal | null }): boolean {
+  return !!v.deliveryLocal && v.deliveryLocal.estado !== 'CANCELADO';
+}
+
 export const ESTADO_VENTA_CONFIG: Record<EstadoVenta, { label: string; color: string; bg: string }> = {
   BORRADOR: { label: 'Borrador', color: 'text-gray-600', bg: 'bg-gray-100' },
   CONFIRMADA: { label: 'Confirmada', color: 'text-blue-700', bg: 'bg-blue-100' },
@@ -120,6 +156,11 @@ export const ESTADO_VENTA_CONFIG: Record<EstadoVenta, { label: string; color: st
   PAGADA_COMPLETA: { label: 'Pagada', color: 'text-green-700', bg: 'bg-green-100' },
   ANULADA: { label: 'Anulada', color: 'text-red-700', bg: 'bg-red-100' },
 };
+
+/** Tipo de entrega — mismo criterio que el backend: DELIVERY manda si no está
+ *  cancelado, luego ENVIO; sin ninguno el canal decide FISICA (POS/COTIZACION)
+ *  o RECOJO en tienda (ONLINE/WHATSAPP_IA). */
+export type TipoEntregaFiltro = 'ENVIO' | 'DELIVERY' | 'RECOJO' | 'FISICA';
 
 /** GET /ventas — filtros (rol VENDEDOR/CAJERO se filtra server-side automáticamente) */
 export interface VentaFiltros {
@@ -131,6 +172,11 @@ export interface VentaFiltros {
   search?: string;
   /** Canal: POS (mostrador) / ONLINE (marketplace) / COTIZACION */
   canalVenta?: CanalVenta;
+  tipoEntrega?: TipoEntregaFiltro;
+  /** Busca dentro de la entrega: agencia/destino del envío o dirección/distrito del delivery */
+  entregaBusqueda?: string;
+  /** Multi-RUC: RUC del emisor del comprobante; 'SIN_COMPROBANTE' = ventas Ticket */
+  rucEmisor?: string;
 }
 
 export interface PagoVenta {
@@ -215,6 +261,8 @@ export interface Venta {
   // Envío (rótulo de agencia)
   conEnvio?: boolean;
   envio?: VentaEnvio | null;
+  // Delivery local (listado: liviano {estado,direccion,distrito}; detalle: completo)
+  deliveryLocal?: VentaDeliveryLocal | null;
   creadoEn?: string;
   fechaVenta?: string;
   fechaVencimientoPago?: string | null;

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type {
   ComprobanteItem,
   TipoComprobante,
   SunatStatus,
+  Emisor,
 } from '@/core/types/facturacion';
 import {
   TIPO_COMPROBANTE_LABEL,
@@ -62,8 +63,20 @@ export default function MonitorFacturacionPage() {
 
   const [tipo, setTipo] = useState<TipoComprobante | ''>('');
   const [estado, setEstado] = useState<SunatStatus | ''>('');
+  const [rucEmisor, setRucEmisor] = useState('');
+  const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Multi-RUC: chips de emisor solo con 2+ emisores
+  useEffect(() => {
+    facturacionService.getEmisores().then(setEmisores).catch(() => setEmisores([]));
+  }, []);
+  const multiEmisor = emisores.length >= 2;
+  const razonPorRuc = useMemo(
+    () => Object.fromEntries(emisores.map(e => [e.ruc, e.razonSocial])),
+    [emisores],
+  );
 
   // Diálogos
   const [notaTarget, setNotaTarget] = useState<{ comp: ComprobanteItem; tipoNota: 'NOTA_CREDITO' | 'NOTA_DEBITO' } | null>(null);
@@ -76,6 +89,7 @@ export default function MonitorFacturacionPage() {
       const res = await facturacionService.listarComprobantes({
         tipo: tipo || undefined,
         sunatStatus: estado || undefined,
+        rucEmisor: rucEmisor || undefined,
         busqueda: (opts?.busqueda ?? busqueda) || undefined,
         page: opts?.page ?? page,
         limit: LIMIT,
@@ -88,11 +102,11 @@ export default function MonitorFacturacionPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [tipo, estado, busqueda, page]);
+  }, [tipo, estado, rucEmisor, busqueda, page]);
 
   // Refetch al cambiar filtros (reinicia a página 1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setPage(1); fetch({ page: 1 }); }, [tipo, estado]);
+  useEffect(() => { setPage(1); fetch({ page: 1 }); }, [tipo, estado, rucEmisor]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetch({ page }); }, [page]);
 
@@ -231,6 +245,24 @@ export default function MonitorFacturacionPage() {
         ))}
       </div>
 
+      {/* Emisores (multi-RUC): filtra por el RUC con el que se emitió */}
+      {multiEmisor && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-semibold uppercase text-gray-400">Emisor:</span>
+          <button onClick={() => setRucEmisor('')}
+            className={`rounded-full border px-3 py-1 text-xs ${rucEmisor === '' ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+            Todos
+          </button>
+          {emisores.map(em => (
+            <button key={em.ruc} onClick={() => setRucEmisor(em.ruc)}
+              title={em.ruc}
+              className={`rounded-full border px-3 py-1 text-xs ${rucEmisor === em.ruc ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+              {em.razonSocial}{!em.activo ? ' (inactivo)' : ''}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Lista */}
       {isLoading ? (
         <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>
@@ -263,6 +295,12 @@ export default function MonitorFacturacionPage() {
                         {esNota(c) && c.comprobanteOrigenId && <span className="text-[9px] text-gray-400">↩ nota</span>}
                       </div>
                       <p className="mt-0.5 font-mono text-xs font-medium text-gray-900">{c.codigoGenerado}</p>
+                      {/* Rótulo del emisor (multi-RUC): a qué RUC pertenece la serie */}
+                      {multiEmisor && c.rucEmisor && (
+                        <p className="max-w-[160px] truncate text-[9px] font-semibold text-teal-600" title={c.rucEmisor}>
+                          {razonPorRuc[c.rucEmisor] ?? c.rucEmisor}
+                        </p>
+                      )}
                       {c.anulado && <span className="text-[9px] font-semibold text-red-500">ANULADO</span>}
                     </td>
                     <td className="px-4 py-2.5">

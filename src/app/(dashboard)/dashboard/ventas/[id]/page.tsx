@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, use } from 'react';
 import Link from 'next/link';
 import { AxiosError } from 'axios';
 import type { Venta, EstadoVenta, MetodoPagoVenta } from '@/core/types/venta';
-import { ESTADO_VENTA_CONFIG, puedeAnularVenta, puedePagarVenta, saldoPendienteVenta, esLineaGratuita } from '@/core/types/venta';
+import { ESTADO_VENTA_CONFIG, ESTADO_DELIVERY_CONFIG, puedeAnularVenta, puedePagarVenta, saldoPendienteVenta, esLineaGratuita } from '@/core/types/venta';
 import EnvioVentaCard from '@/features/venta/components/EnvioVentaCard';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as ventaService from '@/features/venta/services/venta-service';
@@ -268,6 +268,42 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           {(venta.conEnvio || permissions.canManageVentas) && venta.estado !== 'ANULADA' && (
             <EnvioVentaCard venta={venta} canManage={permissions.canManageVentas} onUpdated={reload} />
           )}
+
+          {/* Delivery local (repartidor) — espejo de la sección de la app */}
+          {venta.deliveryLocal && (() => {
+            const d = venta.deliveryLocal!;
+            const dcfg = ESTADO_DELIVERY_CONFIG[d.estado] ?? { label: d.estado, color: 'text-gray-600', bg: 'bg-gray-100' };
+            const coords = d.coordenadas;
+            return (
+              <div className="rounded-xl border border-orange-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase text-gray-400">🛵 Delivery</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${dcfg.color} ${dcfg.bg}`}>
+                    {d.estado === 'SOLICITADO' && d.esInterno ? 'Por salir (interno)' : dcfg.label}
+                  </span>
+                </div>
+                {d.esInterno && (
+                  <p className="mt-1 text-[11px] font-medium text-blue-700">🏠 Interno{d.encargadoInterno ? ` — lo lleva ${d.encargadoInterno}` : ''}</p>
+                )}
+                <div className="mt-2 space-y-1 text-xs text-gray-600">
+                  {d.destinatarioNombre && <p><span className="text-gray-400">Recibe:</span> {d.destinatarioNombre}{d.destinatarioCelular ? ` · 📞 ${d.destinatarioCelular}` : ''}</p>}
+                  {d.direccion && <p><span className="text-gray-400">Dirección:</span> {d.direccion}</p>}
+                  {d.referencia && <p><span className="text-gray-400">Ref:</span> {d.referencia}</p>}
+                  {d.distrito && <p><span className="text-gray-400">Zona:</span> {d.distrito}</p>}
+                  {d.costoDelivery != null && Number(d.costoDelivery) > 0 && (
+                    <p><span className="text-gray-400">Tarifa:</span> <strong className="text-green-700">{fmt(Number(d.costoDelivery))}</strong> <span className="text-gray-400">(la cobra el repartidor)</span></p>
+                  )}
+                  {d.entregadoEn && <p><span className="text-gray-400">Entregado:</span> {fmtFecha(d.entregadoEn)}</p>}
+                </div>
+                {coords?.lat != null && coords?.lon != null && (
+                  <a href={`https://maps.google.com/?q=${coords.lat},${coords.lon}`} target="_blank" rel="noopener noreferrer"
+                    className="mt-2 inline-block text-[11px] font-semibold text-[#437EFF] hover:underline">
+                    📍 Ver punto en el mapa →
+                  </a>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Pago */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">

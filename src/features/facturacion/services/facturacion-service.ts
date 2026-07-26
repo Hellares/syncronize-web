@@ -54,6 +54,7 @@ export async function listarComprobantes(params: ListarComprobantesParams = {}):
   const q = new URLSearchParams();
   if (params.tipo) q.set('tipo', params.tipo);
   if (params.sunatStatus) q.set('sunatStatus', params.sunatStatus);
+  if (params.rucEmisor) q.set('rucEmisor', params.rucEmisor);
   if (params.fechaDesde) q.set('fechaDesde', params.fechaDesde);
   if (params.fechaHasta) q.set('fechaHasta', params.fechaHasta);
   if (params.busqueda) q.set('busqueda', params.busqueda);

@@ -65,6 +65,9 @@ export async function getVentas(filtros?: VentaFiltros): Promise<Venta[]> {
   if (filtros?.clienteId) q.set('clienteId', filtros.clienteId);
   if (filtros?.search) q.set('search', filtros.search);
   if (filtros?.canalVenta) q.set('canalVenta', filtros.canalVenta);
+  if (filtros?.tipoEntrega) q.set('tipoEntrega', filtros.tipoEntrega);
+  if (filtros?.entregaBusqueda) q.set('entregaBusqueda', filtros.entregaBusqueda);
+  if (filtros?.rucEmisor) q.set('rucEmisor', filtros.rucEmisor);
   const query = q.toString();
   const res = await apiClient.get(`/ventas${query ? `?${query}` : ''}`);
   const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
