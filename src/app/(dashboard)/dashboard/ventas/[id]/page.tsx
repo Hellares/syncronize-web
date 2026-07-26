@@ -3,11 +3,12 @@
 import { useState, useCallback, useEffect, use } from 'react';
 import Link from 'next/link';
 import { AxiosError } from 'axios';
-import type { Venta, EstadoVenta, MetodoPagoVenta } from '@/core/types/venta';
-import { ESTADO_VENTA_CONFIG, ESTADO_DELIVERY_CONFIG, puedeAnularVenta, puedePagarVenta, saldoPendienteVenta, esLineaGratuita } from '@/core/types/venta';
+import type { Venta, EstadoVenta, MetodoPagoVenta, VentaDeliveryLocal } from '@/core/types/venta';
+import { ESTADO_VENTA_CONFIG, ESTADO_DELIVERY_CONFIG, tieneDeliveryActivo, puedeAnularVenta, puedePagarVenta, saldoPendienteVenta, esLineaGratuita } from '@/core/types/venta';
 import EnvioVentaCard from '@/features/venta/components/EnvioVentaCard';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as ventaService from '@/features/venta/services/venta-service';
+import * as deliveryService from '@/features/venta/services/delivery-service';
 import * as devolucionService from '@/features/devoluciones/services/devolucion-service';
 import type { Devolucion } from '@/core/types/devolucion';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
@@ -28,7 +29,7 @@ function fmtFecha(iso?: string | null): string {
 
 export default function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { userRoles } = useEmpresa();
+  const { userRoles, empresa } = useEmpresa();
   const permissions = usePermissions();
   const { state: authState } = useAuth();
   const userId = authState.status === 'authenticated' ? authState.user.id : '';
@@ -49,6 +50,13 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   const [showPago, setShowPago] = useState(false);
   const [showComprobante, setShowComprobante] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delivery local
+  const [showSolicitarDelivery, setShowSolicitarDelivery] = useState(false);
+  const [showEditarDireccion, setShowEditarDireccion] = useState(false);
+  const [showCompartir, setShowCompartir] = useState(false);
+  const [showCancelarDelivery, setShowCancelarDelivery] = useState(false);
+  const empresaId = empresa?.id ?? '';
 
   const reload = useCallback(async () => {
     try {
@@ -126,6 +134,24 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  // Interno: el staff avanza los estados (sin PIN — personal de confianza)
+  const avanzarInterno = async (accion: 'en-camino' | 'entregado') => {
+    if (!venta?.deliveryLocal?.id) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      if (accion === 'en-camino') await deliveryService.internoEnCamino(venta.deliveryLocal.id, empresaId);
+      else await deliveryService.internoEntregado(venta.deliveryLocal.id, empresaId);
+      setInfo(accion === 'en-camino' ? 'Delivery marcado EN CAMINO — se avisó al cliente' : 'Delivery ENTREGADO');
+      reload();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo avanzar el delivery');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" /></div>;
   }
@@ -170,6 +196,13 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
             <button onClick={() => setShowComprobante(true)}
               className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
               Generar Comprobante
+            </button>
+          )}
+          {/* Delivery: solo venta pagada al 100% y sin delivery vigente (paridad moto Flutter) */}
+          {venta.estado === 'PAGADA_COMPLETA' && !tieneDeliveryActivo(venta) && permissions.canManageVentas && (
+            <button onClick={() => setShowSolicitarDelivery(true)}
+              className="rounded-lg border border-orange-400 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50">
+              🛵 Solicitar delivery
             </button>
           )}
           {puedePagarVenta(venta) && saldo > 0.005 && permissions.canManageVentas && (
@@ -300,6 +333,35 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                     className="mt-2 inline-block text-[11px] font-semibold text-[#437EFF] hover:underline">
                     📍 Ver punto en el mapa →
                   </a>
+                )}
+                {/* Acciones staff (paridad app: editar dirección / compartir / interno / cancelar) */}
+                {permissions.canManageVentas && d.estado !== 'ENTREGADO' && d.estado !== 'CANCELADO' && (
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-gray-100 pt-2">
+                    {d.esInterno && d.estado === 'SOLICITADO' && (
+                      <button onClick={() => avanzarInterno('en-camino')} disabled={isSubmitting}
+                        className="rounded border border-orange-300 px-2 py-1 text-[10px] font-bold text-orange-600 hover:bg-orange-50 disabled:opacity-50">
+                        Marcar EN CAMINO
+                      </button>
+                    )}
+                    {d.esInterno && d.estado === 'EN_CAMINO' && (
+                      <button onClick={() => avanzarInterno('entregado')} disabled={isSubmitting}
+                        className="rounded border border-green-400 px-2 py-1 text-[10px] font-bold text-green-700 hover:bg-green-50 disabled:opacity-50">
+                        Marcar ENTREGADO
+                      </button>
+                    )}
+                    <button onClick={() => setShowEditarDireccion(true)}
+                      className="rounded border border-gray-200 px-2 py-1 text-[10px] text-gray-600 hover:bg-gray-50">
+                      ✏ Editar dirección
+                    </button>
+                    <button onClick={() => setShowCompartir(true)}
+                      className="rounded border border-teal-300 px-2 py-1 text-[10px] font-medium text-teal-700 hover:bg-teal-50">
+                      📤 Compartir
+                    </button>
+                    <button onClick={() => setShowCancelarDelivery(true)}
+                      className="rounded border border-red-200 px-2 py-1 text-[10px] text-red-500 hover:bg-red-50">
+                      Cancelar
+                    </button>
+                  </div>
                 )}
               </div>
             );
@@ -473,6 +535,38 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
         />
       )}
 
+      {/* Dialogs delivery */}
+      {showSolicitarDelivery && (
+        <SolicitarDeliveryDialog
+          empresaId={empresaId} ventaId={id}
+          nombreCliente={venta.nombreCliente ?? ''}
+          telefonoCliente={(venta as { telefonoCliente?: string }).telefonoCliente ?? ''}
+          onSuccess={(msg) => { setShowSolicitarDelivery(false); setInfo(msg); reload(); }}
+          onClose={() => setShowSolicitarDelivery(false)}
+        />
+      )}
+      {showEditarDireccion && venta.deliveryLocal?.id && (
+        <EditarDireccionDialog
+          empresaId={empresaId} delivery={venta.deliveryLocal}
+          onSuccess={() => { setShowEditarDireccion(false); setInfo('Dirección actualizada — se avisó al repartidor si hay uno asignado'); reload(); }}
+          onClose={() => setShowEditarDireccion(false)}
+        />
+      )}
+      {showCompartir && venta.deliveryLocal?.id && (
+        <CompartirUbicacionDialog
+          empresaId={empresaId} deliveryId={venta.deliveryLocal.id}
+          onSuccess={() => { setShowCompartir(false); setInfo('Ubicación enviada por WhatsApp'); }}
+          onClose={() => setShowCompartir(false)}
+        />
+      )}
+      {showCancelarDelivery && venta.deliveryLocal?.id && (
+        <CancelarDeliveryDialog
+          empresaId={empresaId} deliveryId={venta.deliveryLocal.id}
+          onSuccess={() => { setShowCancelarDelivery(false); setInfo('Delivery cancelado'); reload(); }}
+          onClose={() => setShowCancelarDelivery(false)}
+        />
+      )}
+
       {/* Dialog reversión total */}
       {showReversion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowReversion(false)}>
@@ -495,6 +589,229 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* --- Solicitar delivery local (paridad solicitar_delivery_sheet Flutter, sin mapa) --- */
+function SolicitarDeliveryDialog({ empresaId, ventaId, nombreCliente, telefonoCliente, onSuccess, onClose }: {
+  empresaId: string; ventaId: string; nombreCliente: string; telefonoCliente: string;
+  onSuccess: (msg: string) => void; onClose: () => void;
+}) {
+  const [destinatario, setDestinatario] = useState(nombreCliente);
+  const [celular, setCelular] = useState(telefonoCliente);
+  const [direccion, setDireccion] = useState('');
+  const [referencia, setReferencia] = useState('');
+  const [distrito, setDistrito] = useState('');
+  const [tarifa, setTarifa] = useState('');
+  const [esInterno, setEsInterno] = useState(false);
+  const [encargado, setEncargado] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const inputCls = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+
+  const submit = async () => {
+    if (!direccion.trim()) { setError('La dirección es obligatoria'); return; }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const d = await deliveryService.solicitarDelivery({
+        empresaId,
+        ventaId,
+        direccion: direccion.trim(),
+        ...(destinatario.trim() && { destinatarioNombre: destinatario.trim() }),
+        ...(celular.trim() && { destinatarioCelular: celular.trim() }),
+        ...(referencia.trim() && { referencia: referencia.trim() }),
+        ...(distrito.trim() && { distrito: distrito.trim() }),
+        ...(tarifa.trim() && { costoDelivery: parseFloat(tarifa) }),
+        ...(esInterno && { esInterno: true, ...(encargado.trim() && { encargadoInterno: encargado.trim() }) }),
+      });
+      const tarifaAplicada = d?.costoDelivery != null ? ` (tarifa S/ ${Number(d.costoDelivery).toFixed(2)})` : '';
+      onSuccess(esInterno ? `Delivery interno creado${tarifaAplicada}` : `Delivery publicado a los repartidores${tarifaAplicada}`);
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo solicitar el delivery');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-orange-600">🛵 Solicitar delivery</h3>
+        <p className="mt-0.5 text-xs text-gray-500">El producto ya está pagado; la tarifa la cobra el repartidor al entregar.</p>
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inputCls} value={destinatario} onChange={e => setDestinatario(e.target.value)} placeholder="Recibe (cliente)" />
+            <input className={inputCls} value={celular} onChange={e => setCelular(e.target.value)} placeholder="Celular" maxLength={11} />
+          </div>
+          <input className={inputCls} value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Dirección de entrega *" autoFocus />
+          <input className={inputCls} value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Referencia (portón verde, 2do piso...)" />
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inputCls} value={distrito} onChange={e => setDistrito(e.target.value)} placeholder="Distrito / zona" />
+            <input className={`${inputCls} text-right`} type="number" step="0.5" min="0" value={tarifa} onChange={e => setTarifa(e.target.value)} placeholder="Tarifa (vacía = de la sede)" />
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <input type="checkbox" checked={esInterno} onChange={e => setEsInterno(e.target.checked)} className="accent-[#004A94]" />
+            🏠 Delivery interno (lo lleva un empleado — no se publica a repartidores)
+          </label>
+          {esInterno && (
+            <input className={inputCls} value={encargado} onChange={e => setEncargado(e.target.value)} placeholder="Empleado que lo lleva (opcional)" />
+          )}
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+          <button onClick={submit} disabled={isSubmitting}
+            className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50">
+            {isSubmitting ? 'Solicitando...' : esInterno ? 'Crear interno' : 'Publicar delivery'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --- Editar dirección de entrega (el pin anterior se descarta) --- */
+function EditarDireccionDialog({ empresaId, delivery, onSuccess, onClose }: {
+  empresaId: string; delivery: VentaDeliveryLocal; onSuccess: () => void; onClose: () => void;
+}) {
+  const [direccion, setDireccion] = useState(delivery.direccion ?? '');
+  const [referencia, setReferencia] = useState(delivery.referencia ?? '');
+  const [distrito, setDistrito] = useState(delivery.distrito ?? '');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputCls = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+
+  const submit = async () => {
+    if (!direccion.trim()) { setError('La dirección es obligatoria'); return; }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await deliveryService.actualizarDireccion(delivery.id!, {
+        empresaId,
+        direccion: direccion.trim(),
+        ...(referencia.trim() && { referencia: referencia.trim() }),
+        ...(distrito.trim() && { distrito: distrito.trim() }),
+      });
+      onSuccess();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo actualizar la dirección');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-gray-900">✏ Editar dirección de entrega</h3>
+        {delivery.coordenadas?.lat != null && (
+          <p className="mt-1 rounded-lg bg-amber-50 px-3 py-1.5 text-[10px] text-amber-700">⚠ El pin del mapa anterior se descartará (apuntaba a la dirección vieja). Fija el nuevo desde la app si lo necesitas.</p>
+        )}
+        <div className="mt-3 space-y-2">
+          <input className={inputCls} value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Dirección de entrega *" autoFocus />
+          <input className={inputCls} value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Referencia" />
+          <input className={inputCls} value={distrito} onChange={e => setDistrito(e.target.value)} placeholder="Distrito / zona" />
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+          <button onClick={submit} disabled={isSubmitting}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+            {isSubmitting ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --- Compartir ubicación por WhatsApp (pin nativo desde la instancia de la empresa) --- */
+function CompartirUbicacionDialog({ empresaId, deliveryId, onSuccess, onClose }: {
+  empresaId: string; deliveryId: string; onSuccess: () => void; onClose: () => void;
+}) {
+  const [celular, setCelular] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submit = async () => {
+    if (!/^\d{9,}$/.test(celular.trim())) { setError('Celular inválido (mínimo 9 dígitos)'); return; }
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await deliveryService.compartirUbicacion(deliveryId, { empresaId, celular: celular.trim() });
+      onSuccess();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo enviar el WhatsApp');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-teal-700">📤 Compartir ubicación</h3>
+        <p className="mt-0.5 text-xs text-gray-500">Se envía el pin de la entrega por WhatsApp desde el número de la empresa.</p>
+        <input className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
+          value={celular} onChange={e => setCelular(e.target.value.replace(/\D/g, ''))} placeholder="Celular (9XXXXXXXX)" maxLength={11} autoFocus
+          onKeyDown={e => { if (e.key === 'Enter') submit(); }} />
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
+          <button onClick={submit} disabled={isSubmitting}
+            className="rounded-lg bg-teal-600 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-50">
+            {isSubmitting ? 'Enviando...' : 'Enviar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --- Cancelar delivery --- */
+function CancelarDeliveryDialog({ empresaId, deliveryId, onSuccess, onClose }: {
+  empresaId: string; deliveryId: string; onSuccess: () => void; onClose: () => void;
+}) {
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submit = async () => {
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await deliveryService.cancelarDelivery(deliveryId, { empresaId, motivo: motivo.trim() || undefined });
+      onSuccess();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo cancelar el delivery');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-red-600">Cancelar delivery</h3>
+        <p className="mt-0.5 text-xs text-gray-500">Se avisará al repartidor si ya lo tomó. La venta no se toca.</p>
+        <textarea className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] min-h-[50px]"
+          value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo (opcional)" autoFocus />
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Volver</button>
+          <button onClick={submit} disabled={isSubmitting}
+            className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">
+            {isSubmitting ? 'Cancelando...' : 'Cancelar delivery'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
