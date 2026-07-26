@@ -160,10 +160,18 @@ export default function VentasPage() {
             {esVistaLimitada && <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">Mostrando solo tus ventas</span>}
           </p>
         </div>
-        <button onClick={() => router.push('/dashboard/venta-rapida')}
-          className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
-          + Venta Rápida
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {permissions.canViewStatistics && (
+            <button onClick={() => router.push('/dashboard/ventas/analytics')}
+              className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
+              📊 Estadísticas
+            </button>
+          )}
+          <button onClick={() => router.push('/dashboard/venta-rapida')}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
+            + Venta Rápida
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}

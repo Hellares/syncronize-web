@@ -74,6 +74,17 @@ export async function getVentas(filtros?: VentaFiltros): Promise<Venta[]> {
   return list.map(normalizeVenta);
 }
 
+/** Dashboard consolidado de estadísticas de ventas: 17 secciones en 1 request */
+export async function getAnalyticsDashboard(params: import('@/core/types/venta-analytics').AnalyticsQuery = {}): Promise<import('@/core/types/venta-analytics').VentaAnalyticsDashboard> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== '') q.set(k, String(v));
+  }
+  const query = q.toString();
+  const res = await apiClient.get(`/ventas/analytics/dashboard${query ? `?${query}` : ''}`);
+  return res.data;
+}
+
 export async function getResumenVentas(sedeId?: string): Promise<Record<string, unknown>> {
   const res = await apiClient.get(`/ventas/resumen${sedeId ? `?sedeId=${sedeId}` : ''}`);
   return res.data;
