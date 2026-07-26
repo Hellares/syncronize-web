@@ -430,3 +430,48 @@ export function nombreClienteOrden(o: OrdenServicio): string {
   if (p) return [p.nombres, p.apellidos].filter(Boolean).join(' ');
   return '—';
 }
+
+// --- Dashboard consolidado (GET /ordenes-servicio/estadisticas/dashboard) ---
+// Shape 1:1 con el return de EstadisticasServicioService.getDashboard
+
+export interface DashboardOSResumen {
+  totalOrdenes: number;
+  enTaller: number;
+  entregadas: number;
+  canceladas: number;
+  vencidas: number;
+  ingresoTotal: number;
+  adelantosCobrados: number;
+  porCobrar: number;
+  reingresos: number;
+  reingresosPct: number;
+  tiempoPromedioResolucionHoras: number | null;
+}
+
+export interface DashboardOSTercerizaciones {
+  enviadas: {
+    total: number;
+    porEstado: Array<{ estado: string; cantidad: number }>;
+    costoB2B: number;
+    gananciaEstimada: number;
+    porPagarB2B: number;
+  };
+  recibidas: {
+    total: number;
+    porEstado: Array<{ estado: string; cantidad: number }>;
+    ingresoB2B: number;
+    porCobrarB2B: number;
+  };
+  partners: Array<{ nombre: string; enviadas: number; recibidas: number }>;
+}
+
+export interface DashboardOS {
+  resumen: DashboardOSResumen;
+  porEstado: Array<{ estado: EstadoOrdenServicio; cantidad: number }>;
+  porTipo: Array<{ tipo: TipoServicio; cantidad: number; ingreso: number }>;
+  porPrioridad: Array<{ prioridad: PrioridadServicio; cantidad: number }>;
+  porMes: Array<{ mes: string; cantidad: number; ingreso: number }>;
+  topTecnicos: Array<{ tecnicoId: string; nombre: string; ordenes: number; cerradas: number; ingreso: number }>;
+  topEquipos: Array<{ equipo: string; cantidad: number }>;
+  tercerizaciones: DashboardOSTercerizaciones;
+}

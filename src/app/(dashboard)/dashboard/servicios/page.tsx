@@ -91,12 +91,20 @@ export default function ServiciosPage() {
           <h1 className="text-xl font-bold text-gray-900">Órdenes de Servicio</h1>
           <p className="text-sm text-gray-500">{isLoading ? 'Cargando...' : `${total} órdenes`}</p>
         </div>
-        {permissions.canManageOrders && (
-          <button onClick={() => router.push('/dashboard/servicios/nueva')}
-            className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
-            + Nueva orden
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {permissions.canViewStatistics && (
+            <button onClick={() => router.push('/dashboard/servicios/estadisticas')}
+              className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
+              📊 Estadísticas
+            </button>
+          )}
+          {permissions.canManageOrders && (
+            <button onClick={() => router.push('/dashboard/servicios/nueva')}
+              className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
+              + Nueva orden
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-sm text-red-600">{error}</p></div>}

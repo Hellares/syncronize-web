@@ -166,6 +166,16 @@ export async function findOrCreateComponente(data: FindOrCreateComponenteDto): P
 
 // ── Técnicos (usuarios de la empresa) ──
 
+/** Dashboard consolidado de OS: KPIs, embudo, técnicos, equipos, tercerizaciones B2B */
+export async function getDashboardEstadisticas(params: { fechaDesde?: string; fechaHasta?: string } = {}): Promise<import('@/core/types/orden-servicio').DashboardOS> {
+  const q = new URLSearchParams();
+  if (params.fechaDesde) q.set('fechaDesde', params.fechaDesde);
+  if (params.fechaHasta) q.set('fechaHasta', params.fechaHasta);
+  const query = q.toString();
+  const res = await apiClient.get(`/ordenes-servicio/estadisticas/dashboard${query ? `?${query}` : ''}`);
+  return res.data;
+}
+
 export async function getTecnicos(): Promise<Tecnico[]> {
   const res = await apiClient.get('/usuarios?limit=200');
   const body = res.data as { data?: unknown[] } | unknown[];
