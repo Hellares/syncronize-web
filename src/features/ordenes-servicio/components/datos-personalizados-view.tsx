@@ -60,7 +60,15 @@ function Valor({ entrada }: { entrada: Entrada }) {
   }
 
   // Patrón de desbloqueo (string "0-1-2-..." o tipo declarado)
-  if (tipo === 'PATRON_DESBLOQUEO' || (typeof valor === 'string' && /^\d(-\d)+$/.test(valor) && tipo !== 'TELEFONO')) {
+  // CODIGO_BARRAS queda fuera del heurístico igual que TELEFONO: una serie
+  // como "1-2-3" es un código válido y no un patrón de desbloqueo.
+  if (
+    tipo === 'PATRON_DESBLOQUEO' ||
+    (typeof valor === 'string' &&
+      /^\d(-\d)+$/.test(valor) &&
+      tipo !== 'TELEFONO' &&
+      tipo !== 'CODIGO_BARRAS')
+  ) {
     return <PatronView valor={String(valor)} />;
   }
 

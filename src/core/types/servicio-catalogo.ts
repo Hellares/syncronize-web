@@ -55,13 +55,15 @@ export interface CatalogoPlantilla {
 export type TipoCampoServicio =
   | 'TEXTO' | 'NUMERO' | 'EMAIL' | 'FECHA' | 'HORA' | 'TEXTO_AREA'
   | 'OPCION_SIMPLES' | 'OPCION_MULTIPLE' | 'CHECKBOX' | 'CHECKBOX_MULTIPLE'
-  | 'ARCHIVO' | 'TELEFONO' | 'URL' | 'OBJETO' | 'PATRON_DESBLOQUEO' | 'INSPECCION_VISUAL';
+  | 'ARCHIVO' | 'TELEFONO' | 'URL' | 'OBJETO' | 'PATRON_DESBLOQUEO' | 'INSPECCION_VISUAL'
+  | 'CODIGO_BARRAS';
 
-/** 16 tipos de campo (paridad con configuracion_campos_page.dart de Flutter). */
+/** 17 tipos de campo (paridad con configuracion_campos_page.dart de Flutter). */
 export const TIPOS_CAMPO: TipoCampoServicio[] = [
   'TEXTO', 'NUMERO', 'EMAIL', 'FECHA', 'HORA', 'TEXTO_AREA',
   'OPCION_SIMPLES', 'OPCION_MULTIPLE', 'CHECKBOX', 'CHECKBOX_MULTIPLE',
   'ARCHIVO', 'TELEFONO', 'URL', 'OBJETO', 'PATRON_DESBLOQUEO', 'INSPECCION_VISUAL',
+  'CODIGO_BARRAS',
 ];
 export const TIPO_CAMPO_LABEL: Record<TipoCampoServicio, string> = {
   TEXTO: 'Texto', NUMERO: 'Número', EMAIL: 'Email', FECHA: 'Fecha', HORA: 'Hora',
@@ -69,6 +71,9 @@ export const TIPO_CAMPO_LABEL: Record<TipoCampoServicio, string> = {
   CHECKBOX: 'Checkbox', CHECKBOX_MULTIPLE: 'Checkbox múltiple', ARCHIVO: 'Archivo',
   TELEFONO: 'Teléfono', URL: 'URL', OBJETO: 'Objeto (sub-campos)',
   PATRON_DESBLOQUEO: 'Patrón desbloqueo', INSPECCION_VISUAL: 'Inspección visual',
+  // En web no hay cámara: el default del renderer lo pinta como input de
+  // texto, que es justo lo que necesita un lector USB (teclea el código).
+  CODIGO_BARRAS: 'Código de barras (IMEI, serie)',
 };
 /** Tipos que usan la lista `opciones` (selección). */
 export const TIPOS_CAMPO_CON_OPCIONES: TipoCampoServicio[] = ['OPCION_SIMPLES', 'OPCION_MULTIPLE', 'CHECKBOX_MULTIPLE'];
