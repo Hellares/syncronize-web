@@ -521,7 +521,7 @@ function VentaRapidaInner() {
 
       {/* Órdenes de servicio cobrables */}
       {cobrablesOpen && (
-        <CobrablesSheet onPick={agregarOrden} onClose={() => setCobrablesOpen(false)} />
+        <CobrablesSheet sedeId={sedeId} onPick={agregarOrden} onClose={() => setCobrablesOpen(false)} />
       )}
 
       {/* Autorización de descuento (paridad Flutter: operacion APLICAR_DESCUENTO) */}
@@ -546,7 +546,7 @@ export default function VentaRapidaPage() {
 }
 
 /* --- Selector de órdenes de servicio cobrables --- */
-function CobrablesSheet({ onPick, onClose }: { onPick: (o: OrdenCobrable) => void; onClose: () => void }) {
+function CobrablesSheet({ sedeId, onPick, onClose }: { sedeId?: string; onPick: (o: OrdenCobrable) => void; onClose: () => void }) {
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<OrdenCobrable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -555,11 +555,11 @@ function CobrablesSheet({ onPick, onClose }: { onPick: (o: OrdenCobrable) => voi
 
   const cargar = useCallback((q: string) => {
     setLoading(true);
-    osService.getOrdenesCobrables(q || undefined)
+    osService.getOrdenesCobrables(q || undefined, sedeId || undefined)
       .then(setItems)
       .catch(() => setError('No se pudieron cargar las órdenes cobrables'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [sedeId]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(''); }, [cargar]);

@@ -81,10 +81,17 @@ export async function getHistorial(id: string): Promise<HistorialOS[]> {
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }
 
-/** Órdenes cobrables desde Venta Rápida (REPARADO/LISTO_ENTREGA con saldo ≥ 0 sin venta vinculada). */
-export async function getOrdenesCobrables(search?: string): Promise<OrdenCobrable[]> {
-  const q = search ? `?search=${encodeURIComponent(search)}` : '';
-  const res = await apiClient.get(`${BASE}/cobrables${q}`);
+/**
+ * Órdenes cobrables desde Venta Rápida (REPARADO/LISTO_ENTREGA con saldo ≥ 0 sin venta vinculada).
+ * `sedeId` = sede de la VENTA: cobrar una orden de otra sede cruzaría la serie
+ * del comprobante con la caja donde se registró el adelanto.
+ */
+export async function getOrdenesCobrables(search?: string, sedeId?: string): Promise<OrdenCobrable[]> {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (sedeId) params.set('sedeId', sedeId);
+  const q = params.toString();
+  const res = await apiClient.get(`${BASE}/cobrables${q ? `?${q}` : ''}`);
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }
 
