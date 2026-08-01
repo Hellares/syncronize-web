@@ -53,6 +53,7 @@ export default function OrdenDetailPage() {
   const [transicionOpen, setTransicionOpen] = useState(false);
   const [tecnicoOpen, setTecnicoOpen] = useState(false);
   const [componenteOpen, setComponenteOpen] = useState(false);
+  const [editandoPrometida, setEditandoPrometida] = useState(false);
   const [componenteDetalle, setComponenteDetalle] = useState<OrdenServicioComponente | null>(null);
 
   const cargar = useCallback(async () => {
@@ -114,6 +115,26 @@ export default function OrdenDetailPage() {
   // la ENTREGA, no el pago: una orden cobrada sin retirar sigue atrasada.
   const prometidaVencida = !!orden.fechaPrometida && !orden.fechaEntrega
     && orden.estado !== 'CANCELADO' && new Date(orden.fechaPrometida) < new Date();
+  // El backend rechaza editar órdenes en estado terminal, y una vez entregada
+  // la fecha pactada ya no significa nada.
+  const puedeEditarPrometida = !orden.fechaEntrega
+    && !['CANCELADO', 'FINALIZADO', 'TERCERIZADO'].includes(orden.estado);
+
+  const guardarPrometida = async (fecha: string) => {
+    setError(null);
+    try {
+      // Fin del día LOCAL → ISO con zona (ver el form de nueva orden).
+      await osService.actualizarOrden(orden.id, {
+        fechaPrometida: new Date(`${fecha}T23:59:59`).toISOString(),
+      });
+      setEditandoPrometida(false);
+      flash('Fecha pactada actualizada');
+      cargar();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo actualizar la fecha pactada');
+    }
+  };
 
   const entregar = async () => {
     if (!confirm(`¿El cliente ya se llevó el equipo de la orden ${orden.codigo}?\n\nQueda registrado con la fecha y hora de ahora.`)) return;
@@ -189,6 +210,14 @@ export default function OrdenDetailPage() {
             {orden.fechaPrometida ? fmtSoloFecha(orden.fechaPrometida) : '—'}
             {prometidaVencida && ' · atrasado'}
           </p>
+          {/* La fecha se renegocia todo el tiempo: tiene que poder cambiarse
+              después del alta, no solo al crear la orden. */}
+          {permissions.canManageOrders && puedeEditarPrometida && (
+            <button onClick={() => setEditandoPrometida(true)}
+              className="text-[10px] font-semibold text-[#437EFF] hover:underline">
+              {orden.fechaPrometida ? 'Cambiar' : 'Pactar entrega'}
+            </button>
+          )}
         </div>
         <div><p className="text-[10px] uppercase text-gray-400">Entregado</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.fechaEntrega)}</p></div>
         <div>
@@ -338,6 +367,11 @@ export default function OrdenDetailPage() {
           onClose={() => setTecnicoOpen(false)}
           onSuccess={() => { setTecnicoOpen(false); flash('Técnico asignado'); cargar(); }} />
       )}
+      {editandoPrometida && (
+        <FechaPrometidaDialog actual={orden.fechaPrometida}
+          onSave={guardarPrometida}
+          onClose={() => setEditandoPrometida(false)} />
+      )}
       {componenteOpen && (
         <ComponenteDialog ordenId={id}
           onClose={() => setComponenteOpen(false)}
@@ -358,6 +392,49 @@ export default function OrdenDetailPage() {
 }
 
 /* --- Asignar técnico --- */
+/** Repactar la entrega con el cliente. La fecha se renegocia todo el tiempo. */
+function FechaPrometidaDialog({ actual, onSave, onClose }: {
+  actual?: string | null; onSave: (fecha: string) => Promise<void>; onClose: () => void;
+}) {
+  // El <input type="date"> quiere yyyy-MM-dd en hora LOCAL: usar toISOString()
+  // sobre la fecha guardada (fin del día local) devolvería el día siguiente.
+  const [fecha, setFecha] = useState(() => {
+    if (!actual) return '';
+    const d = new Date(actual);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  });
+  const [busy, setBusy] = useState(false);
+
+  const guardar = async () => {
+    if (!fecha) return;
+    setBusy(true);
+    await onSave(fecha);
+    setBusy(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-medium text-gray-900">Fecha pactada de entrega</h3>
+        <p className="mt-1 text-[11px] text-gray-500">
+          Para cuándo se le prometió el equipo al cliente. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
+        </p>
+        <input className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+          type="date" value={fecha} onChange={e => setFecha(e.target.value)} autoFocus />
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} disabled={busy}
+            className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100">Cancelar</button>
+          <button onClick={guardar} disabled={busy || !fecha}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+            {busy ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TecnicoDialog({ ordenId, actualId, onClose, onSuccess }: { ordenId: string; actualId: string | null; onClose: () => void; onSuccess: () => void }) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [loading, setLoading] = useState(true);

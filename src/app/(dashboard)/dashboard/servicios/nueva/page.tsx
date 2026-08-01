@@ -359,6 +359,17 @@ export default function NuevaOrdenPage() {
                 <textarea className={INPUT_STD_TA} rows={3} value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)}
                   placeholder="Qué dice el cliente que le pasa al equipo" />
               </div>
+              {/* El compromiso se pacta junto al problema, en el mostrador: por
+                  eso va acá y no enterrado entre las notas. */}
+              <div className="sm:col-span-2">
+                <label className={LABEL}>Fecha pactada de entrega (opcional)</label>
+                <input className={INPUT_STD} type="date" value={fechaPrometida}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setFechaPrometida(e.target.value)} />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Para cuándo se le prometió el equipo. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
+                </p>
+              </div>
             </div>
           </Seccion>
 
@@ -391,15 +402,6 @@ export default function NuevaOrdenPage() {
               <label className={LABEL}>Notas internas</label>
               <textarea className={INPUT_STD_TA} rows={2} value={notas} onChange={e => setNotas(e.target.value)}
                 placeholder="Visible para el equipo, no para el cliente" />
-            </div>
-            <div className="mt-3">
-              <label className={LABEL}>Fecha pactada de entrega (opcional)</label>
-              <input className={INPUT_STD} type="date" value={fechaPrometida}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={e => setFechaPrometida(e.target.value)} />
-              <p className="mt-1 text-[10px] text-gray-400">
-                Para cuándo se le prometió el equipo al cliente. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
-              </p>
             </div>
             <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5">
               <input type="checkbox" className="mt-0.5 accent-[#004A94]" checked={incluirAviso} onChange={e => setIncluirAviso(e.target.checked)} />
