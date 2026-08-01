@@ -118,6 +118,8 @@ export interface OrdenServicio {
   adelanto?: number | null;
   descuento?: number | null;
   metodoPagoAdelanto?: string | null;
+  /** Fecha PACTADA con el cliente. Es el compromiso; la entrega real es `fechaEntrega`. */
+  fechaPrometida?: string | null;
   fechaEntrega?: string | null;
   numeroReingresos?: number;
   // Cobro: comprobanteId (factura/boleta) o ventaDetalle (ticket vinculado) ⇒ orden ya cobrada.
@@ -242,6 +244,8 @@ export interface CreateOrdenServicioDto {
   metodoPagoAdelanto?: string;
   incluirAvisoMantenimiento?: boolean;
   fechaAvisoPersonalizado?: string;
+  /** Fecha PACTADA de entrega con el cliente (ISO 8601). */
+  fechaPrometida?: string;
 }
 
 export interface TransitionEstadoDto {

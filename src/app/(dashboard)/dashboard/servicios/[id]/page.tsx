@@ -31,6 +31,11 @@ function fmtFecha(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+/** La fecha pactada es un día, no un instante: mostrarla con hora confunde. */
+function fmtSoloFecha(iso?: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
 const METODOS: MetodoPagoVenta[] = ['EFECTIVO', 'YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
 
 export default function OrdenDetailPage() {
@@ -105,6 +110,10 @@ export default function OrdenDetailPage() {
   // Pagada pero el equipo sigue en el taller: el cliente puede pagar hoy y
   // retirarlo otro día. `fechaEntrega` marca la entrega física, no el cobro.
   const sinRetirar = cobrada && !orden.fechaEntrega;
+  // Se pasó la fecha pactada y el equipo sigue acá. Lo que cierra el atraso es
+  // la ENTREGA, no el pago: una orden cobrada sin retirar sigue atrasada.
+  const prometidaVencida = !!orden.fechaPrometida && !orden.fechaEntrega
+    && orden.estado !== 'CANCELADO' && new Date(orden.fechaPrometida) < new Date();
 
   const entregar = async () => {
     if (!confirm(`¿El cliente ya se llevó el equipo de la orden ${orden.codigo}?\n\nQueda registrado con la fecha y hora de ahora.`)) return;
@@ -174,6 +183,13 @@ export default function OrdenDetailPage() {
       <div className="grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-4">
         <div><p className="text-[10px] uppercase text-gray-400">Servicio</p><p className="text-xs font-medium text-gray-700">{TIPO_SERVICIO_LABEL[orden.tipoServicio]}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Creada</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.creadoEn)}</p></div>
+        <div>
+          <p className="text-[10px] uppercase text-gray-400">Pactado</p>
+          <p className={`text-xs font-medium ${prometidaVencida ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
+            {orden.fechaPrometida ? fmtSoloFecha(orden.fechaPrometida) : '—'}
+            {prometidaVencida && ' · atrasado'}
+          </p>
+        </div>
         <div><p className="text-[10px] uppercase text-gray-400">Entregado</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.fechaEntrega)}</p></div>
         <div>
           <p className="text-[10px] uppercase text-gray-400">Técnico</p>

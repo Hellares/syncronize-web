@@ -33,6 +33,19 @@ function fmtFecha(iso?: string): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
+/** La fecha pactada es un día, no un instante: mostrarla con hora confunde. */
+function fmtSoloFecha(iso?: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+}
+/**
+ * Se pasó la fecha pactada con el cliente y el equipo sigue en el taller.
+ * Lo que cierra el atraso es la ENTREGA, no el pago.
+ */
+function prometidaVencidaOrden(o: OrdenServicio): boolean {
+  if (!o.fechaPrometida || o.fechaEntrega || o.estado === 'CANCELADO') return false;
+  return new Date(o.fechaPrometida) < new Date();
+}
 
 export default function ServiciosPage() {
   const router = useRouter();
@@ -167,13 +180,18 @@ export default function ServiciosPage() {
                   <div className="flex items-center gap-1.5">
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[o.prioridad]}</span>
                     <span className="text-[10px] text-gray-400">{fmtFecha(o.creadoEn)}</span>
-                    {/* Entrega física. Sin esto había que entrar orden por orden
-                        para saber qué equipos ya salieron y cuáles siguen acá. */}
+                    {/* Un solo chip, en orden de urgencia: ya salió → atrasada →
+                        pagada sin retirar → pactada. Sin esto había que entrar
+                        orden por orden para saber qué falta entregar. */}
                     {o.fechaEntrega ? (
                       <span className="rounded bg-[#437EFF]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[#004A94]">Entregado {fmtFecha(o.fechaEntrega)}</span>
-                    ) : estaCobradaOrden(o) && (
+                    ) : prometidaVencidaOrden(o) ? (
+                      <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">Atrasado {fmtSoloFecha(o.fechaPrometida)}</span>
+                    ) : estaCobradaOrden(o) ? (
                       <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700">Sin retirar</span>
-                    )}
+                    ) : o.fechaPrometida ? (
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">Pactado {fmtSoloFecha(o.fechaPrometida)}</span>
+                    ) : null}
                   </div>
                   {total != null && total > 0 && (
                     (o.adelanto ?? 0) > 0 ? (

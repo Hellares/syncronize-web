@@ -91,6 +91,9 @@ export default function NuevaOrdenPage() {
   const [incluirAviso, setIncluirAviso] = useState(true);
   const [fechaAviso, setFechaAviso] = useState('');
 
+  /** Fecha PACTADA con el cliente (yyyy-MM-dd del input date). */
+  const [fechaPrometida, setFechaPrometida] = useState('');
+
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -210,6 +213,12 @@ export default function NuevaOrdenPage() {
         ...(adel && adel > 0 ? { metodoPagoAdelanto } : {}),
         ...(incluirAviso ? {} : { incluirAvisoMantenimiento: false }),
         ...(incluirAviso && fechaAviso ? { fechaAvisoPersonalizado: fechaAviso } : {}),
+        // Fin del día LOCAL → ISO con zona. Mandar "2026-08-05" pelado lo lee
+        // el backend como medianoche UTC = 04/08 19:00 en Perú (un día menos),
+        // y además vencería apenas empieza el día pactado.
+        ...(fechaPrometida
+          ? { fechaPrometida: new Date(`${fechaPrometida}T23:59:59`).toISOString() }
+          : {}),
       };
       const orden = await osService.crearOrden(dto);
       router.push(`/dashboard/servicios/${orden.id}`);
@@ -382,6 +391,15 @@ export default function NuevaOrdenPage() {
               <label className={LABEL}>Notas internas</label>
               <textarea className={INPUT_STD_TA} rows={2} value={notas} onChange={e => setNotas(e.target.value)}
                 placeholder="Visible para el equipo, no para el cliente" />
+            </div>
+            <div className="mt-3">
+              <label className={LABEL}>Fecha pactada de entrega (opcional)</label>
+              <input className={INPUT_STD} type="date" value={fechaPrometida}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={e => setFechaPrometida(e.target.value)} />
+              <p className="mt-1 text-[10px] text-gray-400">
+                Para cuándo se le prometió el equipo al cliente. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
+              </p>
             </div>
             <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5">
               <input type="checkbox" className="mt-0.5 accent-[#004A94]" checked={incluirAviso} onChange={e => setIncluirAviso(e.target.checked)} />
