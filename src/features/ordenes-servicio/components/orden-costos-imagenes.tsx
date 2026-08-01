@@ -101,9 +101,12 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
               </>
             )}
             {saldo != null && (
+              // Con saldo 0 la fila pasa a "PAGADO", y ahí el monto que
+              // corresponde es lo COBRADO (el total), no el saldo — que por
+              // definición vale 0 y se leía como "se cobró S/ 0.00".
               <CostoRow
                 label={saldo <= 0.005 ? 'PAGADO' : 'SALDO PENDIENTE'}
-                valor={saldo <= 0.005 ? 0 : saldo}
+                valor={saldo <= 0.005 ? (costoFinal ?? 0) : saldo}
                 bold size="text-sm"
                 color={saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}
               />
@@ -187,7 +190,7 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
             <CostoRow label="Total al cliente" valor={costoFinalCalc} color="text-[#004A94]" />
             {adel > 0 && <CostoRow label="Adelanto" valor={adel} color="text-green-700" />}
             <div className="my-1 border-t border-gray-200" />
-            <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? 0 : saldoCalc} size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
+            <CostoRow label={saldoCalc <= 0.005 ? 'PAGADO' : 'Saldo pendiente'} valor={saldoCalc <= 0.005 ? costoFinalCalc : saldoCalc} size="text-sm" color={saldoCalc <= 0.005 ? 'text-green-700' : 'text-orange-600'} />
           </div>
         )}
 
