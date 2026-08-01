@@ -119,6 +119,11 @@ export default function OrdenDetailPage() {
   // la fecha pactada ya no significa nada.
   const puedeEditarPrometida = !orden.fechaEntrega
     && !['CANCELADO', 'FINALIZADO', 'TERCERIZADO'].includes(orden.estado);
+  // Espeja ESTADOS_NO_MODIFICABLES de servicio-componente.service.ts: el
+  // backend rechaza agregar/editar/quitar componentes en estos estados, así
+  // que ofrecer los botones solo lograba que el request volviera con 400.
+  const puedeModificarComponentes =
+    !['CANCELADO', 'FINALIZADO', 'TERCERIZADO', 'ENTREGADO'].includes(orden.estado);
 
   const guardarPrometida = async (fecha: string) => {
     setError(null);
@@ -205,7 +210,7 @@ export default function OrdenDetailPage() {
         <div><p className="text-[10px] uppercase text-gray-400">Servicio</p><p className="text-xs font-medium text-gray-700">{TIPO_SERVICIO_LABEL[orden.tipoServicio]}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Creada</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.creadoEn)}</p></div>
         <div>
-          <p className="text-[10px] uppercase text-gray-400">Pactado</p>
+          <p className="text-[10px] uppercase text-gray-400">F. Solución</p>
           <p className={`text-xs font-medium ${prometidaVencida ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
             {orden.fechaPrometida ? fmtSoloFecha(orden.fechaPrometida) : '—'}
             {prometidaVencida && ' · atrasado'}
@@ -215,7 +220,7 @@ export default function OrdenDetailPage() {
           {permissions.canManageOrders && puedeEditarPrometida && (
             <button onClick={() => setEditandoPrometida(true)}
               className="text-[10px] font-semibold text-[#437EFF] hover:underline">
-              {orden.fechaPrometida ? 'Cambiar' : 'Pactar entrega'}
+              {orden.fechaPrometida ? 'Cambiar' : 'Definir F. Solución'}
             </button>
           )}
         </div>
@@ -290,7 +295,7 @@ export default function OrdenDetailPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase text-gray-400">Componentes ({(orden.componentes ?? []).length})</p>
-            {permissions.canManageOrders && (
+            {permissions.canManageOrders && puedeModificarComponentes && (
               <button onClick={() => setComponenteOpen(true)} className="text-[11px] font-semibold text-[#437EFF] hover:underline">+ Agregar</button>
             )}
           </div>
@@ -298,7 +303,11 @@ export default function OrdenDetailPage() {
             <p className="text-xs text-gray-400">Sin componentes registrados.</p>
           ) : (
             <div className="space-y-1.5">
-              <p className="text-[10px] text-gray-400">Toca un componente para editar su acción/costos o agregar imágenes.</p>
+              <p className="text-[10px] text-gray-400">
+                {puedeModificarComponentes
+                  ? 'Toca un componente para editar su acción/costos o agregar imágenes.'
+                  : 'Orden cerrada: los componentes quedan solo de consulta.'}
+              </p>
               {orden.componentes!.map(c => {
                 const accion = c.tipoAccion as TipoAccionComponente;
                 const total = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
@@ -311,7 +320,7 @@ export default function OrdenDetailPage() {
                     </button>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="text-gray-500">{fmt(total)}</span>
-                      {permissions.canManageOrders && (
+                      {permissions.canManageOrders && puedeModificarComponentes && (
                         <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
                       )}
                     </span>
@@ -382,7 +391,7 @@ export default function OrdenDetailPage() {
           ordenId={id}
           empresaId={orden.empresaId}
           componente={componenteDetalle}
-          canManage={permissions.canManageOrders}
+          canManage={permissions.canManageOrders && puedeModificarComponentes}
           onClose={() => setComponenteDetalle(null)}
           onChanged={() => { setComponenteDetalle(null); flash('Componente actualizado'); cargar(); }}
         />
@@ -416,7 +425,7 @@ function FechaPrometidaDialog({ actual, onSave, onClose }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-medium text-gray-900">Fecha pactada de entrega</h3>
+        <h3 className="text-sm font-medium text-gray-900">F. Solución</h3>
         <p className="mt-1 text-[11px] text-gray-500">
           Para cuándo se le prometió el equipo al cliente. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
         </p>

@@ -190,7 +190,7 @@ export default function ServiciosPage() {
                     ) : estaCobradaOrden(o) ? (
                       <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700">Sin retirar</span>
                     ) : o.fechaPrometida ? (
-                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">Pactado {fmtSoloFecha(o.fechaPrometida)}</span>
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">F. Solución {fmtSoloFecha(o.fechaPrometida)}</span>
                     ) : null}
                   </div>
                   {total != null && total > 0 && (

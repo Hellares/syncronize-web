@@ -362,7 +362,7 @@ export default function NuevaOrdenPage() {
               {/* El compromiso se pacta junto al problema, en el mostrador: por
                   eso va acá y no enterrado entre las notas. */}
               <div className="sm:col-span-2">
-                <label className={LABEL}>Fecha pactada de entrega (opcional)</label>
+                <label className={LABEL}>F. Solución (opcional)</label>
                 <input className={INPUT_STD} type="date" value={fechaPrometida}
                   min={new Date().toISOString().slice(0, 10)}
                   onChange={e => setFechaPrometida(e.target.value)} />
