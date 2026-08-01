@@ -174,7 +174,7 @@ export default function OrdenDetailPage() {
       <div className="grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-4">
         <div><p className="text-[10px] uppercase text-gray-400">Servicio</p><p className="text-xs font-medium text-gray-700">{TIPO_SERVICIO_LABEL[orden.tipoServicio]}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Creada</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.creadoEn)}</p></div>
-        <div><p className="text-[10px] uppercase text-gray-400">Entrega</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.fechaEntrega)}</p></div>
+        <div><p className="text-[10px] uppercase text-gray-400">Entregado</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.fechaEntrega)}</p></div>
         <div>
           <p className="text-[10px] uppercase text-gray-400">Técnico</p>
           <p className="text-xs font-medium text-gray-700">{tecnicoNombre ?? 'Sin asignar'}</p>

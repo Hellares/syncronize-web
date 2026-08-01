@@ -167,9 +167,11 @@ export default function ServiciosPage() {
                   <div className="flex items-center gap-1.5">
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[o.prioridad]}</span>
                     <span className="text-[10px] text-gray-400">{fmtFecha(o.creadoEn)}</span>
-                    {/* Pagada pero el equipo sigue en el taller: sin esto había
-                        que entrar orden por orden para saber qué falta entregar. */}
-                    {estaCobradaOrden(o) && !o.fechaEntrega && (
+                    {/* Entrega física. Sin esto había que entrar orden por orden
+                        para saber qué equipos ya salieron y cuáles siguen acá. */}
+                    {o.fechaEntrega ? (
+                      <span className="rounded bg-[#437EFF]/10 px-1.5 py-0.5 text-[9px] font-semibold text-[#004A94]">Entregado {fmtFecha(o.fechaEntrega)}</span>
+                    ) : estaCobradaOrden(o) && (
                       <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700">Sin retirar</span>
                     )}
                   </div>
