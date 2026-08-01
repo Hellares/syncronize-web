@@ -95,6 +95,17 @@ export async function getOrdenesCobrables(search?: string, sedeId?: string): Pro
   return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
 }
 
+/**
+ * Registra la ENTREGA FÍSICA del equipo al cliente.
+ * Cobrar y entregar son hechos distintos: el cliente puede pagar hoy y llevarse
+ * el equipo otro día. No cambia el estado (la orden ya está FINALIZADA por el
+ * cobro), solo estampa `fechaEntrega`.
+ */
+export async function registrarEntrega(id: string, notas?: string): Promise<OrdenServicio> {
+  const res = await apiClient.patch(`${BASE}/${id}/entregar`, notas?.trim() ? { notas: notas.trim() } : {});
+  return res.data?.data ?? res.data;
+}
+
 // ── Mensajes (chat orden↔cliente, lado staff: perm MANAGE_ORDERS) ──
 
 /** Lista los mensajes de la orden. El backend marca como leídos los del cliente al consultar. */

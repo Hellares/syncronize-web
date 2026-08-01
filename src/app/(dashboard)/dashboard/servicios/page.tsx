@@ -6,6 +6,7 @@ import type { OrdenServicio, EstadoOrdenServicio, TipoServicio, PrioridadServici
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
   TIPOS_SERVICIO, PRIORIDADES, costoFinalOrden, saldoPendienteOrden, nombreClienteOrden,
+  estaCobradaOrden,
 } from '@/core/types/orden-servicio';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
@@ -166,6 +167,11 @@ export default function ServiciosPage() {
                   <div className="flex items-center gap-1.5">
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[o.prioridad]}</span>
                     <span className="text-[10px] text-gray-400">{fmtFecha(o.creadoEn)}</span>
+                    {/* Pagada pero el equipo sigue en el taller: sin esto había
+                        que entrar orden por orden para saber qué falta entregar. */}
+                    {estaCobradaOrden(o) && !o.fechaEntrega && (
+                      <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700">Sin retirar</span>
+                    )}
                   </div>
                   {total != null && total > 0 && (
                     (o.adelanto ?? 0) > 0 ? (

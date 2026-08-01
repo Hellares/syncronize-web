@@ -102,6 +102,22 @@ export default function OrdenDetailPage() {
   const forceShowImagenes = !!orden.datosPersonalizados && Object.values(orden.datosPersonalizados).some(v => v === true);
   const transiciones = (TRANSICIONES_VALIDAS[orden.estado] ?? []).filter(e => e !== 'TERCERIZADO');
   const esCobrable = !cobrada && ESTADOS_OS_COBRABLES.includes(orden.estado) && Number(orden.costoTotal ?? 0) > 0;
+  // Pagada pero el equipo sigue en el taller: el cliente puede pagar hoy y
+  // retirarlo otro día. `fechaEntrega` marca la entrega física, no el cobro.
+  const sinRetirar = cobrada && !orden.fechaEntrega;
+
+  const entregar = async () => {
+    if (!confirm(`¿El cliente ya se llevó el equipo de la orden ${orden.codigo}?\n\nQueda registrado con la fecha y hora de ahora.`)) return;
+    setError(null);
+    try {
+      await osService.registrarEntrega(orden.id);
+      flash('Entrega registrada');
+      cargar();
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(msg || 'No se pudo registrar la entrega');
+    }
+  };
 
   const cobrar = async () => {
     setError(null);
@@ -127,12 +143,19 @@ export default function OrdenDetailPage() {
         {orden.origenOrden === 'B2B_ENVIADO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📤 Tercerizada</span>}
         {orden.origenOrden === 'B2B_RECIBIDO' && <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100">📥 B2B recibida</span>}
         {cobrada && <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">✓ Pagado</span>}
+        {sinRetirar && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-semibold text-orange-700">Sin retirar</span>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <OrdenServicioPrintMenu orden={orden} />
           {permissions.canManageOrders && esCobrable && (
             <button onClick={cobrar}
               className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700">
               Cobrar {saldo > 0.005 ? fmt(saldo) : ''}
+            </button>
+          )}
+          {permissions.canManageOrders && sinRetirar && (
+            <button onClick={entregar}
+              className="rounded-lg bg-[#437EFF] px-4 py-2 text-xs font-bold text-white hover:bg-[#004A94]">
+              Entregar
             </button>
           )}
           {permissions.canManageOrders && transiciones.length > 0 && (
