@@ -51,6 +51,7 @@ export default function TrackingClient({ token }: { token: string }) {
 
   const mapaRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  const destinoMarkerRef = useRef<Marker | null>(null);
   const mapaDivRef = useRef<HTMLDivElement | null>(null);
 
   const cargar = useCallback(async () => {
@@ -77,63 +78,87 @@ export default function TrackingClient({ token }: { token: string }) {
     return () => clearInterval(timer);
   }, [cargar]);
 
-  // Mapa Leaflet/OSM: se monta cuando hay posición y se actualiza en cada
-  // poll moviendo el marcador (sin recrear el mapa).
+  // Mapa Leaflet/OSM. Se monta apenas se conoce el DESTINO — el cliente
+  // quiere confirmar "esa es mi casa" al hacer el pedido, no recién cuando
+  // la moto arranca. El marcador del repartidor se suma cuando llega su
+  // primera posición y desde ahí se mueve en cada poll (sin recrear el mapa).
   useEffect(() => {
-    const pos = data?.posicion;
-    if (!pos || !mapaDivRef.current) {
+    const pos = data?.posicion ?? null;
+    const destino = data?.destino ?? null;
+    const centro = pos ?? destino;
+
+    if (!centro || !mapaDivRef.current) {
       if (mapaRef.current) {
         mapaRef.current.remove();
         mapaRef.current = null;
         markerRef.current = null;
+        destinoMarkerRef.current = null;
       }
       return;
     }
-    let cancelado = false;
+
+    let abortado = false;
     (async () => {
       const L = (await import('leaflet')).default;
-      if (cancelado || !mapaDivRef.current) return;
-
-      // Moto AZUL de la marca (SVG "two_wheeler" de Material, SIN círculo):
-      // halo blanco por drop-shadow para que contraste sobre el mapa.
-      const icono = L.divIcon({
-        html:
-          '<div style="filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff) ' +
-          'drop-shadow(0 2px 3px rgba(0,0,0,.35))">' +
-          '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" ' +
-          'viewBox="0 0 24 24" fill="#004A94"><path d="M19.44 9.03 15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.65-1.97-4.77-4.56-4.97zM7.82 15C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82zM19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg></div>',
-        className: '',
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
+      if (abortado || !mapaDivRef.current) return;
 
       if (!mapaRef.current) {
-        const mapa = L.map(mapaDivRef.current).setView([pos.lat, pos.lon], 16);
+        const mapa = L.map(mapaDivRef.current).setView([centro.lat, centro.lon], 16);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap',
         }).addTo(mapa);
-        markerRef.current = L.marker([pos.lat, pos.lon], { icon: icono }).addTo(mapa);
-        if (data?.destino) {
-          L.marker([data.destino.lat, data.destino.lon], {
-            icon: L.divIcon({
-              html: '<div style="font-size:28px;line-height:1">📍</div>',
-              className: '',
-              iconSize: [28, 28],
-              iconAnchor: [14, 26],
-            }),
-          }).addTo(mapa);
-        }
         mapaRef.current = mapa;
         // El contenedor usa alturas por viewport (50vh/65vh): asegurar que
         // Leaflet mida el tamaño real ya pintado.
         setTimeout(() => mapaRef.current?.invalidateSize(), 150);
-      } else {
-        markerRef.current?.setLatLng([pos.lat, pos.lon]);
-        mapaRef.current.panTo([pos.lat, pos.lon]);
       }
+      const mapa = mapaRef.current;
+      if (!mapa) return;
+
+      // Destino: se agrega en cuanto se conoce, aunque el mapa ya exista
+      // (si solo se agregara al crearlo, un destino que llega después
+      // nunca se dibujaría).
+      if (destino && !destinoMarkerRef.current) {
+        destinoMarkerRef.current = L.marker([destino.lat, destino.lon], {
+          icon: L.divIcon({
+            html: '<div style="font-size:28px;line-height:1">📍</div>',
+            className: '',
+            iconSize: [28, 28],
+            iconAnchor: [14, 26],
+          }),
+        }).addTo(mapa);
+      }
+
+      if (!pos) {
+        // Volvió a quedarse sin posición (entregado): se va la moto, queda
+        // el 📍 del destino.
+        markerRef.current?.remove();
+        markerRef.current = null;
+        return;
+      }
+
+      if (markerRef.current) {
+        markerRef.current.setLatLng([pos.lat, pos.lon]);
+      } else {
+        // Moto AZUL de la marca (SVG "two_wheeler" de Material, SIN círculo):
+        // halo blanco por drop-shadow para que contraste sobre el mapa.
+        const icono = L.divIcon({
+          html:
+            '<div style="filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff) ' +
+            'drop-shadow(0 2px 3px rgba(0,0,0,.35))">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" ' +
+            'viewBox="0 0 24 24" fill="#004A94"><path d="M19.44 9.03 15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.65-1.97-4.77-4.56-4.97zM7.82 15C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82zM19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg></div>',
+          className: '',
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+        });
+        markerRef.current = L.marker([pos.lat, pos.lon], { icon: icono }).addTo(mapa);
+      }
+      mapa.panTo([pos.lat, pos.lon]);
     })();
+
     return () => {
-      cancelado = true;
+      abortado = true;
     };
   }, [data]);
 
@@ -161,7 +186,13 @@ export default function TrackingClient({ token }: { token: string }) {
   }
 
   const cancelado = data.estado === 'CANCELADO';
-  const conMapa = !cancelado && !!data.posicion;
+  const entregado = data.estado === 'ENTREGADO';
+  // El mapa aparece apenas se conoce el destino, aunque el repartidor no
+  // haya salido: así el cliente puede verificar el punto al hacer el
+  // pedido y no cuando la moto ya está en la calle. Entregado y cancelado
+  // vuelven a la card angosta — ahí el mapa ya no aporta.
+  const conMapa =
+    !cancelado && (!!data.posicion || (!entregado && !!data.destino));
 
   return (
     <main className="min-h-screen bg-zinc-50 flex justify-center px-3 py-4 md:py-8">
@@ -185,7 +216,9 @@ export default function TrackingClient({ token }: { token: string }) {
                 className="h-[50vh] md:h-[65vh] w-full rounded-xl border border-zinc-200 overflow-hidden"
               />
               <p className="text-[10px] text-zinc-400 text-center mt-1">
-                Posición del repartidor · se actualiza cada 10 s
+                {data.posicion
+                  ? 'Posición del repartidor · se actualiza cada 10 s'
+                  : '📍 Tu dirección de entrega · el repartidor aparecerá al salir'}
               </p>
             </div>
             <div className="mt-4 md:mt-0 bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 h-fit">
