@@ -254,9 +254,25 @@ export type UpdateProductoDto = Partial<Omit<CreateProductoDto, 'empresaId' | 's
 
 // --- Atributos de Producto ---
 
+/// Espeja el enum `AtributoTipo` del backend. Comparte vocabulario con los
+/// tipos de campo de las plantillas de servicio (`servicio-catalogo.ts`):
+/// quedan fuera TABLA y OBJETO porque guardan estructura y el valor de un
+/// atributo es un string con índice GIN para los filtros del marketplace.
 export type AtributoTipo =
-  | 'COLOR' | 'TALLA' | 'MATERIAL' | 'CAPACIDAD'
-  | 'TEXTO' | 'NUMERO' | 'SELECT' | 'MULTI_SELECT' | 'BOOLEAN';
+  // Con lista de valores
+  | 'SELECT' | 'MULTI_SELECT'
+  // Dato libre
+  | 'TEXTO' | 'TEXTO_AREA' | 'NUMERO' | 'MONEDA' | 'BOOLEAN'
+  | 'FECHA' | 'HORA' | 'EMAIL' | 'TELEFONO' | 'URL'
+  // Códigos e identificación
+  | 'CODIGO_BARRAS' | 'PIN_CLAVE' | 'PATRON_DESBLOQUEO'
+  | 'DOCUMENTO_IDENTIDAD' | 'PLACA_VEHICULO' | 'LICENCIA_CONDUCIR'
+  // Archivos: el valor es la URL del storage
+  | 'FOTO' | 'FIRMA' | 'ARCHIVO'
+  // Otros
+  | 'INSPECCION_VISUAL' | 'PRODUCTO_CATALOGO'
+  // Legacy: nombres de atributo disfrazados de tipo, fuera del selector
+  | 'COLOR' | 'TALLA' | 'MATERIAL' | 'CAPACIDAD';
 
 export interface ProductoAtributo {
   id: string;
