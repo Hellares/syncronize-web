@@ -261,6 +261,8 @@ export type UpdateProductoDto = Partial<Omit<CreateProductoDto, 'empresaId' | 's
 export type AtributoTipo =
   // Con lista de valores
   | 'SELECT' | 'MULTI_SELECT'
+  // Sus opciones dependen del valor elegido en `dependeDeAtributoId`
+  | 'SELECT_DEPENDIENTE'
   // Dato libre
   | 'TEXTO' | 'TEXTO_AREA' | 'NUMERO' | 'MONEDA' | 'BOOLEAN'
   | 'FECHA' | 'HORA' | 'EMAIL' | 'TELEFONO' | 'URL'
@@ -274,13 +276,27 @@ export type AtributoTipo =
   // Legacy: nombres de atributo disfrazados de tipo, fuera del selector
   | 'COLOR' | 'TALLA' | 'MATERIAL' | 'CAPACIDAD';
 
+/** Una opción elegible, y de qué valor del atributo padre cuelga. */
+export interface OpcionAtributo {
+  id: string;
+  valor: string;
+  /** Null en los atributos raíz. */
+  padreValor: string | null;
+  orden: number;
+}
+
 export interface ProductoAtributo {
   id: string;
   empresaId: string;
   nombre: string;
   clave: string;
   tipo: AtributoTipo;
+  /** Lista PLANA: en un dependiente vienen todas las ramas mezcladas. */
   valores: string[];
+  /** Las opciones con su jerarquía. Vacío en los tipos sin lista. */
+  opciones?: OpcionAtributo[];
+  /** Atributo del que dependen estas opciones. */
+  dependeDeAtributoId?: string | null;
   unidad?: string;
   requerido?: boolean;
   descripcion?: string;
@@ -363,6 +379,13 @@ export interface CreateProductoAtributoDto {
   clave: string;
   tipo: AtributoTipo;
   valores?: string[];
+  /**
+   * Opciones con su jerarquía. Si viaja, MANDA sobre `valores`, que el backend
+   * regenera a partir de acá. `id` permite renombrar una opción sin que se
+   * borren sus hijas.
+   */
+  opciones?: { id?: string; valor: string; padreValor?: string | null; orden?: number }[];
+  dependeDeAtributoId?: string | null;
   unidad?: string;
   requerido?: boolean;
   descripcion?: string;

@@ -38,11 +38,15 @@ const TIPO_CONFIG: Record<AtributoTipo, { label: string; icon: string; color: st
   ARCHIVO:             { label: 'Archivo',          icon: 'M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13', color: 'bg-fuchsia-100 text-fuchsia-700' },
   INSPECCION_VISUAL:   { label: 'Inspección visual', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z', color: 'bg-yellow-100 text-yellow-700' },
   PRODUCTO_CATALOGO:   { label: 'Producto del catálogo', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', color: 'bg-yellow-100 text-yellow-700' },
+  SELECT_DEPENDIENTE:  { label: 'Selección dependiente', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z', color: 'bg-indigo-100 text-indigo-700' },
 };
 
 // Tipos que REQUIEREN valores predefinidos: los únicos que se llenan eligiendo
 // de una lista y, por lo mismo, los únicos que generan variantes.
-const TIPOS_REQUIEREN_VALORES: AtributoTipo[] = ['SELECT', 'MULTI_SELECT'];
+const TIPOS_REQUIEREN_VALORES: AtributoTipo[] = ['SELECT', 'MULTI_SELECT', 'SELECT_DEPENDIENTE'];
+
+/** Los que pueden ser padre de una cadena: se eligen de una lista simple. */
+const TIPOS_PUEDEN_SER_PADRE: AtributoTipo[] = ['SELECT', 'SELECT_DEPENDIENTE'];
 
 // Los cuatro legacy no son tipos de dato sino NOMBRES de atributo: se
 // comportaban igual que SELECT y ya no se ofrecen al crear. Siguen en el tipo
@@ -56,7 +60,7 @@ const prohibeValoresPredefinidos = (t: AtributoTipo) =>
 
 // Orden del selector, igual que `kTiposAtributoProducto` en la app.
 const TIPOS_OFRECIDOS: AtributoTipo[] = [
-  'SELECT', 'MULTI_SELECT',
+  'SELECT', 'MULTI_SELECT', 'SELECT_DEPENDIENTE',
   'TEXTO', 'TEXTO_AREA', 'NUMERO', 'MONEDA', 'BOOLEAN',
   'FECHA', 'HORA', 'EMAIL', 'TELEFONO', 'URL',
   'CODIGO_BARRAS', 'PIN_CLAVE', 'PATRON_DESBLOQUEO',
@@ -70,9 +74,11 @@ const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm 
 
 // --- Form Dialog ---
 
-function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }: {
+function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave, onClose }: {
   isOpen: boolean;
   atributo?: ProductoAtributo | null;
+  /** Los demás atributos, para elegir de cuál depende éste. */
+  existentes: ProductoAtributo[];
   isSubmitting: boolean;
   onSave: (data: CreateProductoAtributoDto) => void;
   onClose: () => void;
@@ -88,6 +94,9 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
   const [mostrarEnMarketplace, setMostrarEnMarketplace] = useState(true);
   const [valoresText, setValoresText] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dependeDeAtributoId, setDependeDeAtributoId] = useState<string | null>(null);
+  /** Opciones por cada valor del padre, escritas separadas por coma. */
+  const [valoresPorPadre, setValoresPorPadre] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -99,6 +108,16 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
         setUnidad(atributo.unidad || '');
         setRequerido(atributo.requerido || false);
         setValoresText(atributo.valores?.join(', ') || '');
+        setDependeDeAtributoId(atributo.dependeDeAtributoId ?? null);
+        // Las opciones ya cargadas, agrupadas por la rama a la que pertenecen.
+        const porPadreInicial: Record<string, string> = {};
+        for (const o of atributo.opciones ?? []) {
+          if (!o.padreValor) continue;
+          porPadreInicial[o.padreValor] = porPadreInicial[o.padreValor]
+            ? `${porPadreInicial[o.padreValor]}, ${o.valor}`
+            : o.valor;
+        }
+        setValoresPorPadre(porPadreInicial);
         // These fields may not be in the current type, use defaults
         setMostrarEnListado(true);
         setUsarParaFiltros(true);
@@ -106,6 +125,7 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
       } else {
         setNombre(''); setClave(''); setTipo('SELECT'); setDescripcion('');
         setUnidad(''); setRequerido(false); setValoresText('');
+        setDependeDeAtributoId(null); setValoresPorPadre({});
         setMostrarEnListado(true); setUsarParaFiltros(true); setMostrarEnMarketplace(true);
       }
       setErrors({});
@@ -135,15 +155,39 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
 
   const requiereValores = TIPOS_REQUIEREN_VALORES.includes(tipo);
   const prohibeValores = prohibeValoresPredefinidos(tipo);
+  const esDependiente = tipo === 'SELECT_DEPENDIENTE';
+
+  // Candidatos a padre: se eligen de una lista simple y no es este mismo. Un
+  // multi-select no puede serlo — con dos valores a la vez no se sabría qué
+  // rama mostrar. El backend valida lo mismo.
+  const candidatosPadre = existentes.filter(
+    a => a.isActive && a.id !== atributo?.id && TIPOS_PUEDEN_SER_PADRE.includes(a.tipo),
+  );
+  const padreElegido = candidatosPadre.find(a => a.id === dependeDeAtributoId) ?? null;
+
+  /** Las opciones con su rama, tal como las espera el backend. */
+  const construirOpciones = () => {
+    const out: { valor: string; padreValor: string }[] = [];
+    for (const [padreValor, texto] of Object.entries(valoresPorPadre)) {
+      for (const valor of texto.split(',').map(v => v.trim()).filter(Boolean)) {
+        out.push({ valor, padreValor });
+      }
+    }
+    return out;
+  };
 
   const handleSubmit = () => {
     const errs: Record<string, string> = {};
     if (!nombre.trim()) errs.nombre = 'El nombre es requerido';
     if (!clave.trim()) errs.clave = 'La clave es requerida';
 
-    const valores = parseValores();
+    const opciones = esDependiente ? construirOpciones() : [];
+    const valores = esDependiente ? opciones.map(o => o.valor) : parseValores();
 
     // Validación por tipo
+    if (esDependiente && !dependeDeAtributoId) {
+      errs.dependeDe = 'Elegí de qué atributo depende';
+    }
     if (requiereValores && valores.length === 0) {
       errs.valores = `El tipo ${TIPO_CONFIG[tipo].label} requiere al menos un valor predefinido`;
     }
@@ -159,6 +203,10 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
       tipo,
       ...(descripcion.trim() && { descripcion: descripcion.trim() }),
       ...(!prohibeValores && valores.length > 0 && { valores }),
+      // `opciones` manda sobre `valores`: el backend regenera la lista plana
+      // desde acá, que es lo único que sabe de qué rama cuelga cada opción.
+      ...(esDependiente && { opciones }),
+      dependeDeAtributoId: esDependiente ? dependeDeAtributoId : null,
       ...(unidad.trim() && { unidad: unidad.trim() }),
       requerido,
       mostrarEnListado,
@@ -216,8 +264,75 @@ function AtributoFormDialog({ isOpen, atributo, isSubmitting, onSave, onClose }:
             <input className={inputClass} value={unidad} onChange={e => setUnidad(e.target.value)} placeholder="Ej: GB, cm, MHz, kg" />
           </div>
 
-          {/* Valores (solo si el tipo no los prohíbe) */}
-          {!prohibeValores && (
+          {/* Cadena de dependencia: FABRICANTE → FAMILIA → PROCESADOR */}
+          {esDependiente && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Depende de <span className="text-red-500">*</span>
+              </label>
+              {candidatosPadre.length === 0 ? (
+                <p className="rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800">
+                  Primero creá el atributo del que va a depender. Para PROCESADOR,
+                  por ejemplo, hace falta FABRICANTE como Selección simple.
+                </p>
+              ) : (
+                <select
+                  className={selectClass}
+                  value={dependeDeAtributoId ?? ''}
+                  onChange={e => {
+                    setDependeDeAtributoId(e.target.value || null);
+                    // Las ramas son otras: lo escrito para el padre anterior
+                    // ya no significa nada.
+                    setValoresPorPadre({});
+                  }}
+                >
+                  <option value="">Elegí el atributo padre</option>
+                  {candidatosPadre.map(a => (
+                    <option key={a.id} value={a.id}>{a.nombre}</option>
+                  ))}
+                </select>
+              )}
+              {errors.dependeDe && <p className="mt-1 text-xs text-red-500">{errors.dependeDe}</p>}
+            </div>
+          )}
+
+          {/* Un campo por rama del padre */}
+          {esDependiente && padreElegido && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Valores por cada {padreElegido.nombre} <span className="text-red-500">*</span>
+              </label>
+              {padreElegido.valores.length === 0 ? (
+                <p className="rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800">
+                  &quot;{padreElegido.nombre}&quot; todavía no tiene valores cargados.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {padreElegido.valores.map(valorPadre => (
+                    <div key={valorPadre}>
+                      <span className="text-[11px] font-medium text-gray-500">{valorPadre}</span>
+                      <input
+                        className={inputClass}
+                        value={valoresPorPadre[valorPadre] ?? ''}
+                        onChange={e =>
+                          setValoresPorPadre(prev => ({ ...prev, [valorPadre]: e.target.value }))
+                        }
+                        placeholder={`Opciones para ${valorPadre}, separadas por coma`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-gray-400">
+                Al cargar un producto, elegir {padreElegido.nombre} deja a la vista
+                solo las opciones de esa rama.
+              </p>
+              {errors.valores && <p className="mt-1 text-xs text-red-500">{errors.valores}</p>}
+            </div>
+          )}
+
+          {/* Valores (solo si el tipo no los prohíbe y no es dependiente) */}
+          {!prohibeValores && !esDependiente && (
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Valores Predefinidos {requiereValores && <span className="text-red-500">*</span>}
@@ -444,6 +559,7 @@ export default function AtributosPage() {
       <AtributoFormDialog
         isOpen={formOpen}
         atributo={editing}
+        existentes={atributos}
         isSubmitting={isSubmitting}
         onSave={async (data) => {
           if (editing) await update(editing.id, data);
