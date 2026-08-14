@@ -317,6 +317,9 @@ export interface PlantillaAtributoInfo {
   descripcion?: string;
   unidad?: string;
   valores: string[];
+  /** Sin esto, un atributo dependiente dentro de una plantilla mostraría la lista plana. */
+  opciones?: OpcionAtributo[];
+  dependeDeAtributoId?: string | null;
 }
 
 export interface PlantillaAtributo {
