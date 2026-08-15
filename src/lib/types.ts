@@ -77,6 +77,14 @@ export interface ProductoDetalle extends Producto {
   videoUrl?: string;
   imagenes: { id: string; url: string; thumbnail?: string }[];
   atributos: { nombre: string; valor: string }[];
+  /**
+   * Los mismos atributos agrupados en las secciones con las que se cargaron
+   * (PROCESADOR, MEMORIA, PANTALLA…), ya armadas por el backend.
+   *
+   * Vacío en los productos que no tienen secciones guardadas: ahí se muestra
+   * la lista plana de `atributos`.
+   */
+  seccionesAtributos?: { nombre: string; atributos: { nombre: string; valor: string }[] }[];
   sede?: {
     nombre: string;
     direccion?: string;

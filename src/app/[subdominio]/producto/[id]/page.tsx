@@ -250,14 +250,37 @@ export default async function ProductoPage({ params }: Props) {
               <span className="w-1 h-5 rounded-full" style={{ backgroundColor: colors.primario }} />
               Caracteristicas
             </h2>
-            <div className="divide-y divide-gray-50">
-              {producto.atributos.map((attr, i) => (
-                <div key={i} className={`flex py-3 px-3 rounded-lg ${i % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
-                  <span className="w-1/3 text-sm text-gray-400">{attr.nombre}</span>
-                  <span className="text-sm font-medium text-gray-700">{attr.valor}</span>
-                </div>
-              ))}
-            </div>
+            {/* Agrupadas por seccion cuando el producto las tiene; si no, la
+                lista plana de siempre. Las arma el backend: cruzar plantillas
+                aca obligaria a pedirlas desde el navegador. */}
+            {producto.seccionesAtributos?.length ? (
+              <div className="space-y-4">
+                {producto.seccionesAtributos.map((seccion) => (
+                  <div key={seccion.nombre}>
+                    <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">
+                      {seccion.nombre}
+                    </p>
+                    <div className="divide-y divide-gray-50">
+                      {seccion.atributos.map((attr, i) => (
+                        <div key={attr.nombre} className={`flex py-3 px-3 rounded-lg ${i % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
+                          <span className="w-1/3 text-sm text-gray-400">{attr.nombre}</span>
+                          <span className="text-sm font-medium text-gray-700">{attr.valor}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {producto.atributos.map((attr, i) => (
+                  <div key={i} className={`flex py-3 px-3 rounded-lg ${i % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
+                    <span className="w-1/3 text-sm text-gray-400">{attr.nombre}</span>
+                    <span className="text-sm font-medium text-gray-700">{attr.valor}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
