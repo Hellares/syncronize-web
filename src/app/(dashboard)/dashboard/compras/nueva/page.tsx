@@ -793,47 +793,138 @@ export default function NuevaCompraPage() {
                 </div>
               )}
 
-              {(l.historial?.compras.length ?? 0) > 0 && (
-                <div className="rounded-xl border border-gray-100 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Últimas compras de este producto</p>
-                    <span className="text-[11px] text-gray-400">{l.historial!.compras.length}</span>
-                  </div>
-                  <div className="mt-3 grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      {l.historial!.compras.slice(0, 6).map((h, hi) => (
-                        <div key={`${h.compraId}-${hi}`} className="flex items-center justify-between gap-2 text-[11px]">
-                          <span className="min-w-0 truncate text-gray-600">
-                            {new Date(h.fecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })} · {h.proveedor}
-                            <span className="ml-1 text-gray-400">
-                              ×{h.usaUnidadCompra && h.cantidadOriginal != null ? `${h.cantidadOriginal} ${h.unidadOriginalSimbolo ?? 'paq.'}` : h.cantidad}
+              {(l.historial?.compras.length ?? 0) > 0 && (() => {
+                const h = l.historial!;
+                // El historial viene en unidad ATOMICA; el usuario escribe en la
+                // suya (kg). Sin convertir, compararia S/0.008 contra S/8.00.
+                const fp = factorPresentacion(l);
+                const uni = l.simboloPres ?? 'unidad';
+                const costos = h.compras.map((c) => Number(c.costoUnitario) * fp);
+                const minimo = Math.min(...costos);
+                const maximo = Math.max(...costos);
+                const hoy = costoUnit != null ? costoUnit * fp : null;
+                const hayRango = maximo - minimo > 0.0001;
+                // Donde cae lo que estas pagando dentro de lo que pagaste antes.
+                const posicion = hoy != null && hayRango
+                  ? Math.min(100, Math.max(0, ((hoy - minimo) / (maximo - minimo)) * 100))
+                  : null;
+                const vsMinimo = hoy != null && minimo > 0 ? ((hoy - minimo) / minimo) * 100 : null;
+                const fmt = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
+                const fecha = (f: string) => new Date(f).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
+
+                return (
+                  <div className="rounded-xl border border-gray-100 bg-white p-4">
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Historial de compras</p>
+                      <span className="text-[11px] text-gray-400">
+                        {h.compras.length} {h.compras.length === 1 ? 'compra' : 'compras'} registradas
+                      </span>
+                    </div>
+
+                    {/* Veredicto: lo unico que el usuario quiere saber mirando esto */}
+                    {hoy != null && (
+                      <div className="mt-3 rounded-lg border border-gray-100 bg-slate-50/60 p-3">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="text-xs text-gray-500">Estás pagando</span>
+                          <span className="text-base font-bold text-[#004A94]">{fmt(hoy)}</span>
+                          <span className="text-[11px] text-gray-400">por {uni}</span>
+                        </div>
+
+                        {hayRango ? (
+                          <>
+                            <div className="relative mt-2.5 h-1.5 rounded-full bg-gradient-to-r from-green-200 via-amber-200 to-red-200">
+                              <span
+                                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#004A94] shadow"
+                                style={{ left: `${posicion}%` }} />
+                            </div>
+                            <div className="mt-1.5 flex justify-between text-[10px] text-gray-500">
+                              <span>más barato <strong className="text-green-700">{fmt(minimo)}</strong></span>
+                              <span>más caro <strong className="text-red-600">{fmt(maximo)}</strong></span>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="mt-1.5 text-[11px] text-gray-500">
+                            Siempre lo compraste a <strong className="text-gray-700">{fmt(minimo)}</strong>.
+                          </p>
+                        )}
+
+                        {vsMinimo != null && Math.abs(vsMinimo) >= 0.5 && (
+                          <p className={`mt-2 text-[11px] font-semibold ${vsMinimo > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                            {vsMinimo > 0
+                              ? `Es ${vsMinimo.toFixed(1)}% más caro que lo más barato que pagaste.`
+                              : `Es ${Math.abs(vsMinimo).toFixed(1)}% más barato que tu mejor precio hasta ahora.`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Ultimas compras, con encabezados de verdad */}
+                    <div className="mt-4">
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">Últimas compras</p>
+                      <div className="grid grid-cols-[76px_minmax(0,1fr)_86px_92px] gap-2 border-b border-gray-100 pb-1.5 text-[10px] font-semibold uppercase text-gray-400">
+                        <span>Fecha</span>
+                        <span>Proveedor</span>
+                        <span className="text-right">Cantidad</span>
+                        <span className="text-right">Costo por {uni}</span>
+                      </div>
+                      {h.compras.slice(0, 6).map((c, ci) => {
+                        const costo = Number(c.costoUnitario) * fp;
+                        const esMinimo = hayRango && Math.abs(costo - minimo) < 0.0001;
+                        return (
+                          <div key={`${c.compraId}-${ci}`}
+                            className="grid grid-cols-[76px_minmax(0,1fr)_86px_92px] items-center gap-2 border-b border-gray-50 py-1.5 text-[11px]">
+                            <span className="text-gray-500">{fecha(c.fecha)}</span>
+                            <span className="min-w-0 truncate text-gray-700">{c.proveedor}</span>
+                            <span className="text-right text-gray-500">
+                              {c.usaUnidadCompra && c.cantidadOriginal != null
+                                ? `${c.cantidadOriginal} ${c.unidadOriginalSimbolo ?? 'paq.'}`
+                                : `${fp > 1 ? (c.cantidad / fp).toLocaleString('es-PE') : c.cantidad} ${uni === 'unidad' ? 'und' : uni}`}
                             </span>
-                          </span>
-                          <span className="shrink-0 font-medium text-gray-800">{sim(h.moneda)} {Number(h.costoUnitario).toFixed(2)}/u</span>
-                        </div>
-                      ))}
+                            <span className={`text-right font-semibold ${esMinimo ? 'text-green-700' : 'text-gray-800'}`}>
+                              {sim(c.moneda)} {(Number(c.costoUnitario) * fp).toFixed(2)}
+                              {esMinimo && <span className="ml-1 text-[9px] font-bold">↓</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-semibold uppercase text-gray-400">Por proveedor</p>
-                      {l.historial!.proveedores.slice(0, 5).map((pv, pi) => (
-                        <div key={`${pv.proveedorId ?? pv.proveedor}-${pi}`} className="flex items-center justify-between gap-2 text-[11px]">
-                          <span className="min-w-0 truncate text-gray-600">
-                            {pv.proveedor}
-                            {pv.proveedorId != null && pv.proveedorId === l.historial!.mejorProveedorId && (
-                              <span className="ml-1 rounded bg-green-100 px-1 text-[8px] font-bold text-green-700" title="Menor costo promedio">MEJOR</span>
-                            )}
-                            <span className="ml-1 text-gray-400">({pv.veces}×)</span>
-                          </span>
-                          <span className="shrink-0 text-gray-800">
-                            prom {sim(moneda)} {Number(pv.costoPromedio).toFixed(2)}
-                            {pv.ultimoCosto != null && <span className="text-gray-400"> · últ {Number(pv.ultimoCosto).toFixed(2)}</span>}
-                          </span>
+
+                    {/* A quien le compras */}
+                    {h.proveedores.length > 0 && (
+                      <div className="mt-4">
+                        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-400">A quién le comprás</p>
+                        <div className="flex flex-col gap-1.5">
+                          {h.proveedores.slice(0, 5).map((pv, pi) => {
+                            const esMejor = pv.proveedorId != null && pv.proveedorId === h.mejorProveedorId;
+                            return (
+                              <div key={`${pv.proveedorId ?? pv.proveedor}-${pi}`}
+                                className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${esMejor ? 'border-green-200 bg-green-50/50' : 'border-gray-100 bg-white'}`}>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[11px] font-semibold text-gray-800">{pv.proveedor}</p>
+                                  <p className="mt-0.5 text-[10px] text-gray-500">
+                                    {pv.veces} {pv.veces === 1 ? 'compra' : 'compras'}
+                                    {pv.ultimaFecha ? ` · última el ${fecha(pv.ultimaFecha)}` : ''}
+                                  </p>
+                                </div>
+                                {esMejor && (
+                                  <span className="shrink-0 rounded bg-green-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                                    MÁS BARATO
+                                  </span>
+                                )}
+                                <div className="shrink-0 text-right">
+                                  <p className="text-[11px] font-bold text-gray-800">{fmt(Number(pv.costoPromedio) * fp)}</p>
+                                  <p className="text-[9px] text-gray-400">promedio</p>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
+
 
               <div className="flex justify-end">
                 <button onClick={() => quitar(i)} className="text-xs font-semibold text-red-500 hover:underline">Quitar esta línea</button>
