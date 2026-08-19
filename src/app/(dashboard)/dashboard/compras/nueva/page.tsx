@@ -792,99 +792,99 @@ export default function NuevaCompraPage() {
                   </div>
                 )}
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={LABEL}>Cantidad</label>
-                    <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
-                      value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
-                    <p className="mt-1 text-[10px] font-semibold text-[#004A94]">{simboloCarga}</p>
-                  </div>
-                  <div>
-                    <label className={LABEL}>Costo unitario</label>
-                    <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
-                      value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
-                    <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
-                  </div>
-                </div>
+                {/* Un solo bloque: la unidad de carga y los dos campos que
+                    gobierna. Separados, la config ocupaba tanto alto como los
+                    datos que se tecleán en cada linea. */}
+                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
+                  <div className="flex flex-wrap items-end gap-2">
 
-                {/* "Comprar por": el mismo selector del app. Un saco y la unidad
-                    en la que se le habla al usuario (kg) son dos formas de
-                    cargar LO MISMO; el chip dice cual esta activa y su
-                    equivalencia, que es lo que evita cargar 22 000 donde va 1. */}
-                {(conEmpaque || factorDisplay(l) > 1) && (
-                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Comprar por</p>
-
-                    {/* Todo en una fila: los chips, el empaque de este lote y
-                        la equivalencia. Apilado ocupaba tres alturas para tres
-                        datos cortos. */}
-                    <div className="mt-2 flex flex-wrap items-end gap-2">
-                      {conEmpaque && (
-                        <>
-                          <button type="button" onClick={() => toggleEmpaque(i, true)}
-                            className={`w-[118px] shrink-0 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
-                              l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
-                            }`}>
-                            <p className={`truncate text-xs font-bold ${l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
-                              {l.unidadCompraNombre}
-                            </p>
-                            <p className="truncate text-[10px] text-gray-500">
-                              ×{sinCeros(factorVigente, 3)} {l.unidadVentaSimbolo}
-                            </p>
-                          </button>
-                          <button type="button" onClick={() => toggleEmpaque(i, false)}
-                            className={`w-[118px] shrink-0 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
-                              !l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
-                            }`}>
-                            <p className={`truncate text-xs font-bold ${!l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
-                              {l.simboloPres ?? l.unidadVentaSimbolo}
-                            </p>
-                            <p className="truncate text-[10px] text-gray-500">
-                              {fpres > 1 ? `×${sinCeros(fpres, 3)} ${l.unidadVentaSimbolo}` : '×1'}
-                            </p>
-                          </button>
-                        </>
-                      )}
-
-                      {/* El empaque real de ESTE lote: el saco pudo venir con
-                          otra cantidad que la configurada en el producto. */}
-                      {conEmpaque && l.usaUnidadCompra && (
-                        <div className="w-[118px] shrink-0">
-                          <label className="mb-1 block truncate text-[10px] font-semibold text-gray-600">
-                            {l.unidadVentaSimbolo} por {l.unidadCompraNombre}
-                          </label>
-                          <input type="text" inputMode="decimal"
-                            className={`${INPUT_STD} text-right`}
-                            placeholder={String(l.factorProducto ?? '')}
-                            value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
-                        </div>
-                      )}
-
-                      {/* Lo que REALMENTE entra al stock. Sin esto, cargar 3
-                          sacos y ver 66 kg recien en el detalle asusta. */}
-                      {entranAlStock > 0 && costoAtomico != null && (
-                        <p className="ml-auto flex flex-wrap items-baseline justify-end gap-x-2 text-right text-[11px] font-semibold leading-tight text-green-800">
-                          <span>
-                            Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
-                          </span>
-                          {costoPorEmpaque != null && (
+                    {(conEmpaque || fpres > 1) && (
+                      <div>
+                        <label className="mb-1 block text-[10px] font-semibold text-[#004A94]">Comprar por</label>
+                        <div className="flex gap-1.5">
+                          {conEmpaque ? (
                             <>
-                              <span className="text-green-600/60">·</span>
-                              <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
+                              <button type="button" onClick={() => toggleEmpaque(i, true)}
+                                className={`flex h-[30px] items-center gap-1.5 rounded-[6px] border px-2.5 transition-colors ${
+                                  l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                                }`}>
+                                <span className={`text-xs font-bold ${l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                                  {l.unidadCompraNombre}
+                                </span>
+                                <span className="text-[10px] text-gray-400">×{sinCeros(factorVigente, 3)}</span>
+                              </button>
+                              <button type="button" onClick={() => toggleEmpaque(i, false)}
+                                className={`flex h-[30px] items-center gap-1.5 rounded-[6px] border px-2.5 transition-colors ${
+                                  !l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                                }`}>
+                                <span className={`text-xs font-bold ${!l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                                  {l.simboloPres ?? l.unidadVentaSimbolo}
+                                </span>
+                                {fpres > 1 && <span className="text-[10px] text-gray-400">×{sinCeros(fpres, 3)}</span>}
+                              </button>
                             </>
+                          ) : (
+                            <span className="flex h-[30px] items-center rounded-[6px] border border-gray-200 bg-white px-2.5 text-xs font-bold text-[#004A94]">
+                              {l.simboloPres ?? l.unidadVentaSimbolo}
+                            </span>
                           )}
-                        </p>
-                      )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* El empaque real de ESTE lote: el saco pudo venir con
+                        otra cantidad que la configurada en el producto. */}
+                    {conEmpaque && l.usaUnidadCompra && (
+                      <div className="w-[104px]">
+                        <label className="mb-1 block truncate text-[10px] font-semibold text-gray-600">
+                          {l.unidadVentaSimbolo} por {l.unidadCompraNombre}
+                        </label>
+                        <input type="text" inputMode="decimal"
+                          className={`${INPUT_STD} text-right`}
+                          placeholder={String(l.factorProducto ?? '')}
+                          value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
+                      </div>
+                    )}
+
+                    <div className="w-[104px]">
+                      <label className="mb-1 block truncate text-[10px] font-semibold text-gray-600">
+                        Cantidad <span className="font-normal text-gray-400">({simboloCarga})</span>
+                      </label>
+                      <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
+                        value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
                     </div>
 
-                    {conEmpaque && l.usaUnidadCompra && l.factorProducto != null
-                      && Math.abs(factorVigente - l.factorProducto) > 1e-9 && (
-                      <p className="mt-1.5 text-[10px] leading-snug text-orange-700">
-                        Empaque distinto al configurado ({sinCeros(l.factorProducto, 3)}). Aplica solo a esta compra.
+                    <div className="w-[128px]">
+                      <label className="mb-1 block truncate text-[10px] font-semibold text-gray-600">
+                        Costo <span className="font-normal text-gray-400">({sim(moneda)}/{simboloCarga})</span>
+                      </label>
+                      <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
+                        value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
+                    </div>
+
+                    {/* Lo que REALMENTE entra al stock. */}
+                    {entranAlStock > 0 && costoAtomico != null && (
+                      <p className="ml-auto flex flex-wrap items-baseline justify-end gap-x-2 pb-1 text-right text-[11px] font-semibold leading-tight text-green-800">
+                        <span>
+                          Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
+                        </span>
+                        {costoPorEmpaque != null && (
+                          <>
+                            <span className="text-green-600/60">·</span>
+                            <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
+                          </>
+                        )}
                       </p>
                     )}
                   </div>
-                )}
+
+                  {conEmpaque && l.usaUnidadCompra && l.factorProducto != null
+                    && Math.abs(factorVigente - l.factorProducto) > 1e-9 && (
+                    <p className="mt-1.5 text-[10px] leading-snug text-orange-700">
+                      Empaque distinto al configurado ({sinCeros(l.factorProducto, 3)}). Aplica solo a esta compra.
+                    </p>
+                  )}
+                </div>
               </div>
 
               {l.productoId && (l.costoActual != null || l.precioVentaActual != null || proy != null) && (
