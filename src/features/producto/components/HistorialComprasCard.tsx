@@ -24,6 +24,10 @@ export default function HistorialComprasCard({ productoId, factorPresentacion, s
   // llego y no hay compras. Con dos estados separados hacia falta ponerlos en
   // true al entrar al efecto, que es un setState sincrono dentro del efecto.
   const [resultado, setResultado] = useState<{ data: HistorialComprasProducto | null } | null>(null);
+  // Plegado por defecto: la linea de arriba ya trae el dato que se consulta a
+  // diario (a cuanto se compro la ultima vez); las dos tablas son para cuando
+  // se quiere mirar de verdad.
+  const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -69,16 +73,46 @@ export default function HistorialComprasCard({ productoId, factorPresentacion, s
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">Historial de compras</h3>
-        <span className="text-[11px] text-gray-400">
+      <button
+        onClick={() => setAbierto((x) => !x)}
+        aria-expanded={abierto}
+        className="flex w-full items-center gap-2.5 text-left"
+      >
+        <svg
+          className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-150 ${abierto ? 'rotate-90' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"
+        >
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+        <h3 className="shrink-0 text-sm font-semibold text-gray-900">Historial de compras</h3>
+
+        {/* Plegado, el resumen viaja en el encabezado: el ultimo costo es el
+            dato que se consulta a diario y no merece un clic. */}
+        {!abierto && (
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11px] text-gray-500">
+            <span className="text-gray-300">·</span>
+            <span>último</span>
+            <strong className="text-[#004A94]">{sim('PEN')} {resumen.ultimo.toFixed(2)}</strong>
+            {resumen.variacion != null && Math.abs(resumen.variacion) >= 0.5 && (
+              <span className={`rounded px-1 py-0.5 text-[10px] font-bold ${
+                resumen.variacion > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+              }`}>
+                {resumen.variacion > 0 ? '▲' : '▼'} {Math.abs(resumen.variacion).toFixed(1)}%
+              </span>
+            )}
+          </span>
+        )}
+
+        <span className="ml-auto shrink-0 text-[11px] text-gray-400">
           {data.compras.length} {data.compras.length === 1 ? 'compra' : 'compras'}
         </span>
-      </div>
+      </button>
 
+      {!abierto ? null : (
+      <>
       {/* Lo que se viene a saber: a cuanto se compro la ultima vez y como
           viene la tendencia. */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-slate-50/70 px-3.5 py-2.5">
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg bg-slate-50/70 px-3.5 py-2.5">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Último costo</p>
           <p className="mt-0.5 flex items-baseline gap-1.5">
@@ -174,6 +208,8 @@ export default function HistorialComprasCard({ productoId, factorPresentacion, s
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
