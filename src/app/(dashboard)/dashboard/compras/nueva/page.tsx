@@ -41,6 +41,11 @@ type LineaForm = {
   factor?: string;              // override editable por línea (default = factorProducto)
   nuevoPrecioVenta?: string;    // ajustar precio de venta al confirmar
   // Contexto (no viaja al backend): hint de costo + historial de compras
+  /** Presentacion de la variante: la cantidad y el precio se ESCRIBEN en esta
+   *  unidad (kg) y se convierten a la atomica (g) al guardar. Sin esto, S/11
+   *  el kilo viajaria como S/11 el GRAMO. */
+  factorPres?: number;
+  simboloPres?: string;
   costoActual?: number | null;
   precioVentaActual?: number | null;
   historial?: HistorialComprasProducto | null;
@@ -178,6 +183,7 @@ export default function NuevaCompraPage() {
       descripcion: `${p.nombre} - ${v.nombre}`,
       cantidad: '1',
       precioUnitario: costoMostrado != null ? costoMostrado.toFixed(2) : '',
+      ...(pres.factor > 1 ? { factorPres: pres.factor, simboloPres: pres.simbolo } : {}),
       costoActual: costo,
       precioVentaActual: info?.precio != null ? Number(info.precio) : null,
     }]);
@@ -195,26 +201,117 @@ export default function NuevaCompraPage() {
   const quitar = (i: number) => setLineas((l) => l.filter((_, idx) => idx !== i));
 
   const numVal = (s: string) => parseFloat((s || '').replace(',', '.')) || 0;
+  const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
+
+  /** Factor de EMPAQUE vigente de la linea (1 = no aplica). */
+  const factorEmpaque = (l: LineaForm) =>
+    l.usaUnidadCompra && l.factorProducto ? (numVal(l.factor ?? '') || l.factorProducto) : 1;
+  /** Factor de PRESENTACION de la linea (1 = no aplica). */
+  const factorPresentacion = (l: LineaForm) =>
+    l.factorPres && l.factorPres > 1 ? l.factorPres : 1;
+
+  /**
+   * Costo por unidad de VENTA de la linea.
+   *
+   * Vive suelto porque lo usan el aviso de "supera el precio de venta" y la
+   * guarda que impide guardar: si cada uno lo calculara por su cuenta podrian
+   * discrepar, y el usuario veria un aviso que no bloquea o un bloqueo sin
+   * aviso.
+   */
+  const costoUnitarioVenta = (l: LineaForm): number | null => {
+    const precio = numVal(l.precioUnitario);
+    if (precio <= 0) return null;
+    return precio / (factorEmpaque(l) * factorPresentacion(l));
+  };
+  /** La linea deja el producto vendiendose a perdida. */
+  const superaPrecioVenta = (l: LineaForm): boolean => {
+    const costo = costoUnitarioVenta(l);
+    return costo != null && l.precioVentaActual != null && l.precioVentaActual > 0
+      && costo > l.precioVentaActual;
+  };
+  /** Cantidad fraccionaria que NINGUN factor puede aplanar a entero. */
+  const cantidadNoRepresentable = (l: LineaForm): boolean => {
+    const cant = numVal(l.cantidad);
+    if (Number.isInteger(cant)) return false;
+    return !Number.isInteger(Math.round(cant * factorEmpaque(l) * factorPresentacion(l) * 1e6) / 1e6);
+  };
+  const lineasCargadas = () => lineas.filter((l) => l.descripcion.trim() && numVal(l.cantidad) > 0);
+  const sinCosto = (l: LineaForm) => numVal(l.precioUnitario) <= 0;
   const total = lineas.reduce((s, l) => s + numVal(l.cantidad) * numVal(l.precioUnitario), 0);
 
   const guardar = async () => {
     if (!proveedorId) return setError('Seleccioná un proveedor');
     if (!sedeId) return setError('Seleccioná una sede');
-    const detalles: CrearCompraLinea[] = lineas
-      .filter((l) => l.descripcion.trim() && numVal(l.cantidad) > 0)
-      .map((l) => {
-        const usaEmpaque = !!(l.usaUnidadCompra && l.factorProducto);
-        const factorLinea = usaEmpaque ? (numVal(l.factor ?? '') || l.factorProducto!) : undefined;
+
+    const cargadas = lineasCargadas();
+    if (cargadas.length === 0) return setError('Agregá al menos un producto/línea con cantidad');
+
+    const nombres = (ls: LineaForm[]) =>
+      ls.map((l) => l.descripcion.trim() || '(sin descripción)').join(', ');
+
+    // (3) Sin costo NO es costo cero: guardar asi registra la compra a S/0 y
+    // el promedio ponderado del producto se desploma sin que nadie lo note.
+    const faltaCosto = cargadas.filter(sinCosto);
+    if (faltaCosto.length > 0) {
+      return setError(`Falta el costo en ${faltaCosto.length} línea(s): ${nombres(faltaCosto)}`);
+    }
+
+    // (1) El backend valida la cantidad con @IsInt: una fraccion que ningun
+    // factor pueda aplanar vuelve 400. Se avisa ACA, con el nombre de la
+    // linea, en vez de truncarla en silencio (escribir 1.5 y guardar 1).
+    const fraccion = cargadas.filter(cantidadNoRepresentable);
+    if (fraccion.length > 0) {
+      return setError(
+        `La cantidad debe ser entera en ${fraccion.length} línea(s): ${nombres(fraccion)}. ` +
+        'Para comprar fracciones, activá el empaque o usá una variante con presentación.',
+      );
+    }
+
+    // (2) BLOQUEA, no avisa: guardar una linea cuyo costo supera el precio de
+    // venta deja el producto vendiendose a perdida hasta que alguien mire el
+    // cierre. Es el mismo criterio del app.
+    const bajoCosto = cargadas.filter(superaPrecioVenta);
+    if (bajoCosto.length > 0) {
+      return setError(
+        `El costo supera el precio de venta en ${bajoCosto.length} línea(s): ${nombres(bajoCosto)}. ` +
+        'Ajustá el costo o cargá un nuevo precio de venta antes de guardar.',
+      );
+    }
+    const detalles: CrearCompraLinea[] = cargadas.map((l) => {
+        const fEmp = factorEmpaque(l);
+        const cant = numVal(l.cantidad);
+        // 🔴 Una cantidad fraccionaria en unidad de COMPRA se APLANA a unidad
+        // atomica (1.5 sacos de 100 → 150 u a su costo equivalente) y viaja con
+        // `usaUnidadCompra` apagado: es lo que la deja pasar el @IsInt.
+        const aplana = fEmp > 1 && !Number.isInteger(cant);
+        const usaEmpaque = fEmp > 1 && !aplana;
+        const factorLinea = usaEmpaque ? fEmp : undefined;
         const nuevoPV = numVal(l.nuevoPrecioVenta ?? '');
+        // 🔴 Presentacion → unidad ATOMICA, que es como se guarda el stock. La
+        // cantidad se MULTIPLICA y el precio se DIVIDE: 15 kg a S/8.00 entran
+        // como 15000 g a S/0.008. Va con 6 decimales porque a 2, S/6.7268/kg
+        // quedaria en 0.01 el gramo — 48% de mas por cada gramo del saco.
+        const fPres = factorPresentacion(l);
+        // Lo que hay que aplanar: la presentacion siempre, el empaque solo si
+        // la cantidad venia fraccionada.
+        const fAplanado = fPres * (aplana ? fEmp : 1);
+        const cantidadFinal = Math.round(cant * fAplanado);
+        const precioFinal = fAplanado > 1
+          ? round6(numVal(l.precioUnitario) / fAplanado)
+          : numVal(l.precioUnitario);
         return {
           ...(l.productoId ? { productoId: l.productoId } : {}),
           ...(l.varianteId ? { varianteId: l.varianteId } : {}),
           descripcion: l.descripcion.trim(),
           // Con empaque: cantidad/precio van en unidad de COMPRA y el backend convierte con el factor
-          cantidad: Math.trunc(numVal(l.cantidad)),
-          precioUnitario: numVal(l.precioUnitario),
+          cantidad: fAplanado > 1 ? cantidadFinal : Math.round(cant),
+          precioUnitario: precioFinal,
           ...(usaEmpaque ? { usaUnidadCompra: true, factorCompra: factorLinea } : {}),
-          ...(nuevoPV > 0 ? { nuevoPrecioVenta: nuevoPV } : {}),
+          // 🔴 Tambien por unidad de VENTA aunque el campo se escriba en
+          // presentacion: sin dividir, S/9 el kilo se guarda como S/9 el GRAMO.
+          ...(nuevoPV > 0
+            ? { nuevoPrecioVenta: fPres > 1 ? round6(nuevoPV / fPres) : nuevoPV }
+            : {}),
         };
       });
     if (detalles.length === 0) return setError('Agregá al menos un producto/línea con cantidad');
@@ -383,12 +480,20 @@ export default function NuevaCompraPage() {
                 <td className="px-2 py-1.5">
                   <input type="text" inputMode="numeric" className={`${INPUT_STD} w-16 px-2 text-right`} value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
                   {conEmpaque && l.usaUnidadCompra && <p className="text-center text-[9px] text-gray-400">{l.unidadCompraNombre}</p>}
+                  {l.simboloPres && <p className="text-center text-[9px] font-semibold text-[#004A94]">{l.simboloPres}</p>}
                 </td>
                 <td className="px-2 py-1.5">
                   <input type="text" inputMode="decimal" placeholder="0.00" className={`${INPUT_STD} w-24 px-2 text-right`} value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
                   {conEmpaque && l.usaUnidadCompra && <p className="text-center text-[9px] text-gray-400">por {l.unidadCompraNombre}</p>}
+                  {l.simboloPres && <p className="text-center text-[9px] font-semibold text-[#004A94]">por {l.simboloPres}</p>}
                 </td>
-                <td className="px-2 py-1.5 text-right font-medium">{sim(moneda)} {(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}</td>
+                <td className="px-2 py-1.5 text-right font-medium">
+                  {/* Sin costo NO se muestra 0.00: un cero se lee como "sale
+                      gratis" y la linea se guarda sin que nadie la revise. */}
+                  {sinCosto(l) && l.descripcion.trim()
+                    ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">falta</span>
+                    : <>{sim(moneda)} {(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}</>}
+                </td>
                 <td className="px-2 py-1.5 text-right"><button onClick={() => quitar(i)} className="text-xs text-red-500 hover:underline">Quitar</button></td>
               </tr>
               {(conEmpaque || l.productoId) && (
@@ -435,9 +540,11 @@ export default function NuevaCompraPage() {
                     </div>
                     {/* Hints de costo + historial (paridad historial_compras_producto_panel Flutter) */}
                     {l.productoId && (l.costoActual != null || l.precioVentaActual != null || l.historial) && (() => {
-                      const factorVig = l.usaUnidadCompra ? (numVal(l.factor ?? '') || l.factorProducto || 1) : 1;
-                      const costoUnitNuevo = numVal(l.precioUnitario) > 0 ? numVal(l.precioUnitario) / factorVig : null;
-                      const superaPV = costoUnitNuevo != null && l.precioVentaActual != null && l.precioVentaActual > 0 && costoUnitNuevo > l.precioVentaActual;
+                      // Los mismos helpers que usa la guarda de `guardar()`:
+                      // si se calcularan aparte, el aviso y el bloqueo podrian
+                      // discrepar.
+                      const costoUnitNuevo = costoUnitarioVenta(l);
+                      const superaPV = superaPrecioVenta(l);
                       const ultimoCosto = l.historial?.ultimoCosto ?? null;
                       const variacion = costoUnitNuevo != null && ultimoCosto != null && ultimoCosto > 0
                         ? ((costoUnitNuevo - ultimoCosto) / ultimoCosto) * 100 : null;
@@ -463,8 +570,8 @@ export default function NuevaCompraPage() {
                             </button>
                           )}
                           {superaPV && (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-700">
-                              ⚠ El costo ({sim(moneda)} {costoUnitNuevo!.toFixed(2)}/u) supera el precio de venta — ajusta el precio de venta
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 font-semibold text-red-700">
+                              ⛔ El costo ({sim(moneda)} {costoUnitNuevo!.toFixed(2)}/u) supera el precio de venta — no se puede guardar así
                             </span>
                           )}
                         </div>
