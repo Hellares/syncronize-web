@@ -14,6 +14,10 @@ interface Props {
   onPageChange: (page: number) => void;
   onDelete: (producto: Producto) => void;
   onToggleActive?: (producto: Producto) => void;
+  /** Hay algo filtrado: cambia QUE dice el vacio. */
+  hayFiltros?: boolean;
+  onLimpiarFiltros?: () => void;
+  puedeCrear?: boolean;
 }
 
 function getStockForSede(producto: Producto, sedeId?: string): StockPorSedeInfo {
@@ -31,7 +35,7 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -41,9 +45,46 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
   }
 
   if (productos.length === 0) {
+    // Dos situaciones distintas: sin filtros el catalogo esta vacio y hay que
+    // crear; con filtros hay productos pero ninguno coincide, y lo que hace
+    // falta es SACAR el filtro. Un solo mensaje dejaba al usuario mirando una
+    // lista vacia sin enterarse de que seguia filtrando.
     return (
-      <div className="py-20 text-center">
-        <p className="text-gray-400">No se encontraron productos</p>
+      <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-300">
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            {hayFiltros
+              ? <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>
+              : <path d="M3 8l9-5 9 5-9 5-9-5zM3 8v8l9 5 9-5V8" />}
+          </svg>
+        </div>
+        <p className="mt-3 text-sm font-semibold text-gray-700">
+          {hayFiltros ? 'Ningun producto coincide con el filtro' : 'Todavia no hay productos'}
+        </p>
+        <p className="mx-auto mt-1 max-w-xs text-xs text-gray-400">
+          {hayFiltros
+            ? 'Proba con otro termino o saca algun filtro para ver mas.'
+            : 'Cuando cargues el primero va a aparecer aca.'}
+        </p>
+        <div className="mt-4">
+          {hayFiltros
+            ? onLimpiarFiltros && (
+                <button
+                  onClick={onLimpiarFiltros}
+                  className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
+                >
+                  Limpiar filtros
+                </button>
+              )
+            : puedeCrear && (
+                <Link
+                  href="/dashboard/productos/nuevo"
+                  className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
+                >
+                  Crear el primero
+                </Link>
+              )}
+        </div>
       </div>
     );
   }

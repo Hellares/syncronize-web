@@ -21,6 +21,11 @@ const ESTADO_CHIPS = [
   { label: 'Todos', value: undefined },
 ] as const;
 
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo del modulo de compras y de servicios/nueva.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 const ORDEN_OPTIONS: { label: string; value: OrdenProducto }[] = [
   { label: 'Nombre A-Z', value: 'nombre_asc' },
   { label: 'Nombre Z-A', value: 'nombre_desc' },
@@ -90,7 +95,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
             value={searchLocal}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Buscar por nombre, código o SKU..."
-            className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+            className={`${INPUT_STD} w-full pl-9`}
           />
         </div>
 
@@ -133,7 +138,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.empresaCategoriaId || ''}
           onChange={(e) => onUpdate({ empresaCategoriaId: e.target.value || undefined })}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]"
+          className={INPUT_STD}
         >
           <option value="">Todas las categorías</option>
           {categorias.map((c) => (
@@ -144,7 +149,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.empresaMarcaId || ''}
           onChange={(e) => onUpdate({ empresaMarcaId: e.target.value || undefined })}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]"
+          className={INPUT_STD}
         >
           <option value="">Todas las marcas</option>
           {marcas.map((m) => (
@@ -155,7 +160,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.sedeId || ''}
           onChange={(e) => onUpdate({ sedeId: e.target.value || undefined })}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]"
+          className={INPUT_STD}
         >
           <option value="">Todas las sedes</option>
           {sedes.filter((s) => s.isActive).map((s) => (
@@ -166,7 +171,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.orden || ''}
           onChange={(e) => onUpdate({ orden: (e.target.value || undefined) as OrdenProducto | undefined })}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]"
+          className={INPUT_STD}
         >
           <option value="">Ordenar por...</option>
           {ORDEN_OPTIONS.map((o) => (
@@ -199,7 +204,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
 
         <button
           onClick={onReset}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
+          className="h-[30px] rounded-lg px-2 text-xs text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
         >
           Limpiar filtros
         </button>

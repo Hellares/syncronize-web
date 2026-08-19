@@ -8,11 +8,36 @@ import ProductoFilters from '@/features/producto/components/ProductoFilters';
 import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
 import type { Producto } from '@/core/types/producto';
-import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
 
 export default function ProductosPage() {
   const { productos, meta, filtros, isLoading, error, updateFiltros, setPage, reload, resetFiltros } = useProductos();
   const permissions = usePermissions();
+  const { sedes } = useEmpresa();
+  const sedeActiva = sedes.find((s) => s.id === filtros.sedeId);
+
+  /**
+   * Si hay algo filtrado ademas del default.
+   *
+   * Distingue los dos vacios: "todavia no cargaste productos" pide crear uno,
+   * "el filtro no devolvio nada" pide limpiarlo. Antes los dos decian
+   * "No se encontraron productos" y el segundo dejaba al usuario mirando una
+   * lista vacia sin saber que el filtro seguia puesto.
+   */
+  const hayFiltros = !!(
+    filtros.search ||
+    filtros.empresaCategoriaId ||
+    filtros.empresaMarcaId ||
+    filtros.destacado ||
+    filtros.enOferta ||
+    filtros.stockBajo ||
+    filtros.isActive !== undefined ||
+    filtros.soloCombos ||
+    filtros.soloProductos ||
+    filtros.enLiquidacion ||
+    filtros.esInsumo !== false ||
+    filtros.orden
+  );
   const [deleteTarget, setDeleteTarget] = useState<Producto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<Producto | null>(null);
@@ -49,28 +74,44 @@ export default function ProductosPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Productos</h1>
-          <p className="text-sm text-gray-500">{meta ? `${meta.total} productos` : 'Cargando...'}</p>
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Sin h1: la cabecera del dashboard ya dice "Productos". Acá queda el
+          conteo, el contexto de sede y las acciones. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="text-xs text-gray-500">
+          {meta ? <><strong className="text-[13px] text-gray-900">{meta.total}</strong> productos</> : 'Cargando…'}
+        </p>
+        {sedeActiva && (
+          <>
+            <span className="h-4 w-px bg-gray-200" />
+            {/* El precio y el stock de la tabla son DE UNA SEDE. Sin decir cuál,
+                el número se lee como si fuera el de la empresa. */}
+            <p className="text-[11px] text-gray-400">
+              precios y stock de <strong className="text-gray-600">{sedeActiva.nombre}</strong>
+            </p>
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-2">
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/papelera"
-              className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
               title="Productos eliminados"
             >
-              🗑 Papelera
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+              </svg>
+              Papelera
             </Link>
           )}
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/nuevo"
-              className="rounded-lg bg-[#004A94] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#003570] transition-colors"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-[#004A94] px-3.5 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
             >
-              + Nuevo Producto
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Nuevo producto
             </Link>
           )}
         </div>
@@ -96,6 +137,9 @@ export default function ProductosPage() {
         onPageChange={setPage}
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}
+        hayFiltros={hayFiltros}
+        onLimpiarFiltros={resetFiltros}
+        puedeCrear={permissions.canManageProducts}
       />
 
       {/* Delete dialog */}
