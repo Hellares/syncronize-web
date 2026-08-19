@@ -742,13 +742,27 @@ export default function NuevaCompraPage() {
                       </p>
                     )}
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Total de la línea</p>
-                    <p className="text-xl font-bold text-[#004A94]">
-                      {sinCosto(l)
-                        ? <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-700">falta el costo</span>
-                        : `${sim(moneda)} ${(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}`}
-                    </p>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Total de la línea</p>
+                      <p className="text-xl font-bold text-[#004A94]">
+                        {sinCosto(l)
+                          ? <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-700">falta el costo</span>
+                          : `${sim(moneda)} ${(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}`}
+                      </p>
+                    </div>
+                    {/* Quitar la linea desde arriba: el boton del pie queda
+                        lejos cuando el detalle trae historial. */}
+                    <button type="button" onClick={() => quitar(i)}
+                      title="Quitar esta línea de la compra"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2" />
+                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
