@@ -17,7 +17,12 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
+const inputClass =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+/** El select nativo necesita fondo propio o pinta el desplegable en zinc. */
+const selectClass = `${inputClass} bg-white`;
+const labelClass = 'mb-1 block text-[11px] font-medium text-gray-600';
 
 export default function VarianteFormDialog({
   isOpen, variante, atributosDisponibles, productoIsActive, isSubmitting, onSave, onClose,
@@ -163,23 +168,48 @@ export default function VarianteFormDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900">
-          {isEditing ? 'Editar Variante' : 'Nueva Variante'}
-        </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      {/* 🔴 El scroll va en el CUERPO, no en la caja. Con `overflow-y-auto` y
+          `rounded-2xl` en el mismo elemento, la barra se sienta sobre la
+          esquina redondeada y la cuadra: era el borde cuadrado de la derecha.
+          La caja lleva `overflow-hidden` y no scrollea. */}
+      <div
+        className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Encabezado fijo */}
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-gray-900">
+              {isEditing ? 'Editar variante' : 'Nueva variante'}
+            </h3>
+            <p className="mt-0.5 truncate text-[11px] text-gray-500">
+              {isEditing ? variante?.nombre : 'Se crea dentro de este producto'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-        <div className="mt-4 space-y-4">
+        {/* Cuerpo: el unico que scrollea */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           {/* Nombre */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Nombre *</label>
+            <label className={labelClass}>Nombre *</label>
             <input className={inputClass} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Rojo - Talla M" />
             {errors.nombre && <p className="mt-1 text-xs text-red-500">{errors.nombre}</p>}
           </div>
 
           {/* SKU */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">SKU *</label>
+            <label className={labelClass}>SKU *</label>
             <div className="flex gap-2">
               <input className={`${inputClass} flex-1`} value={sku} onChange={e => setSku(e.target.value)} placeholder="SKU-VAR-001" />
               <button onClick={generateSku} type="button" className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50" title="Auto-generar SKU">
@@ -194,11 +224,11 @@ export default function VarianteFormDialog({
           {/* Código de Barras y Peso */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Código de Barras</label>
+              <label className={labelClass}>Código de Barras</label>
               <input className={inputClass} value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)} placeholder="7750000000000" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Peso (kg)</label>
+              <label className={labelClass}>Peso (kg)</label>
               <input className={inputClass} type="number" step="0.001" value={peso} onChange={e => setPeso(e.target.value)} placeholder="0.000" />
             </div>
           </div>
@@ -212,21 +242,21 @@ export default function VarianteFormDialog({
             <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Unidad y presentación</p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Unidad propia</label>
-                <select className={inputClass} value={unidadMedidaId} onChange={e => setUnidadMedidaId(e.target.value)}>
+                <label className={labelClass}>Unidad propia</label>
+                <select className={selectClass} value={unidadMedidaId} onChange={e => setUnidadMedidaId(e.target.value)}>
                   <option value="">Hereda la del producto</option>
                   {unidades.map(u => <option key={u.id} value={u.id}>{nombreUni(u)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Se habla en</label>
-                <select className={inputClass} value={unidadPresentacionId} onChange={e => setUnidadPresentacionId(e.target.value)}>
+                <label className={labelClass}>Se habla en</label>
+                <select className={selectClass} value={unidadPresentacionId} onChange={e => setUnidadPresentacionId(e.target.value)}>
                   <option value="">Sin presentación</option>
                   {unidades.map(u => <option key={u.id} value={u.id}>{nombreUni(u)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Equivale a</label>
+                <label className={labelClass}>Equivale a</label>
                 <input
                   className={inputClass}
                   type="number"
@@ -257,14 +287,14 @@ export default function VarianteFormDialog({
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Apertura de bulto</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Al abrirla se convierte en</label>
-                  <select className={inputClass} value={varianteAperturaId} onChange={e => setVarianteAperturaId(e.target.value)}>
+                  <label className={labelClass}>Al abrirla se convierte en</label>
+                  <select className={selectClass} value={varianteAperturaId} onChange={e => setVarianteAperturaId(e.target.value)}>
                     <option value="">No se abre</option>
                     {hermanas.map(h => <option key={h.id} value={h.id}>{h.nombre}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Rinde (por unidad)</label>
+                  <label className={labelClass}>Rinde (por unidad)</label>
                   <input
                     className={inputClass}
                     type="number"
@@ -342,7 +372,7 @@ export default function VarianteFormDialog({
                       </div>
                       {attr.valores.length > 0 ? (
                         <select
-                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white"
+                          className={selectClass}
                           value={atributos[attr.id] || ''}
                           onChange={e => setAtributos(prev => ({ ...prev, [attr.id]: e.target.value }))}
                         >
@@ -400,13 +430,21 @@ export default function VarianteFormDialog({
           </div>
         </div>
 
-        {/* Botones */}
-        <div className="mt-6 flex gap-3 justify-end">
-          <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+        {/* Pie fijo: los botones no se van con el scroll */}
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-5 py-3">
+          <button
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="h-[34px] rounded-lg px-4 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+          >
             Cancelar
           </button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
-            {isSubmitting ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear Variante'}
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="h-[34px] rounded-lg bg-[#004A94] px-5 text-xs font-bold text-white transition-colors hover:bg-[#003570] disabled:opacity-50"
+          >
+            {isSubmitting ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear variante'}
           </button>
         </div>
       </div>
