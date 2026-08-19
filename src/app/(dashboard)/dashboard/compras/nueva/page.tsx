@@ -11,7 +11,9 @@ import { getStockByProductoSede } from '@/features/stock/services/stock-service'
 import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
 import { crearCompra, getHistorialComprasProducto } from '@/features/compras/services/compra-service';
 import { getProductos } from '@/features/producto/services/producto-service';
-import type { Producto } from '@/core/types/producto';
+import type { Producto, ProductoVariante } from '@/core/types/producto';
+import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
+import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus),
 // el mismo de `servicios/nueva` y `CotizacionForm`. El ring va BAKED porque
@@ -24,6 +26,10 @@ const TERMINOS = ['CONTADO', 'CREDITO_7', 'CREDITO_15', 'CREDITO_30', 'CREDITO_4
 
 type LineaForm = {
   productoId?: string;
+  /** Variante concreta que se compra. Sin esto la compra se cuelga del producto
+   *  PADRE, y en un producto con variantes el stock vive en las filas de
+   *  variante: quedaria un residual que no corresponde a nada vendible. */
+  varianteId?: string;
   descripcion: string;
   cantidad: string;
   precioUnitario: string;
@@ -66,6 +72,8 @@ export default function NuevaCompraPage() {
   // Búsqueda de producto
   const [q, setQ] = useState('');
   const [resultados, setResultados] = useState<Producto[]>([]);
+  // Producto con variantes esperando que se elija cual se compra.
+  const [productoVariantes, setProductoVariantes] = useState<Producto | null>(null);
   const [buscando, setBuscando] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,6 +98,13 @@ export default function NuevaCompraPage() {
   }, []);
 
   const agregarProducto = async (p: Producto) => {
+    // Con variantes NO se compra el padre: hay que elegir cual. Se abre el
+    // selector y el buscador se limpia, como hace la grilla del app.
+    if (p.tieneVariantes && (p.variantes?.length ?? 0) > 0) {
+      setProductoVariantes(p);
+      setQ(''); setResultados([]);
+      return;
+    }
     const factor = p.factorCompra != null ? Number(p.factorCompra) : undefined;
     const conEmpaque = !!(p.unidadCompra && factor && factor > 0);
     const idx = lineas.length;
@@ -137,6 +152,43 @@ export default function NuevaCompraPage() {
       })
       .catch(() => {});
   };
+  /**
+   * Alta de una linea a partir de una VARIANTE elegida en el selector.
+   *
+   * 🔴 El costo sale de la variante y NO de `getStockByProductoSede`: en un
+   * producto con variantes el costo del padre viene MEZCLADO del backend (la
+   * ultima variante con precio configurado le pisa el valor), asi que cargaria
+   * la compra al costo de otra variante sin ningun sintoma. El de la fila de la
+   * variante si es exacto, y ya viene en la respuesta del buscador: no hace
+   * falta ningun request.
+   */
+  const agregarVariante = (p: Producto, v: ProductoVariante) => {
+    const info = stockDeVarianteEnSede(v, sedeId);
+    const costo = info?.precioCosto != null ? Number(info.precioCosto) : null;
+    const pres = presentacionDeVariante(p, v);
+    // El precio se escribe en la unidad en la que se habla: un granel suelto se
+    // compra en KILOS aunque el stock se guarde en gramos.
+    const costoMostrado = costo != null && costo > 0
+      ? costo * (pres.factor > 1 ? pres.factor : 1)
+      : null;
+    const idx = lineas.length;
+    setLineas((l) => [...l, {
+      productoId: p.id,
+      varianteId: v.id,
+      descripcion: `${p.nombre} - ${v.nombre}`,
+      cantidad: '1',
+      precioUnitario: costoMostrado != null ? costoMostrado.toFixed(2) : '',
+      costoActual: costo,
+      precioVentaActual: info?.precio != null ? Number(info.precio) : null,
+    }]);
+    // El historial se pide POR VARIANTE: el del producto mezclaria hermanas.
+    getHistorialComprasProducto(p.id, { varianteId: v.id, limit: 10 })
+      .then(hist => {
+        setLineas(ls => ls.map((x, i2) => i2 === idx && x.varianteId === v.id ? { ...x, historial: hist } : x));
+      })
+      .catch(() => {});
+  };
+
   const agregarManual = () => setLineas((l) => [...l, { descripcion: '', cantidad: '1', precioUnitario: '' }]);
   const actualizar = (i: number, campo: keyof LineaForm, valor: string) =>
     setLineas((l) => l.map((x, idx) => (idx === i ? { ...x, [campo]: valor } : x)));
@@ -156,6 +208,7 @@ export default function NuevaCompraPage() {
         const nuevoPV = numVal(l.nuevoPrecioVenta ?? '');
         return {
           ...(l.productoId ? { productoId: l.productoId } : {}),
+          ...(l.varianteId ? { varianteId: l.varianteId } : {}),
           descripcion: l.descripcion.trim(),
           // Con empaque: cantidad/precio van en unidad de COMPRA y el backend convierte con el factor
           cantidad: Math.trunc(numVal(l.cantidad)),
@@ -273,14 +326,35 @@ export default function NuevaCompraPage() {
             {buscando && <div className="px-3 py-2 text-xs text-gray-400">Buscando…</div>}
             {!buscando && resultados.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">Sin resultados</div>}
             {resultados.map((p) => (
-              <button key={p.id} onClick={() => agregarProducto(p)} className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50">
-                <span className="font-mono text-xs text-gray-400">{p.codigoEmpresa}</span> {p.nombre}
+              <button key={p.id} onClick={() => agregarProducto(p)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                <span className="font-mono text-xs text-gray-400">{p.codigoEmpresa}</span>
+                <span className="min-w-0 flex-1 truncate">{p.nombre}</span>
+                {/* Se avisa ANTES de tocar que hay un paso mas, y con cuantas se
+                    compran de verdad (no las 28 que puede tener). */}
+                {p.tieneVariantes && (p.variantes?.length ?? 0) > 0 && (
+                  <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#004A94]">
+                    {seCompraPorBulto(p)
+                      ? `${particionarVariantes(p).comprables.length} bultos`
+                      : `${particionarVariantes(p).comprables.length} variantes`}
+                  </span>
+                )}
               </button>
             ))}
           </div>
         )}
         <button onClick={agregarManual} className="mt-2 text-xs text-[#437EFF] hover:underline">+ Agregar línea manual</button>
       </div>
+
+      {productoVariantes && (
+        <SelectorVariantesCompra
+          producto={productoVariantes}
+          sedeId={sedeId}
+          moneda={moneda}
+          yaAgregadas={lineas.map((l) => l.varianteId).filter(Boolean) as string[]}
+          onElegir={(v) => agregarVariante(productoVariantes, v)}
+          onCerrar={() => setProductoVariantes(null)}
+        />
+      )}
 
       {/* Líneas */}
       <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white">

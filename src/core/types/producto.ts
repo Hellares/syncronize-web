@@ -106,6 +106,17 @@ export interface ProductoVariante {
   peso?: number;
   dimensiones?: Record<string, number>;
   unidadMedida?: { id: string; nombre: string; abreviatura?: string };
+  /** Unidad de PRESENTACION propia: un granel se guarda en gramos y se habla en kg. */
+  unidadPresentacionId?: string | null;
+  unidadPresentacionSimbolo?: string | null;
+  factorPresentacion?: number | null;
+  /**
+   * Apertura de bulto: en que variante se convierte esta al abrirla
+   * (SACO -> GRANEL) y cuantas unidades de venta del destino salen de 1 bulto.
+   * Es lo que distingue lo que se COMPRA de lo que entra al abrir.
+   */
+  varianteAperturaId?: string | null;
+  rendimientoApertura?: number | null;
   isActive: boolean;
   orden: number;
   archivos?: ProductoArchivo[];
@@ -153,6 +164,9 @@ export interface Producto {
   unidadMedida?: { id: string; nombre: string; abreviatura?: string };
   unidadCompra?: { id: string; nombre: string; abreviatura?: string };
   factorCompra?: number;
+  /** Presentacion del producto; las variantes sin una propia la heredan. */
+  unidadPresentacionSimbolo?: string | null;
+  factorPresentacion?: number | null;
   imagenes?: string[];
   archivos?: ProductoArchivo[];
   atributosValores?: AtributoValor[];
