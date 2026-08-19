@@ -40,7 +40,10 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
   const ofertaActiva = producto.stocksPorSede?.find(s => s.enOferta && s.precioOferta != null);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    // Sin `max-w-4xl`: la pagina estaba topeada en 896px y centrada, asi que la
+    // tabla de variantes quedaba en ~590px por mas grande que fuera la pantalla.
+    // El listado de productos nunca tuvo tope; el detalle era la excepcion.
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -60,6 +63,20 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           </Link>
         </div>
       </div>
+
+      {/* Variantes PRIMERO y a TODO EL ANCHO, fuera del grid de 3 columnas.
+          Adentro se comian 1/3 con la barra lateral, y una tabla de 8 columnas
+          —un eje por atributo— no entra en dos tercios. En un producto con 91
+          variantes es ademas lo que se viene a ver. */}
+      {producto.tieneVariantes && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <VarianteList
+            productoId={producto.id}
+            productoNombre={producto.nombre}
+            productoIsActive={producto.isActive}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Image + Info */}
@@ -97,19 +114,6 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
           </div>
-
-          {/* Variantes ARRIBA: en un producto con 91 variantes es lo que se
-              viene a ver, y quedaba despues de dimensiones, precios por nivel
-              y combo — al final de una pagina larga. */}
-          {producto.tieneVariantes && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <VarianteList
-                productoId={producto.id}
-                productoNombre={producto.nombre}
-                productoIsActive={producto.isActive}
-              />
-            </div>
-          )}
 
           {/* Dimensiones */}
           {producto.dimensiones && Object.keys(producto.dimensiones).length > 0 && (
