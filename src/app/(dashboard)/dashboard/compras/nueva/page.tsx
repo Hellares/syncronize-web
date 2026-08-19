@@ -23,6 +23,9 @@ const INPUT_STD =
   'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
 const sim = (m: string) => (m === 'USD' ? '$' : 'S/');
+/** Numero con separador de miles y sin ceros de relleno: 66 · 66.5 · 6.8182 */
+const sinCeros = (n: number, maxDecimales: number) =>
+  n.toLocaleString('es-PE', { maximumFractionDigits: maxDecimales });
 const TERMINOS = ['CONTADO', 'CREDITO_7', 'CREDITO_15', 'CREDITO_30', 'CREDITO_45', 'CREDITO_60', 'CREDITO_90', 'PERSONALIZADO'];
 
 type LineaForm = {
@@ -702,6 +705,10 @@ export default function NuevaCompraPage() {
           // Lo que realmente entra al stock, en la unidad en la que se guarda.
           const entranAlStock = Math.round(cantidadAtomica(l));
           const costoAtomico = costoUnitarioVenta(l);
+          // La equivalencia se muestra en la unidad en la que se HABLA del
+          // producto (kg): "66 kg a S/ 6.8182" se lee, "66 000 g a S/ 0.006818"
+          // hay que traducirlo mentalmente cada vez.
+          const unidadEquiv = l.simboloPres ?? l.unidadVentaSimbolo;
           const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
           const costoActualMostrado = l.costoActual != null && l.costoActual > 0
             ? l.costoActual * fpres : null;
@@ -839,7 +846,7 @@ export default function NuevaCompraPage() {
                         y ver 66 000 recien en el detalle se lee como un error. */}
                     {entranAlStock > 0 && costoAtomico != null && (
                       <p className="mt-2.5 text-[11px] font-semibold text-green-800">
-                        Entran {entranAlStock.toLocaleString('es-PE')} {l.unidadVentaSimbolo} @ {sim(moneda)} {costoAtomico.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}/{l.unidadVentaSimbolo}
+                        Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
                       </p>
                     )}
                   </div>
