@@ -9,6 +9,7 @@ import VarianteList from '@/features/producto/components/variantes/VarianteList'
 import ImageGallery from '@/features/producto/components/ImageGallery';
 import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
+import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
 import { nombreUnidad } from '@/core/types/producto';
 
@@ -178,6 +179,15 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <PrecioNivelSection productoId={producto.id} />
           </div>
+
+          {/* A cuanto se viene comprando. Se monta siempre y el propio
+              componente se esconde si el producto nunca se compro: una card
+              vacia diciendo "sin historial" no le sirve a nadie. */}
+          <HistorialComprasCard
+            productoId={producto.id}
+            factorPresentacion={producto.factorPresentacion}
+            simboloPresentacion={producto.unidadPresentacionSimbolo}
+          />
 
           {/* Combo Info */}
           {producto.esCombo && (
