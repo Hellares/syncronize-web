@@ -70,7 +70,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           {/* Galeria + informacion LADO A LADO. Apilada, la imagen se estiraba
               a todo el ancho de la columna y empujaba los datos hacia abajo. */}
           <div className="flex flex-col gap-4 md:flex-row">
-            <div className="w-full shrink-0 md:w-[300px]">
+            <div className="w-full shrink-0 md:w-[380px]">
               <ImageGallery
                 archivos={producto.archivos}
                 imagenes={producto.imagenes}
