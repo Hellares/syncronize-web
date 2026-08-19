@@ -11,6 +11,7 @@ import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import NivelesVarianteInline from '@/features/producto/components/variantes/NivelesVarianteInline';
 import { getStockByVarianteSede } from '@/features/stock/services/stock-service';
 import type { ProductoStock } from '@/core/types/stock';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
@@ -196,6 +197,13 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                     ))}
                   </div>
                 )}
+
+                {/* Los niveles de ESTA variante, en lectura. Sin esto solo se
+                    veian abriendo el dialogo de precios una por una. */}
+                <NivelesVarianteInline
+                  varianteId={variante.id}
+                  precioBase={variante.stocksPorSede?.find((st) => st.precioConfigurado)?.precio ?? null}
+                />
 
                 {variante.atributosValores.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5 border-t border-blue-200/60 pt-3">
