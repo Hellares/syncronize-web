@@ -125,6 +125,16 @@ export default function NuevaCompraPage() {
       setQ(''); setResultados([]);
       return;
     }
+    // 🔴 Ya cargado: se SELECCIONA la linea que existe en vez de duplicarla.
+    // Dos lineas del mismo producto entran al stock dos veces y el promedio
+    // ponderado se calcula sobre cada una por separado, asi que ninguna de las
+    // dos muestra el costo real que va a quedar.
+    const yaCargado = lineas.findIndex((x) => x.productoId === p.id && !x.varianteId);
+    if (yaCargado >= 0) {
+      setSeleccionada(yaCargado);
+      setQ(''); setResultados([]);
+      return;
+    }
     const factor = p.factorCompra != null ? Number(p.factorCompra) : undefined;
     const conEmpaque = !!(p.unidadCompra && factor && factor > 0);
     const idx = lineas.length;
@@ -613,17 +623,30 @@ export default function NuevaCompraPage() {
               <div className="absolute left-3 right-3 z-10 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                 {buscando && <div className="px-3 py-2 text-xs text-gray-400">Buscando…</div>}
                 {!buscando && resultados.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">Sin resultados</div>}
-                {resultados.map((p) => (
-                  <button key={p.id} onClick={() => agregarProducto(p)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                {resultados.map((p) => {
+                  const conVariantes = p.tieneVariantes && (p.variantes?.length ?? 0) > 0;
+                  // Se avisa ANTES de tocar: tocarlo igual lleva a la linea que
+                  // ya existe, no agrega una segunda.
+                  const yaEnLaCompra = !conVariantes
+                    && lineas.some((x) => x.productoId === p.id && !x.varianteId);
+                  return (
+                  <button key={p.id} onClick={() => agregarProducto(p)}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${yaEnLaCompra ? 'bg-blue-50/40 hover:bg-blue-50' : 'hover:bg-gray-50'}`}>
                     <span className="font-mono text-[10px] text-gray-400">{p.codigoEmpresa}</span>
-                    <span className="min-w-0 flex-1 truncate">{p.nombre}</span>
-                    {p.tieneVariantes && (p.variantes?.length ?? 0) > 0 && (
+                    <span className={`min-w-0 flex-1 truncate ${yaEnLaCompra ? 'text-gray-500' : ''}`}>{p.nombre}</span>
+                    {yaEnLaCompra && (
+                      <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#004A94] ring-1 ring-blue-200">
+                        ya en la compra
+                      </span>
+                    )}
+                    {conVariantes && (
                       <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#004A94]">
                         {particionarVariantes(p).comprables.length} {seCompraPorBulto(p) ? 'bultos' : 'variantes'}
                       </span>
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
