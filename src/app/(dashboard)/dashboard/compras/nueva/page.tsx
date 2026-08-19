@@ -266,31 +266,21 @@ export default function NuevaCompraPage() {
     l.factorPres && l.factorPres > 1 ? l.factorPres : 1;
 
   /**
-   * Prender o apagar el EMPAQUE re-expresa la cantidad y el precio, no solo la
-   * etiqueta de la unidad.
+   * Elegir la unidad de carga NO toca los numeros: solo cambia que significan.
    *
-   * 🔴 3 sacos de 22 000 g a S/150 son 66 kg a S/6.8182 — la misma plata y el
-   * mismo stock. Sin convertir, apagar el toggle dejaria "3 kg a S/150 el kilo"
-   * y la compra entraria por 1/22 de lo que es, sin ningun aviso.
+   * Decision del user (19-08): los chips son un indicador de que hay que
+   * escribir en cada campo, no una calculadora. Eligiendo SACO, en Cantidad van
+   * 1/2/3 sacos y el empaque dice cuantos gramos trae cada uno.
+   *
+   * 🔑 Es seguro porque la equivalencia de abajo ("Entran 66 000 g @ ...")
+   * muestra SIEMPRE lo que va a entrar al stock: si el numero quedo con el
+   * significado viejo, se ve ahi antes de guardar.
+   *
+   * (El editor del app SI convierte, en su `_cambiarUnidad`. Aca se eligio lo
+   * otro a proposito.)
    */
   const toggleEmpaque = (i: number, prendido: boolean) => {
-    setLineas((ls) => ls.map((x, idx) => {
-      if (idx !== i) return x;
-      const fEmp = x.factorProducto ? (numVal(x.factor ?? '') || x.factorProducto) : 1;
-      const fPres = x.factorPres && x.factorPres > 1 ? x.factorPres : 1;
-      if (fEmp <= 1 || fEmp === fPres) return { ...x, usaUnidadCompra: prendido };
-      // Cuanto vale una unidad del modo VIEJO expresada en el modo NUEVO.
-      const k = prendido ? fPres / fEmp : fEmp / fPres;
-      const cant = numVal(x.cantidad);
-      const precio = numVal(x.precioUnitario);
-      const limpio = (n: number) => String(Math.round(n * 1e4) / 1e4);
-      return {
-        ...x,
-        usaUnidadCompra: prendido,
-        ...(cant > 0 ? { cantidad: limpio(cant * k) } : {}),
-        ...(precio > 0 ? { precioUnitario: limpio(precio / k) } : {}),
-      };
-    }));
+    setLineas((ls) => ls.map((x, idx) => idx === i ? { ...x, usaUnidadCompra: prendido } : x));
   };
 
   /**
