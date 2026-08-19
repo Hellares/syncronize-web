@@ -135,6 +135,13 @@ export default function NuevaCompraPage() {
         usaUnidadCompra: true,
         factor: String(factor),
       } : {}),
+      // Presentacion del PRODUCTO (RICOCAT: se vende en gramos y se habla en
+      // kg). Sin esto la linea muestra el costo y el precio de venta por
+      // GRAMO —S/ 0.0067— y pide la cantidad en gramos al apagar el empaque.
+      ...(Number(p.factorPresentacion ?? 0) > 1 ? {
+        factorPres: Number(p.factorPresentacion),
+        simboloPres: p.unidadPresentacionSimbolo ?? undefined,
+      } : {}),
     }]);
     setQ(''); setResultados([]);
 
@@ -230,9 +237,56 @@ export default function NuevaCompraPage() {
   /** Factor de EMPAQUE vigente de la linea (1 = no aplica). */
   const factorEmpaque = (l: LineaForm) =>
     l.usaUnidadCompra && l.factorProducto ? (numVal(l.factor ?? '') || l.factorProducto) : 1;
-  /** Factor de PRESENTACION de la linea (1 = no aplica). */
+  /**
+   * Factor de PRESENTACION de la linea (1 = no aplica).
+   *
+   * 🔴 Se apaga cuando el toggle de EMPAQUE esta prendido: los dos re-expresan
+   * el mismo campo y solo puede haber uno. Comprando por SACO, la cantidad y el
+   * precio se escriben por saco y los convierte el backend con el factorCompra;
+   * aplicar ademas la presentacion los convertiria DOS veces.
+   */
   const factorPresentacion = (l: LineaForm) =>
+    !l.usaUnidadCompra && l.factorPres && l.factorPres > 1 ? l.factorPres : 1;
+
+  /**
+   * Factor de presentacion para MOSTRAR precios del producto (costo actual,
+   * precio de venta, historial, sugerencias).
+   *
+   * 🔑 A diferencia de `factorPresentacion`, este NO se apaga con el empaque:
+   * la presentacion es como se HABLA del producto (RICOCAT se habla en kg) y
+   * el empaque es como se COMPRA esta vez (por saco). Comprar por saco no
+   * cambia que su precio de venta se exprese por kilo.
+   */
+  const factorDisplay = (l: LineaForm) =>
     l.factorPres && l.factorPres > 1 ? l.factorPres : 1;
+
+  /**
+   * Prender o apagar el EMPAQUE re-expresa la cantidad y el precio, no solo la
+   * etiqueta de la unidad.
+   *
+   * 🔴 3 sacos de 22 000 g a S/150 son 66 kg a S/6.8182 — la misma plata y el
+   * mismo stock. Sin convertir, apagar el toggle dejaria "3 kg a S/150 el kilo"
+   * y la compra entraria por 1/22 de lo que es, sin ningun aviso.
+   */
+  const toggleEmpaque = (i: number, prendido: boolean) => {
+    setLineas((ls) => ls.map((x, idx) => {
+      if (idx !== i) return x;
+      const fEmp = x.factorProducto ? (numVal(x.factor ?? '') || x.factorProducto) : 1;
+      const fPres = x.factorPres && x.factorPres > 1 ? x.factorPres : 1;
+      if (fEmp <= 1 || fEmp === fPres) return { ...x, usaUnidadCompra: prendido };
+      // Cuanto vale una unidad del modo VIEJO expresada en el modo NUEVO.
+      const k = prendido ? fPres / fEmp : fEmp / fPres;
+      const cant = numVal(x.cantidad);
+      const precio = numVal(x.precioUnitario);
+      const limpio = (n: number) => String(Math.round(n * 1e4) / 1e4);
+      return {
+        ...x,
+        usaUnidadCompra: prendido,
+        ...(cant > 0 ? { cantidad: limpio(cant * k) } : {}),
+        ...(precio > 0 ? { precioUnitario: limpio(precio / k) } : {}),
+      };
+    }));
+  };
 
   /**
    * Costo por unidad de VENTA de la linea.
@@ -291,7 +345,7 @@ export default function NuevaCompraPage() {
    */
   const precioVentaEfectivo = (l: LineaForm): number | null => {
     const nuevo = numVal(l.nuevoPrecioVenta ?? '');
-    if (nuevo > 0) return nuevo / factorPresentacion(l);
+    if (nuevo > 0) return nuevo / factorDisplay(l);
     return l.precioVentaActual ?? null;
   };
 
@@ -318,7 +372,7 @@ export default function NuevaCompraPage() {
     const costoNuevo = costoProyectado(l);
     if (margen == null || costoNuevo == null) return null;
     // En la unidad en la que se ESCRIBE el campo (presentacion).
-    return Math.round(costoNuevo * (1 + margen / 100) * factorPresentacion(l) * 100) / 100;
+    return Math.round(costoNuevo * (1 + margen / 100) * factorDisplay(l) * 100) / 100;
   };
 
   /** Sugerencia: costo nuevo + 10%. Siempre cubre el costo, a diferencia de
@@ -326,7 +380,7 @@ export default function NuevaCompraPage() {
   const sugerenciaMas10 = (l: LineaForm): number | null => {
     const costoNuevo = costoProyectado(l);
     if (costoNuevo == null || costoNuevo <= 0) return null;
-    return Math.round(costoNuevo * 1.1 * factorPresentacion(l) * 100) / 100;
+    return Math.round(costoNuevo * 1.1 * factorDisplay(l) * 100) / 100;
   };
   /** Cantidad fraccionaria que NINGUN factor puede aplanar a entero. */
   const cantidadNoRepresentable = (l: LineaForm): boolean => {
@@ -391,6 +445,7 @@ export default function NuevaCompraPage() {
         // como 15000 g a S/0.008. Va con 6 decimales porque a 2, S/6.7268/kg
         // quedaria en 0.01 el gramo — 48% de mas por cada gramo del saco.
         const fPres = factorPresentacion(l);
+        const fDisp = factorDisplay(l);
         // Lo que hay que aplanar: la presentacion siempre, el empaque solo si
         // la cantidad venia fraccionada.
         const fAplanado = fPres * (aplana ? fEmp : 1);
@@ -409,7 +464,7 @@ export default function NuevaCompraPage() {
           // 🔴 Tambien por unidad de VENTA aunque el campo se escriba en
           // presentacion: sin dividir, S/9 el kilo se guarda como S/9 el GRAMO.
           ...(nuevoPV > 0
-            ? { nuevoPrecioVenta: fPres > 1 ? round6(nuevoPV / fPres) : nuevoPV }
+            ? { nuevoPrecioVenta: fDisp > 1 ? round6(nuevoPV / fDisp) : nuevoPV }
             : {}),
         };
       });
@@ -644,7 +699,7 @@ export default function NuevaCompraPage() {
             ? ((proy - l.costoActual) / l.costoActual) * 100 : null;
           // Todo lo de PRECIO se muestra en la unidad en la que se escribe: el
           // backend guarda por unidad de venta (gramo) y el usuario habla en kg.
-          const fpres = factorPresentacion(l);
+          const fpres = factorDisplay(l);
           const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
           const costoActualMostrado = l.costoActual != null && l.costoActual > 0
             ? l.costoActual * fpres : null;
@@ -731,7 +786,7 @@ export default function NuevaCompraPage() {
                       <div className="flex items-center gap-2">
                         <label className="flex items-center gap-1.5 text-[11px] text-gray-600">
                           <input type="checkbox" checked={!!l.usaUnidadCompra} className="accent-[#004A94]"
-                            onChange={(e) => setLineas(ls => ls.map((x, idx) => idx === i ? { ...x, usaUnidadCompra: e.target.checked } : x))} />
+                            onChange={(e) => toggleEmpaque(i, e.target.checked)} />
                           {l.unidadCompraNombre}
                         </label>
                         {l.usaUnidadCompra && (
@@ -791,7 +846,7 @@ export default function NuevaCompraPage() {
                       )}
                       <p className="mt-1.5 text-[10px] leading-snug text-gray-400">
                         {l.precioVentaActual != null && l.precioVentaActual > 0
-                          ? `Vendiéndose a ${sim(moneda)} ${(l.precioVentaActual * factorPresentacion(l)).toFixed(2)}${l.simboloPres ? `/${l.simboloPres}` : ''}.`
+                          ? `Vendiéndose a ${sim(moneda)} ${(l.precioVentaActual * factorDisplay(l)).toFixed(2)}${l.simboloPres ? `/${l.simboloPres}` : ''}.`
                           : 'Este producto todavía no tiene precio de venta en la sede.'}
                       </p>
                     </div>
@@ -895,7 +950,7 @@ export default function NuevaCompraPage() {
                 const h = l.historial!;
                 // El historial viene en unidad ATOMICA; el usuario escribe en la
                 // suya (kg). Sin convertir, compararia S/0.008 contra S/8.00.
-                const fp = factorPresentacion(l);
+                const fp = factorDisplay(l);
                 const uni = l.simboloPres ?? 'unidad';
                 const costos = h.compras.map((c) => Number(c.costoUnitario) * fp);
                 const minimo = Math.min(...costos);
