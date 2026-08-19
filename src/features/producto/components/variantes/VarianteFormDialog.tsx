@@ -39,6 +39,15 @@ export default function VarianteFormDialog({
   const [varianteAperturaId, setVarianteAperturaId] = useState('');
   const [rendimientoApertura, setRendimientoApertura] = useState('');
   const [unidades, setUnidades] = useState<EmpresaUnidadMedida[]>([]);
+  /**
+   * Ids de los atributos PUESTOS en esta variante, en orden.
+   *
+   * 🔴 No se listan los `atributosDisponibles` enteros: son los de la EMPRESA
+   * y pueden ser decenas. Se muestran los que la variante tiene y se agregan de
+   * a uno, igual que el app (variante_atributos_section).
+   */
+  const [ejesPuestos, setEjesPuestos] = useState<string[]>([]);
+  const [agregando, setAgregando] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -52,6 +61,7 @@ export default function VarianteFormDialog({
         const attrMap: Record<string, string> = {};
         variante.atributosValores.forEach(av => { attrMap[av.atributoId] = av.valor; });
         setAtributos(attrMap);
+        setEjesPuestos(variante.atributosValores.map((av) => av.atributoId));
         setUnidadMedidaId(variante.unidadMedidaId ?? '');
         setUnidadPresentacionId(variante.unidadPresentacionId ?? '');
         setFactorPresentacion(variante.factorPresentacion != null ? String(variante.factorPresentacion) : '');
@@ -64,14 +74,22 @@ export default function VarianteFormDialog({
         setPeso('');
         setIsActive(true);
         setAtributos({});
+        // Una variante nueva arranca con los ejes que YA usa el producto: si
+        // le falta uno que sus hermanas tienen, queda inalcanzable al vender.
+        setEjesPuestos(ejesDelProducto);
         setUnidadMedidaId('');
         setUnidadPresentacionId('');
         setFactorPresentacion('');
         setVarianteAperturaId('');
         setRendimientoApertura('');
       }
+      setAgregando('');
       setErrors({});
     }
+    // ejesDelProducto se deriva de `hermanas`, que el padre recrea en cada
+    // render: ponerlo en las dependencias reabriria el formulario en loop. Solo
+    // hace falta al ABRIR el dialogo, que es lo que este efecto observa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, variante]);
 
   useEffect(() => {
@@ -82,6 +100,17 @@ export default function VarianteFormDialog({
       .catch(() => { if (vivo) setUnidades([]); });
     return () => { vivo = false; };
   }, [isOpen]);
+
+  /**
+   * Ejes que YA usa el producto, sacados de sus hermanas. Es lo que hace que
+   * una variante nueva nazca con los mismos y no quede coja.
+   */
+  const ejesDelProducto: string[] = [];
+  for (const h of hermanas) {
+    for (const av of h.atributosValores) {
+      if (!ejesDelProducto.includes(av.atributoId)) ejesDelProducto.push(av.atributoId);
+    }
+  }
 
   /** Como se llama una unidad, con el mismo orden que resuelve el backend. */
   const nombreUni = (u: EmpresaUnidadMedida) =>
@@ -273,34 +302,93 @@ export default function VarianteFormDialog({
             <p className="text-xs text-amber-600">No se puede activar porque el producto padre está inactivo.</p>
           )}
 
-          {/* Atributos */}
+          {/* ATRIBUTOS: solo los que la variante TIENE, mas un selector para
+              sumar de los que faltan. Listar los de la empresa enteros llenaba
+              el dialogo de campos vacios que nadie va a completar. */}
           {atributosDisponibles.length > 0 && (
             <div>
-              <label className="mb-2 block text-xs font-semibold text-gray-700">Atributos</label>
-              <div className="space-y-3">
-                {atributosDisponibles.map(attr => (
-                  <div key={attr.id}>
-                    <label className="mb-1 block text-xs text-gray-500">{attr.nombre}{attr.unidad ? ` (${attr.unidad})` : ''}</label>
-                    {attr.valores.length > 0 ? (
-                      <select
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white"
-                        value={atributos[attr.id] || ''}
-                        onChange={e => setAtributos(prev => ({ ...prev, [attr.id]: e.target.value }))}
-                      >
-                        <option value="">Seleccionar</option>
-                        {attr.valores.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    ) : (
-                      <input
-                        className={inputClass}
-                        value={atributos[attr.id] || ''}
-                        onChange={e => setAtributos(prev => ({ ...prev, [attr.id]: e.target.value }))}
-                        placeholder={`Valor de ${attr.nombre}`}
-                      />
-                    )}
-                  </div>
-                ))}
+              <div className="mb-2 flex items-baseline justify-between">
+                <label className="text-xs font-semibold text-gray-700">Atributos</label>
+                {ejesPuestos.length > 0 && (
+                  <span className="text-[11px] text-gray-400">{ejesPuestos.length} puestos</span>
+                )}
               </div>
+
+              {ejesPuestos.length === 0 && (
+                <p className="mb-2 text-[11px] text-gray-400">
+                  Sin atributos. Una variante a la que le falta un atributo que sus hermanas
+                  tienen no se puede elegir al vender.
+                </p>
+              )}
+
+              <div className="space-y-3">
+                {ejesPuestos.map(id => {
+                  const attr = atributosDisponibles.find(a => a.id === id);
+                  if (!attr) return null;
+                  return (
+                    <div key={attr.id}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <label className="text-xs text-gray-500">{attr.nombre}{attr.unidad ? ` (${attr.unidad})` : ''}</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEjesPuestos(prev => prev.filter(x => x !== attr.id));
+                            setAtributos(prev => { const n = { ...prev }; delete n[attr.id]; return n; });
+                          }}
+                          className="text-[11px] text-gray-400 transition-colors hover:text-red-500"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                      {attr.valores.length > 0 ? (
+                        <select
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white"
+                          value={atributos[attr.id] || ''}
+                          onChange={e => setAtributos(prev => ({ ...prev, [attr.id]: e.target.value }))}
+                        >
+                          <option value="">Seleccionar</option>
+                          {attr.valores.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          className={inputClass}
+                          value={atributos[attr.id] || ''}
+                          onChange={e => setAtributos(prev => ({ ...prev, [attr.id]: e.target.value }))}
+                          placeholder={`Valor de ${attr.nombre}`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Solo se ofrecen los que NO estan puestos todavia */}
+              {(() => {
+                const faltantes = atributosDisponibles.filter(a => !ejesPuestos.includes(a.id));
+                if (faltantes.length === 0) {
+                  return <p className="mt-2 text-[11px] text-gray-400">Ya están todos los atributos disponibles.</p>;
+                }
+                return (
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+                      value={agregando}
+                      onChange={e => setAgregando(e.target.value)}
+                    >
+                      <option value="">Agregar atributo…</option>
+                      {faltantes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={!agregando}
+                      onClick={() => { setEjesPuestos(prev => [...prev, agregando]); setAgregando(''); }}
+                      className="shrink-0 rounded-lg bg-[#004A94] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#003570] disabled:opacity-40"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
