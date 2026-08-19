@@ -709,6 +709,12 @@ export default function NuevaCompraPage() {
           // producto (kg): "66 kg a S/ 6.8182" se lee, "66 000 g a S/ 0.006818"
           // hay que traducirlo mentalmente cada vez.
           const unidadEquiv = l.simboloPres ?? l.unidadVentaSimbolo;
+          // Costo por EMPAQUE. Usa `factorVigente` y no `factorEmpaque()`,
+          // que da 1 con el toggle apagado: comprando en kg tambien se quiere
+          // saber a cuanto sale el saco, que es como lo cotiza el proveedor.
+          const costoPorEmpaque = costoAtomico != null && conEmpaque && factorVigente > 1
+            ? costoAtomico * factorVigente
+            : null;
           const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
           const costoActualMostrado = l.costoActual != null && l.costoActual > 0
             ? l.costoActual * fpres : null;
@@ -845,8 +851,16 @@ export default function NuevaCompraPage() {
                     {/* Lo que REALMENTE entra al stock. Sin esto, cargar 3 sacos
                         y ver 66 000 recien en el detalle se lee como un error. */}
                     {entranAlStock > 0 && costoAtomico != null && (
-                      <p className="mt-2.5 text-[11px] font-semibold text-green-800">
-                        Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
+                      <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2 text-[11px] font-semibold text-green-800">
+                        <span>
+                          Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
+                        </span>
+                        {costoPorEmpaque != null && (
+                          <>
+                            <span className="text-green-600/60">·</span>
+                            <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
+                          </>
+                        )}
                       </p>
                     )}
                   </div>
