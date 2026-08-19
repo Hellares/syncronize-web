@@ -1009,7 +1009,7 @@ export default function NuevaCompraPage() {
                           <input type="text" inputMode="decimal" placeholder={ventaActualMostrada != null ? 'sin cambios' : '0.00'}
                             value={l.nuevoPrecioVenta ?? ''}
                             onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
-                            className={`${INPUT_STD} h-[36px] text-right text-base font-bold`} />
+                            className={`${INPUT_STD} text-right text-sm font-bold`} />
                           {l.simboloPres && <span className="shrink-0 text-[10px] text-gray-400">/{l.simboloPres}</span>}
                         </div>
                       </div>
