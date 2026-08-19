@@ -8,6 +8,8 @@ interface Props {
   /** Ejes del producto, en orden. Cada uno es una COLUMNA. */
   ejes: string[];
   canManage: boolean;
+  /** Variante elegida: la galeria y el bloque de precios de la pagina la siguen. */
+  seleccionadaId?: string | null;
   onView: (v: ProductoVariante) => void;
   onEdit: (v: ProductoVariante) => void;
   onDelete: (v: ProductoVariante) => void;
@@ -55,7 +57,7 @@ function estadoDe(v: ProductoVariante, ejes: string[]): { color: string; titulo:
   return { color: 'bg-green-500', titulo: 'Activa', alerta: false };
 }
 
-export default function VarianteTable({ variantes, ejes, canManage, onView, onEdit, onDelete }: Props) {
+export default function VarianteTable({ variantes, ejes, canManage, seleccionadaId, onView, onEdit, onDelete }: Props) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-gray-100">
       <table className="w-full border-collapse text-left">
@@ -82,7 +84,11 @@ export default function VarianteTable({ variantes, ejes, canManage, onView, onEd
               <tr
                 key={v.id}
                 onClick={() => onView(v)}
-                className={`cursor-pointer border-b border-gray-50 transition-colors ${est.alerta ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-gray-50'}`}
+                className={`cursor-pointer border-b border-gray-50 transition-colors ${
+                  seleccionadaId === v.id
+                    ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
+                    : est.alerta ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-gray-50'
+                }`}
               >
                 <td className="px-2.5 py-1.5">
                   <span className={`inline-block h-[7px] w-[7px] rounded-full ${est.color}`} title={est.titulo} />

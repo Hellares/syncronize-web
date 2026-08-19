@@ -14,6 +14,11 @@ interface Props {
   productoId: string;
   productoNombre: string;
   productoIsActive: boolean;
+  /** Variante elegida en la pagina: la galeria y los precios la siguen. */
+  seleccionadaId?: string | null;
+  onSeleccionar?: (v: ProductoVariante) => void;
+  /** Para que la pagina pueda leer las variantes ya cargadas por el hook. */
+  onVariantesCargadas?: (vs: ProductoVariante[]) => void;
 }
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
@@ -25,7 +30,7 @@ const UMBRAL_TABLA = 12;
 
 type Rapido = 'todas' | 'activas' | 'problemas';
 
-export default function VarianteList({ productoId, productoNombre, productoIsActive }: Props) {
+export default function VarianteList({ productoId, productoNombre, productoIsActive, seleccionadaId, onSeleccionar, onVariantesCargadas }: Props) {
   const {
     variantes, atributosDisponibles, isLoading, isSubmitting,
     error, successMessage, clearMessages,
@@ -102,6 +107,12 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
       return `${v.nombre} ${v.sku} ${v.codigoEmpresa} ${v.codigoBarras ?? ''}`.toLowerCase().includes(t);
     });
   }, [variantes, busqueda, porEje, rapido, tieneProblema]);
+
+  // La pagina necesita las variantes ya cargadas (para las imagenes de la
+  // galeria) y este hook es quien las tiene.
+  useEffect(() => {
+    if (onVariantesCargadas) onVariantesCargadas(variantes);
+  }, [variantes, onVariantesCargadas]);
 
   const hayFiltro = !!busqueda.trim() || rapido !== 'todas' || Object.values(porEje).some(Boolean);
   // La vista arranca sola segun cuantas hay; una eleccion manual la fija.
@@ -315,7 +326,8 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
             variantes={filtradas}
             ejes={ejes}
             canManage={canManage}
-            onView={(v) => setDetailVariante(v)}
+            seleccionadaId={seleccionadaId}
+            onView={(v) => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
             onEdit={(v) => handleEdit(v)}
             onDelete={(v) => setDeleteTarget(v)}
           />
@@ -330,7 +342,7 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
               key={v.id}
               variante={v}
               canManage={canManage}
-              onView={() => setDetailVariante(v)}
+              onView={() => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
               onEdit={() => handleEdit(v)}
               onDelete={() => setDeleteTarget(v)}
             />

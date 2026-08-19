@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useProductoDetail } from '@/features/producto/hooks/use-producto-detail';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
@@ -11,12 +11,43 @@ import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
-import { nombreUnidad } from '@/core/types/producto';
+import { nombreUnidad, infoPrecioEfectivo, infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
+import type { ProductoVariante } from '@/core/types/producto';
 
 export default function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { producto, isLoading, error } = useProductoDetail(id);
   const { empresa } = useEmpresa();
+
+  /**
+   * Variante elegida en la tabla. Igual que el app: se selecciona INLINE y la
+   * pagina la sigue (galeria + precios), en vez de abrir un dialogo que tapa
+   * todo lo demas.
+   */
+  const [variante, setVariante] = useState<ProductoVariante | null>(null);
+  const [variantesCargadas, setVariantesCargadas] = useState<ProductoVariante[]>([]);
+  const recibirVariantes = useCallback((vs: ProductoVariante[]) => setVariantesCargadas(vs), []);
+
+  /**
+   * Que imagenes muestra la galeria, con la misma regla del app:
+   * con variante elegida, las SUYAS (y si no tiene, las del producto); sin
+   * elegir nada, las del producto MAS las de todas sus variantes.
+   */
+  const imagenesGaleria = useMemo(() => {
+    const delProducto = producto?.archivos?.map((a) => a.url) ?? producto?.imagenes ?? [];
+    if (variante) {
+      const suyas = variante.archivos?.map((a) => a.url) ?? [];
+      return suyas.length > 0 ? suyas : delProducto;
+    }
+    if (variantesCargadas.length > 0) {
+      const todas = [...delProducto];
+      for (const v of variantesCargadas) {
+        for (const a of v.archivos ?? []) todas.push(a.url);
+      }
+      return todas;
+    }
+    return delProducto;
+  }, [producto, variante, variantesCargadas]);
 
   if (isLoading) {
     return (
@@ -73,15 +104,66 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="w-full shrink-0 md:w-[380px]">
               <ImageGallery
-                archivos={producto.archivos}
-                imagenes={producto.imagenes}
+                key={variante?.id ?? 'producto'}
+                imagenes={imagenesGaleria}
                 videoUrl={producto.videoUrl}
-                alt={producto.nombre}
+                alt={variante ? `${producto.nombre} ${variante.nombre}` : producto.nombre}
               />
+              {variante && (
+                <button
+                  onClick={() => setVariante(null)}
+                  className="mt-2 w-full rounded-lg border border-gray-200 py-1.5 text-[11px] font-semibold text-gray-500 transition-colors hover:bg-gray-50"
+                >
+                  Ver el producto completo
+                </button>
+              )}
             </div>
 
             {/* Details */}
-            <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white p-5">
+            <div className="min-w-0 flex-1 space-y-4">
+            {variante && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Variante elegida</p>
+                    <p className="mt-0.5 truncate text-sm font-bold text-gray-900">{variante.nombre}</p>
+                    <p className="mt-0.5 font-mono text-[10px] text-gray-500">{variante.sku}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {(() => {
+                      const fila = variante.stocksPorSede?.find((st) => st.precioConfigurado);
+                      const efectivo = fila ? infoPrecioEfectivo(fila) : null;
+                      const rebajado = fila ? (infoLiquidacionActiva(fila) || infoOfertaActiva(fila)) : false;
+                      const stock = variante.stocksPorSede?.reduce((a, b) => a + b.cantidad, 0) ?? 0;
+                      return (
+                        <>
+                          <p className={`text-lg font-bold ${efectivo == null ? 'text-amber-600' : rebajado ? 'text-red-600' : 'text-[#004A94]'}`}>
+                            {efectivo != null ? `S/ ${Number(efectivo).toFixed(2)}` : 'sin precio'}
+                          </p>
+                          {rebajado && fila?.precio != null && (
+                            <p className="text-[10px] text-gray-400 line-through">S/ {Number(fila.precio).toFixed(2)}</p>
+                          )}
+                          <p className="mt-0.5 text-[11px] text-gray-500">stock {stock}</p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {variante.atributosValores.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-blue-200/60 pt-3">
+                    {variante.atributosValores.map((av) => (
+                      <span key={av.id} className="rounded-md bg-white px-2 py-1 text-[10px] ring-1 ring-blue-100">
+                        <span className="text-gray-400">{av.atributo.nombre}:</span>{' '}
+                        <strong className="text-gray-700">{av.valor || '—'}</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Información</h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
               {producto.sku && <div><span className="text-gray-500">SKU:</span> <span className="font-medium">{producto.sku}</span></div>}
@@ -135,6 +217,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
             </div>
+            </div>
           </div>
 
           {/* FICHA TECNICA: los atributos del producto. Existian en el payload
@@ -175,10 +258,17 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {/* Precio Niveles */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <PrecioNivelSection productoId={producto.id} />
-          </div>
+          {/* 🔴 Niveles de precio SOLO en un producto sin variantes y que no
+              sea combo, igual que el app (producto_detail_page). Con variantes
+              el precio vive en CADA variante, asi que un nivel en el padre no
+              tiene contra que aplicar — y al generar combinaciones se copia a
+              todas: un "3+ a S/72" pensado para un precio de S/75 termina
+              vendiendo bajo costo la variante de S/112. */}
+          {!producto.tieneVariantes && !producto.esCombo && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <PrecioNivelSection productoId={producto.id} />
+            </div>
+          )}
 
           {/* A cuanto se viene comprando. Se monta siempre y el propio
               componente se esconde si el producto nunca se compro: una card
@@ -316,6 +406,9 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             productoId={producto.id}
             productoNombre={producto.nombre}
             productoIsActive={producto.isActive}
+            seleccionadaId={variante?.id ?? null}
+            onSeleccionar={(v) => setVariante((actual) => (actual?.id === v.id ? null : v))}
+            onVariantesCargadas={recibirVariantes}
           />
         </div>
       )}
