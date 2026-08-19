@@ -10,13 +10,16 @@ import ImageGallery from '@/features/producto/components/ImageGallery';
 import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
+import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import { getStockByVarianteSede } from '@/features/stock/services/stock-service';
+import type { ProductoStock } from '@/core/types/stock';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
 import { nombreUnidad, infoPrecioEfectivo, infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
 import type { ProductoVariante } from '@/core/types/producto';
 
 export default function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { producto, isLoading, error } = useProductoDetail(id);
+  const { producto, isLoading, error, reload } = useProductoDetail(id);
   const { empresa } = useEmpresa();
 
   /**
@@ -26,6 +29,26 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
    */
   const [variante, setVariante] = useState<ProductoVariante | null>(null);
   const [variantesCargadas, setVariantesCargadas] = useState<ProductoVariante[]>([]);
+  /**
+   * Fila de stock que se esta editando en el dialogo de precios.
+   *
+   * 🔑 El dialogo pide un `ProductoStock` COMPLETO (necesita su `id` para
+   * guardar) y la variante solo trae `StockPorSedeInfo`, que no lo tiene: hay
+   * que ir a buscarlo por variante + sede.
+   */
+  const [stockEnEdicion, setStockEnEdicion] = useState<ProductoStock | null>(null);
+  const [abriendoPrecios, setAbriendoPrecios] = useState<string | null>(null);
+
+  const abrirPrecios = useCallback(async (varianteId: string, sedeId: string) => {
+    setAbriendoPrecios(sedeId);
+    try {
+      setStockEnEdicion(await getStockByVarianteSede(varianteId, sedeId));
+    } catch {
+      setStockEnEdicion(null);
+    } finally {
+      setAbriendoPrecios(null);
+    }
+  }, []);
   const recibirVariantes = useCallback((vs: ProductoVariante[]) => setVariantesCargadas(vs), []);
 
   /**
@@ -149,6 +172,30 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                     })()}
                   </div>
                 </div>
+
+                {/* Precio y stock POR SEDE, cada uno con su acceso al dialogo
+                    de precios: el precio, la oferta, la liquidacion y los
+                    niveles de una variante son por sede. */}
+                {(variante.stocksPorSede?.length ?? 0) > 0 && (
+                  <div className="mt-3 flex flex-col gap-1 border-t border-blue-200/60 pt-3">
+                    {variante.stocksPorSede!.map((st) => (
+                      <div key={st.sedeId} className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 ring-1 ring-blue-100">
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-700">{st.sedeNombre}</span>
+                        <span className="shrink-0 text-[11px] text-gray-500">
+                          {st.precio != null ? `S/ ${Number(st.precio).toFixed(2)}` : <span className="text-amber-600">sin precio</span>}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-gray-400">· {st.cantidad}</span>
+                        <button
+                          onClick={() => abrirPrecios(variante.id, st.sedeId)}
+                          disabled={abriendoPrecios === st.sedeId}
+                          className="shrink-0 rounded-md bg-[#004A94] px-2 py-1 text-[10px] font-bold text-white transition-colors hover:bg-[#003570] disabled:opacity-50"
+                        >
+                          {abriendoPrecios === st.sedeId ? 'Abriendo…' : 'Precios y niveles'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {variante.atributosValores.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5 border-t border-blue-200/60 pt-3">
@@ -396,6 +443,13 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </div>
+
+      <UpdatePreciosDialog
+        isOpen={!!stockEnEdicion}
+        stock={stockEnEdicion}
+        onClose={() => setStockEnEdicion(null)}
+        onSuccess={() => { setStockEnEdicion(null); reload(); }}
+      />
 
       {/* Variantes al final, pero a TODO EL ANCHO y fuera del grid de 3
           columnas: adentro compartia con la barra lateral y una tabla de 8
