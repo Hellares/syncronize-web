@@ -48,6 +48,9 @@ type LineaForm = {
   simboloPres?: string;
   costoActual?: number | null;
   precioVentaActual?: number | null;
+  /** Stock que YA hay en la sede, en unidad atomica. Sin esto no se puede
+   *  proyectar el promedio ponderado. */
+  stockActual?: number | null;
   historial?: HistorialComprasProducto | null;
   historialAbierto?: boolean;
 };
@@ -145,6 +148,7 @@ export default function NuevaCompraPage() {
               ...x,
               costoActual: costo,
               precioVentaActual: pv,
+              stockActual: stock?.stockActual != null ? Number(stock.stockActual) : null,
               ...(base != null && !x.precioUnitario ? { precioUnitario: base.toFixed(2) } : {}),
             };
           }));
@@ -186,6 +190,7 @@ export default function NuevaCompraPage() {
       ...(pres.factor > 1 ? { factorPres: pres.factor, simboloPres: pres.simbolo } : {}),
       costoActual: costo,
       precioVentaActual: info?.precio != null ? Number(info.precio) : null,
+      stockActual: info?.cantidad != null ? Number(info.cantidad) : null,
     }]);
     // El historial se pide POR VARIANTE: el del producto mezclaria hermanas.
     getHistorialComprasProducto(p.id, { varianteId: v.id, limit: 10 })
@@ -223,11 +228,78 @@ export default function NuevaCompraPage() {
     if (precio <= 0) return null;
     return precio / (factorEmpaque(l) * factorPresentacion(l));
   };
-  /** La linea deja el producto vendiendose a perdida. */
+  /** Cantidad de la linea en unidad ATOMICA, que es como se guarda el stock. */
+  const cantidadAtomica = (l: LineaForm) =>
+    numVal(l.cantidad) * factorEmpaque(l) * factorPresentacion(l);
+
+  /**
+   * Costo del producto DESPUES de recibir esta linea: promedio ponderado entre
+   * lo que ya hay en la sede y lo que entra. El backend hace la misma cuenta al
+   * confirmar; esto es el preview que deja decidir el precio de venta nuevo.
+   *
+   * 🔴 Es ESTE —y no el precio de la linea— el que hay que comparar contra la
+   * venta: comprar caro 2 unidades cuando ya hay 500 baratas casi no mueve el
+   * costo, y bloquear por el precio de la linea seria una falsa alarma. Al
+   * reves, un lote grande y caro hunde el margen aunque la linea sola parezca
+   * sana.
+   */
+  const costoProyectado = (l: LineaForm): number | null => {
+    const precioNuevo = costoUnitarioVenta(l);
+    const cantNueva = cantidadAtomica(l);
+    if (precioNuevo == null || precioNuevo <= 0 || cantNueva <= 0) return l.costoActual ?? null;
+    const stockPrev = l.stockActual ?? 0;
+    const costoPrev = l.costoActual ?? 0;
+    // Sin stock previo no hay nada que promediar: el costo es el que entra.
+    if (stockPrev <= 0 || costoPrev <= 0) return precioNuevo;
+    const ponderado = (stockPrev * costoPrev + cantNueva * precioNuevo) / (stockPrev + cantNueva);
+    return Math.round(ponderado * 1e4) / 1e4;
+  };
+
+  /** Margen con el que se vende HOY, para poder sostenerlo sobre el costo nuevo. */
+  const margenActualPct = (l: LineaForm): number | null => {
+    const precio = l.precioVentaActual;
+    const costo = l.costoActual;
+    if (precio == null || costo == null || costo <= 0) return null;
+    return ((precio - costo) / costo) * 100;
+  };
+
+  /**
+   * A cuanto quedaria vendiendose tras esta compra, por unidad de VENTA.
+   *
+   * 🔑 Toma en cuenta el precio nuevo que el usuario acaba de escribir. Sin
+   * esto, la guarda bloquea y escribir el precio nuevo NO la libera: el
+   * formulario queda sin salida justo en el caso para el que existe.
+   */
+  const precioVentaEfectivo = (l: LineaForm): number | null => {
+    const nuevo = numVal(l.nuevoPrecioVenta ?? '');
+    if (nuevo > 0) return nuevo / factorPresentacion(l);
+    return l.precioVentaActual ?? null;
+  };
+
+  /** 🔴 Se venderia con PERDIDA: el costo que DEJA esta compra supera la venta. */
   const superaPrecioVenta = (l: LineaForm): boolean => {
-    const costo = costoUnitarioVenta(l);
-    return costo != null && l.precioVentaActual != null && l.precioVentaActual > 0
-      && costo > l.precioVentaActual;
+    if (costoUnitarioVenta(l) == null) return false; // todavia sin precio de compra
+    const costo = costoProyectado(l);
+    const venta = precioVentaEfectivo(l);
+    if (costo == null || venta == null || venta <= 0) return false;
+    return costo > venta;
+  };
+
+  /** Sugerencia: el precio que MANTIENE el margen actual sobre el costo nuevo. */
+  const sugerenciaMantenerMargen = (l: LineaForm): number | null => {
+    const margen = margenActualPct(l);
+    const costoNuevo = costoProyectado(l);
+    if (margen == null || costoNuevo == null) return null;
+    // En la unidad en la que se ESCRIBE el campo (presentacion).
+    return Math.round(costoNuevo * (1 + margen / 100) * factorPresentacion(l) * 100) / 100;
+  };
+
+  /** Sugerencia: costo nuevo + 10%. Siempre cubre el costo, a diferencia de
+   *  basarse en la venta vieja, que ante un salto de costo queda por debajo. */
+  const sugerenciaMas10 = (l: LineaForm): number | null => {
+    const costoNuevo = costoProyectado(l);
+    if (costoNuevo == null || costoNuevo <= 0) return null;
+    return Math.round(costoNuevo * 1.1 * factorPresentacion(l) * 100) / 100;
   };
   /** Cantidad fraccionaria que NINGUN factor puede aplanar a entero. */
   const cantidadNoRepresentable = (l: LineaForm): boolean => {
@@ -535,6 +607,36 @@ export default function NuevaCompraPage() {
                             onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
                             className={`${INPUT_STD} w-20 px-2 text-right`}
                             title="Opcional: actualiza el precio de venta del producto al confirmar la compra (queda en el historial de precios)" />
+                          {l.simboloPres && <span className="text-[10px] text-gray-400">por {l.simboloPres}</span>}
+                          {/* Sugerencias sobre el COSTO NUEVO, no sobre el viejo:
+                              ante un salto de costo, un precio calculado sobre
+                              el costo anterior queda por debajo. */}
+                          {(() => {
+                            const mantener = sugerenciaMantenerMargen(l);
+                            const mas10 = sugerenciaMas10(l);
+                            const margen = margenActualPct(l);
+                            if (mantener == null && mas10 == null) return null;
+                            return (
+                              <>
+                                {mantener != null && (
+                                  <button type="button"
+                                    onClick={() => actualizar(i, 'nuevoPrecioVenta', String(mantener))}
+                                    title={margen != null ? `Mantiene el margen actual (${margen.toFixed(1)}%) sobre el costo nuevo` : undefined}
+                                    className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#004A94] hover:bg-blue-100">
+                                    margen {margen != null ? `${margen.toFixed(0)}%` : ''} → {sim(moneda)} {mantener.toFixed(2)}
+                                  </button>
+                                )}
+                                {mas10 != null && (
+                                  <button type="button"
+                                    onClick={() => actualizar(i, 'nuevoPrecioVenta', String(mas10))}
+                                    title="Costo nuevo + 10%: siempre cubre el costo"
+                                    className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#004A94] hover:bg-blue-100">
+                                    +10% → {sim(moneda)} {mas10.toFixed(2)}
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </label>
                       )}
                     </div>
@@ -551,6 +653,22 @@ export default function NuevaCompraPage() {
                       return (
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-gray-400">
                           {l.costoActual != null && l.costoActual > 0 && <span>Costo actual: {sim(moneda)} {l.costoActual.toFixed(2)}</span>}
+                          {(() => {
+                            // El numero que decide el precio de venta nuevo: a
+                            // cuanto queda el costo del producto DESPUES de
+                            // recibir esta linea (promedio ponderado con lo que
+                            // ya hay), no lo que se paga en esta compra.
+                            const proy = costoProyectado(l);
+                            if (proy == null || proy <= 0 || costoUnitNuevo == null) return null;
+                            const prev = l.costoActual ?? 0;
+                            const salto = prev > 0 ? ((proy - prev) / prev) * 100 : null;
+                            return (
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 font-semibold text-[#004A94]">
+                                Costo nuevo: {sim(moneda)} {proy.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}
+                                {salto != null && Math.abs(salto) >= 0.5 && ` (${salto > 0 ? '▲' : '▼'}${Math.abs(salto).toFixed(1)}%)`}
+                              </span>
+                            );
+                          })()}
                           {l.precioVentaActual != null && l.precioVentaActual > 0 && <span>Precio venta: {sim(moneda)} {l.precioVentaActual.toFixed(2)}</span>}
                           {ultimoCosto != null && (
                             <span>
