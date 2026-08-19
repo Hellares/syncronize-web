@@ -22,6 +22,13 @@ const FILTROS: { label: string; value?: EstadoOrdenCompra }[] = [
   { label: 'Completadas', value: 'COMPLETADA' },
 ];
 
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de los formularios del modulo. En la barra de filtros los controles NO
+// son w-full: el ancho lo pone cada uno.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
+
 export default function OrdenesCompraPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -79,18 +86,18 @@ export default function OrdenesCompraPage() {
         </div>
         {sedes.filter(s => s.isActive).length > 1 && (
           <select value={sedeId} onChange={(e) => setSedeId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]">
+            className={INPUT_STD}>
             <option value="">Todas las sedes</option>
             {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
           </select>
         )}
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 outline-none focus:border-[#437EFF]">
+          className={INPUT_STD}>
           <option value="">Todos los proveedores</option>
           {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
         <input
-          className="ml-auto w-full max-w-xs rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+          className={`${INPUT_STD} ml-auto w-full max-w-xs`}
           placeholder="Buscar por código o proveedor…"
           value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>

@@ -13,7 +13,11 @@ import {
 const sim = (m: string) => (m === 'USD' ? '$' : 'S/');
 const num = (v: number | string | null | undefined) => Number(v ?? 0);
 const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
-const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de `servicios/nueva`, `CotizacionForm` y los formularios de compra. El
+// ring va BAKED porque aca el error es un banner, no una marca por campo.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 export default function OrdenCompraDetallePage() {
   const params = useParams();
@@ -274,13 +278,13 @@ function RecibirDialog({ ordenId, moneda, terminosPago, onDone, onClose }: {
                     Recibir:
                     <input type="number" min={0} max={d.cantidadPendiente} value={cantidades[d.id] ?? ''}
                       onChange={e => setCantidades(prev => ({ ...prev, [d.id]: e.target.value }))}
-                      className="w-20 rounded border border-gray-200 px-2 py-1 text-right text-sm" />
+                      className={`${INPUT_STD} w-20 px-2 text-right`} />
                   </label>
                   <label className="flex items-center gap-1">
                     P. unit ({sim(moneda)}):
                     <input type="number" step="0.01" min={0} placeholder={num(d.precioUnitario).toFixed(2)} value={precios[d.id] ?? ''}
                       onChange={e => setPrecios(prev => ({ ...prev, [d.id]: e.target.value }))}
-                      className="w-24 rounded border border-gray-200 px-2 py-1 text-right text-sm"
+                      className={`${INPUT_STD} w-24 px-2 text-right`}
                       title="Solo si el precio real difiere del de la orden" />
                   </label>
                 </div>
@@ -290,17 +294,17 @@ function RecibirDialog({ ordenId, moneda, terminosPago, onDone, onClose }: {
             <div className="grid grid-cols-3 gap-2 pt-1">
               <div>
                 <label className="mb-1 block text-[10px] font-medium text-gray-500">Doc. proveedor</label>
-                <select className={inputClass} value={tipoDoc} onChange={e => setTipoDoc(e.target.value)}>
+                <select className={INPUT_STD} value={tipoDoc} onChange={e => setTipoDoc(e.target.value)}>
                   {TIPOS_DOC_PROVEEDOR.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-medium text-gray-500">Serie</label>
-                <input className={inputClass} value={serie} onChange={e => setSerie(e.target.value)} placeholder="F001" />
+                <input className={INPUT_STD} value={serie} onChange={e => setSerie(e.target.value)} placeholder="F001" />
               </div>
               <div>
                 <label className="mb-1 block text-[10px] font-medium text-gray-500">N°</label>
-                <input className={inputClass} value={numero} onChange={e => setNumero(e.target.value)} placeholder="00012" />
+                <input className={INPUT_STD} value={numero} onChange={e => setNumero(e.target.value)} placeholder="00012" />
               </div>
             </div>
           </div>

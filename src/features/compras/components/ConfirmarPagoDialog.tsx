@@ -13,9 +13,12 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass =
-  'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
-const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de `servicios/nueva`, `CotizacionForm` y los formularios de compra. El
+// ring va BAKED porque aca el error es un banner, no una marca por campo.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const METODOS: MetodoPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'YAPE', 'PLIN', 'TARJETA'];
@@ -93,18 +96,18 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
 
         <div className="space-y-3">
           <div>
-            <label className={labelClass}>Método de pago</label>
-            <select className={inputClass} value={metodo} onChange={(e) => onMetodo(e.target.value as MetodoPago)}>
+            <label className={LABEL}>Método de pago</label>
+            <select className={INPUT_STD} value={metodo} onChange={(e) => onMetodo(e.target.value as MetodoPago)}>
               {METODOS.map((m) => <option key={m} value={m}>{m[0] + m.slice(1).toLowerCase()}</option>)}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Monto (máx {sim(moneda)} {total.toFixed(2)})</label>
-            <input className={inputClass} value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="decimal" />
+            <label className={LABEL}>Monto (máx {sim(moneda)} {total.toFixed(2)})</label>
+            <input className={INPUT_STD} value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="decimal" />
           </div>
           <div>
-            <label className={labelClass}>Sale de</label>
-            <select className={inputClass} value={fuente} onChange={(e) => { setFuente(e.target.value as FuentePagoCompra); }}>
+            <label className={LABEL}>Sale de</label>
+            <select className={INPUT_STD} value={fuente} onChange={(e) => { setFuente(e.target.value as FuentePagoCompra); }}>
               {fuentes.map((f) => (
                 <option key={f} value={f}>
                   {f === 'TESORERIA' ? 'Tesorería (Caja Central)' : f === 'CAJA' ? 'Caja (mi caja abierta)' : 'Banco (cuenta de la empresa)'}
@@ -119,8 +122,8 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
               </div>
             ) : (
               <div>
-                <label className={labelClass}>Cuenta bancaria</label>
-                <select className={inputClass} value={bancoId} onChange={(e) => setBancoId(e.target.value)}>
+                <label className={LABEL}>Cuenta bancaria</label>
+                <select className={INPUT_STD} value={bancoId} onChange={(e) => setBancoId(e.target.value)}>
                   {bancosCompatibles.map((b) => (
                     <option key={b.id} value={b.id}>{b.nombreBanco} ·· {b.numeroCuenta} ({b.moneda ?? 'PEN'})</option>
                   ))}
