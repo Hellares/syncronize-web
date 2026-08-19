@@ -98,6 +98,19 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
 
+          {/* Variantes ARRIBA: en un producto con 91 variantes es lo que se
+              viene a ver, y quedaba despues de dimensiones, precios por nivel
+              y combo — al final de una pagina larga. */}
+          {producto.tieneVariantes && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <VarianteList
+                productoId={producto.id}
+                productoNombre={producto.nombre}
+                productoIsActive={producto.isActive}
+              />
+            </div>
+          )}
+
           {/* Dimensiones */}
           {producto.dimensiones && Object.keys(producto.dimensiones).length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -145,16 +158,6 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             </>
           )}
 
-          {/* Variants */}
-          {producto.tieneVariantes && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <VarianteList
-                productoId={producto.id}
-                productoNombre={producto.nombre}
-                productoIsActive={producto.isActive}
-              />
-            </div>
-          )}
         </div>
 
         {/* Sidebar */}
