@@ -801,66 +801,72 @@ export default function NuevaCompraPage() {
                   <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Comprar por</p>
 
-                    {conEmpaque && (
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => toggleEmpaque(i, true)}
-                          className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-                            l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
-                          }`}>
-                          <p className={`text-xs font-bold ${l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
-                            {l.unidadCompraNombre}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-gray-500">
-                            ×{factorVigente.toLocaleString('es-PE')} {l.unidadVentaSimbolo}
-                          </p>
-                        </button>
-                        <button type="button" onClick={() => toggleEmpaque(i, false)}
-                          className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-                            !l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
-                          }`}>
-                          <p className={`text-xs font-bold ${!l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
-                            {l.simboloPres ?? l.unidadVentaSimbolo}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-gray-500">
-                            {factorDisplay(l) > 1 ? `×${factorDisplay(l).toLocaleString('es-PE')} ${l.unidadVentaSimbolo}` : '×1'}
-                          </p>
-                        </button>
-                      </div>
-                    )}
+                    {/* Todo en una fila: los chips, el empaque de este lote y
+                        la equivalencia. Apilado ocupaba tres alturas para tres
+                        datos cortos. */}
+                    <div className="mt-2 flex flex-wrap items-end gap-2">
+                      {conEmpaque && (
+                        <>
+                          <button type="button" onClick={() => toggleEmpaque(i, true)}
+                            className={`w-[118px] shrink-0 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
+                              l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                            }`}>
+                            <p className={`truncate text-xs font-bold ${l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                              {l.unidadCompraNombre}
+                            </p>
+                            <p className="truncate text-[10px] text-gray-500">
+                              ×{sinCeros(factorVigente, 3)} {l.unidadVentaSimbolo}
+                            </p>
+                          </button>
+                          <button type="button" onClick={() => toggleEmpaque(i, false)}
+                            className={`w-[118px] shrink-0 rounded-lg border px-2.5 py-1.5 text-left transition-colors ${
+                              !l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                            }`}>
+                            <p className={`truncate text-xs font-bold ${!l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                              {l.simboloPres ?? l.unidadVentaSimbolo}
+                            </p>
+                            <p className="truncate text-[10px] text-gray-500">
+                              {fpres > 1 ? `×${sinCeros(fpres, 3)} ${l.unidadVentaSimbolo}` : '×1'}
+                            </p>
+                          </button>
+                        </>
+                      )}
 
-                    {/* El empaque real de ESTE lote: el saco pudo venir con otra
-                        cantidad que la configurada en el producto. */}
-                    {conEmpaque && l.usaUnidadCompra && (
-                      <div className="mt-2.5">
-                        <label className="mb-1 block text-[10px] font-semibold text-gray-600">
-                          {l.unidadVentaSimbolo} por {l.unidadCompraNombre}
-                        </label>
-                        <input type="text" inputMode="decimal"
-                          className={`${INPUT_STD} w-36 text-right`}
-                          placeholder={String(l.factorProducto ?? '')}
-                          value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
-                        {l.factorProducto != null && Math.abs(factorVigente - l.factorProducto) > 1e-9 && (
-                          <p className="mt-1 text-[10px] leading-snug text-orange-700">
-                            Empaque distinto al configurado ({l.factorProducto.toLocaleString('es-PE')}).
-                            Aplica solo a esta compra.
-                          </p>
-                        )}
-                      </div>
-                    )}
+                      {/* El empaque real de ESTE lote: el saco pudo venir con
+                          otra cantidad que la configurada en el producto. */}
+                      {conEmpaque && l.usaUnidadCompra && (
+                        <div className="w-[118px] shrink-0">
+                          <label className="mb-1 block truncate text-[10px] font-semibold text-gray-600">
+                            {l.unidadVentaSimbolo} por {l.unidadCompraNombre}
+                          </label>
+                          <input type="text" inputMode="decimal"
+                            className={`${INPUT_STD} text-right`}
+                            placeholder={String(l.factorProducto ?? '')}
+                            value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
+                        </div>
+                      )}
 
-                    {/* Lo que REALMENTE entra al stock. Sin esto, cargar 3 sacos
-                        y ver 66 000 recien en el detalle se lee como un error. */}
-                    {entranAlStock > 0 && costoAtomico != null && (
-                      <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2 text-[11px] font-semibold text-green-800">
-                        <span>
-                          Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
-                        </span>
-                        {costoPorEmpaque != null && (
-                          <>
-                            <span className="text-green-600/60">·</span>
-                            <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
-                          </>
-                        )}
+                      {/* Lo que REALMENTE entra al stock. Sin esto, cargar 3
+                          sacos y ver 66 kg recien en el detalle asusta. */}
+                      {entranAlStock > 0 && costoAtomico != null && (
+                        <p className="ml-auto flex flex-wrap items-baseline justify-end gap-x-2 text-right text-[11px] font-semibold leading-tight text-green-800">
+                          <span>
+                            Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
+                          </span>
+                          {costoPorEmpaque != null && (
+                            <>
+                              <span className="text-green-600/60">·</span>
+                              <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
+                            </>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    {conEmpaque && l.usaUnidadCompra && l.factorProducto != null
+                      && Math.abs(factorVigente - l.factorProducto) > 1e-9 && (
+                      <p className="mt-1.5 text-[10px] leading-snug text-orange-700">
+                        Empaque distinto al configurado ({sinCeros(l.factorProducto, 3)}). Aplica solo a esta compra.
                       </p>
                     )}
                   </div>
