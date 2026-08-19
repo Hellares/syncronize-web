@@ -584,19 +584,32 @@ export default function NuevaCompraPage() {
             const activa = seleccionada === i;
             return (
               <button key={i} onClick={() => setSeleccionada(i)}
-                className={`flex w-full items-center gap-3 border-b border-l-[3px] border-b-gray-50 px-3 py-2.5 text-left transition-colors ${est.borde} ${activa ? 'bg-blue-50/60' : 'hover:bg-gray-50'}`}>
+                // La fila elegida se trae a la vista sola: con 20 lineas, la que
+                // se acaba de agregar queda abajo y fuera de pantalla.
+                ref={activa ? (el) => el?.scrollIntoView({ block: 'nearest' }) : undefined}
+                className={`relative flex w-full items-center gap-3 border-b border-l-[3px] border-b-gray-50 py-2.5 pr-3 text-left transition-colors ${est.borde} ${
+                  activa ? 'bg-blue-50 pl-4' : 'pl-3 hover:bg-gray-50'
+                }`}>
+                {/* Barra de seleccion: va a la DERECHA del borde de estado, que
+                    ya usa el color para decir OK / sin costo / bajo costo. */}
+                {activa && <span className="absolute inset-y-0 left-0 w-1 bg-[#004A94]" />}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-gray-900">{l.descripcion || 'Línea nueva'}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-gray-500">
+                  <p className={`truncate text-xs font-semibold ${activa ? 'text-[#004A94]' : 'text-gray-900'}`}>
+                    {l.descripcion || 'Línea nueva'}
+                  </p>
+                  <p className={`mt-0.5 truncate text-[10px] ${activa ? 'text-[#437EFF]' : 'text-gray-500'}`}>
                     {numVal(l.cantidad) || 0}{l.simboloPres ? ` ${l.simboloPres}` : ''} × {sinCosto(l) ? '—' : `${sim(moneda)} ${numVal(l.precioUnitario).toFixed(2)}`}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-xs font-bold text-gray-900">
+                  <p className={`text-xs font-bold ${activa ? 'text-[#004A94]' : 'text-gray-900'}`}>
                     {sinCosto(l) ? '—' : `${sim(moneda)} ${(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}`}
                   </p>
                   <p className={`mt-0.5 text-[9px] font-bold ${est.color}`}>{est.txt}</p>
                 </div>
+                {/* La flecha dice cual esta abierta a la derecha, sin depender
+                    solo del color de fondo. */}
+                <span className={`shrink-0 text-sm leading-none ${activa ? 'text-[#004A94]' : 'text-transparent'}`}>›</span>
               </button>
             );
           })}
