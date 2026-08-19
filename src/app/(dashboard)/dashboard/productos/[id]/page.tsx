@@ -64,20 +64,6 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* Variantes PRIMERO y a TODO EL ANCHO, fuera del grid de 3 columnas.
-          Adentro se comian 1/3 con la barra lateral, y una tabla de 8 columnas
-          —un eje por atributo— no entra en dos tercios. En un producto con 91
-          variantes es ademas lo que se viene a ver. */}
-      {producto.tieneVariantes && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <VarianteList
-            productoId={producto.id}
-            productoNombre={producto.nombre}
-            productoIsActive={producto.isActive}
-          />
-        </div>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Image + Info */}
         <div className="lg:col-span-2 space-y-4">
@@ -232,6 +218,19 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       </div>
+
+      {/* Variantes al final, pero a TODO EL ANCHO y fuera del grid de 3
+          columnas: adentro compartia con la barra lateral y una tabla de 8
+          columnas —un eje por atributo— no entra en dos tercios. */}
+      {producto.tieneVariantes && (
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <VarianteList
+            productoId={producto.id}
+            productoNombre={producto.nombre}
+            productoIsActive={producto.isActive}
+          />
+        </div>
+      )}
     </div>
   );
 }
