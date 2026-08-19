@@ -352,6 +352,7 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
 
       {/* Dialogs */}
       <VarianteFormDialog
+        hermanas={variantes.filter((v) => v.id !== editingVariante?.id)}
         isOpen={formOpen}
         variante={editingVariante}
         atributosDisponibles={atributosDisponibles}

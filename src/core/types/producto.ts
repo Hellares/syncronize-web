@@ -134,6 +134,9 @@ export interface ProductoVariante {
   atributosValores: AtributoValor[];
   peso?: number;
   dimensiones?: Record<string, number>;
+  /** Unidad PROPIA de la variante. El backend la manda plana; el objeto
+   *  `unidadMedida` puede no venir en el primer payload. */
+  unidadMedidaId?: string | null;
   unidadMedida?: UnidadMedidaRef;
   /** Unidad de PRESENTACION propia: un granel se guarda en gramos y se habla en kg. */
   unidadPresentacionId?: string | null;
@@ -394,6 +397,14 @@ export interface AtributoPlantilla {
 export interface CreateVarianteDto {
   nombre: string;
   sku: string;
+  /** Unidad PROPIA de la variante: un SACO en 'und' bajo un producto en gramos. */
+  unidadMedidaId?: string | null;
+  /** Presentacion propia: el granel se guarda en gramos y se habla en kg. */
+  unidadPresentacionId?: string | null;
+  factorPresentacion?: number | null;
+  /** Apertura de bulto: en que variante se convierte al abrirla, y cuanto rinde. */
+  varianteAperturaId?: string | null;
+  rendimientoApertura?: number | null;
   codigoBarras?: string;
   atributosEstructurados?: Array<{ atributoId: string; valor: string }>;
   peso?: number;

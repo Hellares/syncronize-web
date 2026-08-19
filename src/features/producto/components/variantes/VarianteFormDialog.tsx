@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import type { ProductoVariante, ProductoAtributo, CreateVarianteDto } from '@/core/types/producto';
+import type { EmpresaUnidadMedida } from '@/core/types/catalogo';
+import { getUnidadesEmpresa } from '@/features/catalogo/services/catalogo-service';
 
 interface Props {
   isOpen: boolean;
   variante?: ProductoVariante | null;
   atributosDisponibles: ProductoAtributo[];
   productoIsActive: boolean;
+  /** Hermanas: el destino de una apertura tiene que ser otra variante del MISMO producto. */
+  hermanas?: ProductoVariante[];
   isSubmitting: boolean;
   onSave: (data: CreateVarianteDto) => void;
   onClose: () => void;
@@ -17,6 +21,7 @@ const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm o
 
 export default function VarianteFormDialog({
   isOpen, variante, atributosDisponibles, productoIsActive, isSubmitting, onSave, onClose,
+  hermanas = [],
 }: Props) {
   const isEditing = !!variante;
 
@@ -26,6 +31,14 @@ export default function VarianteFormDialog({
   const [peso, setPeso] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [atributos, setAtributos] = useState<Record<string, string>>({});
+  // Unidad, presentacion y apertura: los campos que el app si tiene y sin los
+  // cuales un par SACO->GRANEL no se puede configurar desde la web.
+  const [unidadMedidaId, setUnidadMedidaId] = useState('');
+  const [unidadPresentacionId, setUnidadPresentacionId] = useState('');
+  const [factorPresentacion, setFactorPresentacion] = useState('');
+  const [varianteAperturaId, setVarianteAperturaId] = useState('');
+  const [rendimientoApertura, setRendimientoApertura] = useState('');
+  const [unidades, setUnidades] = useState<EmpresaUnidadMedida[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -39,6 +52,11 @@ export default function VarianteFormDialog({
         const attrMap: Record<string, string> = {};
         variante.atributosValores.forEach(av => { attrMap[av.atributoId] = av.valor; });
         setAtributos(attrMap);
+        setUnidadMedidaId(variante.unidadMedidaId ?? '');
+        setUnidadPresentacionId(variante.unidadPresentacionId ?? '');
+        setFactorPresentacion(variante.factorPresentacion != null ? String(variante.factorPresentacion) : '');
+        setVarianteAperturaId(variante.varianteAperturaId ?? '');
+        setRendimientoApertura(variante.rendimientoApertura != null ? String(variante.rendimientoApertura) : '');
       } else {
         setNombre('');
         setSku('');
@@ -46,10 +64,28 @@ export default function VarianteFormDialog({
         setPeso('');
         setIsActive(true);
         setAtributos({});
+        setUnidadMedidaId('');
+        setUnidadPresentacionId('');
+        setFactorPresentacion('');
+        setVarianteAperturaId('');
+        setRendimientoApertura('');
       }
       setErrors({});
     }
   }, [isOpen, variante]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let vivo = true;
+    getUnidadesEmpresa()
+      .then((u) => { if (vivo) setUnidades(u.filter((x) => x.isActive)); })
+      .catch(() => { if (vivo) setUnidades([]); });
+    return () => { vivo = false; };
+  }, [isOpen]);
+
+  /** Como se llama una unidad, con el mismo orden que resuelve el backend. */
+  const nombreUni = (u: EmpresaUnidadMedida) =>
+    u.nombrePersonalizado ?? u.nombreLocal ?? u.unidadMaestra?.nombre ?? u.id;
 
   const generateSku = () => {
     const prefix = nombre.trim().slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'X') || 'VAR';
@@ -61,6 +97,15 @@ export default function VarianteFormDialog({
     const newErrors: Record<string, string> = {};
     if (!nombre.trim()) newErrors.nombre = 'El nombre es requerido';
     if (!sku.trim()) newErrors.sku = 'El SKU es requerido';
+    // 🔴 El destino de la apertura exige rendimiento: sin el, el vinculo queda
+    // a medias y la apertura no se puede ejecutar (la regla del granel lo
+    // considera "no es un bulto").
+    if (varianteAperturaId && !(parseFloat(rendimientoApertura) > 0)) {
+      newErrors.rendimientoApertura = 'Indicá cuánto rinde al abrir 1 unidad';
+    }
+    if (unidadPresentacionId && !(parseFloat(factorPresentacion) > 1)) {
+      newErrors.factorPresentacion = 'El factor tiene que ser mayor a 1 (ej: 1000 para kg→g)';
+    }
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     const atributosEstructurados = Object.entries(atributos)
@@ -74,6 +119,14 @@ export default function VarianteFormDialog({
       ...(peso && { peso: parseFloat(peso) }),
       isActive,
       ...(atributosEstructurados.length > 0 && { atributosEstructurados }),
+      // Se mandan SIEMPRE, incluso en null: el update del backend usa
+      // `if (x !== undefined)`, asi que omitirlos impide APAGAR una unidad o
+      // desarmar un vinculo de apertura ya cargado.
+      unidadMedidaId: unidadMedidaId || null,
+      unidadPresentacionId: unidadPresentacionId || null,
+      factorPresentacion: unidadPresentacionId ? parseFloat(factorPresentacion) : null,
+      varianteAperturaId: varianteAperturaId || null,
+      rendimientoApertura: varianteAperturaId ? parseFloat(rendimientoApertura) : null,
     };
     onSave(data);
   };
@@ -120,6 +173,90 @@ export default function VarianteFormDialog({
               <input className={inputClass} type="number" step="0.001" value={peso} onChange={e => setPeso(e.target.value)} placeholder="0.000" />
             </div>
           </div>
+
+          {/* UNIDAD Y PRESENTACION PROPIAS
+              Sin esto no se puede armar un par SACO->GRANEL desde la web: el
+              saco necesita su unidad (und) bajo un producto en gramos, y el
+              granel necesita su presentacion (kg x1000) para que el precio se
+              cobre por kilo y no por gramo. */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Unidad y presentación</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Unidad propia</label>
+                <select className={inputClass} value={unidadMedidaId} onChange={e => setUnidadMedidaId(e.target.value)}>
+                  <option value="">Hereda la del producto</option>
+                  {unidades.map(u => <option key={u.id} value={u.id}>{nombreUni(u)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Se habla en</label>
+                <select className={inputClass} value={unidadPresentacionId} onChange={e => setUnidadPresentacionId(e.target.value)}>
+                  <option value="">Sin presentación</option>
+                  {unidades.map(u => <option key={u.id} value={u.id}>{nombreUni(u)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Equivale a</label>
+                <input
+                  className={inputClass}
+                  type="number"
+                  step="any"
+                  value={factorPresentacion}
+                  onChange={e => setFactorPresentacion(e.target.value)}
+                  placeholder="1000"
+                  disabled={!unidadPresentacionId}
+                />
+                {errors.factorPresentacion && <p className="mt-1 text-[11px] text-red-500">{errors.factorPresentacion}</p>}
+              </div>
+            </div>
+            {unidadPresentacionId && (
+              <p className="mt-2 text-[11px] text-gray-500">
+                1 {unidades.find(u => u.id === unidadPresentacionId) ? nombreUni(unidades.find(u => u.id === unidadPresentacionId)!) : '—'}
+                {' = '}{factorPresentacion || '…'}{' '}
+                {unidadMedidaId && unidades.find(u => u.id === unidadMedidaId) ? nombreUni(unidades.find(u => u.id === unidadMedidaId)!) : 'unidades de venta'}
+              </p>
+            )}
+          </div>
+
+          {/* APERTURA DE BULTO
+              Un SACO apunta al GRANEL en el que se convierte al abrirlo. Es lo
+              que distingue lo que se COMPRA de lo que entra al abrir, y sin
+              esto la regla del granel no se puede configurar desde la web. */}
+          {hermanas.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Apertura de bulto</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Al abrirla se convierte en</label>
+                  <select className={inputClass} value={varianteAperturaId} onChange={e => setVarianteAperturaId(e.target.value)}>
+                    <option value="">No se abre</option>
+                    {hermanas.map(h => <option key={h.id} value={h.id}>{h.nombre}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Rinde (por unidad)</label>
+                  <input
+                    className={inputClass}
+                    type="number"
+                    step="any"
+                    value={rendimientoApertura}
+                    onChange={e => setRendimientoApertura(e.target.value)}
+                    placeholder="15000"
+                    disabled={!varianteAperturaId}
+                  />
+                  {errors.rendimientoApertura && <p className="mt-1 text-[11px] text-red-500">{errors.rendimientoApertura}</p>}
+                </div>
+              </div>
+              {varianteAperturaId && (
+                <p className="mt-2 text-[11px] text-gray-500">
+                  Abrir 1 de esta variante suma {rendimientoApertura || '…'} al stock de{' '}
+                  <strong className="text-gray-700">{hermanas.find(h => h.id === varianteAperturaId)?.nombre ?? '—'}</strong>,
+                  y esta variante deja de estar comprable como granel.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Estado */}
           <div className="flex items-center justify-between">
