@@ -873,23 +873,53 @@ export default function NuevaCompraPage() {
                   <div className="grid gap-3 lg:grid-cols-3">
 
                     <div className="rounded-lg border border-gray-100 bg-slate-50/60 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Costo</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Costo del producto</p>
+                      {/* 🔴 El costo se guarda por unidad ATOMICA (gramo). El
+                          titular va en la unidad en la que se habla del
+                          producto; el desglose de abajo da las otras. */}
                       <p className="mt-2 flex items-baseline gap-2">
-                        {l.costoActual != null && l.costoActual > 0 && (
-                          <span className="text-xs text-gray-400 line-through">{sim(moneda)} {l.costoActual.toFixed(2)}</span>
+                        {costoActualMostrado != null && (
+                          <span className="text-xs text-gray-400 line-through">{fmtMon(costoActualMostrado)}</span>
                         )}
                         <span className="text-lg font-bold text-[#004A94]">
-                          {proy != null ? `${sim(moneda)} ${proy.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}` : '—'}
+                          {proy != null ? `${sim(moneda)} ${sinCeros(proy * fpres, 4)}` : '—'}
                         </span>
+                        {proy != null && <span className="text-[10px] text-gray-400">/{unidadEquiv}</span>}
                       </p>
                       {saltoCosto != null && Math.abs(saltoCosto) >= 0.5 && (
                         <p className={`mt-1 text-[11px] font-bold ${saltoCosto > 0 ? 'text-red-600' : 'text-green-700'}`}>
                           {saltoCosto > 0 ? '▲' : '▼'} {Math.abs(saltoCosto).toFixed(1)}% sobre el actual
                         </p>
                       )}
+
+                      {/* El mismo costo en las tres unidades que se usan: la de
+                          stock (gramo), la que se habla (kilo) y la que cotiza
+                          el proveedor (saco). Evita hacer la regla de tres a
+                          mano para cruzarlo contra la factura. */}
+                      {proy != null && (fpres > 1 || costoPorEmpaque != null) && (
+                        <div className="mt-2 flex flex-col gap-0.5 border-t border-gray-200/70 pt-2">
+                          {fpres > 1 && (
+                            <div className="flex items-baseline justify-between text-[10px]">
+                              <span className="text-gray-400">por {l.unidadVentaSimbolo}</span>
+                              <span className="font-semibold text-gray-600">{sim(moneda)} {sinCeros(proy, 6)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-baseline justify-between text-[10px]">
+                            <span className="text-gray-400">por {unidadEquiv}</span>
+                            <span className="font-semibold text-gray-700">{sim(moneda)} {sinCeros(proy * fpres, 4)}</span>
+                          </div>
+                          {conEmpaque && factorVigente > 1 && (
+                            <div className="flex items-baseline justify-between text-[10px]">
+                              <span className="text-gray-400">por {l.unidadCompraNombre}</span>
+                              <span className="font-semibold text-gray-700">{sim(moneda)} {sinCeros(proy * factorVigente, 2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <p className="mt-1.5 text-[10px] leading-snug text-gray-400">
                         {l.stockActual != null && l.stockActual > 0
-                          ? `Promedio ponderado entre ${l.stockActual.toLocaleString('es-PE')} que ya hay y lo que entra.`
+                          ? `Promedio ponderado entre ${sinCeros(l.stockActual / fpres, 3)} ${unidadEquiv} que ya hay y lo que entra.`
                           : 'Sin stock previo: el costo es el de esta compra.'}
                       </p>
                     </div>
