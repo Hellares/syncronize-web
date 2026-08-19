@@ -629,6 +629,18 @@ export default function NuevaCompraPage() {
             ? ((costoUnit - Number(ultimoCosto)) / Number(ultimoCosto)) * 100 : null;
           const saltoCosto = proy != null && l.costoActual != null && l.costoActual > 0
             ? ((proy - l.costoActual) / l.costoActual) * 100 : null;
+          // Todo lo de PRECIO se muestra en la unidad en la que se escribe: el
+          // backend guarda por unidad de venta (gramo) y el usuario habla en kg.
+          const fpres = factorPresentacion(l);
+          const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
+          const costoActualMostrado = l.costoActual != null && l.costoActual > 0
+            ? l.costoActual * fpres : null;
+          const ventaActualMostrada = l.precioVentaActual != null && l.precioVentaActual > 0
+            ? l.precioVentaActual * fpres : null;
+          const ventaEscrita = numVal(l.nuevoPrecioVenta ?? '');
+          const ventaNueva = ventaEscrita > 0 ? ventaEscrita : null;
+          const deltaVenta = ventaNueva != null && ventaActualMostrada != null && ventaActualMostrada > 0
+            ? ((ventaNueva - ventaActualMostrada) / ventaActualMostrada) * 100 : null;
 
           return (
             <div className="flex flex-col gap-3">
@@ -656,6 +668,32 @@ export default function NuevaCompraPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* COMO ESTA HOY el producto en la sede: es lo primero que hay
+                    que ver al elegirlo, antes de tocar nada. */}
+                {l.productoId && (costoActualMostrado != null || ventaActualMostrada != null || l.stockActual != null) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-slate-50 px-3 py-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Hoy</span>
+                    <span className="text-[11px] text-gray-500">
+                      Costo <strong className="text-sm text-gray-800">{costoActualMostrado != null ? fmtMon(costoActualMostrado) : '—'}</strong>
+                    </span>
+                    <span className="text-[11px] text-gray-500">
+                      Se vende a <strong className="text-sm text-gray-800">{ventaActualMostrada != null ? fmtMon(ventaActualMostrada) : 'sin precio'}</strong>
+                      {l.simboloPres && ventaActualMostrada != null && <span className="text-[10px] text-gray-400">/{l.simboloPres}</span>}
+                    </span>
+                    {margenAnt != null && (
+                      <span className="text-[11px] text-gray-500">
+                        Margen <strong className={margenAnt < 10 ? 'text-sm text-orange-600' : 'text-sm text-green-700'}>{margenAnt.toFixed(0)}%</strong>
+                      </span>
+                    )}
+                    {l.stockActual != null && (
+                      <span className="text-[11px] text-gray-500">
+                        Stock <strong className="text-sm text-gray-800">{(fpres > 1 ? l.stockActual / fpres : l.stockActual).toLocaleString('es-PE')}</strong>
+                        <span className="text-[10px] text-gray-400"> {l.simboloPres ?? 'und'}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   <div>
@@ -746,11 +784,51 @@ export default function NuevaCompraPage() {
                     </div>
 
                     <div className={`rounded-lg border p-3 ${superaPrecioVenta(l) ? 'border-red-200 bg-red-50/50' : 'border-blue-200 bg-white'}`}>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Nuevo precio de venta</p>
-                      <input type="text" inputMode="decimal" placeholder="—"
-                        value={l.nuevoPrecioVenta ?? ''}
-                        onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
-                        className={`${INPUT_STD} mt-2 h-[36px] text-right text-base font-bold`} />
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Precio de venta</p>
+
+                      {/* ACTUAL vs NUEVO, explicito. Antes el actual vivia en gris
+                          chico dentro de la tarjeta de margen y no se podia
+                          comparar contra lo que se estaba por escribir. */}
+                      <div className="mt-2 flex items-center justify-between rounded-md bg-slate-50 px-2.5 py-1.5">
+                        <span className="text-[10px] text-gray-500">Hoy se vende a</span>
+                        <span className={`text-sm font-bold ${ventaNueva != null ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                          {ventaActualMostrada != null ? fmtMon(ventaActualMostrada) : 'sin precio'}
+                        </span>
+                      </div>
+
+                      <div className="mt-2">
+                        <label className="mb-1 block text-[10px] font-semibold text-gray-500">
+                          {ventaActualMostrada != null ? 'Cambiarlo a' : 'Establecer precio'}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-400">{sim(moneda)}</span>
+                          <input type="text" inputMode="decimal" placeholder={ventaActualMostrada != null ? 'sin cambios' : '0.00'}
+                            value={l.nuevoPrecioVenta ?? ''}
+                            onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
+                            className={`${INPUT_STD} h-[36px] text-right text-base font-bold`} />
+                          {l.simboloPres && <span className="shrink-0 text-[10px] text-gray-400">/{l.simboloPres}</span>}
+                        </div>
+                      </div>
+
+                      {/* El efecto del cambio, en una linea */}
+                      {ventaNueva != null && ventaActualMostrada != null && ventaActualMostrada > 0 && (
+                        <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11px]">
+                          <span className="text-gray-400">{fmtMon(ventaActualMostrada)}</span>
+                          <span className="text-gray-400">→</span>
+                          <strong className="text-[#004A94]">{fmtMon(ventaNueva)}</strong>
+                          {Math.abs(deltaVenta ?? 0) >= 0.05 && (
+                            <span className={`rounded px-1 py-0.5 text-[10px] font-bold ${(deltaVenta ?? 0) > 0 ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                              {(deltaVenta ?? 0) > 0 ? '▲' : '▼'} {Math.abs(deltaVenta ?? 0).toFixed(1)}%
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {ventaNueva == null && ventaActualMostrada != null && (
+                        <p className="mt-1.5 text-[10px] text-gray-400">
+                          Vacío = se queda en {fmtMon(ventaActualMostrada)}.
+                        </p>
+                      )}
+
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {mantener != null && (
                           <button type="button" onClick={() => actualizar(i, 'nuevoPrecioVenta', String(mantener))}
@@ -764,16 +842,23 @@ export default function NuevaCompraPage() {
                             +10% → {sim(moneda)} {mas10.toFixed(2)}
                           </button>
                         )}
+                        {ventaNueva != null && (
+                          <button type="button" onClick={() => actualizar(i, 'nuevoPrecioVenta', '')}
+                            className="rounded px-2 py-1 text-[10px] font-semibold text-gray-500 hover:bg-gray-100">
+                            dejar como está
+                          </button>
+                        )}
                       </div>
+
                       {superaPrecioVenta(l) ? (
                         <p className="mt-2 text-[10px] font-semibold leading-snug text-red-700">
                           ⛔ El costo que deja esta compra supera el precio de venta. No se puede guardar así.
                         </p>
-                      ) : (
+                      ) : ventaNueva != null ? (
                         <p className="mt-2 text-[10px] leading-snug text-gray-400">
-                          Se aplica al confirmar y queda en el historial de precios.
+                          Se aplica al confirmar la compra y queda en el historial de precios.
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
