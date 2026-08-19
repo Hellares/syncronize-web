@@ -545,7 +545,7 @@ export default function NuevaCompraPage() {
         </div>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[370px_minmax(0,1fr)]">
 
         {/* MAESTRO */}
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white">
