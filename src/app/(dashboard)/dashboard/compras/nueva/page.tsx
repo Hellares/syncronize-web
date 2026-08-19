@@ -36,6 +36,9 @@ type LineaForm = {
   // Empaque variable (solo productos con unidad de compra configurada)
   unidadCompraNombre?: string;
   unidadBaseNombre?: string;
+  /** Simbolo corto de la unidad de VENTA (g, und): el que va en la
+   *  equivalencia "entran 66000 g". El nombre largo se lee mal ahi. */
+  unidadVentaSimbolo?: string;
   factorProducto?: number;      // factor configurado en el producto
   usaUnidadCompra?: boolean;    // toggle "Comprar por {unidadCompra}"
   factor?: string;              // override editable por línea (default = factorProducto)
@@ -131,6 +134,7 @@ export default function NuevaCompraPage() {
       ...(conEmpaque ? {
         unidadCompraNombre: p.unidadCompra!.nombre,
         unidadBaseNombre: p.unidadMedida?.nombre ?? 'unid.',
+        unidadVentaSimbolo: p.unidadMedida?.abreviatura ?? p.unidadMedida?.nombre ?? 'u',
         factorProducto: factor,
         usaUnidadCompra: true,
         factor: String(factor),
@@ -700,6 +704,13 @@ export default function NuevaCompraPage() {
           // Todo lo de PRECIO se muestra en la unidad en la que se escribe: el
           // backend guarda por unidad de venta (gramo) y el usuario habla en kg.
           const fpres = factorDisplay(l);
+          // En que unidad se estan escribiendo cantidad y costo AHORA mismo.
+          const simboloCarga = l.usaUnidadCompra
+            ? (l.unidadCompraNombre ?? 'unidad')
+            : (l.simboloPres ?? l.unidadVentaSimbolo ?? 'unidades');
+          // Lo que realmente entra al stock, en la unidad en la que se guarda.
+          const entranAlStock = Math.round(cantidadAtomica(l));
+          const costoAtomico = costoUnitarioVenta(l);
           const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
           const costoActualMostrado = l.costoActual != null && l.costoActual > 0
             ? l.costoActual * fpres : null;
@@ -763,45 +774,85 @@ export default function NuevaCompraPage() {
                   </div>
                 )}
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className={LABEL}>Cantidad</label>
                     <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
                       value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
-                    <p className="mt-1 text-[10px] font-semibold text-[#004A94]">
-                      {l.simboloPres ?? (conEmpaque && l.usaUnidadCompra ? l.unidadCompraNombre : 'unidades')}
-                    </p>
+                    <p className="mt-1 text-[10px] font-semibold text-[#004A94]">{simboloCarga}</p>
                   </div>
                   <div>
                     <label className={LABEL}>Costo unitario</label>
                     <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
                       value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
-                    <p className="mt-1 text-[10px] text-gray-400">
-                      {sim(moneda)} por {l.simboloPres ?? (conEmpaque && l.usaUnidadCompra ? l.unidadCompraNombre : 'unidad')}
-                    </p>
+                    <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
                   </div>
-                  {conEmpaque && (
-                    <div>
-                      <label className={LABEL}>Empaque</label>
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-[11px] text-gray-600">
-                          <input type="checkbox" checked={!!l.usaUnidadCompra} className="accent-[#004A94]"
-                            onChange={(e) => toggleEmpaque(i, e.target.checked)} />
-                          {l.unidadCompraNombre}
+                </div>
+
+                {/* "Comprar por": el mismo selector del app. Un saco y la unidad
+                    en la que se le habla al usuario (kg) son dos formas de
+                    cargar LO MISMO; el chip dice cual esta activa y su
+                    equivalencia, que es lo que evita cargar 22 000 donde va 1. */}
+                {(conEmpaque || factorDisplay(l) > 1) && (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Comprar por</p>
+
+                    {conEmpaque && (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => toggleEmpaque(i, true)}
+                          className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                            l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                          }`}>
+                          <p className={`text-xs font-bold ${l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                            {l.unidadCompraNombre}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-gray-500">
+                            ×{factorVigente.toLocaleString('es-PE')} {l.unidadVentaSimbolo}
+                          </p>
+                        </button>
+                        <button type="button" onClick={() => toggleEmpaque(i, false)}
+                          className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                            !l.usaUnidadCompra ? 'border-[#004A94] bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:bg-white'
+                          }`}>
+                          <p className={`text-xs font-bold ${!l.usaUnidadCompra ? 'text-[#004A94]' : 'text-gray-600'}`}>
+                            {l.simboloPres ?? l.unidadVentaSimbolo}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-gray-500">
+                            {factorDisplay(l) > 1 ? `×${factorDisplay(l).toLocaleString('es-PE')} ${l.unidadVentaSimbolo}` : '×1'}
+                          </p>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* El empaque real de ESTE lote: el saco pudo venir con otra
+                        cantidad que la configurada en el producto. */}
+                    {conEmpaque && l.usaUnidadCompra && (
+                      <div className="mt-2.5">
+                        <label className="mb-1 block text-[10px] font-semibold text-gray-600">
+                          {l.unidadVentaSimbolo} por {l.unidadCompraNombre}
                         </label>
-                        {l.usaUnidadCompra && (
-                          <input type="text" inputMode="decimal" className={`${INPUT_STD} w-16 px-2 text-right`}
-                            value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
+                        <input type="text" inputMode="decimal"
+                          className={`${INPUT_STD} w-36 text-right`}
+                          placeholder={String(l.factorProducto ?? '')}
+                          value={l.factor ?? ''} onChange={(e) => actualizar(i, 'factor', e.target.value)} />
+                        {l.factorProducto != null && Math.abs(factorVigente - l.factorProducto) > 1e-9 && (
+                          <p className="mt-1 text-[10px] leading-snug text-orange-700">
+                            Empaque distinto al configurado ({l.factorProducto.toLocaleString('es-PE')}).
+                            Aplica solo a esta compra.
+                          </p>
                         )}
                       </div>
-                      {l.usaUnidadCompra && factorVigente > 0 && (
-                        <p className="mt-1 text-[10px] text-gray-400">
-                          {numVal(l.cantidad) || 0} × {factorVigente} = {((numVal(l.cantidad) || 0) * factorVigente).toLocaleString('es-PE')} {l.unidadBaseNombre}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    )}
+
+                    {/* Lo que REALMENTE entra al stock. Sin esto, cargar 3 sacos
+                        y ver 66 000 recien en el detalle se lee como un error. */}
+                    {entranAlStock > 0 && costoAtomico != null && (
+                      <p className="mt-2.5 text-[11px] font-semibold text-green-800">
+                        Entran {entranAlStock.toLocaleString('es-PE')} {l.unidadVentaSimbolo} @ {sim(moneda)} {costoAtomico.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}/{l.unidadVentaSimbolo}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {l.productoId && (l.costoActual != null || l.precioVentaActual != null || proy != null) && (
