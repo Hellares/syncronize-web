@@ -6,6 +6,7 @@ import type { Producto } from '@/core/types/producto';
 import type { ComponenteBOM } from '@/core/types/bom';
 import * as productoService from '../../services/producto-service';
 import * as bomService from '../../services/bom-service';
+import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 
 interface Props {
   isOpen: boolean;
@@ -103,7 +104,7 @@ export default function AgregarComponenteBOMDialog({ isOpen, productoId, variant
 
   if (!isOpen) return null;
 
-  const unidad = selected?.unidadMedida?.abreviatura ?? selected?.unidadMedida?.nombre ?? 'unid.';
+  const unidad = simboloUnidad(selected?.unidadMedida) ?? nombreUnidad(selected?.unidadMedida) ?? 'unid.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={handleClose}>

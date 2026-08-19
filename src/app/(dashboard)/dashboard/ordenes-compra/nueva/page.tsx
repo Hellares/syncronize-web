@@ -10,6 +10,7 @@ import { listarProveedores } from '@/features/proveedores/services/proveedor-ser
 import { crearOrdenCompra } from '@/features/compras/services/orden-compra-service';
 import { getProductos } from '@/features/producto/services/producto-service';
 import type { Producto } from '@/core/types/producto';
+import { nombreUnidad } from '@/core/types/producto';
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
 // mismo de `servicios/nueva`, `CotizacionForm` y `compras/nueva`. El ring va
@@ -84,8 +85,8 @@ export default function NuevaOrdenCompraPage() {
       cantidad: '1',
       precioUnitario: '',
       ...(conEmpaque ? {
-        unidadCompraNombre: p.unidadCompra!.nombre,
-        unidadBaseNombre: p.unidadMedida?.nombre ?? 'unid.',
+        unidadCompraNombre: nombreUnidad(p.unidadCompra) ?? 'paquete',
+        unidadBaseNombre: nombreUnidad(p.unidadMedida) ?? 'unid.',
         usaUnidadCompra: true,
       } : {}),
     }]);

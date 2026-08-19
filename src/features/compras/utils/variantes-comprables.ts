@@ -1,4 +1,5 @@
 import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
+import { simboloUnidad } from '@/core/types/producto';
 
 /**
  * Qué variante se COMPRA y cuál no.
@@ -78,12 +79,12 @@ export function presentacionDeVariante(
   if (v.unidadPresentacionId && factorPropio > 1) {
     return { factor: factorPropio, simbolo: v.unidadPresentacionSimbolo ?? undefined };
   }
-  if (esBulto(v)) return { factor: 1, simbolo: v.unidadMedida?.abreviatura ?? 'und' };
+  if (esBulto(v)) return { factor: 1, simbolo: simboloUnidad(v.unidadMedida) ?? 'und' };
   const factorProducto = Number(producto.factorPresentacion ?? 0);
   if (factorProducto > 1) {
     return { factor: factorProducto, simbolo: producto.unidadPresentacionSimbolo ?? undefined };
   }
-  return { factor: 1, simbolo: v.unidadMedida?.abreviatura ?? undefined };
+  return { factor: 1, simbolo: simboloUnidad(v.unidadMedida) };
 }
 
 /** Stock de la variante en una sede. */

@@ -12,6 +12,7 @@ import { listarProveedores } from '@/features/proveedores/services/proveedor-ser
 import { crearCompra, getHistorialComprasProducto } from '@/features/compras/services/compra-service';
 import { getProductos } from '@/features/producto/services/producto-service';
 import type { Producto, ProductoVariante } from '@/core/types/producto';
+import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
 import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
 
@@ -132,9 +133,9 @@ export default function NuevaCompraPage() {
       precioUnitario: '',
       // Empaque variable disponible solo si el producto tiene unidad de compra + factor
       ...(conEmpaque ? {
-        unidadCompraNombre: p.unidadCompra!.nombre,
-        unidadBaseNombre: p.unidadMedida?.nombre ?? 'unid.',
-        unidadVentaSimbolo: p.unidadMedida?.abreviatura ?? p.unidadMedida?.nombre ?? 'u',
+        unidadCompraNombre: nombreUnidad(p.unidadCompra) ?? 'paquete',
+        unidadBaseNombre: nombreUnidad(p.unidadMedida) ?? 'unid.',
+        unidadVentaSimbolo: simboloUnidad(p.unidadMedida) ?? nombreUnidad(p.unidadMedida) ?? 'u',
         factorProducto: factor,
         usaUnidadCompra: true,
         factor: String(factor),

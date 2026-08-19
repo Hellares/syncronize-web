@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ProductoVariante } from '@/core/types/producto';
+import { nombreUnidad } from '@/core/types/producto';
 
 interface Props {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export default function VarianteDetailDialog({ isOpen, variante, onClose }: Prop
               <InfoRow icon="weight" label="Peso" value={`${variante.peso} kg`} />
             )}
             {variante.unidadMedida && (
-              <InfoRow icon="tag" label="Unidad" value={variante.unidadMedida.nombre} />
+              <InfoRow icon="tag" label="Unidad" value={nombreUnidad(variante.unidadMedida) ?? '—'} />
             )}
           </div>
 

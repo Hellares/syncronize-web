@@ -10,6 +10,7 @@ import ImageGallery from '@/features/producto/components/ImageGallery';
 import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
+import { nombreUnidad } from '@/core/types/producto';
 
 export default function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -79,9 +80,9 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               {producto.codigoBarras && <div><span className="text-gray-500">Código Barras:</span> <span className="font-medium">{producto.codigoBarras}</span></div>}
               {producto.categoria && <div><span className="text-gray-500">Categoría:</span> <span className="font-medium">{producto.categoria.nombre}</span></div>}
               {producto.marca && <div><span className="text-gray-500">Marca:</span> <span className="font-medium">{producto.marca.nombre}</span></div>}
-              {producto.unidadMedida && <div><span className="text-gray-500">Unidad:</span> <span className="font-medium">{producto.unidadMedida.nombre}</span></div>}
+              {producto.unidadMedida && <div><span className="text-gray-500">Unidad:</span> <span className="font-medium">{nombreUnidad(producto.unidadMedida)}</span></div>}
               {producto.unidadCompra && producto.factorCompra != null && (
-                <div><span className="text-gray-500">Unidad compra:</span> <span className="font-medium">1 {producto.unidadCompra.nombre} = {Number(producto.factorCompra)} {producto.unidadMedida?.nombre || 'unid.'}</span></div>
+                <div><span className="text-gray-500">Unidad compra:</span> <span className="font-medium">1 {nombreUnidad(producto.unidadCompra)} = {Number(producto.factorCompra)} {nombreUnidad(producto.unidadMedida) || 'unid.'}</span></div>
               )}
               {producto.peso != null && <div><span className="text-gray-500">Peso:</span> <span className="font-medium">{producto.peso} kg</span></div>}
               <div><span className="text-gray-500">Afectación IGV:</span> <span className="font-medium">{producto.tipoAfectacionIgv === 'EXONERADO' ? 'Exonerado' : producto.tipoAfectacionIgv === 'INAFECTO' ? 'Inafecto' : 'Gravado'}</span></div>

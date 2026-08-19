@@ -43,6 +43,35 @@ export interface AtributoValor {
 export type MotivoLiquidacion =
   | 'FUERA_DE_CAMPANA' | 'SIN_ROTACION' | 'PROXIMO_A_VENCER' | 'DESCONTINUADO' | 'OTRO';
 
+/**
+ * Unidad de medida como la MANDA el backend.
+ *
+ * 🔴 NO trae `nombre` ni `abreviatura` planos: trae el par personalizado/local
+ * de la empresa y, debajo, la unidad maestra. Declararla como
+ * `{ nombre, abreviatura }` hacia que `unidadCompra.nombre` fuera undefined en
+ * silencio — y con eso el selector "Comprar por" no aparecia nunca.
+ */
+export interface UnidadMedidaRef {
+  id: string;
+  nombrePersonalizado?: string | null;
+  simboloPersonalizado?: string | null;
+  nombreLocal?: string | null;
+  simboloLocal?: string | null;
+  unidadMaestra?: { id: string; codigo?: string; nombre?: string; simbolo?: string } | null;
+}
+
+/** Nombre legible de una unidad, en el orden en que el backend las resuelve. */
+export function nombreUnidad(u?: UnidadMedidaRef | null): string | undefined {
+  if (!u) return undefined;
+  return u.nombrePersonalizado ?? u.nombreLocal ?? u.unidadMaestra?.nombre ?? undefined;
+}
+
+/** Simbolo corto de una unidad (g, kg, und). */
+export function simboloUnidad(u?: UnidadMedidaRef | null): string | undefined {
+  if (!u) return undefined;
+  return u.simboloPersonalizado ?? u.simboloLocal ?? u.unidadMaestra?.simbolo ?? undefined;
+}
+
 export interface StockPorSedeInfo {
   sedeId: string;
   sedeNombre: string;
@@ -105,7 +134,7 @@ export interface ProductoVariante {
   atributosValores: AtributoValor[];
   peso?: number;
   dimensiones?: Record<string, number>;
-  unidadMedida?: { id: string; nombre: string; abreviatura?: string };
+  unidadMedida?: UnidadMedidaRef;
   /** Unidad de PRESENTACION propia: un granel se guarda en gramos y se habla en kg. */
   unidadPresentacionId?: string | null;
   unidadPresentacionSimbolo?: string | null;
@@ -161,8 +190,8 @@ export interface Producto {
   categoria?: ProductoCategoria;
   marca?: ProductoMarca;
   sede?: { id: string; nombre: string };
-  unidadMedida?: { id: string; nombre: string; abreviatura?: string };
-  unidadCompra?: { id: string; nombre: string; abreviatura?: string };
+  unidadMedida?: UnidadMedidaRef;
+  unidadCompra?: UnidadMedidaRef;
   factorCompra?: number;
   /** Presentacion del producto; las variantes sin una propia la heredan. */
   unidadPresentacionSimbolo?: string | null;
