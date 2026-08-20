@@ -455,6 +455,10 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
       <UpdatePreciosDialog
         isOpen={!!stockEnEdicion}
         stock={stockEnEdicion}
+        // La presentacion es la de la VARIANTE, no la del producto: el backend
+        // no la hereda, y aca solo se abren precios de variante.
+        unidadPresentacionSimbolo={variante?.unidadPresentacionSimbolo}
+        factorPresentacion={variante?.factorPresentacion}
         onClose={() => setStockEnEdicion(null)}
         onSuccess={() => { setStockEnEdicion(null); reload(); }}
       />

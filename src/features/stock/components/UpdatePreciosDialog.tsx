@@ -12,6 +12,17 @@ import GestionarLiquidacionDialog from './GestionarLiquidacionDialog';
 interface Props {
   isOpen: boolean;
   stock: ProductoStock | null;
+  /**
+   * Unidad de PRESENTACIÓN de lo que se está editando (ej. "kg") y cuántas
+   * unidades de venta trae (1 kg = 1000 g). Cuando están, el diálogo trabaja
+   * entero en esa unidad: se escribe S/8.00 por kg y se guarda S/0.008 por
+   * gramo.
+   *
+   * Sin esto un granel es INCARGABLE desde acá: el precio guardado es un número
+   * sub-céntimo que no se puede tipear en un campo de dos decimales.
+   */
+  unidadPresentacionSimbolo?: string | null;
+  factorPresentacion?: number | null;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -43,7 +54,9 @@ const NIVEL_VACIO: NivelForm = { nombre: '', cantidadMinima: '', cantidadMaxima:
  * base/costo (con auditoría de cambio), oferta con fechas, liquidación, niveles inline (solo PRECIO_FIJO),
  * IGV, ubicación y min/max.
  */
-export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose }: Props) {
+export default function UpdatePreciosDialog({
+  isOpen, stock, unidadPresentacionSimbolo, factorPresentacion, onSuccess, onClose,
+}: Props) {
   const [precio, setPrecio] = useState('');
   const [precioCosto, setPrecioCosto] = useState('');
   const [costoOriginal, setCostoOriginal] = useState('');
@@ -69,7 +82,27 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
   const [nivelSaving, setNivelSaving] = useState(false);
   const [nivelError, setNivelError] = useState('');
 
+  // ─── Unidad de presentación ──────────────────────────────────────────────
+  // Lo guardado está SIEMPRE en unidad de venta. Los campos de precio trabajan
+  // en unidad de PRESENTACIÓN, que es como piensa el usuario ("S/8 el kilo"), y
+  // la conversión pasa solo en los dos bordes: al abrir y al guardar.
+  //
+  // ⚠️ La CANTIDAD (min/max) va al revés que el precio: 22 000 g son 22 kg, o
+  // sea que se divide para mostrar y se multiplica para guardar. Usar la
+  // conversión del precio para una cantidad convierte 1 kg en 0.001 g.
+  const factor = factorPresentacion != null && factorPresentacion > 1 ? factorPresentacion : 1;
+  const tienePresentacion = factor > 1;
+  const simbolo = tienePresentacion ? unidadPresentacionSimbolo ?? '' : '';
+  const aPresentacion = (n: number) => n * factor;
+  const aUnidadDeVenta = (texto: string) => parseFloat(texto) / factor;
+  const aUnidadDeVentaCantidad = (texto: string) =>
+    tienePresentacion ? Math.round(parseFloat(texto) * factor) : parseInt(texto);
+
   const liquidacionActiva = stock ? isLiquidacionActiva(stock) : false;
+  // El precio de liquidación viene en unidad de VENTA: comparado crudo contra
+  // un campo que ya está en kilos, cualquier validación daría cualquier cosa.
+  const precioLiquidacionVista =
+    stock?.precioLiquidacion != null ? aPresentacion(Number(stock.precioLiquidacion)) : null;
   const costoChanged = precioCosto !== costoOriginal;
 
   const loadNiveles = useCallback(async () => {
@@ -88,26 +121,33 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
 
   useEffect(() => {
     if (isOpen && stock) {
-      setPrecio(stock.precio != null ? String(stock.precio) : '');
-      const costo = stock.precioCosto != null ? String(stock.precioCosto) : '';
+      // Sin presentación el texto se deja EXACTO como viene: redondear a dos
+      // decimales un precio sub-céntimo (0.008 → "0.01") lo guardaría mal.
+      const precioATexto = (v?: number | null) =>
+        v == null ? '' : factor > 1 ? (Number(v) * factor).toFixed(2) : String(v);
+      const cantidadATexto = (v?: number | null) =>
+        v == null ? '' : factor > 1 ? String(Number(v) / factor) : String(v);
+
+      setPrecio(precioATexto(stock.precio));
+      const costo = precioATexto(stock.precioCosto);
       setPrecioCosto(costo);
       setCostoOriginal(costo);
       setTipoCambioCosto('CORRECCION');
       setRazonCosto('');
-      setPrecioOferta(stock.precioOferta != null ? String(stock.precioOferta) : '');
+      setPrecioOferta(precioATexto(stock.precioOferta));
       setEnOferta(stock.enOferta);
       setFechaInicio(stock.fechaInicioOferta?.split('T')[0] ?? '');
       setFechaFin(stock.fechaFinOferta?.split('T')[0] ?? '');
       setPrecioIncluyeIgv(stock.precioIncluyeIgv);
       setUbicacion(stock.ubicacion ?? '');
-      setStockMinimo(stock.stockMinimo != null ? String(stock.stockMinimo) : '');
-      setStockMaximo(stock.stockMaximo != null ? String(stock.stockMaximo) : '');
+      setStockMinimo(cantidadATexto(stock.stockMinimo));
+      setStockMaximo(cantidadATexto(stock.stockMaximo));
       setError('');
       setNivelForm(null);
       setNivelError('');
       loadNiveles();
     }
-  }, [isOpen, stock, loadNiveles]);
+  }, [isOpen, stock, factor, loadNiveles]);
 
   // Validaciones con paridad Flutter (configurar_precios_dialog.dart:437-696)
   const validate = (): string | null => {
@@ -117,8 +157,8 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
     if (p != null && c != null && p < c) {
       return 'El precio de venta no puede ser menor al costo';
     }
-    if (liquidacionActiva && p != null && stock?.precioLiquidacion != null && p < Number(stock.precioLiquidacion)) {
-      return 'El precio de venta no puede ser menor al precio de liquidación activo';
+    if (liquidacionActiva && p != null && precioLiquidacionVista != null && p < precioLiquidacionVista) {
+      return `El precio de venta no puede ser menor al precio de liquidación activo (S/ ${precioLiquidacionVista.toFixed(2)})`;
     }
     if (enOferta) {
       if (o == null) return 'Ingresa el precio de oferta';
@@ -135,9 +175,9 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
     setError('');
     try {
       const data: UpdatePreciosStockDto = {
-        ...(precio && { precio: parseFloat(precio) }),
-        ...(precioCosto && { precioCosto: parseFloat(precioCosto) }),
-        ...(precioOferta && { precioOferta: parseFloat(precioOferta) }),
+        ...(precio && { precio: aUnidadDeVenta(precio) }),
+        ...(precioCosto && { precioCosto: aUnidadDeVenta(precioCosto) }),
+        ...(precioOferta && { precioOferta: aUnidadDeVenta(precioOferta) }),
         enOferta,
         ...(fechaInicio && { fechaInicioOferta: fechaInicio }),
         ...(fechaFin && { fechaFinOferta: fechaFin }),
@@ -145,8 +185,10 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
         // Auditoría: solo cuando el costo cambió (paridad _MotivoCambioCostoDialog)
         ...(costoChanged && precioCosto && { tipoCambio: tipoCambioCosto, ...(razonCosto.trim() && { razon: razonCosto.trim() }) }),
         ...(ubicacion && { ubicacion }),
-        ...(stockMinimo && { stockMinimo: parseInt(stockMinimo) }),
-        ...(stockMaximo && { stockMaximo: parseInt(stockMaximo) }),
+        // La cantidad se MULTIPLICA (22 kg → 22 000 g). Sin presentación se
+        // trunca igual que el parseInt de siempre.
+        ...(stockMinimo && { stockMinimo: aUnidadDeVentaCantidad(stockMinimo) }),
+        ...(stockMaximo && { stockMaximo: aUnidadDeVentaCantidad(stockMaximo) }),
       };
       await stockService.updatePrecios(stock.id, data);
       onClose();
@@ -214,6 +256,18 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
           <p className="mt-1 text-xs text-gray-500">{nombreProductoStock(stock)}</p>
 
           <div className="mt-4 space-y-4">
+            {/* En qué unidad se está hablando. Una sola vez y arriba de todo:
+                sin esto, un granel muestra un precio por gramo y no hay nada en
+                pantalla que lo diga. */}
+            {tienePresentacion && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                <p className="text-[11px] text-blue-900">
+                  Los precios se cargan <strong>por {simbolo}</strong> y se guardan por unidad de
+                  venta (1 {simbolo} = {factor.toLocaleString('es-PE')}).
+                </p>
+              </div>
+            )}
+
             {/* Precios */}
             <div className="grid grid-cols-3 gap-3">
               <div>
@@ -273,7 +327,7 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
                     Liquidación
                     {liquidacionActiva && (
                       <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
-                        ACTIVA · S/ {Number(stock.precioLiquidacion).toFixed(2)}
+                        ACTIVA · S/ {precioLiquidacionVista?.toFixed(2)}{simbolo && `/${simbolo}`}
                       </span>
                     )}
                   </p>
@@ -302,6 +356,18 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
                 )}
               </div>
 
+              {/* 🔴 Los niveles NO se convierten: se guardan y se teclean por unidad
+                  de VENTA, igual que en el app. Con los campos de arriba ya en
+                  kilos, escribir acá "7.50" pensando en kilos guardaría S/7.50
+                  el GRAMO — por eso lo dice, y por eso cada nivel muestra al
+                  lado a cuánto equivale. */}
+              {tienePresentacion && (
+                <p className="rounded-md bg-amber-50 px-2 py-1.5 text-[10.5px] leading-snug text-amber-800">
+                  Ojo: estos precios van <strong>por unidad de venta</strong>, no por {simbolo}.
+                  Para S/8.00 el {simbolo} se carga S/{(8 / factor).toFixed(4)}.
+                </p>
+              )}
+
               {niveles.length === 0 && !nivelForm && (
                 <p className="text-[11px] text-gray-400">Sin niveles configurados.</p>
               )}
@@ -312,8 +378,15 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
                     <span className="font-medium text-gray-800">{n.nombre}</span>
                     <span className="ml-2 text-gray-400">{n.cantidadMinima}{n.cantidadMaxima ? `–${n.cantidadMaxima}` : '+'} unid.</span>
                     <span className="ml-2 font-medium text-green-600">
-                      {n.tipoPrecio === 'PRECIO_FIJO' ? `S/ ${Number(n.precio).toFixed(2)}` : `${n.porcentajeDesc}% desc.`}
+                      {n.tipoPrecio === 'PRECIO_FIJO'
+                        ? `S/ ${Number(n.precio).toFixed(tienePresentacion ? 4 : 2)}`
+                        : `${n.porcentajeDesc}% desc.`}
                     </span>
+                    {tienePresentacion && n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null && (
+                      <span className="ml-1.5 text-gray-400">
+                        ≡ S/ {aPresentacion(Number(n.precio)).toFixed(2)}/{simbolo}
+                      </span>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     {n.tipoPrecio === 'PRECIO_FIJO' ? (
@@ -373,11 +446,11 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
             {/* Min/Max */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Mínimo</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Mínimo{simbolo && ` (${simbolo})`}</label>
                 <input className={inputClass} type="number" min="0" value={stockMinimo} onChange={e => setStockMinimo(e.target.value)} placeholder="0" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Máximo</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Máximo{simbolo && ` (${simbolo})`}</label>
                 <input className={inputClass} type="number" min="0" value={stockMaximo} onChange={e => setStockMaximo(e.target.value)} placeholder="0" />
               </div>
             </div>
