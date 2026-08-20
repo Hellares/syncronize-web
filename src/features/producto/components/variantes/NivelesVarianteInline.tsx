@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import type { PrecioNivel } from '@/core/types/precio';
+import { UnidadPresentacion } from '@/core/utils/unidad-presentacion';
 import { getNivelesByVariante } from '../../services/precio-nivel-service';
 
 interface Props {
   varianteId: string;
   /** Precio base de la variante, para mostrar cuanto ahorra cada nivel. */
   precioBase?: number | null;
+  /**
+   * En que unidad se leen estos numeros. El nivel se guarda en unidad de VENTA
+   * —"desde 3000" y "S/0.008" para un granel en gramos— y asi no se entiende:
+   * lo que significa algo es "desde 3 kg" a "S/8.00/kg".
+   */
+  presentacion?: UnidadPresentacion;
 }
 
 /**
@@ -19,7 +26,8 @@ interface Props {
  * no aplica— y los de cada variante quedaban invisibles salvo abriendo el
  * dialogo una por una.
  */
-export default function NivelesVarianteInline({ varianteId, precioBase }: Props) {
+export default function NivelesVarianteInline({ varianteId, precioBase, presentacion }: Props) {
+  const u = presentacion ?? UnidadPresentacion.ninguna();
   const [resultado, setResultado] = useState<{ niveles: PrecioNivel[] } | null>(null);
 
   useEffect(() => {
@@ -47,7 +55,7 @@ export default function NivelesVarianteInline({ varianteId, precioBase }: Props)
           {niveles.map((n) => {
             const esFijo = n.tipoPrecio === 'PRECIO_FIJO';
             const valor = esFijo
-              ? (n.precio != null ? `S/ ${Number(n.precio).toFixed(2)}` : '—')
+              ? (n.precio != null ? u.precioTexto(Number(n.precio)) : '—')
               : (n.porcentajeDesc != null ? `-${Number(n.porcentajeDesc)}%` : '—');
             // Con precio base a la vista se puede juzgar el nivel; sin el, un
             // "S/ 72" no dice si es un buen descuento o una perdida.
@@ -62,12 +70,12 @@ export default function NivelesVarianteInline({ varianteId, precioBase }: Props)
               <div key={n.id} className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-[11px] ring-1 ring-blue-100">
                 <span className="min-w-0 flex-1 truncate font-semibold text-gray-700">{n.nombre}</span>
                 <span className="shrink-0 text-gray-500">
-                  {n.cantidadMinima}
-                  {n.cantidadMaxima != null ? `–${n.cantidadMaxima}` : '+'}
+                  {u.cantidadTexto(n.cantidadMinima)}
+                  {n.cantidadMaxima != null ? `–${u.cantidadTexto(n.cantidadMaxima)}` : '+'}
                 </span>
                 <span className={`shrink-0 font-bold ${esFijo ? 'text-[#004A94]' : 'text-green-700'}`}>{valor}</span>
                 {!esFijo && resultante != null && (
-                  <span className="shrink-0 text-[10px] text-gray-400">= S/ {resultante.toFixed(2)}</span>
+                  <span className="shrink-0 text-[10px] text-gray-400">= {u.precioTexto(resultante)}</span>
                 )}
                 {esFijo && precioBase != null && !bajoBase && (
                   // Un nivel que no baja el precio NO se aplica al vender: es

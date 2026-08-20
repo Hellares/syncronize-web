@@ -1,3 +1,5 @@
+import { presentacionPlana, type UnidadPresentacion } from '@/core/utils/unidad-presentacion';
+
 import type { PaginatedResponse, MotivoLiquidacion } from './producto';
 
 export type { PaginatedResponse, MotivoLiquidacion };
@@ -30,6 +32,9 @@ export interface ProductoStockProducto {
   nombre: string;
   sku?: string;
   codigoEmpresa: string;
+  /** Presentación aplanada por el backend (1 kg = 1000 g). */
+  factorPresentacion?: number | null;
+  unidadPresentacionSimbolo?: string | null;
   codigoBarras?: string;
   imagenes?: string[];
   archivos?: Array<{ id: string; url: string; urlThumbnail?: string }>;
@@ -42,6 +47,23 @@ export interface ProductoStockVariante {
   nombre: string;
   sku: string;
   codigoEmpresa: string;
+  /**
+   * Presentación aplanada por el backend, con la herencia YA resuelta: si la
+   * variante no tiene una propia, acá viene la de su producto.
+   */
+  factorPresentacion?: number | null;
+  unidadPresentacionSimbolo?: string | null;
+}
+
+/**
+ * En qué unidad se le habla al usuario sobre esta fila de stock.
+ *
+ * Una fila es de producto O de variante (XOR del modelo), así que se mira la
+ * variante primero. Sin presentación configurada el factor es 1 y todo queda
+ * igual que siempre.
+ */
+export function presentacionDeStock(s: ProductoStock): UnidadPresentacion {
+  return presentacionPlana(s.variante ?? s.producto);
 }
 
 export interface ProductoStock {

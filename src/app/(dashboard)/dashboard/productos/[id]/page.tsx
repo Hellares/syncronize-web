@@ -17,6 +17,8 @@ import type { ProductoStock } from '@/core/types/stock';
 import ComboComponentesList from '@/features/producto/components/combo/ComboComponentesList';
 import { nombreUnidad, infoPrecioEfectivo, infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
 import type { ProductoVariante } from '@/core/types/producto';
+import { presentacionDeVariante } from '@/features/producto/components/variantes/filtro-variantes';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 export default function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -203,6 +205,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                 <NivelesVarianteInline
                   varianteId={variante.id}
                   precioBase={variante.stocksPorSede?.find((st) => st.precioConfigurado)?.precio ?? null}
+                  presentacion={presentacionDeVariante(variante, producto)}
                 />
 
                 {variante.atributosValores.length > 0 && (
@@ -321,7 +324,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               vendiendo bajo costo la variante de S/112. */}
           {!producto.tieneVariantes && !producto.esCombo && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <PrecioNivelSection productoId={producto.id} />
+              <PrecioNivelSection productoId={producto.id} presentacion={presentacionPlana(producto)} />
             </div>
           )}
 
@@ -455,10 +458,6 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
       <UpdatePreciosDialog
         isOpen={!!stockEnEdicion}
         stock={stockEnEdicion}
-        // La presentacion es la de la VARIANTE, no la del producto: el backend
-        // no la hereda, y aca solo se abren precios de variante.
-        unidadPresentacionSimbolo={variante?.unidadPresentacionSimbolo}
-        factorPresentacion={variante?.factorPresentacion}
         onClose={() => setStockEnEdicion(null)}
         onSuccess={() => { setStockEnEdicion(null); reload(); }}
       />
@@ -475,6 +474,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             seleccionadaId={variante?.id ?? null}
             onSeleccionar={(v) => setVariante((actual) => (actual?.id === v.id ? null : v))}
             onVariantesCargadas={recibirVariantes}
+            presentacionProducto={producto}
           />
         </div>
       )}

@@ -1,7 +1,8 @@
 'use client';
 
 import type { GrupoMayoreo, VarianteMayoreo } from '@/core/types/mayoreo';
-import { combinaConAlguien, esPorcentaje, stockDelGrupo } from '@/core/types/mayoreo';
+import { combinaConAlguien, esPorcentaje, presentacionDelGrupo, stockDelGrupo } from '@/core/types/mayoreo';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 interface Props {
   grupo: GrupoMayoreo;
@@ -12,8 +13,6 @@ interface Props {
   onEditarVariante: (v: VarianteMayoreo) => void;
 }
 
-const soles = (n: number) => `S/ ${n.toFixed(2)}`;
-
 /**
  * Un grupo de mayoreo: el precio, el rango, cuántas variantes combinan y —al
  * desplegarlo— el detalle variante por variante con el precio de lista tachado
@@ -23,12 +22,18 @@ const soles = (n: number) => `S/ ${n.toFixed(2)}`;
  * grupo" y las franjas rojas de los avisos.
  */
 export default function GrupoMayoreoCard({ grupo, visibles, abierto, onAlternar, onEditarVariante }: Props) {
+  // 🔴 El precio y el minimo del nivel estan en unidad de VENTA: para un
+  // granel en gramos, "desde 3000" y "S/0.008". Se muestran en la presentacion
+  // del grupo —"desde 3 kg" y "S/8.00/kg"—, que es la unica lectura que
+  // significa algo, y solo cuando TODAS sus variantes hablan igual.
+  const u = presentacionDelGrupo(grupo);
   const precioTexto = esPorcentaje(grupo)
     ? `−${(grupo.porcentajeDesc ?? 0).toFixed(0)}%`
-    : soles(grupo.precio ?? 0);
+    : u.precioTexto(grupo.precio ?? 0);
+  const cantidad = (n: number) => (u.activa ? u.cantidadTexto(n) : `${n} u`);
   const rango = grupo.cantidadMaxima != null
-    ? `${grupo.cantidadMinima} a ${grupo.cantidadMaxima} u`
-    : `desde ${grupo.cantidadMinima} u`;
+    ? `${cantidad(grupo.cantidadMinima)} a ${cantidad(grupo.cantidadMaxima)}`
+    : `desde ${cantidad(grupo.cantidadMinima)}`;
   const solitario = !combinaConAlguien(grupo);
 
   return (
@@ -47,7 +52,7 @@ export default function GrupoMayoreoCard({ grupo, visibles, abierto, onAlternar,
           <span className={`block text-[10.5px] ${solitario ? 'font-semibold text-orange-700' : 'text-gray-500'}`}>
             {solitario
               ? 'Sola en su grupo: no combina con ninguna otra'
-              : `${grupo.variantes.length} variantes combinan · ${stockDelGrupo(grupo)} u en stock`}
+              : `${grupo.variantes.length} variantes combinan · ${cantidad(stockDelGrupo(grupo))} en stock`}
           </span>
         </span>
         <svg
@@ -92,6 +97,9 @@ function Aviso({ texto }: { texto: string }) {
  * monitor en algo accionable: acá se ve el problema y acá se arregla.
  */
 function FilaVariante({ variante: v, onEditar }: { variante: VarianteMayoreo; onEditar: () => void }) {
+  // La de ESTA variante, no la del grupo: dos variantes pueden compartir el
+  // nivel y hablar en unidades distintas.
+  const u = presentacionPlana(v);
   return (
     <button
       onClick={onEditar}
@@ -103,15 +111,15 @@ function FilaVariante({ variante: v, onEditar }: { variante: VarianteMayoreo; on
         </span>
         <span className="block truncate font-mono text-[9.5px] text-gray-500">
           {v.sku}
-          {v.stockActual != null && ` · ${v.stockActual} u`}
+          {v.stockActual != null && ` · ${u.activa ? u.cantidadTexto(v.stockActual) : `${v.stockActual} u`}`}
           {!v.isActive && ' · desactivada'}
         </span>
       </span>
       {v.precioVenta != null && (
-        <span className="shrink-0 text-[10px] text-gray-400 line-through">{soles(v.precioVenta)}</span>
+        <span className="shrink-0 text-[10px] text-gray-400 line-through">{u.precioTexto(v.precioVenta)}</span>
       )}
       <span className="shrink-0 text-[11.5px] font-bold text-green-700">
-        {v.precioConNivel != null ? soles(v.precioConNivel) : '—'}
+        {v.precioConNivel != null ? u.precioTexto(v.precioConNivel) : '—'}
       </span>
       <svg className="h-3.5 w-3.5 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />

@@ -1,4 +1,5 @@
 import type { TipoPrecioNivel } from './precio';
+import { UnidadPresentacion, presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 /**
  * MONITOR DE MAYOREO COMBINADO — cómo quedan agrupadas las variantes de un
@@ -106,4 +107,24 @@ export function gruposSolitarios(r: GruposMayoreoResumen): number {
 /** Grupos con algo que revisar (precios dispares o nivel sin efecto). */
 export function gruposConAviso(r: GruposMayoreoResumen): number {
   return r.grupos.filter((g) => g.preciosVentaDispares || g.nivelSinEfecto).length;
+}
+
+/**
+ * La presentación de un grupo: la de sus variantes, pero SOLO cuando todas
+ * coinciden.
+ *
+ * El precio y el mínimo del nivel son uno solo para el grupo entero, así que
+ * únicamente se pueden mostrar en kilos si todas hablan en kilos. Con
+ * presentaciones distintas —un SACO de 50 combinando con un GRANEL de 1000, que
+ * el backend agrupa igual porque comparten mínimo y precio— cualquier
+ * conversión sería falsa para al menos una, y se cae a unidad de venta.
+ */
+export function presentacionDelGrupo(g: GrupoMayoreo): UnidadPresentacion {
+  if (g.variantes.length === 0) return UnidadPresentacion.ninguna();
+  const primera = presentacionPlana(g.variantes[0]);
+  const todasIguales = g.variantes.every((v) => {
+    const p = presentacionPlana(v);
+    return p.factor === primera.factor && p.simboloVisible === primera.simboloVisible;
+  });
+  return todasIguales ? primera : UnidadPresentacion.ninguna();
 }

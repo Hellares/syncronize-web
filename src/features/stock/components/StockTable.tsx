@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProductoStock } from '@/core/types/stock';
-import { stockDisponibleVenta, nombreProductoStock, skuProductoStock, precioEfectivo, esBajoMinimo, esCritico, isLiquidacionActiva, isOfertaActiva } from '@/core/types/stock';
+import { stockDisponibleVenta, nombreProductoStock, skuProductoStock, precioEfectivo, esBajoMinimo, esCritico, isLiquidacionActiva, isOfertaActiva, presentacionDeStock } from '@/core/types/stock';
 import type { PaginationMeta } from '@/core/types/producto';
 
 interface Props {
@@ -65,6 +65,10 @@ export default function StockTable({ stocks, meta, isLoading, canManage, onAjust
               const nombre = nombreProductoStock(stock);
               const sku = skuProductoStock(stock);
               const precio = precioEfectivo(stock);
+              // Un granel se guarda en gramos: sin esto la fila dice "22000" y
+              // "S/ 0.01" donde el usuario piensa "22 kg" y "S/ 8.00/kg".
+              const u = presentacionDeStock(stock);
+              const cantidad = (n: number) => u.cantidadTexto(n);
               const img = stock.producto?.archivos?.[0]?.urlThumbnail || stock.producto?.archivos?.[0]?.url || stock.producto?.imagenes?.[0];
 
               return (
@@ -85,24 +89,27 @@ export default function StockTable({ stocks, meta, isLoading, canManage, onAjust
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-center font-medium">{stock.stockActual}</td>
+                  <td className="px-4 py-3 text-center font-medium">{cantidad(stock.stockActual)}</td>
                   <td className="px-4 py-3 text-center"><StockBadge stock={stock} /></td>
                   <td className="hidden px-4 py-3 text-center text-gray-500 md:table-cell">
-                    {stock.stockReservado + stock.stockReservadoVenta + stock.stockReservadoCombo || '-'}
+                    {(() => {
+                      const reservado = stock.stockReservado + stock.stockReservadoVenta + stock.stockReservadoCombo;
+                      return reservado ? cantidad(reservado) : '-';
+                    })()}
                   </td>
                   <td className="hidden px-4 py-3 text-center lg:table-cell">
-                    {stock.stockDanado > 0 ? <span className="text-red-500">{stock.stockDanado}</span> : '-'}
+                    {stock.stockDanado > 0 ? <span className="text-red-500">{cantidad(stock.stockDanado)}</span> : '-'}
                   </td>
                   <td className="hidden px-4 py-3 text-center text-xs text-gray-500 md:table-cell">
                     {stock.stockMinimo != null || stock.stockMaximo != null
-                      ? `${stock.stockMinimo ?? '-'} / ${stock.stockMaximo ?? '-'}`
+                      ? `${stock.stockMinimo != null ? cantidad(stock.stockMinimo) : '-'} / ${stock.stockMaximo != null ? cantidad(stock.stockMaximo) : '-'}`
                       : '-'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {precio != null ? (
                       <div>
                         <span className={`font-medium ${isLiquidacionActiva(stock) ? 'text-red-600' : isOfertaActiva(stock) ? 'text-green-600' : 'text-gray-900'}`}>
-                          S/ {Number(precio).toFixed(2)}
+                          {u.precioTexto(Number(precio))}
                         </span>
                         {isLiquidacionActiva(stock) && (
                           <span className="block rounded bg-red-100 px-1 text-[9px] font-bold text-red-600">LIQUIDACIÓN</span>

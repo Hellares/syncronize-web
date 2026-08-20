@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { ProductoStock, UpdatePreciosStockDto, TipoCambioPrecioSede } from '@/core/types/stock';
-import { nombreProductoStock, isLiquidacionActiva } from '@/core/types/stock';
+import { nombreProductoStock, isLiquidacionActiva, presentacionDeStock } from '@/core/types/stock';
+import { UnidadPresentacion } from '@/core/utils/unidad-presentacion';
 import type { PrecioNivel } from '@/core/types/precio';
 import * as stockService from '../services/stock-service';
 import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
@@ -12,17 +13,6 @@ import GestionarLiquidacionDialog from './GestionarLiquidacionDialog';
 interface Props {
   isOpen: boolean;
   stock: ProductoStock | null;
-  /**
-   * Unidad de PRESENTACIÓN de lo que se está editando (ej. "kg") y cuántas
-   * unidades de venta trae (1 kg = 1000 g). Cuando están, el diálogo trabaja
-   * entero en esa unidad: se escribe S/8.00 por kg y se guarda S/0.008 por
-   * gramo.
-   *
-   * Sin esto un granel es INCARGABLE desde acá: el precio guardado es un número
-   * sub-céntimo que no se puede tipear en un campo de dos decimales.
-   */
-  unidadPresentacionSimbolo?: string | null;
-  factorPresentacion?: number | null;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -54,9 +44,7 @@ const NIVEL_VACIO: NivelForm = { nombre: '', cantidadMinima: '', cantidadMaxima:
  * base/costo (con auditoría de cambio), oferta con fechas, liquidación, niveles inline (solo PRECIO_FIJO),
  * IGV, ubicación y min/max.
  */
-export default function UpdatePreciosDialog({
-  isOpen, stock, unidadPresentacionSimbolo, factorPresentacion, onSuccess, onClose,
-}: Props) {
+export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose }: Props) {
   const [precio, setPrecio] = useState('');
   const [precioCosto, setPrecioCosto] = useState('');
   const [costoOriginal, setCostoOriginal] = useState('');
@@ -90,19 +78,46 @@ export default function UpdatePreciosDialog({
   // ⚠️ La CANTIDAD (min/max) va al revés que el precio: 22 000 g son 22 kg, o
   // sea que se divide para mostrar y se multiplica para guardar. Usar la
   // conversión del precio para una cantidad convierte 1 kg en 0.001 g.
-  const factor = factorPresentacion != null && factorPresentacion > 1 ? factorPresentacion : 1;
-  const tienePresentacion = factor > 1;
-  const simbolo = tienePresentacion ? unidadPresentacionSimbolo ?? '' : '';
-  const aPresentacion = (n: number) => n * factor;
+  //
+  // La unidad la trae el STOCK, con la herencia variante→producto ya resuelta
+  // por el backend: ninguna pantalla tiene que pasársela al diálogo.
+  const presentacion = stock ? presentacionDeStock(stock) : UnidadPresentacion.ninguna();
+  const factor = presentacion.factor;
+  const tienePresentacion = presentacion.activa;
+  const simbolo = presentacion.simboloVisible ?? '';
   const aUnidadDeVenta = (texto: string) => parseFloat(texto) / factor;
   const aUnidadDeVentaCantidad = (texto: string) =>
     tienePresentacion ? Math.round(parseFloat(texto) * factor) : parseInt(texto);
+
+  /** "3–10 kg" · "3 kg+" · sin presentación, "3–10 unid.". */
+  const rangoNivel = (n: PrecioNivel) => {
+    const min = presentacion.cantidadTexto(n.cantidadMinima);
+    const rango = n.cantidadMaxima == null
+      ? `${min}+`
+      : `${min}–${presentacion.cantidadTexto(n.cantidadMaxima)}`;
+    return tienePresentacion ? rango : `${rango} unid.`;
+  };
+
+  // Guardado (unidad de venta) → texto del campo (presentación). Sin
+  // presentación el texto se deja EXACTO como viene: redondear a dos decimales
+  // un precio sub-céntimo (0.008 → "0.01") lo guardaría mal.
+  //
+  // Memoizados porque el efecto de carga los usa: recreados en cada render
+  // volverían a disparar el efecto y pisarían lo que el usuario está tecleando.
+  const textoPrecio = useCallback(
+    (v?: number | null) => (v == null ? '' : factor > 1 ? (Number(v) * factor).toFixed(2) : String(v)),
+    [factor],
+  );
+  const textoCantidad = useCallback(
+    (v?: number | null) => (v == null ? '' : factor > 1 ? String(Number(v) / factor) : String(v)),
+    [factor],
+  );
 
   const liquidacionActiva = stock ? isLiquidacionActiva(stock) : false;
   // El precio de liquidación viene en unidad de VENTA: comparado crudo contra
   // un campo que ya está en kilos, cualquier validación daría cualquier cosa.
   const precioLiquidacionVista =
-    stock?.precioLiquidacion != null ? aPresentacion(Number(stock.precioLiquidacion)) : null;
+    stock?.precioLiquidacion != null ? presentacion.precio(Number(stock.precioLiquidacion)) : null;
   const costoChanged = precioCosto !== costoOriginal;
 
   const loadNiveles = useCallback(async () => {
@@ -121,33 +136,26 @@ export default function UpdatePreciosDialog({
 
   useEffect(() => {
     if (isOpen && stock) {
-      // Sin presentación el texto se deja EXACTO como viene: redondear a dos
-      // decimales un precio sub-céntimo (0.008 → "0.01") lo guardaría mal.
-      const precioATexto = (v?: number | null) =>
-        v == null ? '' : factor > 1 ? (Number(v) * factor).toFixed(2) : String(v);
-      const cantidadATexto = (v?: number | null) =>
-        v == null ? '' : factor > 1 ? String(Number(v) / factor) : String(v);
-
-      setPrecio(precioATexto(stock.precio));
-      const costo = precioATexto(stock.precioCosto);
+      setPrecio(textoPrecio(stock.precio));
+      const costo = textoPrecio(stock.precioCosto);
       setPrecioCosto(costo);
       setCostoOriginal(costo);
       setTipoCambioCosto('CORRECCION');
       setRazonCosto('');
-      setPrecioOferta(precioATexto(stock.precioOferta));
+      setPrecioOferta(textoPrecio(stock.precioOferta));
       setEnOferta(stock.enOferta);
       setFechaInicio(stock.fechaInicioOferta?.split('T')[0] ?? '');
       setFechaFin(stock.fechaFinOferta?.split('T')[0] ?? '');
       setPrecioIncluyeIgv(stock.precioIncluyeIgv);
       setUbicacion(stock.ubicacion ?? '');
-      setStockMinimo(cantidadATexto(stock.stockMinimo));
-      setStockMaximo(cantidadATexto(stock.stockMaximo));
+      setStockMinimo(textoCantidad(stock.stockMinimo));
+      setStockMaximo(textoCantidad(stock.stockMaximo));
       setError('');
       setNivelForm(null);
       setNivelError('');
       loadNiveles();
     }
-  }, [isOpen, stock, factor, loadNiveles]);
+  }, [isOpen, stock, textoPrecio, textoCantidad, loadNiveles]);
 
   // Validaciones con paridad Flutter (configurar_precios_dialog.dart:437-696)
   const validate = (): string | null => {
@@ -205,10 +213,28 @@ export default function UpdatePreciosDialog({
 
   const handleGuardarNivel = async () => {
     if (!stock || !nivelForm) return;
-    const cantMin = parseInt(nivelForm.cantidadMinima);
-    const precioNivel = parseFloat(nivelForm.precio);
+    // 🔴 El nivel se teclea en unidad de PRESENTACION y se guarda en unidad de
+    // VENTA, igual que el precio de arriba: el motor compara `cantidadMinima`
+    // contra la cantidad de la linea, que va en gramos. Un "desde 3 kg" que se
+    // guardara como 3 aplicaria mayoreo a los 3 GRAMOS.
+    const cantMin = aUnidadDeVentaCantidad(nivelForm.cantidadMinima);
+    const cantMax = nivelForm.cantidadMaxima
+      ? aUnidadDeVentaCantidad(nivelForm.cantidadMaxima)
+      : undefined;
+    const precioNivel = aUnidadDeVenta(nivelForm.precio);
     if (!nivelForm.nombre.trim()) { setNivelError('Nombre requerido'); return; }
-    if (isNaN(cantMin) || cantMin < 1) { setNivelError('Cantidad mínima inválida'); return; }
+    if (isNaN(cantMin) || cantMin < 1) {
+      setNivelError(
+        tienePresentacion
+          ? `Cantidad mínima inválida: no puede ser menos de ${(1 / factor).toFixed(3)} ${simbolo}`
+          : 'Cantidad mínima inválida',
+      );
+      return;
+    }
+    if (cantMax != null && (isNaN(cantMax) || cantMax <= cantMin)) {
+      setNivelError('La cantidad máxima debe ser mayor a la mínima');
+      return;
+    }
     if (isNaN(precioNivel) || precioNivel <= 0) { setNivelError('Precio inválido'); return; }
     setNivelSaving(true);
     setNivelError('');
@@ -216,7 +242,7 @@ export default function UpdatePreciosDialog({
       const dto = {
         nombre: nivelForm.nombre.trim(),
         cantidadMinima: cantMin,
-        cantidadMaxima: nivelForm.cantidadMaxima ? parseInt(nivelForm.cantidadMaxima) : undefined,
+        cantidadMaxima: cantMax,
         tipoPrecio: 'PRECIO_FIJO' as const,
         precio: precioNivel,
       };
@@ -356,18 +382,6 @@ export default function UpdatePreciosDialog({
                 )}
               </div>
 
-              {/* 🔴 Los niveles NO se convierten: se guardan y se teclean por unidad
-                  de VENTA, igual que en el app. Con los campos de arriba ya en
-                  kilos, escribir acá "7.50" pensando en kilos guardaría S/7.50
-                  el GRAMO — por eso lo dice, y por eso cada nivel muestra al
-                  lado a cuánto equivale. */}
-              {tienePresentacion && (
-                <p className="rounded-md bg-amber-50 px-2 py-1.5 text-[10.5px] leading-snug text-amber-800">
-                  Ojo: estos precios van <strong>por unidad de venta</strong>, no por {simbolo}.
-                  Para S/8.00 el {simbolo} se carga S/{(8 / factor).toFixed(4)}.
-                </p>
-              )}
-
               {niveles.length === 0 && !nivelForm && (
                 <p className="text-[11px] text-gray-400">Sin niveles configurados.</p>
               )}
@@ -376,23 +390,24 @@ export default function UpdatePreciosDialog({
                 <div key={n.id} className="flex items-center justify-between gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
                   <div className="min-w-0 text-xs">
                     <span className="font-medium text-gray-800">{n.nombre}</span>
-                    <span className="ml-2 text-gray-400">{n.cantidadMinima}{n.cantidadMaxima ? `–${n.cantidadMaxima}` : '+'} unid.</span>
+                    <span className="ml-2 text-gray-400">{rangoNivel(n)}</span>
                     <span className="ml-2 font-medium text-green-600">
-                      {n.tipoPrecio === 'PRECIO_FIJO'
-                        ? `S/ ${Number(n.precio).toFixed(tienePresentacion ? 4 : 2)}`
+                      {n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
+                        ? presentacion.precioTexto(Number(n.precio))
                         : `${n.porcentajeDesc}% desc.`}
                     </span>
-                    {tienePresentacion && n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null && (
-                      <span className="ml-1.5 text-gray-400">
-                        ≡ S/ {aPresentacion(Number(n.precio)).toFixed(2)}/{simbolo}
-                      </span>
-                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     {n.tipoPrecio === 'PRECIO_FIJO' ? (
                       <>
                         <button type="button" title="Editar"
-                          onClick={() => setNivelForm({ id: n.id, nombre: n.nombre, cantidadMinima: String(n.cantidadMinima), cantidadMaxima: n.cantidadMaxima != null ? String(n.cantidadMaxima) : '', precio: n.precio != null ? String(n.precio) : '' })}
+                          onClick={() => setNivelForm({
+                            id: n.id,
+                            nombre: n.nombre,
+                            cantidadMinima: textoCantidad(n.cantidadMinima),
+                            cantidadMaxima: textoCantidad(n.cantidadMaxima),
+                            precio: textoPrecio(n.precio),
+                          })}
                           className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-600">
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82l-3.46.952.952-3.46L16.862 4.487z" /></svg>
                         </button>
@@ -413,9 +428,11 @@ export default function UpdatePreciosDialog({
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-2.5 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <input className={inputClass} value={nivelForm.nombre} onChange={e => setNivelForm({ ...nivelForm, nombre: e.target.value })} placeholder="Nombre (ej: Por Mayor)" />
-                    <input className={inputClass} type="number" step="0.01" value={nivelForm.precio} onChange={e => setNivelForm({ ...nivelForm, precio: e.target.value })} placeholder="Precio fijo S/" />
-                    <input className={inputClass} type="number" min="1" value={nivelForm.cantidadMinima} onChange={e => setNivelForm({ ...nivelForm, cantidadMinima: e.target.value })} placeholder="Cant. mínima" />
-                    <input className={inputClass} type="number" min="1" value={nivelForm.cantidadMaxima} onChange={e => setNivelForm({ ...nivelForm, cantidadMaxima: e.target.value })} placeholder="Cant. máx (vacío = ∞)" />
+                    <input className={inputClass} type="number" step="0.01" value={nivelForm.precio} onChange={e => setNivelForm({ ...nivelForm, precio: e.target.value })} placeholder={simbolo ? `Precio S/ por ${simbolo}` : 'Precio fijo S/'} />
+                    {/* Con presentación el mínimo se teclea en kilos y admite
+                        decimales: "1.5 kg" son 1500 g. */}
+                    <input className={inputClass} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMinima} onChange={e => setNivelForm({ ...nivelForm, cantidadMinima: e.target.value })} placeholder={simbolo ? `Desde (${simbolo})` : 'Cant. mínima'} />
+                    <input className={inputClass} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMaxima} onChange={e => setNivelForm({ ...nivelForm, cantidadMaxima: e.target.value })} placeholder={simbolo ? `Hasta (${simbolo}, vacío = ∞)` : 'Cant. máx (vacío = ∞)'} />
                   </div>
                   {nivelError && <p className="text-[11px] text-red-600">{nivelError}</p>}
                   <div className="flex justify-end gap-2">

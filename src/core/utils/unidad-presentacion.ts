@@ -60,6 +60,17 @@ export class UnidadPresentacion {
   }
 
   /**
+   * CANTIDAD escrita en unidad mostrada → unidad de venta. 1.5 kg → 1500 g.
+   *
+   * ⚠️ Va al REVÉS que el precio, y por eso son dos métodos y no uno: la
+   * cantidad se multiplica y el precio se divide. Usar el del precio para una
+   * cantidad convierte 1 kg en 0.001 g, que el carrito redondea a cero.
+   */
+  cantidadAUnidadDeVenta(enUnidadMostrada: number): number {
+    return this.activa ? enUnidadMostrada * this.factor : enUnidadMostrada;
+  }
+
+  /**
    * "22 kg" · "20.5 kg" · "1.237 kg" · sin presentación, "22000".
    *
    * Hasta 3 decimales y sin ceros de relleno: con base en gramos, 3 decimales
@@ -86,4 +97,24 @@ export class UnidadPresentacion {
 function sinCerosSobrantes(v: number, maxDecimales: number): string {
   if (Number.isInteger(v)) return v.toFixed(0);
   return v.toFixed(maxDecimales).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+/** Lo que trae cualquier payload que mande la presentación aplanada. */
+export interface PresentacionPlana {
+  factorPresentacion?: number | null;
+  unidadPresentacionSimbolo?: string | null;
+}
+
+/**
+ * Construye la presentación desde un payload aplanado.
+ *
+ * El backend ya resuelve la herencia variante→producto y la manda plana, así
+ * que la web no repite esa regla: solo lee lo que le llega.
+ */
+export function presentacionPlana(o?: PresentacionPlana | null): UnidadPresentacion {
+  const factor = Number(o?.factorPresentacion ?? 1);
+  return new UnidadPresentacion(
+    Number.isFinite(factor) && factor > 1 ? factor : 1,
+    o?.unidadPresentacionSimbolo,
+  );
 }

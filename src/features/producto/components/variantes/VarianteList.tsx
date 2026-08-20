@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useVariantes } from '../../hooks/use-variantes';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import type { ProductoVariante, CreateVarianteDto } from '@/core/types/producto';
+import type { PresentacionPlana } from '@/core/utils/unidad-presentacion';
 import FiltroPrecioVariantes, { ResumenVariantes } from './FiltroPrecioVariantes';
 import {
   CAMPOS_PRECIO, FILTRO_VACIO, alternarPanel, crearValorDe, filtraPrecio,
@@ -25,6 +26,12 @@ interface Props {
   onSeleccionar?: (v: ProductoVariante) => void;
   /** Para que la pagina pueda leer las variantes ya cargadas por el hook. */
   onVariantesCargadas?: (vs: ProductoVariante[]) => void;
+  /**
+   * Presentacion del PRODUCTO. La variante que no tiene una propia la hereda, y
+   * el payload de variantes no resuelve esa herencia: sin esto el filtro por
+   * precio de un granel volveria a pedir el precio por gramo.
+   */
+  presentacionProducto?: PresentacionPlana | null;
 }
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
@@ -36,7 +43,10 @@ const UMBRAL_TABLA = 12;
 
 type Rapido = 'todas' | 'activas' | 'problemas';
 
-export default function VarianteList({ productoId, productoNombre, productoIsActive, seleccionadaId, onSeleccionar, onVariantesCargadas }: Props) {
+export default function VarianteList({
+  productoId, productoNombre, productoIsActive, seleccionadaId, onSeleccionar,
+  onVariantesCargadas, presentacionProducto,
+}: Props) {
   const {
     variantes, atributosDisponibles, isLoading, isSubmitting,
     error, successMessage, clearMessages,
@@ -57,7 +67,10 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
     ?? (sedesActivas.find((s) => s.esPrincipal) ?? sedesActivas[0])?.id
     ?? '';
 
-  const valorDe = useMemo(() => crearValorDe(sedeId || null), [sedeId]);
+  const valorDe = useMemo(
+    () => crearValorDe(sedeId || null, presentacionProducto),
+    [sedeId, presentacionProducto],
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingVariante, setEditingVariante] = useState<ProductoVariante | null>(null);
@@ -135,7 +148,10 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
     return filtrarVariantes(filtro, base, valorDe);
   }, [variantes, filtro, valorDe, porEje, rapido, tieneProblema]);
 
-  const resumen = useMemo(() => resumenVisible(filtradas), [filtradas]);
+  const resumen = useMemo(
+    () => resumenVisible(filtradas, presentacionProducto),
+    [filtradas, presentacionProducto],
+  );
 
   // La pagina necesita las variantes ya cargadas (para las imagenes de la
   // galeria) y este hook es quien las tiene.

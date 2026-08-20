@@ -6,6 +6,7 @@ import type { GruposMayoreoResumen, VarianteMayoreo } from '@/core/types/mayoreo
 import { gruposConAviso, gruposSolitarios } from '@/core/types/mayoreo';
 import type { ProductoStock } from '@/core/types/stock';
 import { coincideTodosLosTerminos, terminosBusqueda } from '@/core/utils/busqueda-texto';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import GrupoMayoreoCard from '@/features/producto/components/mayoreo/GrupoMayoreoCard';
 import { getGruposMayoreo } from '@/features/producto/services/precio-nivel-service';
@@ -63,10 +64,9 @@ export default function GruposMayoreoPage({ params }: { params: Promise<{ id: st
    */
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
 
-  // Precios: se abren SIN salir del monitor. La variante se guarda junto al
-  // stock porque es la que sabe en qué unidad se le habla al usuario.
+  // Precios: se abren SIN salir del monitor. La unidad en la que se editan la
+  // trae el propio ProductoStock, con la herencia ya resuelta por el backend.
   const [stockEnEdicion, setStockEnEdicion] = useState<ProductoStock | null>(null);
-  const [varianteEnEdicion, setVarianteEnEdicion] = useState<VarianteMayoreo | null>(null);
   const [abriendo, setAbriendo] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -117,7 +117,6 @@ export default function GruposMayoreoPage({ params }: { params: Promise<{ id: st
       // El diálogo trabaja sobre el ProductoStock de la sede (precio, costo,
       // oferta, liquidación), que el monitor no trae: pide solo lo que muestra.
       setStockEnEdicion(await getStockByVarianteSede(v.varianteId, sedeId));
-      setVarianteEnEdicion(v);
     } catch {
       // El precio no se toca a ciegas.
       setError(`No se pudo leer el precio de ${v.nombre}`);
@@ -193,10 +192,6 @@ export default function GruposMayoreoPage({ params }: { params: Promise<{ id: st
       <UpdatePreciosDialog
         isOpen={!!stockEnEdicion}
         stock={stockEnEdicion}
-        // Sin esto un granel se editaría en gramos (S/0.008) en vez de en
-        // kilos (S/8.00), que es justo el número que no se puede tipear.
-        unidadPresentacionSimbolo={varianteEnEdicion?.unidadPresentacionSimbolo}
-        factorPresentacion={varianteEnEdicion?.factorPresentacion}
         onClose={() => setStockEnEdicion(null)}
         onSuccess={() => { setStockEnEdicion(null); cargar(); }}
       />
@@ -372,7 +367,7 @@ function SinNivel({ total, visibles, onEditarVariante }: {
             <span className="min-w-0 flex-1 truncate text-[11px] text-gray-800">{v.nombre}</span>
             <span className="shrink-0 font-mono text-[9.5px] text-gray-600">
               {v.sku}
-              {v.precioVenta != null && ` · S/ ${v.precioVenta.toFixed(2)}`}
+              {v.precioVenta != null && ` · ${presentacionPlana(v).precioTexto(v.precioVenta)}`}
             </span>
             <svg className="h-3.5 w-3.5 shrink-0 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />

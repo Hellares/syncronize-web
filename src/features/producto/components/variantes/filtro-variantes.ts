@@ -1,6 +1,6 @@
 import type { ProductoVariante } from '@/core/types/producto';
 import { simboloUnidad } from '@/core/types/producto';
-import { UnidadPresentacion } from '@/core/utils/unidad-presentacion';
+import { UnidadPresentacion, presentacionPlana, type PresentacionPlana } from '@/core/utils/unidad-presentacion';
 import { coincideTodosLosTerminos, normalizarTexto, terminosBusqueda } from '@/core/utils/busqueda-texto';
 
 /**
@@ -122,11 +122,24 @@ function coincideCodigo(v: ProductoVariante, consulta: string): boolean {
 /**
  * La presentación de la variante: sin esto el filtro numérico de un granel
  * pediría el precio POR GRAMO (0.008) cuando en pantalla dice S/8.00/kg.
+ *
+ * 🔴 La variante que no tiene presentación PROPIA hereda la de su producto, y
+ * el payload de `/variantes` no resuelve esa herencia (manda `null`, que es lo
+ * que el formulario necesita para distinguir "propia" de "heredada"). Por eso
+ * la del producto entra por parámetro: sin ella, el caso normal —una sola
+ * presentación declarada arriba y todas las variantes vendiéndose igual—
+ * volvía a filtrar por gramo.
  */
-export function presentacionDeVariante(v: ProductoVariante): UnidadPresentacion {
-  if (v.unidadPresentacionId && Number(v.factorPresentacion ?? 0) > 1) {
+export function presentacionDeVariante(
+  v: ProductoVariante,
+  producto?: PresentacionPlana | null,
+): UnidadPresentacion {
+  const propia = v.unidadPresentacionId && Number(v.factorPresentacion ?? 0) > 1;
+  if (propia) {
     return new UnidadPresentacion(Number(v.factorPresentacion), v.unidadPresentacionSimbolo);
   }
+  const heredada = presentacionPlana(producto);
+  if (heredada.activa) return heredada;
   return new UnidadPresentacion(1, null, v.unidadMedidaId ? simboloUnidad(v.unidadMedida) : null);
 }
 
@@ -146,7 +159,7 @@ export function nivelPorMayor(v: ProductoVariante) {
  * 🔴 El precio por mayor NO depende de la sede (`PrecioNivel` no tiene
  * `sedeId`), a diferencia de precio y costo.
  */
-export function crearValorDe(sedeId: string | null) {
+export function crearValorDe(sedeId: string | null, producto?: PresentacionPlana | null) {
   return (v: ProductoVariante, campo: CampoPrecio): number | null => {
     const fila = sedeId ? v.stocksPorSede?.find((s) => s.sedeId === sedeId) : undefined;
     const crudo =
@@ -154,7 +167,7 @@ export function crearValorDe(sedeId: string | null) {
       : campo === 'costo' ? fila?.precioCosto
       : nivelPorMayor(v)?.precio;
     if (crudo == null) return null;
-    return presentacionDeVariante(v).precio(Number(crudo));
+    return presentacionDeVariante(v, producto).precio(Number(crudo));
   };
 }
 
@@ -218,14 +231,17 @@ export function stockTotal(v: ProductoVariante): number {
  * que no significa nada, así que se devuelve null cuando lo visible no comparte
  * presentación.
  */
-export function resumenVisible(visibles: ProductoVariante[]): { cantidad: number; stock: string | null } {
+export function resumenVisible(
+  visibles: ProductoVariante[],
+  producto?: PresentacionPlana | null,
+): { cantidad: number; stock: string | null } {
   if (visibles.length === 0) return { cantidad: 0, stock: null };
 
-  const u0 = presentacionDeVariante(visibles[0]);
+  const u0 = presentacionDeVariante(visibles[0], producto);
   let total = 0;
   let mismaUnidad = true;
   for (const v of visibles) {
-    const u = presentacionDeVariante(v);
+    const u = presentacionDeVariante(v, producto);
     if (u.factor !== u0.factor || u.simboloVisible !== u0.simboloVisible) mismaUnidad = false;
     total += stockTotal(v);
   }

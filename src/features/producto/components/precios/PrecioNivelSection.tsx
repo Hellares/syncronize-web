@@ -4,14 +4,18 @@ import { useState, useEffect } from 'react';
 import { usePrecioNiveles } from '../../hooks/use-precio-niveles';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 import type { PrecioNivel } from '@/core/types/precio';
+import { UnidadPresentacion } from '@/core/utils/unidad-presentacion';
 import PrecioNivelFormDialog from './PrecioNivelFormDialog';
 
 interface Props {
   productoId: string;
   varianteId?: string;
+  /** Unidad en la que se leen y se teclean estos niveles (ver el form). */
+  presentacion?: UnidadPresentacion;
 }
 
-export default function PrecioNivelSection({ productoId, varianteId }: Props) {
+export default function PrecioNivelSection({ productoId, varianteId, presentacion }: Props) {
+  const u = presentacion ?? UnidadPresentacion.ninguna();
   const { niveles, isLoading, isSubmitting, error, success, create, update, remove } = usePrecioNiveles(productoId, varianteId);
   const permissions = usePermissions();
   const canManage = permissions.canManageProducts;
@@ -51,10 +55,10 @@ export default function PrecioNivelSection({ productoId, varianteId }: Props) {
               <div>
                 <p className="text-sm font-medium text-gray-900">{n.nombre}</p>
                 <p className="text-xs text-gray-500">
-                  {n.cantidadMinima}{n.cantidadMaxima ? `-${n.cantidadMaxima}` : '+'} unid.
+                  {u.cantidadTexto(n.cantidadMinima)}{n.cantidadMaxima ? `-${u.cantidadTexto(n.cantidadMaxima)}` : '+'}{!u.activa && ' unid.'}
                   {' — '}
                   {n.tipoPrecio === 'PRECIO_FIJO'
-                    ? <span className="text-green-600 font-medium">S/ {Number(n.precio).toFixed(2)}</span>
+                    ? <span className="text-green-600 font-medium">{u.precioTexto(Number(n.precio))}</span>
                     : <span className="text-blue-600 font-medium">{n.porcentajeDesc}% desc.</span>
                   }
                 </p>
@@ -78,6 +82,7 @@ export default function PrecioNivelSection({ productoId, varianteId }: Props) {
         isOpen={formOpen}
         nivel={editing}
         isSubmitting={isSubmitting}
+        presentacion={presentacion}
         onSave={async (data) => {
           if (editing) await update(editing.id, data);
           else await create(data);
