@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useVariantes } from '../../hooks/use-variantes';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import type { ProductoVariante, CreateVarianteDto } from '@/core/types/producto';
@@ -212,28 +213,43 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
             )}
           </div>
         </div>
-        {canManage && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setGenerarOpen(true)}
-              className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-xs font-medium text-[#437EFF] hover:bg-[#437EFF]/5"
-            >
-              <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-              Generar Combinaciones
-            </button>
-            <button
-              onClick={handleCreate}
-              className="rounded-lg bg-[#004A94] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#003570]"
-            >
-              <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Nueva Variante
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {/* El grupo de mayoreo es IMPLICITO (dos variantes con el mismo nivel
+              combinan), asi que desde esta lista no hay forma de ver cuales
+              suman entre si — ni de notar que a una le cambiaron el precio por
+              mayor y quedo sola. */}
+          <Link
+            href={`/dashboard/productos/${productoId}/mayoreo`}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l9 4.5-9 4.5-9-4.5L12 3zM3 12l9 4.5L21 12M3 16.5L12 21l9-4.5" />
+            </svg>
+            Grupos de mayoreo
+          </Link>
+          {canManage && (
+            <>
+              <button
+                onClick={() => setGenerarOpen(true)}
+                className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-xs font-medium text-[#437EFF] hover:bg-[#437EFF]/5"
+              >
+                <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Generar Combinaciones
+              </button>
+              <button
+                onClick={handleCreate}
+                className="rounded-lg bg-[#004A94] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#003570]"
+              >
+                <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Nueva Variante
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

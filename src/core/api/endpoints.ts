@@ -35,6 +35,8 @@ export const PRECIO_NIVEL_ENDPOINTS = {
   BY_PRODUCTO: (productoId: string) => `/productos/${productoId}/precios-nivel`,
   BY_VARIANTE: (varianteId: string) => `/productos/variantes/${varianteId}/precios-nivel`,
   SINGLE: (nivelId: string) => `/productos/precios-nivel/${nivelId}`,
+  /** Monitor de mayoreo: qué variantes de un producto suman entre sí. */
+  GRUPOS_MAYOREO: (productoId: string) => `/productos/${productoId}/grupos-mayoreo`,
 } as const;
 
 export const CONFIGURACION_PRECIO_ENDPOINTS = {
