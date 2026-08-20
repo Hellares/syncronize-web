@@ -1,3 +1,5 @@
+import type { TipoPrecioNivel } from './precio';
+
 // --- Entidades relacionadas ---
 
 export interface ProductoCategoria {
@@ -123,6 +125,23 @@ export function infoPrecioEfectivo(s: StockPorSedeInfo): number | undefined {
 
 // --- Variante ---
 
+/**
+ * Nivel de precio por volumen tal como VIENE en el payload de la variante: un
+ * subconjunto de `PrecioNivel`, sin `productoId`/`orden`/timestamps.
+ *
+ * 🔴 El nivel NO es por sede (`PrecioNivel` no tiene `sedeId`), a diferencia de
+ * precio y costo, que sí viven en `ProductoStock`.
+ */
+export interface PrecioNivelVariante {
+  id: string;
+  nombre: string;
+  cantidadMinima: number;
+  cantidadMaxima?: number | null;
+  tipoPrecio: TipoPrecioNivel;
+  precio?: number | null;
+  porcentajeDesc?: number | null;
+}
+
 export interface ProductoVariante {
   id: string;
   productoId: string;
@@ -153,6 +172,12 @@ export interface ProductoVariante {
   orden: number;
   archivos?: ProductoArchivo[];
   stocksPorSede?: StockPorSedeInfo[];
+  /**
+   * Niveles de precio por volumen, ordenados por cantidad mínima. El backend
+   * los manda en el mismo payload de la variante para que la lista pueda
+   * mostrar el nivel VIGENTE sin una llamada por variante.
+   */
+  preciosNivel?: PrecioNivelVariante[];
   creadoEn: string;
   actualizadoEn: string;
 }

@@ -2,8 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useVariantes } from '../../hooks/use-variantes';
-import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import type { ProductoVariante, CreateVarianteDto } from '@/core/types/producto';
+import FiltroPrecioVariantes, { ResumenVariantes } from './FiltroPrecioVariantes';
+import {
+  CAMPOS_PRECIO, FILTRO_VACIO, alternarPanel, crearValorDe, filtraPrecio,
+  filtrarVariantes, filtroActivo, resumenVisible, type FiltroVariantes,
+} from './filtro-variantes';
 import VarianteCard from './VarianteCard';
 import VarianteTable from './VarianteTable';
 import VarianteFormDialog from './VarianteFormDialog';
@@ -40,12 +45,32 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
   const permissions = usePermissions();
   const canManage = permissions.canManageProducts;
 
+  // 🔴 Precio y costo son POR SEDE: sin decir de cual se habla, el filtro
+  // numerico compararia contra un numero que no es el que esta en la tabla.
+  const { sedes } = useEmpresa();
+  const sedesActivas = useMemo(() => sedes.filter((s) => s.isActive), [sedes]);
+  // Derivada y no en estado: las sedes llegan del contexto DESPUES del primer
+  // render, y sembrar el default desde un efecto encadena renders.
+  const [sedeElegida, setSedeElegida] = useState<string | null>(null);
+  const sedeId = sedeElegida
+    ?? (sedesActivas.find((s) => s.esPrincipal) ?? sedesActivas[0])?.id
+    ?? '';
+
+  const valorDe = useMemo(() => crearValorDe(sedeId || null), [sedeId]);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingVariante, setEditingVariante] = useState<ProductoVariante | null>(null);
   const [generarOpen, setGenerarOpen] = useState(false);
   const [detailVariante, setDetailVariante] = useState<ProductoVariante | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductoVariante | null>(null);
-  const [busqueda, setBusqueda] = useState('');
+  /**
+   * Buscador + filtro numerico, el MISMO que usan la edicion masiva y el
+   * analisis del app. La logica vive en `filtro-variantes` y no copiada aca
+   * porque tiene trampas (los codigos no pueden entrar al match por fragmentos,
+   * el valor se compara en unidad de PRESENTACION) que ya costaron encontrar
+   * una vez.
+   */
+  const [filtro, setFiltro] = useState<FiltroVariantes>(FILTRO_VACIO);
   const [porEje, setPorEje] = useState<Record<string, string>>({});
   const [rapido, setRapido] = useState<Rapido>('todas');
   const [vista, setVista] = useState<'tabla' | 'tarjetas' | null>(null);
@@ -94,8 +119,9 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
   }, [ejes]);
 
   const filtradas = useMemo(() => {
-    const t = busqueda.trim().toLowerCase();
-    return variantes.filter((v) => {
+    // Primero los filtros propios de la web (tabs y ejes), despues el filtro
+    // compartido: el resumen cuenta lo que realmente queda a la vista.
+    const base = variantes.filter((v) => {
       if (rapido === 'activas' && !v.isActive) return false;
       if (rapido === 'problemas' && !tieneProblema(v)) return false;
       for (const [eje, valor] of Object.entries(porEje)) {
@@ -103,10 +129,12 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
         const av = v.atributosValores.find((a) => a.atributo.nombre === eje);
         if (av?.valor?.trim() !== valor) return false;
       }
-      if (!t) return true;
-      return `${v.nombre} ${v.sku} ${v.codigoEmpresa} ${v.codigoBarras ?? ''}`.toLowerCase().includes(t);
+      return true;
     });
-  }, [variantes, busqueda, porEje, rapido, tieneProblema]);
+    return filtrarVariantes(filtro, base, valorDe);
+  }, [variantes, filtro, valorDe, porEje, rapido, tieneProblema]);
+
+  const resumen = useMemo(() => resumenVisible(filtradas), [filtradas]);
 
   // La pagina necesita las variantes ya cargadas (para las imagenes de la
   // galeria) y este hook es quien las tiene.
@@ -114,7 +142,12 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
     if (onVariantesCargadas) onVariantesCargadas(variantes);
   }, [variantes, onVariantesCargadas]);
 
-  const hayFiltro = !!busqueda.trim() || rapido !== 'todas' || Object.values(porEje).some(Boolean);
+  const hayFiltro = filtroActivo(filtro) || rapido !== 'todas' || Object.values(porEje).some(Boolean);
+  const limpiar = useCallback(() => {
+    setFiltro(FILTRO_VACIO);
+    setPorEje({});
+    setRapido('todas');
+  }, []);
   // La vista arranca sola segun cuantas hay; una eleccion manual la fija.
   const vistaEfectiva = vista ?? (variantes.length > UMBRAL_TABLA ? 'tabla' : 'tarjetas');
   const conProblema = useMemo(() => variantes.filter(tieneProblema).length, [variantes, tieneProblema]);
@@ -219,17 +252,40 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
       {variantes.length > 0 && (
         <div className="flex flex-col gap-2.5 rounded-[10px] border border-gray-100 bg-slate-50/70 p-2.5">
           <div className="flex flex-wrap items-center gap-2">
+            <ResumenVariantes
+              cantidad={resumen.cantidad}
+              total={variantes.length}
+              stock={resumen.stock}
+              filtrando={hayFiltro}
+            />
+
             <div className="relative min-w-[180px] max-w-[280px] flex-1">
               <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                 <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
               </svg>
               <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar variante, SKU o código…"
+                value={filtro.busqueda}
+                onChange={(e) => setFiltro((f) => ({ ...f, busqueda: e.target.value }))}
+                placeholder="Buscar variante, atributo, SKU o código…"
                 className={`${INPUT_STD} w-full pl-8`}
               />
             </div>
+
+            {/* El embudo despliega el filtro por precio: venta, costo o por
+                mayor, con =, <, >, entre y vacío. */}
+            <button
+              onClick={() => setFiltro(alternarPanel)}
+              title="Filtrar por precio"
+              className={`flex h-[30px] w-[30px] items-center justify-center rounded-[6px] transition-colors ${
+                filtraPrecio(filtro)
+                  ? 'bg-[#004A94] text-white'
+                  : filtro.abierto ? 'bg-blue-100 text-[#004A94]' : 'bg-blue-50 text-[#437EFF] hover:bg-blue-100'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
+              </svg>
+            </button>
 
             <div className="flex gap-0.5 rounded-[7px] border border-gray-200 bg-white p-0.5">
               {([['todas', 'Todas'], ['activas', 'Activas'], ['problemas', 'Con problemas']] as const).map(([key, label]) => (
@@ -267,6 +323,16 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
             </div>
           </div>
 
+          {filtro.abierto && (
+            <FiltroPrecioVariantes
+              filtro={filtro}
+              onCambio={setFiltro}
+              sedes={sedesActivas}
+              sedeId={sedeId}
+              onSede={setSedeElegida}
+            />
+          )}
+
           {/* Un desplegable por EJE: con 5 atributos es como se busca de verdad */}
           {ejes.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
@@ -284,7 +350,7 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
               ))}
               {hayFiltro && (
                 <button
-                  onClick={() => { setBusqueda(''); setPorEje({}); setRapido('todas'); }}
+                  onClick={limpiar}
                   className="rounded px-2 py-1 text-[11px] text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
                   Limpiar
@@ -312,29 +378,32 @@ export default function VarianteList({ productoId, productoNombre, productoIsAct
         </div>
       ) : filtradas.length === 0 ? (
         <div className="rounded-[10px] border border-dashed border-gray-200 py-10 text-center">
+          {/* Dice POR QUE quedó vacía: con el embudo abierto la lista puede
+              vaciarse sin haber tecleado una letra, y un "no coincide con la
+              búsqueda" hace buscar un error donde no lo hay. */}
           <p className="text-sm font-medium text-gray-500">Ninguna variante coincide</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-gray-400">
+            {filtraPrecio(filtro)
+              ? `Ninguna de las ${variantes.length} pasa el filtro de precio (${CAMPOS_PRECIO[filtro.campo]}).`
+              : 'Probá con menos palabras o revisá los filtros por atributo.'}
+          </p>
           <button
-            onClick={() => { setBusqueda(''); setPorEje({}); setRapido('todas'); }}
+            onClick={limpiar}
             className="mt-2 text-xs font-semibold text-[#437EFF] hover:underline"
           >
             Limpiar filtros
           </button>
         </div>
       ) : vistaEfectiva === 'tabla' ? (
-        <>
-          <VarianteTable
-            variantes={filtradas}
-            ejes={ejes}
-            canManage={canManage}
-            seleccionadaId={seleccionadaId}
-            onView={(v) => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
-            onEdit={(v) => handleEdit(v)}
-            onDelete={(v) => setDeleteTarget(v)}
-          />
-          {filtradas.length !== variantes.length && (
-            <p className="text-[11px] text-gray-400">Mostrando {filtradas.length} de {variantes.length}</p>
-          )}
-        </>
+        <VarianteTable
+          variantes={filtradas}
+          ejes={ejes}
+          canManage={canManage}
+          seleccionadaId={seleccionadaId}
+          onView={(v) => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
+          onEdit={(v) => handleEdit(v)}
+          onDelete={(v) => setDeleteTarget(v)}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtradas.map(v => (
