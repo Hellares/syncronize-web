@@ -26,11 +26,13 @@
  * ve en las dos pantallas.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva, simboloUnidad } from '@/core/types/producto';
+import type { TipoPrecioNivel } from '@/core/types/precio';
 import { coincideTodosLosTerminos, terminosBusqueda } from '@/core/utils/busqueda-texto';
 import { UnidadPresentacion } from '@/core/utils/unidad-presentacion';
+import * as precioNivelService from '../services/precio-nivel-service';
 // La herencia presentación producto→variante ya está resuelta y probada acá;
 // duplicarla sería una segunda fuente de verdad para una regla que muerde.
 import { presentacionDeVariante, type Presentacion } from '@/features/compras/utils/variantes-comprables';
@@ -94,6 +96,20 @@ const IconCarrito = () => (
 );
 
 interface Grupo { clave: string; nombre: string; valores: string[] }
+
+/**
+ * Nivel por volumen, en la forma mínima que se necesita acá. Sirve tanto para
+ * el que viene dentro de la variante como para el que devuelve el endpoint.
+ */
+interface Nivel {
+  nombre: string;
+  cantidadMinima: number;
+  cantidadMaxima?: number | null;
+  tipoPrecio: TipoPrecioNivel;
+  precio?: number | null;
+  porcentajeDesc?: number | null;
+  isActive?: boolean;
+}
 
 /** El valor que la variante declara para `clave`, o null si no lo declara **o si está VACÍO**. */
 function valorDe(v: ProductoVariante, clave: string): string | null {
@@ -291,16 +307,44 @@ export default function VarianteSelector({
   const esGranel = pres.factor > 1;
   const precio = resuelta ? precioDe(resuelta) : undefined;
 
+  /**
+   * Niveles por variante, pedidos BAJO DEMANDA.
+   *
+   * 🔴 El catálogo (`GET /productos`) no trae `preciosNivel` en las variantes
+   * —`buildIncludeClause` no lo incluye— así que sin esta llamada el diálogo
+   * nunca puede mostrar el precio por mayor. Se pide solo el de la combinación
+   * resuelta y se cachea: en un producto de 91 variantes, traerlos todos en el
+   * catálogo engordaría la respuesta más pesada del sistema. Es lo mismo que
+   * hace el app (`_cargarNivelesResuelta`).
+   */
+  const [nivelesPorVariante, setNivelesPorVariante] = useState<Record<string, Nivel[]>>({});
+  const nivelesPedidos = useRef<Set<string>>(new Set());
+  const resueltaId = resuelta?.id;
+
+  useEffect(() => {
+    if (!resueltaId || nivelesPedidos.current.has(resueltaId)) return;
+    nivelesPedidos.current.add(resueltaId);
+    let vivo = true;
+    precioNivelService.getNivelesByVariante(resueltaId)
+      .then((niveles) => { if (vivo) setNivelesPorVariante((prev) => ({ ...prev, [resueltaId]: niveles })); })
+      // Sin niveles se sigue vendiendo al precio de lista: no vale trabar el POS.
+      .catch(() => { nivelesPedidos.current.delete(resueltaId); });
+    return () => { vivo = false; };
+  }, [resueltaId]);
+
   /** El nivel por volumen que aplicaría a la cantidad elegida. */
   const nivelAplicado = useMemo(() => {
     if (!resuelta || cantidad <= 0) return null;
-    const niveles = (resuelta.preciosNivel ?? []).filter(
-      (n) => cantidad >= n.cantidadMinima && (n.cantidadMaxima == null || cantidad <= n.cantidadMaxima),
+    const todos: Nivel[] = nivelesPorVariante[resuelta.id] ?? resuelta.preciosNivel ?? [];
+    const niveles = todos.filter(
+      (n) => n.isActive !== false
+        && cantidad >= n.cantidadMinima
+        && (n.cantidadMaxima == null || cantidad <= n.cantidadMaxima),
     );
     if (!niveles.length) return null;
     // El más específico: el de mínimo más alto que la cantidad alcanza.
     return [...niveles].sort((a, b) => b.cantidadMinima - a.cantidadMinima)[0];
-  }, [resuelta, cantidad]);
+  }, [resuelta, cantidad, nivelesPorVariante]);
 
   const precioNivel = useMemo(() => {
     if (!nivelAplicado || precio == null) return null;
