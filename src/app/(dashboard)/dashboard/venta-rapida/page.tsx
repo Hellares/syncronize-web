@@ -130,8 +130,17 @@ function VentaRapidaInner() {
     // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId
     const idx = items.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
     if (idx >= 0) {
-      setItems(prev => recalcularNivelesEnLote(
-        prev.map((it, i) => i === idx ? { ...it, cantidad: it.cantidad + cantidad } : it)));
+      // Ya estaba en el carrito: sube la cantidad y la línea pasa a ser la más
+      // reciente, o sea que se va ARRIBA. Agregar es agregar aunque la línea ya
+      // exista; el cajero tiene que ver el resultado sin buscarlo. El stepper de
+      // la propia línea NO mueve nada: ahí se está ajustando algo que ya se ve.
+      setItems(prev => {
+        const i = prev.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
+        if (i < 0) return prev;
+        const resto = prev.filter((_, j) => j !== i);
+        const tocada = { ...prev[i], cantidad: prev[i].cantidad + cantidad };
+        return recalcularNivelesEnLote([...resto, tocada]);
+      });
       return;
     }
 
@@ -390,6 +399,29 @@ function VentaRapidaInner() {
   }, [items]);
 
   /**
+   * El ÚLTIMO agregado va ARRIBA: es lo que el cajero acaba de tocar y lo que
+   * necesita confirmar, y al final de la lista quedaba fuera de pantalla.
+   *
+   * 🔑 Solo cambia la VISTA. El orden de `items` es el que viaja al
+   * comprobante y al ticket, y ahí lo cronológico es lo correcto.
+   *
+   * Los componentes de un combo se mantienen juntos y en su orden: el combo se
+   * agregó como UNA acción, así que invertirlo por dentro no significa nada.
+   */
+  const itemsVista = useMemo(() => {
+    const grupos: VentaItem[][] = [];
+    for (const it of items) {
+      const ultimo = grupos[grupos.length - 1];
+      if (it.origenComboId && ultimo && ultimo[0].origenComboId === it.origenComboId) {
+        ultimo.push(it);
+      } else {
+        grupos.push([it]);
+      }
+    }
+    return grupos.reverse().flat();
+  }, [items]);
+
+  /**
    * Grupos de MAYOREO COMBINADO presentes en el carrito: el que ya aplica y el
    * que está a una o dos unidades de aplicar.
    *
@@ -402,7 +434,7 @@ function VentaRapidaInner() {
     const vistos = new Set<string>();
     const out: Array<{
       clave: string; aplicado: boolean; faltan: number; juntadas: number;
-      lineas: VentaItem[]; nivel: NivelPrecio; ahorro: number; precioTexto: string;
+      lineas: VentaItem[]; ultima: VentaItem; nivel: NivelPrecio; ahorro: number; precioTexto: string;
     }> = [];
     for (const it of combinables) {
       for (const n of it.niveles ?? []) {
@@ -423,6 +455,8 @@ function VentaRapidaInner() {
           (sum, x) => sum + Math.max(0, x.precioBase - precioConNivel(x.precioBase, n)) * x.cantidad, 0);
         out.push({
           clave, aplicado: faltan <= 0, faltan, juntadas, lineas, nivel: n, ahorro,
+          // La más reciente del grupo: es la que el cajero tiene arriba a la vista.
+          ultima: lineas[lineas.length - 1],
           precioTexto: n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
             ? ` a S/ ${fmt(Number(n.precio))} c/u` : '',
         });
@@ -560,7 +594,7 @@ function VentaRapidaInner() {
                   </p>
                 </div>
                 {!t.aplicado && (
-                  <button onClick={() => cambiarCantidad(t.lineas[0].key, t.lineas[0].cantidad + t.faltan)}
+                  <button onClick={() => cambiarCantidad(t.ultima.key, t.ultima.cantidad + t.faltan)}
                     className="shrink-0 rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-50">
                     +{t.faltan}
                   </button>
@@ -572,7 +606,7 @@ function VentaRapidaInner() {
             <div className="max-h-[26rem] overflow-y-auto">
               {items.length === 0 ? (
                 <p className="px-4 py-14 text-center text-sm text-gray-400">Toca un producto para agregarlo</p>
-              ) : items.map(it => {
+              ) : itemsVista.map(it => {
                 const c = calcularLinea(it);
                 const conNivel = !it.esOrdenServicio && it.precioUnitario < it.precioBase;
                 const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
