@@ -11,7 +11,7 @@ import type { CreateCotizacionDto, CreateCotizacionDetalleDto, Cotizacion, Compa
 import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { NivelPrecio } from '@/core/types/venta';
-import { nivelAplicable, precioConNivel } from '@/core/types/venta';
+import { nivelAplicable, precioConNivel, cantidadesGrupoMayoreo } from '@/core/types/venta';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
@@ -67,12 +67,20 @@ interface ItemLinea {
 
 /** Recalcula precioUnitario por niveles para la cantidad (paridad recalcularPorNiveles de VR;
  *  liquidación o precio manual mantienen el precio). */
-function recalcItemNiveles(item: ItemLinea, cantidad: number): ItemLinea {
+function recalcItemNiveles(
+  item: ItemLinea,
+  cantidad: number,
+  cantidadesGrupo?: Map<string, number>,
+): ItemLinea {
   const cant = Math.max(0, cantidad);
   if (item.precioManual || item.enLiquidacion) {
     return { ...item, cantidad: cant };
   }
-  const nivel = nivelAplicable(item.niveles, cant);
+  const nivel = nivelAplicable(item.niveles, cant, {
+    cantidadesGrupo,
+    // Solo las lineas de VARIANTE combinan, igual que en el backend.
+    productoId: item.varianteId ? item.productoId : null,
+  });
   const precio = precioConNivel(item.precioBase, nivel);
   return {
     ...item,
@@ -80,6 +88,22 @@ function recalcItemNiveles(item: ItemLinea, cantidad: number): ItemLinea {
     precioUnitario: precio,
     nivelAplicado: precio < item.precioBase ? nivel?.nombre ?? null : null,
   };
+}
+
+/**
+ * Reprecia la cotizacion ENTERA aplicando MAYOREO COMBINADO: 3 disenos
+ * distintos del mismo producto que comparten "Por Mayor >= 3" cobran por mayor
+ * los tres. El precio de una linea depende de las OTRAS, asi que cada vez que
+ * se agrega, quita o cambia una cantidad hay que pasar la lista completa.
+ *
+ * Quedan afuera los componentes de combo (su precio lo fija el prorrateo) y las
+ * lineas con precio tecleado a mano.
+ */
+function recalcNivelesEnLote(items: ItemLinea[]): ItemLinea[] {
+  const grupos = cantidadesGrupoMayoreo(items);
+  return items.map((it) => (
+    it.origenComboId || it.precioManual ? it : recalcItemNiveles(it, it.cantidad, grupos)
+  ));
 }
 
 function calcItem(item: ItemLinea) {
@@ -314,7 +338,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           origenComboNombre: producto.nombre,
         };
       });
-      setItems(prev => [...prev, ...nuevos]);
+      setItems(prev => recalcNivelesEnLote([...prev, ...nuevos]));
       setCompatibilidad(null);
     } catch {
       setError(`No se pudo cargar el combo "${producto.nombre}"`);
@@ -365,18 +389,18 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       const idx = prev.findIndex(it => it.productoId === producto.id && !it.varianteId && !it.origenComboId);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = recalcItemNiveles(next[idx], next[idx].cantidad + 1);
-        return next;
+        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + 1 };
+        return recalcNivelesEnLote(next);
       }
-      return [...prev, newItem];
+      return recalcNivelesEnLote([...prev, newItem]);
     });
     // Niveles por mayor (async): al llegar, recalcular el precio a la cantidad actual
     if (!enLiq) {
       try {
         const niveles = await precioNivelService.getNivelesByProducto(producto.id);
         if (niveles.length) {
-          setItems(prev => prev.map(it => (it.key === key && !it.precioManual)
-            ? recalcItemNiveles({ ...it, niveles }, it.cantidad) : it));
+          setItems(prev => recalcNivelesEnLote(
+            prev.map(it => (it.key === key ? { ...it, niveles } : it))));
         }
       } catch { /* sin niveles */ }
     }
@@ -419,18 +443,18 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       const idx = prev.findIndex(it => it.productoId === producto.id && it.varianteId === variante.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = recalcItemNiveles(next[idx], next[idx].cantidad + cantidad);
-        return next;
+        next[idx] = { ...next[idx], cantidad: next[idx].cantidad + cantidad };
+        return recalcNivelesEnLote(next);
       }
-      return [...prev, newItem];
+      return recalcNivelesEnLote([...prev, newItem]);
     });
     setVariantePicker(null);
     if (!enLiq) {
       try {
         const niveles = await precioNivelService.getNivelesByVariante(variante.id);
         if (niveles.length) {
-          setItems(prev => prev.map(it => (it.key === key && !it.precioManual)
-            ? recalcItemNiveles({ ...it, niveles }, it.cantidad) : it));
+          setItems(prev => recalcNivelesEnLote(
+            prev.map(it => (it.key === key ? { ...it, niveles } : it))));
         }
       } catch { /* sin niveles */ }
     }
@@ -464,7 +488,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
 
   // Cantidad: recalcula precio por niveles (salvo precio manual o liquidación)
   const setCantidad = useCallback((key: string, n: number) => {
-    setItems(prev => prev.map(it => it.key === key ? recalcItemNiveles(it, n) : it));
+    setItems(prev => recalcNivelesEnLote(
+      prev.map(it => (it.key === key ? { ...it, cantidad: Math.max(0, n) } : it))));
     setCompatibilidad(null);
   }, []);
 
@@ -482,7 +507,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   }, []);
 
   const removeItem = useCallback((key: string) => {
-    setItems(prev => prev.filter(item => item.key !== key));
+    // Sacar una linea puede dejar al grupo por debajo del minimo.
+    setItems(prev => recalcNivelesEnLote(prev.filter(item => item.key !== key)));
     setCompatibilidad(null);
   }, []);
 

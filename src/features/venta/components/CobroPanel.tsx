@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AxiosError } from 'axios';
 import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
-import { requiereAutorizacionBajoCosto, recalcularPorNiveles, UMBRAL_BANCARIZACION_PEN } from '@/core/types/venta';
+import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN } from '@/core/types/venta';
 import type { Emisor } from '@/core/types/facturacion';
 import * as facturacionService from '@/features/facturacion/services/facturacion-service';
 import * as ventaService from '../services/venta-service';
@@ -314,15 +314,17 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // 409 STOCK: ajustar al disponible (quita los de 0, recalcula niveles)
   const ajustarStockServer = () => {
     if (!divergenciasStock) return;
-    setItems(prev => prev.flatMap(it => {
+    // Cambian las cantidades: se reprecia el carrito ENTERO, porque bajar una
+    // linea puede sacar del mayoreo a las otras del mismo grupo.
+    setItems(prev => recalcularNivelesEnLote(prev.flatMap(it => {
       const div = divergenciasStock.find(d =>
         (d.varianteId && d.varianteId === it.varianteId) ||
         (!d.varianteId && d.productoId === it.productoId && !it.varianteId)
       );
       if (!div) return [it];
       if (div.stockDisponible <= 0) return [];
-      return [recalcularPorNiveles(it, div.stockDisponible)];
-    }));
+      return [{ ...it, cantidad: div.stockDisponible }];
+    })));
     setDivergenciasStock(null);
   };
 

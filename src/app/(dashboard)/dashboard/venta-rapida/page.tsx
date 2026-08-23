@@ -7,7 +7,7 @@ import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { VentaItem, Venta } from '@/core/types/venta';
-import { recalcularPorNiveles, calcularLinea } from '@/core/types/venta';
+import { recalcularNivelesEnLote, calcularLinea } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
@@ -113,7 +113,8 @@ function VentaRapidaInner() {
     // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId
     const idx = items.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
     if (idx >= 0) {
-      setItems(prev => prev.map((it, i) => i === idx ? recalcularPorNiveles(it, it.cantidad + cantidad) : it));
+      setItems(prev => recalcularNivelesEnLote(
+        prev.map((it, i) => i === idx ? { ...it, cantidad: it.cantidad + cantidad } : it)));
       return;
     }
 
@@ -136,7 +137,7 @@ function VentaRapidaInner() {
       precioCosto: stock?.precioCosto != null ? Number(stock.precioCosto) : null,
       stockDisponible: stock?.cantidad ?? null,
     };
-    setItems(prev => [...prev, nuevo]);
+    setItems(prev => recalcularNivelesEnLote([...prev, nuevo]));
 
     // Niveles async (cache-less v1: fetch directo y recalcular)
     try {
@@ -144,9 +145,10 @@ function VentaRapidaInner() {
         ? await precioNivelService.getNivelesByVariante(varianteId)
         : await precioNivelService.getNivelesByProducto(p.id);
       if (niveles.length) {
-        setItems(prev => prev.map(it => it.key === key
-          ? recalcularPorNiveles({ ...it, niveles }, it.cantidad)
-          : it));
+        // Con los niveles en mano cambia el grupo de mayoreo: se reprecia el
+        // carrito entero, no solo esta linea.
+        setItems(prev => recalcularNivelesEnLote(
+          prev.map(it => (it.key === key ? { ...it, niveles } : it))));
       }
     } catch { /* sin niveles */ }
   }, [items, stockDeSede]);
@@ -204,7 +206,7 @@ function VentaRapidaInner() {
           stockDisponible: null,
         };
       });
-      setItems(prev => [...prev, ...nuevos]);
+      setItems(prev => recalcularNivelesEnLote([...prev, ...nuevos]));
       setInfo(`Combo "${p.nombre}" agregado (${nuevos.length} componentes, total S/ ${fmt(objetivo)})`);
     } catch {
       setInfo(`No se pudo cargar el combo "${p.nombre}"`);
@@ -229,13 +231,16 @@ function VentaRapidaInner() {
 
   const cambiarCantidad = (key: string, nueva: number) => {
     if (nueva < 1) return;
-    setItems(prev => prev.map(it => it.key === key ? recalcularPorNiveles(it, nueva) : it));
+    setItems(prev => recalcularNivelesEnLote(
+      prev.map(it => (it.key === key ? { ...it, cantidad: nueva } : it))));
   };
 
   const quitarItem = (key: string) => setItems(prev => {
     const next = prev.filter(it => it.key !== key);
     if (!next.some(it => it.esOrdenServicio)) setOrdenCliente(null);
-    return next;
+    // Sacar una linea puede dejar al grupo por debajo del minimo: las que
+    // quedan tienen que volver al precio de lista.
+    return recalcularNivelesEnLote(next);
   });
 
   // --- Agregar orden de servicio al carrito (paridad agregarOrdenServicio) ---

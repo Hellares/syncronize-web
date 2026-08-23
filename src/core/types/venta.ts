@@ -313,11 +313,104 @@ export interface NivelPrecio {
   isActive?: boolean;
 }
 
-/** Nivel más ESPECÍFICO aplicable (mayor cantidadMinima) — paridad venta_rapida_cubit */
-export function nivelAplicable(niveles: NivelPrecio[], cantidad: number): NivelPrecio | null {
+/**
+ * Llave del GRUPO DE MAYOREO al que pertenece un nivel.
+ *
+ * 🔴 ESPEJO de `PrecioNivelService.claveGrupoMayoreo` (backend) y de
+ * `VentaDetalleInput.claveGrupoMayoreo` (app). Los strings no tienen que
+ * coincidir entre los tres —cada uno agrupa en su casa— pero sí tienen que
+ * AGRUPAR IGUAL: si la web junta variantes que el backend separa, el precio
+ * que se manda no es el que el servidor calcula y la venta rebota con 409
+ * PRECIO_DESACTUALIZADO.
+ *
+ * El `nombre` del nivel NO entra: "Por Mayor" y "Mayorista" al mismo precio son
+ * el mismo trato. El `productoId` sí, porque el mayoreo combinado se acumula
+ * DENTRO de un producto.
+ */
+export function claveGrupoMayoreo(productoId: string, nivel: NivelPrecio): string {
+  const valor = nivel.tipoPrecio === 'PRECIO_FIJO'
+    ? (nivel.precio != null ? Number(nivel.precio).toFixed(6) : 'sin-precio')
+    : (nivel.porcentajeDesc != null ? Number(nivel.porcentajeDesc).toFixed(2) : 'sin-pct');
+  return [
+    productoId,
+    nivel.cantidadMinima,
+    nivel.cantidadMaxima ?? 'inf',
+    nivel.tipoPrecio,
+    valor,
+  ].join('|');
+}
+
+/** Lo mínimo que necesita una línea para entrar al mayoreo combinado. */
+export interface LineaAgrupable {
+  productoId?: string;
+  varianteId?: string;
+  cantidad: number;
+  niveles: NivelPrecio[];
+  origenComboId?: string;
+}
+
+/**
+ * MAYOREO COMBINADO: unidades que junta cada grupo en TODO el carrito.
+ *
+ * Quien se lleva 3 edredones de tres diseños distintos que comparten el mismo
+ * "Por Mayor ≥ 3" tiene que pagar por mayor los tres: el cliente ve tres
+ * edredones, no tres líneas de uno.
+ *
+ * Cuenta LÍNEAS y no variantes distintas (la misma variante en dos líneas de 1
+ * también suma 2) y deja afuera los componentes de combo, que tienen su propio
+ * deal de precio. Una línea en liquidación SÍ acumula aunque nunca reciba
+ * nivel: son unidades que el cliente se lleva.
+ */
+export function cantidadesGrupoMayoreo(items: LineaAgrupable[]): Map<string, number> {
+  const totales = new Map<string, number>();
+  const acumulan = items.filter(i => i.varianteId && i.productoId && !i.origenComboId);
+  // Una sola línea no combina con nadie.
+  if (acumulan.length < 2) return totales;
+  for (const item of acumulan) {
+    for (const nivel of item.niveles ?? []) {
+      if (nivel.isActive === false) continue;
+      const clave = claveGrupoMayoreo(item.productoId as string, nivel);
+      totales.set(clave, (totales.get(clave) ?? 0) + item.cantidad);
+    }
+  }
+  return totales;
+}
+
+/** Contexto de mayoreo combinado para elegir el nivel de una línea. */
+export interface CtxGrupoMayoreo {
+  cantidadesGrupo?: Map<string, number>;
+  /**
+   * Solo las líneas de VARIANTE combinan, igual que en el backend (que scopea
+   * el grupo por `variante.productoId`). Pasarle el productoId a una línea de
+   * producto suelto la haría enganchar con un grupo que el servidor no arma.
+   */
+  productoId?: string | null;
+}
+
+/**
+ * Nivel más ESPECÍFICO aplicable (mayor cantidadMinima) — paridad venta_rapida_cubit.
+ *
+ * Con [ctx] cada nivel se mide contra las unidades de SU grupo cuando el
+ * carrito acumuló más que esta línea; sin él manda la cantidad de la línea.
+ */
+export function nivelAplicable(
+  niveles: NivelPrecio[],
+  cantidad: number,
+  ctx?: CtxGrupoMayoreo,
+): NivelPrecio | null {
+  // El `max` garantiza que el mayoreo combinado nunca EMPEORE un precio: una
+  // línea de 10 unidades se sigue midiendo por sus 10 aunque el grupo sume menos.
+  const efectiva = (n: NivelPrecio): number => {
+    if (!ctx?.cantidadesGrupo || !ctx.productoId) return cantidad;
+    const delGrupo = ctx.cantidadesGrupo.get(claveGrupoMayoreo(ctx.productoId, n));
+    return delGrupo != null && delGrupo > cantidad ? delGrupo : cantidad;
+  };
   return niveles
     .filter(n => n.isActive !== false)
-    .filter(n => cantidad >= n.cantidadMinima && (n.cantidadMaxima == null || cantidad <= n.cantidadMaxima))
+    .filter(n => {
+      const c = Math.floor(efectiva(n));
+      return c >= n.cantidadMinima && (n.cantidadMaxima == null || c <= n.cantidadMaxima);
+    })
     .sort((a, b) => b.cantidadMinima - a.cantidadMinima)[0] ?? null;
 }
 
@@ -366,11 +459,18 @@ export interface VentaItem {
 }
 
 /** Recalcula precioUnitario por niveles para la cantidad (liquidación gana e ignora niveles) */
-export function recalcularPorNiveles(item: VentaItem, cantidad: number): VentaItem {
+export function recalcularPorNiveles(
+  item: VentaItem,
+  cantidad: number,
+  cantidadesGrupo?: Map<string, number>,
+): VentaItem {
   if (item.enLiquidacion) {
     return { ...item, cantidad, precioUnitario: item.precioBase, nivelAplicado: null };
   }
-  const nivel = nivelAplicable(item.niveles, cantidad);
+  const nivel = nivelAplicable(item.niveles, cantidad, {
+    cantidadesGrupo,
+    productoId: item.varianteId ? item.productoId : null,
+  });
   const precio = precioConNivel(item.precioBase, nivel);
   return {
     ...item,
@@ -378,6 +478,24 @@ export function recalcularPorNiveles(item: VentaItem, cantidad: number): VentaIt
     precioUnitario: precio,
     nivelAplicado: precio < item.precioBase ? nivel?.nombre ?? null : null,
   };
+}
+
+/**
+ * Reprecia el carrito ENTERO de una, aplicando mayoreo combinado.
+ *
+ * 🔴 Este es el punto de entrada: con mayoreo combinado el precio de una línea
+ * depende de las OTRAS, así que repreciar solo la que se tocó deja a las demás
+ * con el precio viejo — y una línea sin repreciar no es un detalle cosmético,
+ * es una venta que el backend rebota con 409. Cada vez que se agrega, quita o
+ * cambia la cantidad de un ítem hay que pasar la lista COMPLETA por acá.
+ */
+export function recalcularNivelesEnLote(items: VentaItem[]): VentaItem[] {
+  const grupos = cantidadesGrupoMayoreo(items);
+  return items.map(it => (
+    // Componentes de combo: el precio lo fija el prorrateo del combo. Espejo
+    // de `ignorarNiveles` del backend.
+    it.origenComboId ? it : recalcularPorNiveles(it, it.cantidad, grupos)
+  ));
 }
 
 /** Totales de línea (misma matemática IGV-incluido del proyecto) */
