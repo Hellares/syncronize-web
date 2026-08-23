@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/core/auth/auth-context';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
-import { SIDEBAR_SECTIONS } from './sidebar-config';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
+import { SIDEBAR_SECTIONS, ACCESOS_RAPIDOS } from './sidebar-config';
 
 interface Props {
   onMenuToggle: () => void;
@@ -44,10 +45,16 @@ function useRuta(pathname: string) {
 export default function DashboardHeader({ onMenuToggle }: Props) {
   const { state: authState, logout } = useAuth();
   const { userRoles, empresa } = useEmpresa();
+  const permissions = usePermissions();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const ruta = useRuta(pathname);
+  // Mismos permisos que el menú: un vendedor sin cotizaciones no ve el acceso.
+  const accesos = useMemo(
+    () => ACCESOS_RAPIDOS.filter((a) => !a.permission || permissions[a.permission]),
+    [permissions],
+  );
 
   const user = authState.status === 'authenticated' ? authState.user : null;
   const primaryRole = userRoles.length > 0 ? userRoles[0].rol : '';
@@ -87,6 +94,26 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
           {ruta.titulo}
         </p>
       </div>
+
+      {/* Accesos rápidos: lo del mostrador, sin pasar por el menú */}
+      <nav className="hidden shrink-0 items-center gap-1.5 sm:flex">
+        {accesos.map((a) => {
+          const activo = pathname === a.href || pathname.startsWith(a.href + '/');
+          return (
+            <Link key={a.href} href={a.href} title={a.label}
+              className={`flex h-[34px] items-center gap-2 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${activo
+                ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
+                : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
+              <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                <path d={a.icon} />
+              </svg>
+              <span className="hidden lg:inline">{a.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {accesos.length > 0 && <div className="hidden h-6 w-px shrink-0 bg-[#e8ecf1] sm:block" />}
 
       {/* Notificaciones */}
       <button className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100" aria-label="Notificaciones">

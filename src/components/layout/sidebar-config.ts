@@ -124,3 +124,32 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
 ];
+
+/**
+ * Accesos rápidos de la cabecera.
+ *
+ * Son las tres pantallas del día a día del mostrador: entrar por el menú
+ * —abrirlo, buscar la sección, bajar hasta el ítem— cuesta demasiado para algo
+ * que se usa decenas de veces al día. Salen de la misma lista que el menú
+ * (mismos href y mismos permisos) para que no puedan decir cosas distintas.
+ */
+export const ACCESOS_RAPIDOS: SidebarItem[] = [
+  {
+    label: 'Venta Rápida',
+    href: '/dashboard/venta-rapida',
+    permission: 'canViewVentas',
+    icon: 'M13 2 4 14h6l-1 8 9-12h-6l1-8z',
+  },
+  {
+    label: 'Ventas',
+    href: '/dashboard/ventas',
+    permission: 'canViewVentas',
+    icon: 'M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM9 8h6M9 12h6',
+  },
+  {
+    label: 'Cotizaciones',
+    href: '/dashboard/cotizaciones',
+    permission: 'canViewCotizaciones',
+    icon: 'M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 4v2h6V4M9 4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4',
+  },
+];
