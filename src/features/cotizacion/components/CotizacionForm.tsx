@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import * as cotizacionService from '../services/cotizacion-service';
@@ -381,6 +381,17 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       } catch { /* sin niveles */ }
     }
   }, [stockDeSede, expandirCombo]);
+
+  /** Lo que ya está cotizado por variante: el selector lo descuenta del stock
+   *  que muestra, porque agregar no cierra el diálogo. */
+  const cantidadesPorVariante = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const it of items) {
+      if (!it.varianteId) continue;
+      out[it.varianteId] = (out[it.varianteId] ?? 0) + it.cantidad;
+    }
+    return out;
+  }, [items]);
 
   // ── Add variante seleccionada ───────────────────────────────────────────────
   const addVarianteItem = useCallback(async (producto: Producto, variante: ProductoVariante, cantidad: number = 1) => {
@@ -1203,7 +1214,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         </div>
       )}
       {variantePicker && (
-        <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#004A94"
+        <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#004A94" cantidadesEnCarrito={cantidadesPorVariante}
           onClose={() => setVariantePicker(null)}
           onConfirm={(v, c) => { void addVarianteItem(variantePicker, v, c); }} />
       )}

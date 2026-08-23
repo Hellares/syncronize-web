@@ -329,6 +329,17 @@ function VentaRapidaInner() {
     return acc;
   }, { subtotal: 0, igv: 0, icbper: 0, total: 0, descuento: 0 }), [items]);
 
+  /** Lo que ya está en el carrito por variante: el selector lo descuenta del
+   *  stock que muestra, porque ya no se cierra al agregar. */
+  const cantidadesPorVariante = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const it of items) {
+      if (!it.varianteId) continue;
+      out[it.varianteId] = (out[it.varianteId] ?? 0) + it.cantidad;
+    }
+    return out;
+  }, [items]);
+
   const handleVentaOk = (venta: Venta) => {
     setItems([]);
     setOrdenCliente(null);
@@ -493,11 +504,14 @@ function VentaRapidaInner() {
         </div>
       </div>
 
-      {/* Selector dinámico de variantes (paridad Flutter) */}
+      {/* Selector dinámico de variantes (paridad Flutter).
+          🔑 Agregar NO cierra: con 91 combinaciones el caso normal es llevarse
+          varias, y cerrar obligaba a reabrir y volver a buscar desde cero. */}
       {variantePicker && (
         <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#437EFF"
+          cantidadesEnCarrito={cantidadesPorVariante}
           onClose={() => setVariantePicker(null)}
-          onConfirm={(v, c) => { addItem(variantePicker, v.id, v.nombre, c); setVariantePicker(null); }} />
+          onConfirm={(v, c) => { addItem(variantePicker, v.id, v.nombre, c); }} />
       )}
 
       {/* Descuento de línea */}
