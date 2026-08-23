@@ -431,6 +431,17 @@ export interface VentaItem {
   productoId?: string;
   varianteId?: string;
   descripcion: string;
+  /**
+   * Nombre del producto y de la variante POR SEPARADO (contexto local, no viaja
+   * al backend: eso es `descripcion`).
+   *
+   * El carrito muestra el valor que DISTINGUE la línea —el último eje de la
+   * variante— y baja el resto a un breadcrumb. Con mayoreo combinado el caso
+   * normal son tres líneas del mismo producto que se diferencian solo en ese
+   * eje, y partir la `descripcion` armada a mano es frágil.
+   */
+  productoNombre?: string;
+  varianteNombre?: string;
   cantidad: number;
   /** Precio sin nivel (efectivo: liquidación > oferta > base) */
   precioBase: number;

@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
-import type { VentaItem, Venta } from '@/core/types/venta';
-import { recalcularNivelesEnLote, calcularLinea } from '@/core/types/venta';
+import type { VentaItem, Venta, NivelPrecio } from '@/core/types/venta';
+import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
@@ -30,6 +30,23 @@ function fmt(n: number): string {
 }
 
 function genKey() { return Math.random().toString(36).slice(2, 10); }
+
+/**
+ * Qué se lee grande en la línea del carrito y qué baja a contexto.
+ *
+ * 🔑 Con mayoreo combinado el caso normal son tres líneas del MISMO producto
+ * que se diferencian solo en el ÚLTIMO eje de la variante ("… / HOMBRE /
+ * ALIANZA"): truncando la descripción entera las tres se ven idénticas. Manda
+ * ese último eje; el producto y los demás ejes van al breadcrumb.
+ */
+function tituloYContexto(it: VentaItem): { titulo: string; contexto: string } {
+  if (it.varianteNombre) {
+    const ejes = it.varianteNombre.split('/').map(t => t.trim()).filter(Boolean);
+    const titulo = ejes.length ? ejes[ejes.length - 1] : it.varianteNombre;
+    return { titulo, contexto: [it.productoNombre, ...ejes.slice(0, -1)].filter(Boolean).join(' · ') };
+  }
+  return { titulo: it.productoNombre ?? it.descripcion, contexto: '' };
+}
 
 function VentaRapidaInner() {
   const router = useRouter();
@@ -124,6 +141,8 @@ function VentaRapidaInner() {
       productoId: p.id,
       varianteId,
       descripcion: varianteNombre ? `${p.nombre} - ${varianteNombre}` : p.nombre,
+      productoNombre: p.nombre,
+      varianteNombre,
       cantidad,
       precioBase,
       precioUnitario: precioBase,
@@ -190,6 +209,7 @@ function VentaRapidaInner() {
           productoId: l.productoId,
           varianteId: l.varianteId,
           descripcion: l.descripcion,
+          productoNombre: l.descripcion,
           cantidad: l.cantidad,
           precioBase: l.precioUnit,
           precioUnitario: l.precioUnit,
@@ -345,6 +365,72 @@ function VentaRapidaInner() {
     return out;
   }, [items]);
 
+  /**
+   * Unidades y ahorro del carrito. El ahorro por mayoreo es justo lo que el
+   * cliente pregunta ("¿cuánto me estás rebajando?") y no se veía en ningún lado.
+   */
+  const resumenCarrito = useMemo(() => {
+    let unidades = 0, porNivel = 0, porDescuento = 0;
+    for (const it of items) {
+      unidades += it.cantidad;
+      porNivel += Math.max(0, it.precioBase - it.precioUnitario) * it.cantidad;
+      porDescuento += it.descuento;
+    }
+    // Un granel viaja en unidad atómica (gramos): sumarlo con unidades sueltas
+    // da un número sin significado, así que ahí solo se cuentan líneas.
+    const contable = items.every(it => Number.isInteger(it.cantidad) && it.cantidad < 1000);
+    const lineas = `${items.length} ${items.length === 1 ? 'línea' : 'líneas'}`;
+    return {
+      texto: items.length === 0 ? ''
+        : contable ? `${unidades} ${unidades === 1 ? 'unidad' : 'unidades'} · ${lineas}` : lineas,
+      ahorro: porNivel + porDescuento,
+      ahorroLabel: porNivel > 0 && porDescuento > 0 ? 'Ahorro (mayoreo + desc.)'
+        : porNivel > 0 ? 'Ahorro por mayoreo' : 'Descuentos',
+    };
+  }, [items]);
+
+  /**
+   * Grupos de MAYOREO COMBINADO presentes en el carrito: el que ya aplica y el
+   * que está a una o dos unidades de aplicar.
+   *
+   * El segundo es el que vale: sin este aviso el cajero no tiene forma de saber
+   * que agregando una unidad más bajan TODAS las líneas del grupo.
+   */
+  const tirasMayoreo = useMemo(() => {
+    const grupos = cantidadesGrupoMayoreo(items);
+    const combinables = items.filter(it => it.varianteId && it.productoId && !it.origenComboId);
+    const vistos = new Set<string>();
+    const out: Array<{
+      clave: string; aplicado: boolean; faltan: number; juntadas: number;
+      lineas: VentaItem[]; nivel: NivelPrecio; ahorro: number; precioTexto: string;
+    }> = [];
+    for (const it of combinables) {
+      for (const n of it.niveles ?? []) {
+        if (n.isActive === false) continue;
+        const clave = claveGrupoMayoreo(it.productoId as string, n);
+        if (vistos.has(clave)) continue;
+        vistos.add(clave);
+        const lineas = combinables.filter(x =>
+          (x.niveles ?? []).some(y => claveGrupoMayoreo(x.productoId as string, y) === clave));
+        // Una línea sola ya se explica con su propio badge: la tira es para lo
+        // que SUMA entre líneas.
+        if (lineas.length < 2) continue;
+        const juntadas = grupos.get(clave) ?? 0;
+        const faltan = n.cantidadMinima - juntadas;
+        // Lejos del mínimo la tira sería ruido permanente.
+        if (faltan > 2) continue;
+        const ahorro = lineas.reduce(
+          (sum, x) => sum + Math.max(0, x.precioBase - precioConNivel(x.precioBase, n)) * x.cantidad, 0);
+        out.push({
+          clave, aplicado: faltan <= 0, faltan, juntadas, lineas, nivel: n, ahorro,
+          precioTexto: n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
+            ? ` a S/ ${fmt(Number(n.precio))} c/u` : '',
+        });
+      }
+    }
+    return out;
+  }, [items]);
+
   const handleVentaOk = (venta: Venta) => {
     setItems([]);
     setOrdenCliente(null);
@@ -428,83 +514,183 @@ function VentaRapidaInner() {
 
         {/* === Carrito === */}
         <div className="lg:col-span-2 space-y-3">
-          <div className="rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-              <p className="text-sm font-medium text-gray-800">Carrito ({items.length})</p>
+          <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+
+            {/* Cabecera: manda lo que se lleva, no cuántas filas hay */}
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3.5 py-2.5">
+              <div className="flex min-w-0 items-baseline gap-2">
+                <p className="text-sm font-semibold text-gray-800">Carrito</p>
+                <p className="truncate text-[11px] text-gray-500">{resumenCarrito.texto}</p>
+              </div>
               {items.length > 0 && (
                 <button onClick={() => setDescGlobalOpen(true)}
-                  className="rounded-lg border border-gray-200 px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-50">
-                  % Desc. global
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                    <path d="M19 5 5 19" /><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" />
+                  </svg>
+                  Descuento
                 </button>
               )}
             </div>
-            <div className="max-h-[24rem] divide-y divide-gray-50 overflow-y-auto">
+
+            {/* Mayoreo combinado: qué grupo ya aplica y cuál está a una unidad
+                de aplicar. Sin esto el cajero no tiene forma de saberlo. */}
+            {tirasMayoreo.map(t => (
+              <div key={t.clave}
+                className={`flex shrink-0 items-center gap-2.5 border-b px-3.5 py-2 ${t.aplicado
+                  ? 'border-blue-100 bg-blue-50/70'
+                  : 'border-amber-100 bg-amber-50/70'}`}>
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${t.aplicado
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-amber-100 text-amber-700'}`}>
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7h18" /><path d="M6 7v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[11px] font-bold ${t.aplicado ? 'text-blue-700' : 'text-amber-800'}`}>
+                    {t.aplicado
+                      ? `${t.nivel.nombre} ≥${t.nivel.cantidadMinima} aplicado a ${t.lineas.length} líneas`
+                      : `Te falta ${t.faltan} ${t.faltan === 1 ? 'unidad' : 'unidades'} para ${t.nivel.nombre}`}
+                  </p>
+                  <p className={`text-[10px] ${t.aplicado ? 'text-blue-600' : 'text-amber-700'}`}>
+                    {t.aplicado
+                      ? `${t.juntadas} unidades suman entre sí · ahorro S/ ${fmt(t.ahorro)}`
+                      : `${t.juntadas} de ${t.nivel.cantidadMinima} unidades · las ${t.lineas.length} bajarían${t.precioTexto}`}
+                  </p>
+                </div>
+                {!t.aplicado && (
+                  <button onClick={() => cambiarCantidad(t.lineas[0].key, t.lineas[0].cantidad + t.faltan)}
+                    className="shrink-0 rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-50">
+                    +{t.faltan}
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {/* Líneas */}
+            <div className="max-h-[26rem] overflow-y-auto">
               {items.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-gray-400">Toca un producto para agregarlo</p>
+                <p className="px-4 py-14 text-center text-sm text-gray-400">Toca un producto para agregarlo</p>
               ) : items.map(it => {
                 const c = calcularLinea(it);
+                const conNivel = !it.esOrdenServicio && it.precioUnitario < it.precioBase;
+                const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
+                const { titulo, contexto } = tituloYContexto(it);
                 return (
-                  <div key={it.key} className={`px-3 py-2 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : ''}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 flex-1 truncate text-xs font-medium text-[#004A94]">
-                        {it.esOrdenServicio && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
-                        {it.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO</span>}
-                        {it.descripcion}
-                      </p>
-                      <button onClick={() => quitarItem(it.key)} className="text-gray-300 hover:text-red-500">✕</button>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      {it.esOrdenServicio ? (
-                        <span className="text-[10px] text-blue-600">
-                          Servicio · comprobante por el total
-                          {(it.adelantoOrden ?? 0) > 0 && <span className="text-gray-400"> · adelanto S/ {fmt(it.adelantoOrden ?? 0)}</span>}
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex items-center rounded-lg border border-gray-200">
-                            <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)} className="px-2 text-gray-400 hover:text-gray-700">−</button>
-                            <span className="w-7 text-center text-xs font-medium text-[#004A94]">{it.cantidad}</span>
-                            <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)} className="px-2 text-gray-400 hover:text-gray-700">+</button>
-                          </div>
-                          <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
-                            className={`rounded px-1.5 py-0.5 text-[10px] ${it.descuento > 0 ? 'bg-amber-100 text-amber-700 font-bold' : 'text-gray-400 hover:bg-gray-100'}`}>
-                            {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
-                          </button>
-                        </div>
-                      )}
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-[#004A94]">S/ {fmt(c.total)}</p>
-                        <p className="text-[9px] text-gray-400">
+                  <div key={it.key}
+                    className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : 'hover:bg-gray-50/60'}`}>
+
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-[#043261]">
+                          {it.esOrdenServicio && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
+                          {it.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO</span>}
+                          {titulo}
+                        </p>
+                        {contexto && <p className="truncate text-[10px] text-gray-500">{contexto}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[15px] font-bold leading-tight text-gray-900">S/ {fmt(c.total)}</p>
+                        <p className={`text-[11px] font-medium ${conNivel ? 'text-blue-700' : 'text-gray-500'}`}>
                           S/ {fmt(it.precioUnitario)} c/u
-                          {it.nivelAplicado && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700">{it.nivelAplicado}</span>}
-                          {it.enLiquidacion && <span className="ml-1 rounded bg-red-100 px-1 font-bold text-red-600">LIQ</span>}
                         </p>
                       </div>
+                      <button onClick={() => quitarItem(it.key)} title="Quitar"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-600">
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                          <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    {!it.esOrdenServicio && (it.stockDisponible ?? 99999) < it.cantidad && (
-                      <p className="text-[9px] text-red-500">⚠ Stock disponible: {it.stockDisponible}</p>
+
+                    {it.esOrdenServicio ? (
+                      <p className="mt-1.5 text-[10px] text-blue-600">
+                        Servicio · comprobante por el total
+                        {(it.adelantoOrden ?? 0) > 0 && <span className="text-gray-400"> · adelanto S/ {fmt(it.adelantoOrden ?? 0)}</span>}
+                      </p>
+                    ) : (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <div className="flex h-8 items-center overflow-hidden rounded-full border border-gray-200">
+                          <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)}
+                            className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
+                          </button>
+                          <span className="min-w-[26px] text-center text-[13px] font-bold text-[#043261]">{it.cantidad}</span>
+                          <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)}
+                            className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
+                          </button>
+                        </div>
+                        <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
+                          className={`h-8 rounded-full border px-2.5 text-[11px] ${it.descuento > 0
+                            ? 'border-amber-300 bg-amber-50 font-bold text-amber-700'
+                            : 'border-gray-200 font-medium text-gray-500 hover:bg-gray-50'}`}>
+                          {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
+                        </button>
+                        {conNivel && it.nivelAplicado && (
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-blue-700">
+                            {it.nivelAplicado}
+                          </span>
+                        )}
+                        {it.enLiquidacion && (
+                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-red-600">LIQ</span>
+                        )}
+                      </div>
+                    )}
+
+                    {excede && (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-md bg-red-50 px-2 py-1.5">
+                        <svg className="h-3 w-3 shrink-0 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" />
+                        </svg>
+                        <span className="flex-1 text-[10px] text-red-700">
+                          {(it.stockDisponible ?? 0) > 0 ? `Solo quedan ${it.stockDisponible} en esta sede` : 'Sin stock en esta sede'}
+                        </span>
+                        {/* Con 0 disponible no hay a qué ajustar: lo que queda es sacarlo. */}
+                        <button onClick={() => ((it.stockDisponible ?? 0) > 0
+                          ? cambiarCantidad(it.key, it.stockDisponible as number)
+                          : quitarItem(it.key))}
+                          className="shrink-0 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-bold text-red-700 hover:bg-red-50">
+                          {(it.stockDisponible ?? 0) > 0 ? `Ajustar a ${it.stockDisponible}` : 'Quitar'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
               })}
             </div>
+
             {/* Totales */}
             {items.length > 0 && (
-              <div className="border-t border-gray-100 px-4 py-3 text-xs space-y-0.5">
-                <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>S/ {fmt(totales.subtotal)}</span></div>
-                {totales.descuento > 0 && <div className="flex justify-between text-amber-600"><span>Descuentos</span><span>−S/ {fmt(totales.descuento)}</span></div>}
-                <div className="flex justify-between text-gray-500"><span>IGV</span><span>S/ {fmt(totales.igv)}</span></div>
-                {totales.icbper > 0 && <div className="flex justify-between text-gray-500"><span>ICBPER</span><span>S/ {fmt(totales.icbper)}</span></div>}
-                <div className="flex justify-between border-t border-gray-100 pt-1 text-base font-medium text-gray-900">
-                  <span>Total</span><span>S/ {fmt(totales.total)}</span>
+              <div className="shrink-0 border-t border-gray-100 px-3.5 py-2.5">
+                <div className="flex justify-between text-[11px] text-gray-500"><span>Subtotal</span><span>S/ {fmt(totales.subtotal)}</span></div>
+                <div className="mt-0.5 flex justify-between text-[11px] text-gray-500"><span>IGV</span><span>S/ {fmt(totales.igv)}</span></div>
+                {totales.icbper > 0 && (
+                  <div className="mt-0.5 flex justify-between text-[11px] text-gray-500"><span>ICBPER</span><span>S/ {fmt(totales.icbper)}</span></div>
+                )}
+                {resumenCarrito.ahorro > 0 && (
+                  <div className="mt-0.5 flex justify-between text-[11px] font-semibold text-green-700">
+                    <span>{resumenCarrito.ahorroLabel}</span><span>−S/ {fmt(resumenCarrito.ahorro)}</span>
+                  </div>
+                )}
+                <div className="mt-1.5 flex items-baseline justify-between border-t border-gray-100 pt-1.5">
+                  <span className="text-[13px] font-semibold text-gray-700">Total</span>
+                  <span className="text-[22px] font-bold tracking-tight text-gray-900">S/ {fmt(totales.total)}</span>
                 </div>
               </div>
             )}
           </div>
 
           <button onClick={() => setMode('cobro')} disabled={items.length === 0}
-            className="w-full rounded-lg bg-green-600 px-4 py-3.5 text-base font-bold text-white hover:bg-green-700 disabled:opacity-50">
-            COBRAR S/ {fmt(totales.total)}
+            className="flex w-full flex-col items-center gap-0.5 rounded-xl bg-green-600 px-4 py-3 text-base font-bold text-white shadow-sm shadow-green-600/25 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none">
+            <span className="flex items-center gap-2">
+              <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 11h20" />
+              </svg>
+              COBRAR S/ {fmt(totales.total)}
+            </span>
+            {items.length > 0 && <span className="text-[11px] font-medium opacity-85">{resumenCarrito.texto}</span>}
           </button>
         </div>
       </div>
