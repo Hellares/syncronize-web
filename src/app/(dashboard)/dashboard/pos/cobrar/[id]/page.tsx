@@ -734,10 +734,19 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
                       value={refInput} onChange={e => setRefInput(e.target.value)} placeholder="Referencia / operación" />
                   )}
                 </div>
-                <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
-                  className="mt-2 w-full rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-40">
-                  Agregar pago
-                </button>
+                {/* "Exacto" carga lo que falta de una, igual que en Venta Rápida:
+                    es el caso normal —el cliente paga justo— y tipearlo a mano
+                    invita a equivocarse en el céntimo. */}
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
+                    className="flex-1 rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-40">
+                    Agregar pago
+                  </button>
+                  <button onClick={() => agregarPago(Math.max(0, faltante))} disabled={faltante <= TOLERANCIA}
+                    className="rounded-lg border border-green-500 px-3 py-2 text-xs font-bold text-green-600 hover:bg-green-50 disabled:opacity-40">
+                    Exacto S/ {fmt(Math.max(0, faltante))}
+                  </button>
+                </div>
 
                 {/* Pagos registrados */}
                 {pagos.length > 0 && (
