@@ -192,6 +192,13 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   }
 
   async function handleConvertir() {
+    // El backend rechaza la FACTURA sin RUC válido con un 400 y esta pantalla
+    // no puede cambiar el cliente: se avisa acá y se ofrece el cobro completo,
+    // que sí lo permite.
+    if (facturaSinRuc) {
+      setErrorMsg('La factura necesita un cliente con RUC. Cobrá desde Cola POS para cambiar el cliente, o emití boleta.');
+      return;
+    }
     const desc = montoDescuentoGlobal();
     const dto: CreateVentaDesdeCotizacionDto = {
       ...convertData,
@@ -237,6 +244,8 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
   const c = cotizacion;
   const estadoConfig = ESTADO_COTIZACION_CONFIG[c.estado];
   const transitions = getTransitions(c.estado);
+  const facturaSinRuc = convertData.tipoComprobante === 'FACTURA'
+    && !/^d{11}$/.test((c.documentoCliente ?? '').trim());
   const isBorrador = c.estado === 'BORRADOR';
   // El backend acepta PENDIENTE o APROBADA en /ventas/desde-cotizacion (auto-aprueba PENDIENTE en la tx)
   const isAprobada = c.estado === 'APROBADA' || c.estado === 'PENDIENTE';
@@ -741,6 +750,17 @@ export default function CotizacionDetailPage({ params }: { params: Promise<{ id:
                   <option value="BOLETA">Boleta</option>
                   <option value="FACTURA">Factura</option>
                 </select>
+                {facturaSinRuc && (
+                  <div className="mt-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2">
+                    <p className="text-[11px] font-semibold text-red-700">
+                      La factura necesita un cliente con RUC — este tiene &quot;{c.documentoCliente || 'sin documento'}&quot;.
+                    </p>
+                    <Link href={`/dashboard/pos/cobrar/${c.id}`}
+                      className="mt-1 inline-block text-[11px] font-bold text-[#004A94] hover:underline">
+                      Cobrar desde Cola POS y cambiar el cliente →
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <div>

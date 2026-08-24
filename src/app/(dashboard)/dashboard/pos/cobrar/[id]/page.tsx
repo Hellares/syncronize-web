@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Cotizacion, StockValidationResult } from '@/core/types/cotizacion';
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
+import * as ventaService from '@/features/venta/services/venta-service';
 import CobrarItemSelector, { calcularItem, type ItemAdicional } from '@/features/cotizacion/components/CobrarItemSelector';
 
 const METODOS = [
@@ -60,6 +61,14 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
   const [metodoActual, setMetodoActual] = useState<string>('EFECTIVO');
   const [montoInput, setMontoInput] = useState('');
   const [refInput, setRefInput] = useState('');
+
+  // Cliente: la cotización trae el suyo, pero al cobrar se puede cambiar.
+  const [clienteOverride, setClienteOverride] = useState<{
+    clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string;
+  } | null>(null);
+  const [cambiarCliente, setCambiarCliente] = useState(false);
+  const [docInput, setDocInput] = useState('');
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
 
   // Comprobante
   const [tipoComprobante, setTipoComprobante] = useState<'TICKET' | 'BOLETA' | 'FACTURA'>('BOLETA');
@@ -227,6 +236,51 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [montoInput]);
 
+  /** El de la cotización, salvo que el cajero lo haya cambiado acá. */
+  const clienteEfectivo = useMemo(() => clienteOverride ?? {
+    clienteId: cotizacion?.clienteId,
+    clienteEmpresaId: cotizacion?.clienteEmpresaId,
+    nombre: cotizacion?.nombreCliente ?? '',
+    documento: cotizacion?.documentoCliente ?? '',
+  }, [clienteOverride, cotizacion]);
+
+  const rucValido = /^\d{11}$/.test((clienteEfectivo.documento ?? '').trim());
+  const facturaSinRuc = tipoComprobante === 'FACTURA' && !rucValido;
+
+  /**
+   * Resuelve el documento contra RENIEC/SUNAT, igual que la Venta Rápida.
+   *
+   * 🔴 El endpoint por DNI devuelve el id en un campo llamado
+   * `clienteEmpresaId`, pero ES una EmpresaPersona: viaja como `clienteId`.
+   * El de RUC sí es un ClienteEmpresa. Cruzarlos deja al backend sin encontrar
+   * al cliente y la venta sale sin él.
+   */
+  const buscarCliente = async () => {
+    const doc = docInput.trim();
+    setError('');
+    if (doc.length !== 8 && doc.length !== 11) {
+      setError('Documento inválido: DNI (8 dígitos) o RUC (11 dígitos)');
+      return;
+    }
+    setBuscandoCliente(true);
+    try {
+      if (doc.length === 8) {
+        const c = await ventaService.buscarClientePorDni(doc);
+        setClienteOverride({ clienteId: c.clienteEmpresaId, nombre: c.nombreCompleto, documento: doc });
+      } else {
+        const c = await ventaService.buscarClientePorRuc(doc);
+        setClienteOverride({ clienteEmpresaId: c.clienteEmpresaId, nombre: c.razonSocial, documento: doc });
+      }
+      setCambiarCliente(false);
+      setDocInput('');
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se encontró el documento');
+    } finally {
+      setBuscandoCliente(false);
+    }
+  };
+
   // --- Cobrar ---
   const handleCobrar = async () => {
     if (!cotizacion) return;
@@ -234,6 +288,13 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
     if (!cubiertoPorAdelanto && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
     if (!cubierto && !cubiertoPorAdelanto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
     if (items.length === 0) { setError('La venta no tiene items'); return; }
+    // El backend rechaza la FACTURA sin RUC válido con un 400; avisamos acá,
+    // donde además se puede arreglar.
+    if (facturaSinRuc) {
+      setError('La factura necesita un cliente con RUC de 11 dígitos. Cambiá el cliente o emití boleta.');
+      setCambiarCliente(true);
+      return;
+    }
     setIsSubmitting(true);
     try {
       // ajustarCantidades: solo originales con cantidad cambiada
@@ -262,7 +323,13 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
         tipoComprobante,
         condicionPago: 'CONTADO',
         esCredito: false,
-        tipoDocumentoCliente: tipoComprobante === 'FACTURA' ? '6' : '1',
+        tipoDocumentoCliente: (clienteEfectivo.documento ?? '').trim().length === 11 ? '6' : '1',
+        ...(clienteOverride && {
+          clienteId: clienteOverride.clienteId,
+          clienteEmpresaId: clienteOverride.clienteEmpresaId,
+          nombreCliente: clienteOverride.nombre,
+          documentoCliente: clienteOverride.documento,
+        }),
         ...(pagos.length > 0 && {
           metodoPago: pagos[0].metodoPago,
           montoRecibido: totalPagado,
@@ -402,6 +469,60 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
+          {/* Cliente: se puede cambiar AL COBRAR.
+              🔴 Es la única salida cuando la cotización se hizo a CLIENTES VARIOS
+              y al pagar piden FACTURA: el backend exige RUC válido y una
+              cotización APROBADA ya no se edita, así que sin esto el cobro
+              quedaba trabado en un 400 sin arreglo posible. */}
+          <div className={`rounded-xl border bg-white p-4 ${facturaSinRuc ? 'border-red-300' : 'border-gray-200'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800">Cliente</p>
+                <p className="mt-0.5 truncate text-sm text-gray-700">{clienteEfectivo.nombre || '—'}</p>
+                <p className="text-xs text-gray-400">
+                  {clienteEfectivo.documento || 'sin documento'}
+                  {clienteOverride && <span className="ml-1.5 rounded bg-blue-50 px-1 text-[10px] font-bold text-blue-700">CAMBIADO</span>}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {clienteOverride && (
+                  <button onClick={() => { setClienteOverride(null); setDocInput(''); }}
+                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                    Deshacer
+                  </button>
+                )}
+                <button onClick={() => setCambiarCliente(v => !v)}
+                  className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                  {cambiarCliente ? 'Cerrar' : 'Cambiar'}
+                </button>
+              </div>
+            </div>
+
+            {(cambiarCliente || facturaSinRuc) && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="mb-1.5 text-xs text-gray-500">
+                  {facturaSinRuc
+                    ? 'La factura necesita un cliente con RUC. Busca por RUC (11 dígitos) para cambiarlo.'
+                    : 'Busca por DNI (8 dígitos) o RUC (11 dígitos).'}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={docInput}
+                    onChange={e => setDocInput(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    onKeyDown={e => { if (e.key === 'Enter') void buscarCliente(); }}
+                    inputMode="numeric"
+                    placeholder={tipoComprobante === 'FACTURA' ? 'RUC del cliente' : 'DNI o RUC'}
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+                  />
+                  <button onClick={() => void buscarCliente()} disabled={buscandoCliente || docInput.length < 8}
+                    className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+                    {buscandoCliente ? 'Buscando…' : 'Buscar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Comprobante */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm font-semibold text-gray-800 mb-2">Comprobante</p>
@@ -413,8 +534,10 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
                 </button>
               ))}
             </div>
-            {tipoComprobante === 'FACTURA' && !cotizacion.documentoCliente?.match(/^\d{11}$/) && (
-              <p className="mt-1.5 text-[10px] text-amber-600">⚠ Factura requiere RUC (11 dígitos) — el documento del cliente es &quot;{cotizacion.documentoCliente || 'vacío'}&quot;</p>
+            {facturaSinRuc && (
+              <p className="mt-1.5 text-[10px] font-semibold text-red-600">
+                ⚠ La factura necesita un RUC. El cliente tiene &quot;{clienteEfectivo.documento || 'sin documento'}&quot; — cambialo arriba.
+              </p>
             )}
             <input
               className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
