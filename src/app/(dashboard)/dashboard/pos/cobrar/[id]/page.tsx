@@ -488,7 +488,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
   if (!cotizacion) return null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto max-w-7xl space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Link href="/dashboard/pos" className="text-gray-400 hover:text-gray-600">
@@ -509,9 +509,12 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* 7/5 y no mitad y mitad: los nombres de producto son largos
+          ("EDREDONES - 2 PLAZAS / TELA / 3 PZS / HOMBRE / ALIANZA") y el panel
+          de pago no necesita tanto. */}
+      <div className="grid gap-4 lg:grid-cols-12">
         {/* === Columna izquierda: items === */}
-        <div className="space-y-3">
+        <div className="space-y-3 lg:col-span-7">
           <div className="rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <p className="text-sm font-semibold text-gray-800">Productos ({items.length})</p>
@@ -520,23 +523,26 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
                 + Agregar
               </button>
             </div>
-            <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+            <div className="max-h-[26rem] divide-y divide-gray-100 overflow-y-auto">
               {items.map((it) => (
-                <div key={it.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
+                <div key={it.id} className="flex items-start justify-between gap-3 px-4 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">
+                    {/* Sin truncate: el nombre completo es lo que el cajero le
+                        canta al cliente. Dos líneas alcanzan para los de este
+                        catálogo y la fila crece solo si hace falta. */}
+                    <p className="text-sm font-medium leading-snug text-gray-900">
                       {it.descripcion}
-                      {it.esNuevo && <span className="ml-1 rounded bg-blue-100 px-1 text-[9px] text-blue-700">NUEVO</span>}
+                      {it.esNuevo && <span className="ml-1 rounded bg-blue-100 px-1 text-[9px] align-middle text-blue-700">NUEVO</span>}
                     </p>
-                    <p className="text-[10px] text-gray-400">S/ {fmt(it.precioUnitario)} c/u</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">S/ {fmt(it.precioUnitario)} c/u</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <div className="flex items-center rounded-lg border border-gray-200">
-                      <button onClick={() => cambiarCantidad(it, it.cantidad - 1)} className="px-2 py-0.5 text-gray-400 hover:text-gray-700">−</button>
-                      <span className="w-8 text-center text-sm font-medium">{it.cantidad}</span>
-                      <button onClick={() => cambiarCantidad(it, it.cantidad + 1)} className="px-2 py-0.5 text-gray-400 hover:text-gray-700">+</button>
+                    <div className="flex h-8 items-center rounded-lg border border-gray-200">
+                      <button onClick={() => cambiarCantidad(it, it.cantidad - 1)} className="px-2.5 text-gray-500 hover:text-gray-800">−</button>
+                      <span className="w-8 text-center text-sm font-semibold text-[#043261]">{it.cantidad}</span>
+                      <button onClick={() => cambiarCantidad(it, it.cantidad + 1)} className="px-2.5 text-gray-500 hover:text-gray-800">+</button>
                     </div>
-                    <span className="w-20 text-right text-sm font-semibold text-gray-800">S/ {fmt(it.total)}</span>
+                    <span className="w-24 text-right text-sm font-bold text-gray-900">S/ {fmt(it.total)}</span>
                     <button onClick={() => quitarItem(it)} className="rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-500">
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -695,7 +701,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
         </div>
 
         {/* === Columna derecha: pagos === */}
-        <div className="space-y-3">
+        <div className="space-y-3 lg:col-span-5 lg:sticky lg:top-[72px] lg:self-start">
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-baseline justify-between">
               <p className="text-sm font-semibold text-gray-800">Pago</p>
