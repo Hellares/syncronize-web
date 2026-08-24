@@ -4,7 +4,6 @@ import type {
   CotizacionFiltros,
   CreateCotizacionDto,
   UpdateCotizacionDto,
-  PaginatedResponse,
   StockValidationResult,
   CompatibilidadResult,
   ColaPOSItem,
@@ -13,10 +12,10 @@ import type {
 } from '@/core/types/cotizacion';
 
 // Helper to build query params from filtros
-function buildQueryParams(filtros: CotizacionFiltros): string {
+function buildQueryParams(filtros: CotizacionFiltros, cursor?: string | null): string {
   const params = new URLSearchParams();
-  params.set('page', String(filtros.page));
   params.set('limit', String(filtros.limit));
+  if (cursor) params.set('cursor', cursor);
   if (filtros.sedeId) params.set('sedeId', filtros.sedeId);
   if (filtros.estado) params.set('estado', filtros.estado);
   if (filtros.fechaDesde) params.set('fechaDesde', filtros.fechaDesde);
@@ -26,10 +25,38 @@ function buildQueryParams(filtros: CotizacionFiltros): string {
   return params.toString();
 }
 
-export async function getCotizaciones(filtros: CotizacionFiltros): Promise<Cotizacion[]> {
-  const query = buildQueryParams(filtros);
-  const res = await apiClient.get<Cotizacion[]>(`/cotizaciones?${query}`);
-  return res.data;
+/** Una tanda de cotizaciones y por dónde sigue la próxima. */
+export interface CotizacionesPagina {
+  items: Cotizacion[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+/**
+ * 🔴 El endpoint responde de DOS formas y hay que aguantar las dos: sin
+ * `limit` devuelve el array pelado de siempre, y con `limit` devuelve
+ * `{ data, hasMore, nextCursor }` (paginación por cursor, cotizacion.service.ts).
+ *
+ * La web mandaba `limit` y seguía tratando la respuesta como un array: el
+ * `.map()` de la tabla reventaba y la pantalla entera caía en el error
+ * boundary con "Algo salió mal". Normalizar acá es lo que evita que el próximo
+ * cambio de forma del backend tumbe la página.
+ */
+export async function getCotizaciones(
+  filtros: CotizacionFiltros,
+  cursor?: string | null,
+): Promise<CotizacionesPagina> {
+  const query = buildQueryParams(filtros, cursor);
+  const res = await apiClient.get<Cotizacion[] | { data?: Cotizacion[]; hasMore?: boolean; nextCursor?: string | null }>(
+    `/cotizaciones?${query}`,
+  );
+  const body = res.data;
+  if (Array.isArray(body)) return { items: body, hasMore: false, nextCursor: null };
+  return {
+    items: Array.isArray(body?.data) ? body.data : [],
+    hasMore: !!body?.hasMore,
+    nextCursor: body?.nextCursor ?? null,
+  };
 }
 
 export async function getCotizacion(id: string): Promise<Cotizacion> {

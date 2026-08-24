@@ -63,7 +63,7 @@ function EmptyState() {
 }
 
 export default function CotizacionesPage() {
-  const { cotizaciones, meta, filtros, isLoading, error, updateFiltros, setPage, reload, resetFiltros } = useCotizaciones();
+  const { cotizaciones, filtros, isLoading, cargandoMas, hasMore, error, updateFiltros, cargarMas, reload, resetFiltros } = useCotizaciones();
   const permissions = usePermissions();
   const { sedes } = useEmpresa();
   const [deleteTarget, setDeleteTarget] = useState<Cotizacion | null>(null);
@@ -97,16 +97,16 @@ export default function CotizacionesPage() {
     }
   };
 
-  const totalPages = meta?.totalPages ?? 1;
-  const currentPage = meta?.page ?? 1;
-
   return (
     <div className="space-y-4">
       {/* ========== Header ========== */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Cotizaciones</h1>
-          <p className="text-sm text-gray-500">{meta ? `${meta.total} cotizaciones` : 'Cargando...'}</p>
+          <p className="text-sm text-gray-500">
+            {isLoading ? 'Cargando...'
+              : `${cotizaciones.length} ${cotizaciones.length === 1 ? 'cotización' : 'cotizaciones'}${hasMore ? ' (hay más)' : ''}`}
+          </p>
         </div>
         {permissions.canManageCotizaciones && (
           <Link
@@ -157,8 +157,8 @@ export default function CotizacionesPage() {
           >
             <option value="">Todas</option>
             {sedes
-              .filter((s: any) => s.isActive)
-              .map((s: any) => (
+              .filter((s) => s.isActive)
+              .map((s) => (
                 <option key={s.id} value={s.id}>{s.nombre}</option>
               ))}
           </select>
@@ -321,72 +321,20 @@ export default function CotizacionesPage() {
         </table>
       </div>
 
-      {/* ========== Pagination ========== */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
-          <p className="text-sm text-gray-600">
-            Pagina {currentPage} de {totalPages} ({meta.total} resultados)
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(1)}
-              disabled={currentPage <= 1}
-              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Primera
-            </button>
-            <button
-              onClick={() => setPage(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Anterior
-            </button>
-
-            {/* Page numbers */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-              .reduce<(number | 'dots')[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('dots');
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((item, idx) =>
-                item === 'dots' ? (
-                  <span key={`dots-${idx}`} className="px-1 text-gray-400">...</span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setPage(item as number)}
-                    className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                      currentPage === item
-                        ? 'bg-[#004A94] text-white'
-                        : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-
-            <button
-              onClick={() => setPage(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Siguiente
-            </button>
-            <button
-              onClick={() => setPage(totalPages)}
-              disabled={currentPage >= totalPages}
-              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Ultima
-            </button>
-          </div>
+      {/* ========== Cargar más ==========
+           El backend pagina por CURSOR y no manda un total, así que no hay
+           "página 3 de 12" que mostrar: hay más o no hay más. */}
+      {hasMore && (
+        <div className="flex justify-center">
+          <button
+            onClick={cargarMas}
+            disabled={cargandoMas}
+            className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+          >
+            {cargandoMas ? 'Cargando…' : 'Cargar más'}
+          </button>
         </div>
       )}
-
       {/* ========== Delete Confirmation Dialog ========== */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
