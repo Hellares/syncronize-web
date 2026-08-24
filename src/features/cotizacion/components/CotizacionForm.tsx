@@ -448,7 +448,10 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       }
       return recalcNivelesEnLote([...prev, newItem]);
     });
-    setVariantePicker(null);
+    // 🔑 El selector NO se cierra al agregar, igual que en Venta Rapida: con 91
+    // combinaciones el caso normal es llevarse varias, y cerrarlo obligaba a
+    // reabrirlo y volver a buscar desde cero. Se cierra con la X o tocando
+    // afuera, que es lo que hace onClose.
     if (!enLiq) {
       try {
         const niveles = await precioNivelService.getNivelesByVariante(variante.id);
