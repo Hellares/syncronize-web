@@ -300,6 +300,30 @@ export function saldoPendienteVenta(v: Venta): number {
   return Math.max(0, total - pagado);
 }
 
+/**
+ * Crédito por FRECUENCIA, no por plazo total.
+ *
+ * 🔴 El cliente dice "pago semanal", no "plazo 28 días". Y el plazo suelto
+ * permitía combinaciones rotas: el backend saca el intervalo con
+ * `plazoCredito ÷ numeroCuotas`, así que con plazo < cuotas el floor daba 0 y
+ * TODAS las cuotas vencían el mismo día. El plazo se DERIVA
+ * (frecuencia × cuotas) y nunca se teclea. Mismos valores que el app.
+ */
+export const FRECUENCIAS = [
+  { dias: 1, label: 'Diario' },
+  { dias: 3, label: 'Cada 3 días' },
+  { dias: 7, label: 'Semanal' },
+  { dias: 15, label: 'Quincenal' },
+  { dias: 30, label: 'Mensual' },
+] as const;
+
+export const CUOTAS_OPCIONES = [1, 2, 3, 4, 6, 8, 10, 12, 15, 20, 24, 30] as const;
+
+/** Cómo se lee "N pagos cada X días" en una frase. */
+export function labelFrecuencia(dias: number): string {
+  return FRECUENCIAS.find(f => f.dias === dias)?.label.toLowerCase() ?? `cada ${dias} días`;
+}
+
 // --- PrecioNivel aplicado en POS (cálculo local, paridad Flutter) ---
 
 export interface NivelPrecio {

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { AxiosError } from 'axios';
 import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
-import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN } from '@/core/types/venta';
+import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN, FRECUENCIAS, CUOTAS_OPCIONES, labelFrecuencia } from '@/core/types/venta';
 import type { Emisor } from '@/core/types/facturacion';
 import * as facturacionService from '@/features/facturacion/services/facturacion-service';
 import * as ventaService from '../services/venta-service';
@@ -18,6 +18,7 @@ const TOLERANCIA = 0.005;
 const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
+
 
 interface Pago { metodoPago: string; monto: number; referencia?: string; banco?: string }
 
@@ -79,7 +80,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // Crédito
   const [condicionPago, setCondicionPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
   const [numeroCuotas, setNumeroCuotas] = useState(1);
-  const [plazoDias, setPlazoDias] = useState(30);
+  const [frecuenciaDias, setFrecuenciaDias] = useState(30);
 
   // Pagos
   const [pagos, setPagos] = useState<Pago[]>([]);
@@ -98,10 +99,31 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [showAutorizacionBC, setShowAutorizacionBC] = useState(false);
 
   const esCredito = condicionPago === 'CREDITO';
+  /** 🔑 Derivado SIEMPRE: es lo que hace que `plazo ÷ cuotas` le devuelva al
+   *  backend exactamente la frecuencia elegida. */
+  const plazoDias = frecuenciaDias * numeroCuotas;
   const totalPagado = useMemo(() => pagos.reduce((a, p) => a + p.monto, 0), [pagos]);
   const faltante = totalACobrar - totalPagado;
   const vuelto = totalPagado - totalACobrar;
   const cubierto = faltante <= TOLERANCIA;
+
+  /**
+   * Preview de las cuotas. Espejo de `CuotaCalculator` del app y del
+   * `generarCuotas` del backend: intervalo con piso de 1 día, cuota redondeada
+   * hacia abajo al céntimo y el resto en la última.
+   */
+  const cuotas = useMemo(() => {
+    if (!esCredito || numeroCuotas < 1 || total <= 0) return [];
+    const intervalo = Math.max(1, Math.floor(plazoDias / numeroCuotas));
+    const montoCuota = Math.floor((total / numeroCuotas) * 100) / 100;
+    const resto = Math.round((total - montoCuota * numeroCuotas) * 100) / 100;
+    return Array.from({ length: numeroCuotas }, (_, i) => {
+      const numero = i + 1;
+      const fecha = new Date();
+      fecha.setDate(fecha.getDate() + intervalo * numero);
+      return { numero, monto: numero === numeroCuotas ? montoCuota + resto : montoCuota, fecha };
+    });
+  }, [esCredito, numeroCuotas, plazoDias, total]);
 
   // --- Cliente lookup (RENIEC/SUNAT) ---
   const buscarCliente = async () => {
@@ -434,20 +456,36 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               ))}
             </div>
             {esCredito && (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-1 block text-[10px] font-medium text-gray-500">Cuotas</label>
-                  <input className={inputClass} type="number" min="1" value={numeroCuotas}
-                    onChange={e => { const n = parseInt(e.target.value) || 1; setNumeroCuotas(n); setPlazoDias(n * 30); }} />
+              <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 p-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium text-gray-500">Paga cada</span>
+                    <select className={inputClass} value={frecuenciaDias}
+                      onChange={e => setFrecuenciaDias(parseInt(e.target.value))}>
+                      {FRECUENCIAS.map(f => <option key={f.dias} value={f.dias}>{f.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-medium text-gray-500">N.° de pagos</span>
+                    <select className={inputClass} value={numeroCuotas}
+                      onChange={e => setNumeroCuotas(parseInt(e.target.value))}>
+                      {CUOTAS_OPCIONES.map(n => <option key={n} value={n}>{n} pago{n > 1 ? 's' : ''}</option>)}
+                    </select>
+                  </label>
                 </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-medium text-gray-500">Plazo (días)</label>
-                  <input className={inputClass} type="number" min="1" value={plazoDias}
-                    onChange={e => setPlazoDias(parseInt(e.target.value) || 30)} />
-                </div>
-                <p className="col-span-2 text-[10px] text-gray-400">
-                  {numeroCuotas} cuota{numeroCuotas > 1 ? 's' : ''} de ~S/ {fmt(total / numeroCuotas)} · requiere cliente identificado
-                </p>
+
+                {cuotas.length > 0 && (
+                  <div className="mt-2 rounded-md bg-white px-2.5 py-1.5">
+                    <p className="text-[11px] font-semibold text-orange-800">
+                      {cuotas.length} pago{cuotas.length > 1 ? 's' : ''} {labelFrecuencia(frecuenciaDias)} de S/ {fmt(cuotas[0].monto)}
+                    </p>
+                    <p className="text-[10px] text-gray-500">
+                      Primera: {cuotas[0].fecha.toLocaleDateString('es-PE')}
+                      {cuotas.length > 1 && ` · Última: ${cuotas[cuotas.length - 1].fecha.toLocaleDateString('es-PE')}`}
+                    </p>
+                  </div>
+                )}
+                <p className="mt-1.5 text-[10px] text-gray-500">Requiere cliente identificado (búsqueda por DNI/RUC).</p>
               </div>
             )}
           </div>
@@ -514,7 +552,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
 
           {esCredito && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-sm text-blue-700">📅 Venta a crédito — sin pagos hoy. Se generarán {numeroCuotas} cuota{numeroCuotas > 1 ? 's' : ''} (vence en {plazoDias} días).</p>
+              <p className="text-sm text-blue-700">
+                  📅 Venta a crédito — sin pagos hoy. {numeroCuotas} pago{numeroCuotas > 1 ? 's' : ''} {labelFrecuencia(frecuenciaDias)}
+                  {cuotas.length > 0 && `; la última vence el ${cuotas[cuotas.length - 1].fecha.toLocaleDateString('es-PE')}`}.
+                </p>
             </div>
           )}
 

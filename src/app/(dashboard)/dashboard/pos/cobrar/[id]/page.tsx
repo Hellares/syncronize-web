@@ -8,6 +8,7 @@ import type { Cotizacion, StockValidationResult } from '@/core/types/cotizacion'
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import * as ventaService from '@/features/venta/services/venta-service';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
+import { FRECUENCIAS, CUOTAS_OPCIONES, labelFrecuencia } from '@/core/types/venta';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import CobrarItemSelector, { calcularItem, type ItemAdicional } from '@/features/cotizacion/components/CobrarItemSelector';
@@ -85,8 +86,11 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
 
   // Crédito: la cotización se cobra después. Sin esto solo se podía CONTADO.
   const [esCredito, setEsCredito] = useState(false);
-  const [plazoCredito, setPlazoCredito] = useState('30');
-  const [numeroCuotas, setNumeroCuotas] = useState('1');
+  const [frecuenciaDias, setFrecuenciaDias] = useState(30);
+  const [numeroCuotas, setNumeroCuotas] = useState(1);
+  // 🔑 El plazo NO se teclea: el backend saca el intervalo con plazo ÷ cuotas,
+  // así que pedirlo suelto permite que todas las cuotas venzan el mismo día.
+  const plazoCredito = frecuenciaDias * numeroCuotas;
 
   // Autorizaciones pendientes (descuento / venta bajo costo)
   const [authPendiente, setAuthPendiente] = useState<null | 'DESCUENTO' | 'BAJO_COSTO'>(null);
@@ -377,9 +381,9 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
           pagos,
         }),
         ...(esCredito && {
-          plazoCredito: Number(plazoCredito) || 30,
-          numeroCuotas: Math.max(1, Number(numeroCuotas) || 1),
-          fechaVencimientoPago: new Date(Date.now() + (Number(plazoCredito) || 30) * 86400000).toISOString(),
+          plazoCredito,
+          numeroCuotas,
+          fechaVencimientoPago: new Date(Date.now() + plazoCredito * 86400000).toISOString(),
         }),
         ...(descuentoGlobal > 0 && {
           descuentoGlobal,
@@ -681,17 +685,22 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
             {esCredito && (
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-gray-500">Plazo (días)</span>
-                  <input value={plazoCredito} onChange={e => setPlazoCredito(e.target.value.replace(/\D/g, ''))}
-                    inputMode="numeric"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+                  <span className="mb-1 block text-[11px] text-gray-500">Paga cada</span>
+                  <select value={frecuenciaDias} onChange={e => setFrecuenciaDias(parseInt(e.target.value))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
+                    {FRECUENCIAS.map(fr => <option key={fr.dias} value={fr.dias}>{fr.label}</option>)}
+                  </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11px] text-gray-500">Cuotas</span>
-                  <input value={numeroCuotas} onChange={e => setNumeroCuotas(e.target.value.replace(/\D/g, ''))}
-                    inputMode="numeric"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+                  <span className="mb-1 block text-[11px] text-gray-500">N.° de pagos</span>
+                  <select value={numeroCuotas} onChange={e => setNumeroCuotas(parseInt(e.target.value))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
+                    {CUOTAS_OPCIONES.map(n => <option key={n} value={n}>{n} pago{n > 1 ? 's' : ''}</option>)}
+                  </select>
                 </label>
+                <p className="col-span-2 text-[11px] text-gray-600">
+                  {numeroCuotas} pago{numeroCuotas > 1 ? 's' : ''} {labelFrecuencia(frecuenciaDias)} de S/ {fmt(totalACobrar / numeroCuotas)} · la última vence en {plazoCredito} días.
+                </p>
                 <p className="col-span-2 text-[11px] text-gray-500">
                   No se cobra nada hoy. El crédito necesita un cliente identificado.
                 </p>
@@ -711,7 +720,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
             {esCredito ? (
               <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <p className="text-sm text-blue-700">
-                  A crédito: no se cobra hoy. Se genera la cuenta por cobrar con vencimiento a {Number(plazoCredito) || 30} días.
+                  A crédito: no se cobra hoy. {numeroCuotas} pago{numeroCuotas > 1 ? 's' : ''} {labelFrecuencia(frecuenciaDias)}, la última a {plazoCredito} días.
                 </p>
               </div>
             ) : cubiertoPorAdelanto ? (
