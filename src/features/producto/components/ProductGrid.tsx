@@ -9,7 +9,10 @@ import type { Producto } from '@/core/types/producto';
 import * as productoService from '@/features/producto/services/producto-service';
 import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
 
-const inputClass = 'w-full rounded-[6px] h-[30px] border border-gray-300 px-3 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]/20';
+// Estilo estándar de input de la web (mismo que el selector de variantes y el
+// módulo de compras): zinc-100, ring azul, sombra y glow al enfocar. El padding
+// izquierdo deja lugar a la lupa y el derecho al limpiar / spinner.
+const inputClass = 'h-[30px] w-full rounded-[6px] bg-zinc-100 pl-8 pr-9 text-xs text-[#004A94] shadow-md outline-none ring-1 ring-blue-400 transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 focus:shadow-lg focus:shadow-blue-200';
 
 /** Todas las imágenes del producto (galería) para el dialog. */
 function imgList(p: { archivos?: Array<{ url: string; urlThumbnail?: string }>; imagenes?: string[] }): string[] {
@@ -76,9 +79,25 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
   return (
     <div className="space-y-3">
       <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" />
+          </svg>
+        </span>
         <input className={inputClass} value={query} onChange={e => search(e.target.value)}
-          placeholder="Buscar producto por nombre, código o SKU..." />
-        {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-[#004A94]" /></div>}
+          placeholder="Buscar producto por nombre, código o SKU…" />
+        {searching ? (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-[#004A94]" />
+          </div>
+        ) : query ? (
+          <button type="button" onClick={() => search('')} title="Limpiar"
+            className="absolute right-1.5 top-1/2 flex h-[22px] w-[22px] -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:text-gray-600">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       <div className={`grid gap-y-2.5 gap-x-[15px] ${colsClass} ${maxHeightClass} overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 content-start`}>
