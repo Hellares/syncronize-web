@@ -74,6 +74,22 @@ export async function getVentas(filtros?: VentaFiltros): Promise<Venta[]> {
   return list.map(normalizeVenta);
 }
 
+/**
+ * Solo el RESUMEN del período (montos, ticket, utilidad, margen).
+ *
+ * Es el endpoint chico: el dashboard consolidado arma 17 secciones y no hace
+ * falta pagarlas para mostrar tres cifras del mes.
+ */
+export async function getAnalyticsResumen(params: import('@/core/types/venta-analytics').AnalyticsQuery = {}): Promise<import('@/core/types/venta-analytics').AnalyticsResumen> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null && v !== '') q.set(k, String(v));
+  }
+  const query = q.toString();
+  const res = await apiClient.get(`/ventas/analytics/resumen${query ? `?${query}` : ''}`);
+  return res.data;
+}
+
 /** Dashboard consolidado de estadísticas de ventas: 17 secciones en 1 request */
 export async function getAnalyticsDashboard(params: import('@/core/types/venta-analytics').AnalyticsQuery = {}): Promise<import('@/core/types/venta-analytics').VentaAnalyticsDashboard> {
   const q = new URLSearchParams();

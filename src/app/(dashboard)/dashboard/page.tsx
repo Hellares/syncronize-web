@@ -21,7 +21,7 @@ import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import * as ventaService from '@/features/venta/services/venta-service';
 import * as cajaService from '@/features/caja/services/caja-service';
-import type { VentaAnalyticsDashboard } from '@/core/types/venta-analytics';
+import type { VentaAnalyticsDashboard, AnalyticsResumen } from '@/core/types/venta-analytics';
 import { METODO_PAGO_LABEL, type Caja, type ResumenCaja } from '@/core/types/caja';
 
 const RANGOS = [7, 14, 30] as const;
@@ -141,6 +141,7 @@ export default function DashboardPage() {
   const [caja, setCaja] = useState<{ caja: Caja; resumen: ResumenCaja | null } | null>(null);
   const [cajaLista, setCajaLista] = useState(false);
   const [apuntada, setApuntada] = useState<number | null>(null);
+  const [mes, setMes] = useState<AnalyticsResumen | null>(null);
 
   const verStats = permissions.canViewStatistics;
 
@@ -175,6 +176,23 @@ export default function DashboardPage() {
       .finally(() => { if (vivo) setCargandoSerie(false); });
     return () => { vivo = false; };
   }, [verStats, sedeId, rango]);
+
+  // El mes va aparte y contra el endpoint CHICO: son tres cifras, no hace falta
+  // pagar las 17 secciones del consolidado otra vez.
+  useEffect(() => {
+    if (!verStats || !sedeId) return;
+    let vivo = true;
+    const inicio = new Date();
+    inicio.setDate(1);
+    ventaService.getAnalyticsResumen({
+      sedeId,
+      fechaInicio: claveFecha(inicio),
+      fechaFin: claveFecha(new Date()),
+    })
+      .then(r => { if (vivo) setMes(r); })
+      .catch(() => { /* la fila del mes simplemente no se dibuja */ });
+    return () => { vivo = false; };
+  }, [verStats, sedeId]);
 
   const cargarCaja = useCallback(async () => {
     if (!permissions.canViewCaja) { setCajaLista(true); return; }
@@ -236,6 +254,22 @@ export default function DashboardPage() {
     }
     return out.sort((a, b) => Number(b.grave) - Number(a.grave));
   }, [hoy]);
+
+  /**
+   * La proyección de cierre la calcula el backend SIEMPRE sobre el mes en curso
+   * —ignora el rango de la consulta y solo mira la sede—, así que viene gratis
+   * en la llamada de hoy.
+   *
+   * 🔑 `variacionPct` compara la PROYECCIÓN contra el mes anterior COMPLETO, no
+   * las ventas de hoy: la etiqueta tiene que decir eso y no otra cosa.
+   */
+  const proyeccion = hoy?.proyeccion;
+  const mesAnteriorNombre = useMemo(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 1);
+    return d.toLocaleDateString('es-PE', { month: 'long' });
+  }, []);
 
   const topProductos = (serie?.topProductos ?? []).slice(0, 5);
   const maxProducto = Math.max(1, ...topProductos.map(p => p.ingresoTotal));
@@ -363,6 +397,72 @@ export default function DashboardPage() {
           ) : <Esqueleto alto="h-[118px]" />
         )}
       </div>
+
+      {/* ── Este mes: el puente al análisis, sin duplicarlo ── */}
+      {verStats && (proyeccion || mes) && (
+        <div className="rounded-xl border border-[#e8ecf1] bg-white p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[13px] font-bold text-gray-900">Este mes</h2>
+            <Link href="/dashboard/ventas/analytics" className="text-[11px] font-bold text-[#004A94] hover:underline">
+              Ver estadísticas completas →
+            </Link>
+          </div>
+
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Vendido</p>
+              <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+                {soles(mes?.montoTotal ?? proyeccion?.ventasActual ?? 0)}
+              </p>
+              <p className="mt-1.5 text-[11px] text-gray-500">
+                {proyeccion?.diasTranscurridos != null
+                  ? `${proyeccion.diasTranscurridos} de ${proyeccion.diasEnMes} días`
+                  : `${mes?.totalVentas ?? 0} ventas`}
+              </p>
+            </div>
+
+            <div className="sm:border-l sm:border-gray-100 sm:pl-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Proyección al cierre</p>
+              {proyeccion?.suficiente && proyeccion.proyeccionCierre != null ? (
+                <>
+                  <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+                    {soles(proyeccion.proyeccionCierre)}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {proyeccion.variacionPct != null && (proyeccion.mesAnterior ?? 0) > 0 && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${proyeccion.variacionPct >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                        {proyeccion.variacionPct >= 0 ? '▲' : '▼'} {Math.abs(proyeccion.variacionPct).toFixed(0)}% vs {mesAnteriorNombre}
+                      </span>
+                    )}
+                    {proyeccion.proyeccionMin != null && proyeccion.proyeccionMax != null && (
+                      <span className="text-[11px] text-gray-500">
+                        entre {soles(proyeccion.proyeccionMin, 0)} y {soles(proyeccion.proyeccionMax, 0)}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-sm font-semibold text-gray-500">Sin historia suficiente</p>
+                  <p className="mt-1.5 text-[11px] text-gray-500">Hacen falta más días de ventas para proyectar el cierre.</p>
+                </>
+              )}
+            </div>
+
+            {permissions.canViewReports && (
+              <div className="sm:border-l sm:border-gray-100 sm:pl-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Margen del mes</p>
+                <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+                  {mes ? soles(mes.utilidadBruta) : '—'}
+                </p>
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  {mes ? `${Number(mes.margenPorcentaje || 0).toFixed(1)}% · ticket ${soles(mes.ticketPromedio)}` : 'Cargando…'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Serie + atención ── */}
       {verStats && (
