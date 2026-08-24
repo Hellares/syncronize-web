@@ -850,6 +850,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
               <div className="divide-y divide-gray-100">
                 {items.map(item => {
                   const c = calcItem(item);
+                  // Item manual: sin producto, servicio ni variante detrás.
+                  const esManual = !item.productoId && !item.varianteId && !item.servicioId;
                   return (
                     <div key={item.key} className={`px-3 py-2 ${item.origenComboId ? 'bg-purple-50/40' : ''}`}>
                       <div className="flex items-center gap-2">
@@ -872,11 +874,26 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                             onChange={e => setCantidad(item.key, parseFloat(e.target.value) || 0)}
                             className={`${INPUT_STD} w-14 text-center text-xs ring-blue-400`} />
                         </label>
-                        <label className="flex items-center gap-1 text-[10px] text-gray-400">P.U
-                          <input type="number" min={0} step="any" value={item.precioUnitario}
-                            onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
-                            className={`${INPUT_STD} w-20 text-right text-xs ring-blue-400`} />
-                        </label>
+                        {/* 🔑 El P.U. de un item del catálogo NO se teclea: sale del
+                            precio de la sede y de sus niveles por volumen. Retocarlo a
+                            mano lo desengancha del mayoreo (queda `precioManual`) y
+                            deja la cotización con un precio que el sistema no puede
+                            explicar. Para bajarlo está Desc%. Las líneas MANUALES sí
+                            se teclean: no hay producto detrás de donde sacarlo. */}
+                        {esManual ? (
+                          <label className="flex items-center gap-1 text-[10px] text-gray-400">P.U
+                            <input type="number" min={0} step="any" value={item.precioUnitario}
+                              onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
+                              className={`${INPUT_STD} w-20 text-right text-xs ring-blue-400`} />
+                          </label>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[10px] text-gray-400" title="El precio sale del catálogo. Para bajarlo, usá Desc%.">
+                            P.U
+                            <span className="w-20 rounded-[6px] bg-zinc-50 px-2 py-[6px] text-right text-xs font-semibold text-gray-600">
+                              {fmt(item.precioUnitario)}
+                            </span>
+                          </span>
+                        )}
                         <label className="flex items-center gap-1 text-[10px] text-gray-400">Desc%
                           <input type="number" min={0} max={100} step="any" value={item.descuento || ''}
                             disabled={!puedeDescuento}
@@ -1193,8 +1210,10 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         </div>
       )}
 
-      {/* ─── NAVIGATION ───────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      {/* ─── NAVIGATION ─────────────────────────────────────────────────────
+           Pegada abajo: en el paso de items la lista crece y el botón quedaba
+           a un scroll largo del final. */}
+      <div className="sticky bottom-0 z-10 flex items-center justify-between rounded-t-xl border border-b-0 border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-2px_10px_rgba(9,20,38,.05)] backdrop-blur">
         <div>
           {step > 0 && (
             <button
