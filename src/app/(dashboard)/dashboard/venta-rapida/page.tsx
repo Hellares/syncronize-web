@@ -7,7 +7,7 @@ import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { VentaItem, Venta, NivelPrecio } from '@/core/types/venta';
-import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel } from '@/core/types/venta';
+import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
@@ -31,22 +31,6 @@ function fmt(n: number): string {
 
 function genKey() { return Math.random().toString(36).slice(2, 10); }
 
-/**
- * Qué se lee grande en la línea del carrito y qué baja a contexto.
- *
- * 🔑 Con mayoreo combinado el caso normal son tres líneas del MISMO producto
- * que se diferencian solo en el ÚLTIMO eje de la variante ("… / HOMBRE /
- * ALIANZA"): truncando la descripción entera las tres se ven idénticas. Manda
- * ese último eje; el producto y los demás ejes van al breadcrumb.
- */
-function tituloYContexto(it: VentaItem): { titulo: string; contexto: string } {
-  if (it.varianteNombre) {
-    const ejes = it.varianteNombre.split('/').map(t => t.trim()).filter(Boolean);
-    const titulo = ejes.length ? ejes[ejes.length - 1] : it.varianteNombre;
-    return { titulo, contexto: [it.productoNombre, ...ejes.slice(0, -1)].filter(Boolean).join(' · ') };
-  }
-  return { titulo: it.productoNombre ?? it.descripcion, contexto: '' };
-}
 
 function VentaRapidaInner() {
   const router = useRouter();
@@ -610,7 +594,7 @@ function VentaRapidaInner() {
                 const c = calcularLinea(it);
                 const conNivel = !it.esOrdenServicio && it.precioUnitario < it.precioBase;
                 const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
-                const { titulo, contexto } = tituloYContexto(it);
+                const { titulo, contexto } = tituloYContextoLinea(it);
                 return (
                   <div key={it.key}
                     className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : 'hover:bg-gray-50/60'}`}>

@@ -11,7 +11,7 @@ import type { CreateCotizacionDto, CreateCotizacionDetalleDto, Cotizacion, Compa
 import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { NivelPrecio } from '@/core/types/venta';
-import { nivelAplicable, precioConNivel, cantidadesGrupoMayoreo } from '@/core/types/venta';
+import { nivelAplicable, precioConNivel, cantidadesGrupoMayoreo, tituloYContextoLinea } from '@/core/types/venta';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
@@ -43,6 +43,10 @@ interface ItemLinea {
   varianteId?: string;
   servicioId?: string;
   descripcion: string;
+  /** Producto y variante por SEPARADO: la lista muestra el eje que distingue
+   *  la línea y baja el resto a contexto (lo mismo que el carrito de VR). */
+  productoNombre?: string;
+  varianteNombre?: string;
   cantidad: number;
   precioUnitario: number;
   /** Descuento por línea en PORCENTAJE (calcItem usa /100). */
@@ -323,6 +327,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           productoId: l.productoId,
           varianteId: l.varianteId,
           descripcion: l.descripcion,
+          productoNombre: l.descripcion,
           cantidad: l.cantidad,
           precioBase: l.precioUnit,
           precioUnitario: l.precioUnit,
@@ -374,6 +379,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       key,
       productoId: producto.id,
       descripcion: producto.nombre,
+      productoNombre: producto.nombre,
       cantidad: 1,
       precioBase,
       precioUnitario: precioBase,
@@ -428,6 +434,8 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: `${producto.nombre} - ${variante.nombre}`,
+      productoNombre: producto.nombre,
+      varianteNombre: variante.nombre,
       cantidad,
       precioBase,
       precioUnitario: precioBase,
@@ -852,65 +860,99 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                   const c = calcItem(item);
                   // Item manual: sin producto, servicio ni variante detrás.
                   const esManual = !item.productoId && !item.varianteId && !item.servicioId;
+                  const { titulo, contexto } = tituloYContextoLinea(item);
+                  const conNivel = item.precioUnitario < item.precioBase;
                   return (
-                    <div key={item.key} className={`px-3 py-2 ${item.origenComboId ? 'bg-purple-50/40' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={item.descripcion}
-                          onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
-                          placeholder="Descripcion"
-                          className={`${INPUT_STD} min-w-0 flex-1 text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
-                        />
-                        <button type="button" onClick={() => removeItem(item.key)} className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    <div key={item.key} className={`px-3 py-2.5 ${item.origenComboId ? 'bg-purple-50/40' : 'hover:bg-gray-50/60'}`}>
+
+                      {/* Fila 1: qué es y cuánto suma */}
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          {esManual ? (
+                            <input
+                              type="text"
+                              value={item.descripcion}
+                              onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
+                              placeholder="Descripcion"
+                              className={`${INPUT_STD} w-full text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
+                            />
+                          ) : (
+                            <>
+                              <p className="truncate text-[13px] font-semibold text-[#043261]">
+                                {item.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[9px] font-bold text-purple-700">COMBO</span>}
+                                {titulo}
+                              </p>
+                              {contexto && <p className="truncate text-[10px] text-gray-500">{contexto}</p>}
+                            </>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[15px] font-bold leading-tight text-gray-900">{currSymbol} {fmt(c.total)}</p>
+                          <p className={`text-[11px] font-medium ${conNivel ? 'text-blue-700' : 'text-gray-500'}`}>
+                            {currSymbol} {fmt(item.precioUnitario)} c/u
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => removeItem(item.key)} title="Quitar"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-600">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                            <path d="M18 6 6 18M6 6l12 12" />
                           </svg>
                         </button>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <label className="flex items-center gap-1 text-[10px] text-gray-400">Cant
+
+                      {/* Fila 2: cantidad, descuento y lo que explica el precio */}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        {/* Stepper con el número EDITABLE: un granel se cotiza en
+                            decimales y con ± solo no se puede teclear 1.5 kg. */}
+                        <div className="flex h-8 items-center overflow-hidden rounded-full border border-gray-200 bg-white">
+                          <button type="button" onClick={() => setCantidad(item.key, Math.max(0.01, item.cantidad - 1))}
+                            className="flex h-8 w-8 items-center justify-center text-gray-500 hover:bg-gray-100">
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
+                          </button>
                           <input type="number" min={0.01} step="any" value={item.cantidad}
                             onChange={e => setCantidad(item.key, parseFloat(e.target.value) || 0)}
-                            className={`${INPUT_STD} w-14 text-center text-xs ring-blue-400`} />
-                        </label>
-                        {/* 🔑 El P.U. de un item del catálogo NO se teclea: sale del
-                            precio de la sede y de sus niveles por volumen. Retocarlo a
-                            mano lo desengancha del mayoreo (queda `precioManual`) y
-                            deja la cotización con un precio que el sistema no puede
-                            explicar. Para bajarlo está Desc%. Las líneas MANUALES sí
-                            se teclean: no hay producto detrás de donde sacarlo. */}
-                        {esManual ? (
-                          <label className="flex items-center gap-1 text-[10px] text-gray-400">P.U
-                            <input type="number" min={0} step="any" value={item.precioUnitario}
-                              onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
-                              className={`${INPUT_STD} w-20 text-right text-xs ring-blue-400`} />
-                          </label>
-                        ) : (
-                          <span className="flex items-center gap-1 text-[10px] text-gray-400" title="El precio sale del catálogo. Para bajarlo, usá Desc%.">
-                            P.U
-                            <span className="w-20 rounded-[6px] bg-zinc-50 px-2 py-[6px] text-right text-xs font-semibold text-gray-600">
-                              {fmt(item.precioUnitario)}
-                            </span>
-                          </span>
-                        )}
-                        <label className="flex items-center gap-1 text-[10px] text-gray-400">Desc%
+                            className="w-12 border-0 bg-transparent p-0 text-center text-[13px] font-bold text-[#043261] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+                          <button type="button" onClick={() => setCantidad(item.key, item.cantidad + 1)}
+                            className="flex h-8 w-8 items-center justify-center text-gray-500 hover:bg-gray-100">
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
+                          </button>
+                        </div>
+
+                        <label
+                          title={puedeDescuento ? 'Descuento de esta línea' : 'Requiere autorización (botón "Autorizar descuentos")'}
+                          className={`flex h-8 items-center gap-1 rounded-full border px-2.5 text-[11px] ${item.descuento > 0
+                            ? 'border-amber-300 bg-amber-50 font-bold text-amber-700'
+                            : 'border-gray-200 text-gray-500'} ${puedeDescuento ? '' : 'opacity-50'}`}>
                           <input type="number" min={0} max={100} step="any" value={item.descuento || ''}
                             disabled={!puedeDescuento}
                             onChange={e => setDescuentoPct(item.key, parseFloat(e.target.value))}
                             placeholder="0"
-                            title={puedeDescuento ? undefined : 'Requiere autorización (botón "Autorizar descuentos")'}
-                            className={`${INPUT_STD} w-14 text-right text-xs ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed`} />
+                            className="w-8 border-0 bg-transparent p-0 text-right text-[11px] font-inherit outline-none [appearance:textfield] disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none" />
+                          % desc
                         </label>
-                        <span className="ml-auto whitespace-nowrap text-right text-xs font-semibold text-gray-900">{currSymbol} {fmt(c.total)}</span>
+
+                        {/* El P.U. del catálogo NO se teclea: sale del precio de la
+                            sede y de sus niveles. Tocarlo a mano desengancha la
+                            línea del mayoreo. Las manuales sí, no hay de dónde. */}
+                        {esManual && (
+                          <label className="flex h-8 items-center gap-1 rounded-full border border-gray-200 px-2.5 text-[11px] text-gray-500">
+                            P.U
+                            <input type="number" min={0} step="any" value={item.precioUnitario}
+                              onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
+                              className="w-16 border-0 bg-transparent p-0 text-right text-[11px] font-semibold text-[#043261] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+                          </label>
+                        )}
+
+                        {item.nivelAplicado && (
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-blue-700">{item.nivelAplicado}</span>
+                        )}
+                        {item.enLiquidacion && (
+                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-red-600">LIQUIDACIÓN</span>
+                        )}
+                        {item.origenComboNombre && (
+                          <span className="truncate text-[10px] text-purple-600">{item.origenComboNombre}</span>
+                        )}
                       </div>
-                      {(item.nivelAplicado || item.enLiquidacion || item.origenComboId) && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {item.origenComboId && <span className="rounded bg-purple-100 px-1 text-[9px] font-bold text-purple-700">COMBO{item.origenComboNombre ? ` · ${item.origenComboNombre}` : ''}</span>}
-                          {item.nivelAplicado && <span className="rounded bg-blue-100 px-1 text-[9px] font-medium text-blue-700">{item.nivelAplicado}</span>}
-                          {item.enLiquidacion && <span className="rounded bg-red-100 px-1 text-[9px] font-bold text-red-600">LIQUIDACIÓN</span>}
-                        </div>
-                      )}
                     </div>
                   );
                 })}

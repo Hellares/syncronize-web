@@ -469,6 +469,27 @@ export interface VentaItem {
   stockDisponible?: number | null;
 }
 
+/**
+ * Qué se lee grande en una línea del carrito y qué baja a contexto.
+ *
+ * 🔑 Con mayoreo combinado el caso normal son varias líneas del MISMO producto
+ * que se diferencian solo en el ÚLTIMO eje de la variante ("… / HOMBRE /
+ * ALIANZA"): mostrando la descripción entera truncada se ven todas iguales.
+ * Manda ese último eje; el producto y los demás ejes van al breadcrumb.
+ */
+export function tituloYContextoLinea(it: {
+  productoNombre?: string;
+  varianteNombre?: string;
+  descripcion: string;
+}): { titulo: string; contexto: string } {
+  if (it.varianteNombre) {
+    const ejes = it.varianteNombre.split('/').map(t => t.trim()).filter(Boolean);
+    const titulo = ejes.length ? ejes[ejes.length - 1] : it.varianteNombre;
+    return { titulo, contexto: [it.productoNombre, ...ejes.slice(0, -1)].filter(Boolean).join(' · ') };
+  }
+  return { titulo: it.productoNombre ?? it.descripcion, contexto: '' };
+}
+
 /** Recalcula precioUnitario por niveles para la cantidad (liquidación gana e ignora niveles) */
 export function recalcularPorNiveles(
   item: VentaItem,
