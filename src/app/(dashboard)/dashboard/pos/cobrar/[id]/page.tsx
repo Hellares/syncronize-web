@@ -7,6 +7,9 @@ import { AxiosError } from 'axios';
 import type { Cotizacion, StockValidationResult } from '@/core/types/cotizacion';
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import * as ventaService from '@/features/venta/services/venta-service';
+import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
+import { useAuth } from '@/core/auth/auth-context';
+import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import CobrarItemSelector, { calcularItem, type ItemAdicional } from '@/features/cotizacion/components/CobrarItemSelector';
 
 const METODOS = [
@@ -18,6 +21,8 @@ const METODOS = [
 ] as const;
 
 const METODOS_DIGITALES = ['YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
+/** Quien puede autorizar sin que le pidan credenciales (paridad con el detalle). */
+const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 const TOLERANCIA = 0.005;
 
 interface ItemLocal {
@@ -64,7 +69,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
 
   // Cliente: la cotización trae el suyo, pero al cobrar se puede cambiar.
   const [clienteOverride, setClienteOverride] = useState<{
-    clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string;
+    clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string; direccion?: string;
   } | null>(null);
   const [cambiarCliente, setCambiarCliente] = useState(false);
   const [docInput, setDocInput] = useState('');
@@ -73,6 +78,19 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
   // Comprobante
   const [tipoComprobante, setTipoComprobante] = useState<'TICKET' | 'BOLETA' | 'FACTURA'>('BOLETA');
   const [observaciones, setObservaciones] = useState('');
+
+  // Descuento global al cobrar (S/ o %), como en el app y en el detalle.
+  const [descInput, setDescInput] = useState('');
+  const [descEsPct, setDescEsPct] = useState(false);
+
+  // Crédito: la cotización se cobra después. Sin esto solo se podía CONTADO.
+  const [esCredito, setEsCredito] = useState(false);
+  const [plazoCredito, setPlazoCredito] = useState('30');
+  const [numeroCuotas, setNumeroCuotas] = useState('1');
+
+  // Autorizaciones pendientes (descuento / venta bajo costo)
+  const [authPendiente, setAuthPendiente] = useState<null | 'DESCUENTO' | 'BAJO_COSTO'>(null);
+  const [pendiente, setPendiente] = useState<Parameters<typeof cotizacionService.convertirAVenta>[1] | null>(null);
 
   const [agregarOpen, setAgregarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,10 +132,22 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
     })();
   }, [id]);
 
+  const { state: authState } = useAuth();
+  const { userRoles } = useEmpresa();
+  const userId = authState.status === 'authenticated' ? authState.user.id : '';
+  const esAutorizador = userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol));
+
   // --- Totales (suma de items visibles) ---
   const total = useMemo(() => items.reduce((acc, it) => acc + it.total, 0), [items]);
   const adelanto = Number(cotizacion?.adelantoMonto ?? 0);
-  const totalACobrar = Math.max(0, total - adelanto);
+  /** Descuento global efectivo: el input es S/ o % del total de los items. */
+  const descuentoGlobal = useMemo(() => {
+    const v = parseFloat(descInput) || 0;
+    if (v <= 0) return 0;
+    const monto = descEsPct ? (total * Math.min(v, 100)) / 100 : v;
+    return Math.min(Number(monto.toFixed(2)), total);
+  }, [descInput, descEsPct, total]);
+  const totalACobrar = Math.max(0, total - descuentoGlobal - adelanto);
   const totalPagado = useMemo(() => pagos.reduce((acc, p) => acc + p.monto, 0), [pagos]);
   const faltante = totalACobrar - totalPagado;
   const vuelto = totalPagado - totalACobrar;
@@ -266,10 +296,10 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
     try {
       if (doc.length === 8) {
         const c = await ventaService.buscarClientePorDni(doc);
-        setClienteOverride({ clienteId: c.clienteEmpresaId, nombre: c.nombreCompleto, documento: doc });
+        setClienteOverride({ clienteId: c.clienteEmpresaId, nombre: c.nombreCompleto, documento: doc, direccion: c.direccion ?? undefined });
       } else {
         const c = await ventaService.buscarClientePorRuc(doc);
-        setClienteOverride({ clienteEmpresaId: c.clienteEmpresaId, nombre: c.razonSocial, documento: doc });
+        setClienteOverride({ clienteEmpresaId: c.clienteEmpresaId, nombre: c.razonSocial, documento: doc, direccion: c.direccion ?? undefined });
       }
       setCambiarCliente(false);
       setDocInput('');
@@ -285,8 +315,13 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
   const handleCobrar = async () => {
     if (!cotizacion) return;
     setError('');
-    if (!cubiertoPorAdelanto && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
-    if (!cubierto && !cubiertoPorAdelanto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
+    if (!esCredito && !cubiertoPorAdelanto && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
+    if (!esCredito && !cubierto && !cubiertoPorAdelanto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
+    if (esCredito && !clienteEfectivo.clienteId && !clienteEfectivo.clienteEmpresaId) {
+      setError('El crédito necesita un cliente identificado: cambialo y buscalo por documento.');
+      setCambiarCliente(true);
+      return;
+    }
     if (items.length === 0) { setError('La venta no tiene items'); return; }
     // El backend rechaza la FACTURA sin RUC válido con un 400; avisamos acá,
     // donde además se puede arreglar.
@@ -319,31 +354,87 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
         };
       });
 
-      const venta = await cotizacionService.convertirAVenta(cotizacion.id, {
+      const doc = (clienteEfectivo.documento ?? '').trim();
+      const dto = {
         tipoComprobante,
-        condicionPago: 'CONTADO',
-        esCredito: false,
-        tipoDocumentoCliente: (clienteEfectivo.documento ?? '').trim().length === 11 ? '6' : '1',
+        condicionPago: esCredito ? 'CREDITO' : 'CONTADO',
+        esCredito,
+        // 🔴 Mismo criterio que el app: FACTURA siempre RUC; 9 dígitos es carné
+        // de extranjería (tipo 4), y el resto DNI. Deducirlo del comprobante
+        // mandaba a un extranjero como DNI en el comprobante electrónico.
+        tipoDocumentoCliente: tipoComprobante === 'FACTURA' ? '6' : doc.length === 9 ? '4' : '1',
         ...(clienteOverride && {
           clienteId: clienteOverride.clienteId,
           clienteEmpresaId: clienteOverride.clienteEmpresaId,
           nombreCliente: clienteOverride.nombre,
           documentoCliente: clienteOverride.documento,
+          ...(clienteOverride.direccion && { direccionCliente: clienteOverride.direccion }),
         }),
-        ...(pagos.length > 0 && {
+        // A crédito no se cobra hoy: los pagos solo viajan en el contado.
+        ...(!esCredito && pagos.length > 0 && {
           metodoPago: pagos[0].metodoPago,
           montoRecibido: totalPagado,
           pagos,
+        }),
+        ...(esCredito && {
+          plazoCredito: Number(plazoCredito) || 30,
+          numeroCuotas: Math.max(1, Number(numeroCuotas) || 1),
+          fechaVencimientoPago: new Date(Date.now() + (Number(plazoCredito) || 30) * 86400000).toISOString(),
+        }),
+        ...(descuentoGlobal > 0 && {
+          descuentoGlobal,
+          ...(descEsPct ? { descuentoGlobalPorcentaje: parseFloat(descInput) } : {}),
         }),
         ...(observaciones.trim() && { observaciones: observaciones.trim() }),
         ...(excluirIds.length > 0 && { excluirDetalleIds: excluirIds }),
         ...(Object.keys(ajustar).length > 0 && { ajustarCantidades: ajustar }),
         ...(itemsAdicionales.length > 0 && { itemsAdicionales }),
-      } as Parameters<typeof cotizacionService.convertirAVenta>[1]);
-      setVentaOk({ id: venta?.id as string | undefined, codigo: venta?.codigo as string | undefined });
+      } as Parameters<typeof cotizacionService.convertirAVenta>[1];
+
+      // Un descuento global necesita autorización; el admin se auto-autoriza.
+      if (descuentoGlobal > 0 && !dto.descuentoAutorizadoPorId) {
+        if (esAutorizador && userId) {
+          dto.descuentoAutorizadoPorId = userId;
+        } else {
+          setPendiente(dto);
+          setAuthPendiente('DESCUENTO');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      await ejecutar(dto);
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al cobrar la cotización');
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Manda el cobro y resuelve el guard de MARGEN NEGATIVO.
+   *
+   * 🔴 Sin esto, una cotización con una línea bajo costo devolvía 400 y el
+   * cajero no tenía forma de seguir: el app y el detalle sí piden la
+   * autorización y reintentan.
+   */
+  const ejecutar = async (dto: Parameters<typeof cotizacionService.convertirAVenta>[1]) => {
+    if (!cotizacion) return;
+    setIsSubmitting(true);
+    try {
+      const venta = await cotizacionService.convertirAVenta(cotizacion.id, dto);
+      setVentaOk({ id: venta?.id as string | undefined, codigo: venta?.codigo as string | undefined });
+    } catch (err) {
+      const raw = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      const msg = Array.isArray(raw) ? raw.join(', ') : raw || '';
+      if (msg.includes('BAJO_COSTO') || msg.toLowerCase().includes('bajo costo')) {
+        if (esAutorizador && userId && !dto.ventaBajoCostoAutorizadaPorId) {
+          return ejecutar({ ...dto, ventaBajoCostoAutorizadaPorId: userId });
+        }
+        setPendiente(dto);
+        setAuthPendiente('BAJO_COSTO');
+        return;
+      }
+      setError(msg || 'Error al cobrar la cotización');
     } finally {
       setIsSubmitting(false);
     }
@@ -457,14 +548,39 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
             {/* Totales */}
             <div className="border-t border-gray-100 px-4 py-3 text-sm">
               <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-gray-900">S/ {fmt(total)}</span></div>
-              {adelanto > 0 && (
-                <>
-                  <div className="flex justify-between text-green-600"><span>Adelanto pagado</span><span>− S/ {fmt(adelanto)}</span></div>
-                  <div className="mt-1 flex justify-between rounded-md bg-[#437EFF]/5 px-2 py-1">
-                    <span className="font-bold text-[#004A94]">Saldo a cobrar</span>
-                    <span className="font-bold text-[#004A94]">S/ {fmt(totalACobrar)}</span>
+
+              {/* Descuento al cobrar: el app lo permite y acá no existía. Pide
+                  autorización igual que en la Venta Rápida. */}
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-gray-500">Descuento</span>
+                <div className="ml-auto flex items-center gap-1">
+                  <div className="flex overflow-hidden rounded-md border border-gray-200">
+                    {([['S/', false], ['%', true]] as const).map(([lbl, pct]) => (
+                      <button key={lbl} onClick={() => setDescEsPct(pct)}
+                        className={`px-2 py-1 text-[11px] font-bold ${descEsPct === pct ? 'bg-[#437EFF]/10 text-[#437EFF]' : 'text-gray-400'}`}>
+                        {lbl}
+                      </button>
+                    ))}
                   </div>
-                </>
+                  <input value={descInput} onChange={e => setDescInput(e.target.value.replace(/[^\d.]/g, ''))}
+                    inputMode="decimal" placeholder="0"
+                    className="w-20 rounded-md border border-gray-200 px-2 py-1 text-right text-sm outline-none focus:border-[#437EFF]" />
+                </div>
+              </div>
+              {descuentoGlobal > 0 && (
+                <div className="mt-1 flex justify-between text-amber-600">
+                  <span>Descuento aplicado</span><span>− S/ {fmt(descuentoGlobal)}</span>
+                </div>
+              )}
+
+              {adelanto > 0 && (
+                <div className="flex justify-between text-green-600"><span>Adelanto pagado</span><span>− S/ {fmt(adelanto)}</span></div>
+              )}
+              {(adelanto > 0 || descuentoGlobal > 0) && (
+                <div className="mt-1 flex justify-between rounded-md bg-[#437EFF]/5 px-2 py-1">
+                  <span className="font-bold text-[#004A94]">Saldo a cobrar</span>
+                  <span className="font-bold text-[#004A94]">S/ {fmt(totalACobrar)}</span>
+                </div>
               )}
             </div>
           </div>
@@ -543,6 +659,39 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
               className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
               value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)" />
           </div>
+
+          {/* Condición de pago. Antes esto era CONTADO fijo: una cotización
+              aprobada a crédito no se podía cobrar desde la web. */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="mb-2 text-sm font-semibold text-gray-800">Condición de pago</p>
+            <div className="flex gap-2">
+              {([['CONTADO', false], ['CRÉDITO', true]] as const).map(([lbl, credito]) => (
+                <button key={lbl} onClick={() => setEsCredito(credito)}
+                  className={`flex-1 rounded-lg border p-2 text-xs font-medium ${esCredito === credito ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500'}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            {esCredito && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] text-gray-500">Plazo (días)</span>
+                  <input value={plazoCredito} onChange={e => setPlazoCredito(e.target.value.replace(/\D/g, ''))}
+                    inputMode="numeric"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] text-gray-500">Cuotas</span>
+                  <input value={numeroCuotas} onChange={e => setNumeroCuotas(e.target.value.replace(/\D/g, ''))}
+                    inputMode="numeric"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+                </label>
+                <p className="col-span-2 text-[11px] text-gray-500">
+                  No se cobra nada hoy. El crédito necesita un cliente identificado.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* === Columna derecha: pagos === */}
@@ -553,7 +702,13 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
               <p className="text-2xl font-bold text-[#004A94]">S/ {fmt(totalACobrar)}</p>
             </div>
 
-            {cubiertoPorAdelanto ? (
+            {esCredito ? (
+              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-700">
+                  A crédito: no se cobra hoy. Se genera la cuenta por cobrar con vencimiento a {Number(plazoCredito) || 30} días.
+                </p>
+              </div>
+            ) : cubiertoPorAdelanto ? (
               <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
                 <p className="text-sm text-green-700">✓ Cubierto por el adelanto — no hay nada que cobrar hoy.</p>
               </div>
@@ -620,7 +775,7 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3"><p className="text-sm text-red-600">{error}</p></div>}
 
           <button onClick={handleCobrar}
-            disabled={isSubmitting || items.length === 0 || (!cubiertoPorAdelanto && !cubierto)}
+            disabled={isSubmitting || items.length === 0 || (!esCredito && !cubiertoPorAdelanto && !cubierto)}
             className="w-full rounded-lg bg-green-600 px-4 py-3.5 text-base font-bold text-white hover:bg-green-700 disabled:opacity-50">
             {isSubmitting ? 'Procesando...' : `COBRAR S/ ${fmt(totalACobrar)}`}
           </button>
@@ -666,6 +821,28 @@ export default function CobrarCotizacionPage({ params }: { params: Promise<{ id:
           </div>
         </div>
       )}
+
+      {/* Autorización de descuento / venta bajo costo (paridad con el app) */}
+      <AutorizacionDialog
+        isOpen={authPendiente !== null}
+        operacion={authPendiente === 'BAJO_COSTO' ? 'VENTA_BAJO_COSTO' : 'DESCUENTO_VENTA'}
+        titulo={authPendiente === 'BAJO_COSTO' ? 'Autorizar venta bajo costo' : 'Autorizar descuento'}
+        descripcion={authPendiente === 'BAJO_COSTO'
+          ? 'Una o más líneas quedan con margen negativo. Requiere autorización de un administrador o gerente.'
+          : 'Aplicar un descuento al cobrar requiere autorización de un administrador o gerente.'}
+        motivo={`Cobro de cotización ${cotizacion.codigo}`}
+        onAuthorized={(auth) => {
+          const tipo = authPendiente;
+          const dto = pendiente;
+          setAuthPendiente(null);
+          setPendiente(null);
+          if (!dto) return;
+          void ejecutar(tipo === 'BAJO_COSTO'
+            ? { ...dto, ventaBajoCostoAutorizadaPorId: auth.autorizadoPorId }
+            : { ...dto, descuentoAutorizadoPorId: auth.autorizadoPorId });
+        }}
+        onClose={() => { setAuthPendiente(null); setPendiente(null); }}
+      />
     </div>
   );
 }
