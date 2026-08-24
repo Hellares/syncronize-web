@@ -62,6 +62,9 @@ type LineaForm = {
   historialAbierto?: boolean;
 };
 
+/** Un gasto de la factura mientras se escribe (monto como TEXTO, igual que las lineas). */
+type GastoForm = { concepto: string; monto: string; prorratea: boolean };
+
 export default function NuevaCompraPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -81,6 +84,8 @@ export default function NuevaCompraPage() {
   // Cantidad/precio se editan como TEXTO (para permitir decimales y campo vacío);
   // se convierten a número al guardar.
   const [lineas, setLineas] = useState<LineaForm[]>([]);
+  // Lo que la factura cobra y no es un producto: flete, movilidad, embalaje.
+  const [gastos, setGastos] = useState<GastoForm[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -202,7 +207,8 @@ export default function NuevaCompraPage() {
    * variante si es exacto, y ya viene en la respuesta del buscador: no hace
    * falta ningun request.
    */
-  const agregarVariante = (p: Producto, v: ProductoVariante) => {
+  /** [costoTecleado] viene del selector, ya en unidad de PRESENTACION. */
+  const agregarVariante = (p: Producto, v: ProductoVariante, costoTecleado?: number) => {
     const info = stockDeVarianteEnSede(v, sedeId);
     const costo = info?.precioCosto != null ? Number(info.precioCosto) : null;
     const pres = presentacionDeVariante(p, v);
@@ -218,7 +224,11 @@ export default function NuevaCompraPage() {
       varianteId: v.id,
       descripcion: `${p.nombre} - ${v.nombre}`,
       cantidad: '1',
-      precioUnitario: costoMostrado != null ? costoMostrado.toFixed(2) : '',
+      // Lo tecleado al elegir gana sobre el costo de la ultima compra: si el
+      // usuario se tomo el trabajo de escribirlo, es el de ESTA factura.
+      precioUnitario: costoTecleado != null && costoTecleado > 0
+        ? costoTecleado.toFixed(2)
+        : costoMostrado != null ? costoMostrado.toFixed(2) : '',
       ...(pres.factor > 1 ? { factorPres: pres.factor, simboloPres: pres.simbolo } : {}),
       costoActual: costo,
       precioVentaActual: info?.precio != null ? Number(info.precio) : null,
@@ -398,7 +408,21 @@ export default function NuevaCompraPage() {
   };
   const lineasCargadas = () => lineas.filter((l) => l.descripcion.trim() && numVal(l.cantidad) > 0);
   const sinCosto = (l: LineaForm) => numVal(l.precioUnitario) <= 0;
-  const total = lineas.reduce((s, l) => s + numVal(l.cantidad) * numVal(l.precioUnitario), 0);
+  const setGasto = (i: number, patch: Partial<GastoForm>) =>
+    setGastos((gs) => gs.map((g, j) => (j === i ? { ...g, ...patch } : g)));
+  const gastosCargados = () => gastos.filter((g) => g.concepto.trim() && numVal(g.monto) > 0);
+  const totalMercaderia = lineas.reduce((s, l) => s + numVal(l.cantidad) * numVal(l.precioUnitario), 0);
+  const totalGastos = gastosCargados().reduce((s, g) => s + numVal(g.monto), 0);
+  const gastosProrrateables = gastosCargados()
+    .filter((g) => g.prorratea)
+    .reduce((s, g) => s + numVal(g.monto), 0);
+  // Solo lo que es PRODUCTO recibe flete: una linea libre ("servicio de descarga")
+  // no tiene stock al que subirle el costo.
+  const lineasProrrateables = lineas.filter(
+    (l) => (l.productoId || l.varianteId) && numVal(l.cantidad) > 0,
+  ).length;
+  // La factura se paga entera: el total incluye los gastos prorrateen o no.
+  const total = totalMercaderia + totalGastos;
 
   const guardar = async () => {
     if (!proveedorId) return setError('Seleccioná un proveedor');
@@ -488,6 +512,16 @@ export default function NuevaCompraPage() {
         observaciones: observaciones.trim() || undefined,
         precioIncluyeIgv,
         detalles,
+        ...(gastosCargados().length > 0
+          ? {
+              gastos: gastosCargados().map((g, i) => ({
+                concepto: g.concepto.trim(),
+                monto: numVal(g.monto),
+                prorratea: g.prorratea,
+                orden: i,
+              })),
+            }
+          : {}),
       });
       router.push(`/dashboard/compras/${compra.id}`);
     } catch (e) {
@@ -528,6 +562,13 @@ export default function NuevaCompraPage() {
           <div className="text-right">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Total</p>
             <p className="text-xl font-bold leading-tight text-[#004A94]">{sim(moneda)} {total.toFixed(2)}</p>
+            {/* Con gastos el total deja de ser la suma de las lineas: se dice de
+                que esta hecho o parece que la cuenta no cierra. */}
+            {totalGastos > 0 && (
+              <p className="text-[10px] text-gray-500">
+                {totalMercaderia.toFixed(2)} mercaderia + {totalGastos.toFixed(2)} gastos
+              </p>
+            )}
           </div>
           <button onClick={guardar} disabled={guardando}
             className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
@@ -605,6 +646,88 @@ export default function NuevaCompraPage() {
               <span className="block text-[10px] text-gray-500">Si lo desmarcas, el IGV se SUMA sobre los precios de las líneas.</span>
             </span>
           </label>
+
+          {/* Gastos de la factura. No son productos, pero el flete SI es costo:
+              sin esto, la movilidad de Lima a Trujillo no llega nunca al precio
+              de costo y el margen sale inflado. */}
+          <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50/40 p-3 md:col-span-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[#004A94]">Gastos de la factura</p>
+                <p className="text-[10px] text-gray-500">
+                  Flete, movilidad, embalaje. Se reparten entre los productos segun su valor y suben el costo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGastos((gs) => [...gs, { concepto: '', monto: '', prorratea: true }])}
+                className="shrink-0 rounded-[6px] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#004A94] ring-1 ring-blue-300 hover:bg-blue-50"
+              >
+                + Agregar gasto
+              </button>
+            </div>
+
+            {gastos.length > 0 && (
+              <div className="mt-2.5 space-y-1.5">
+                {gastos.map((g, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2">
+                    <input
+                      className={`${INPUT_STD} min-w-[180px] flex-1`}
+                      placeholder="Movilidad Lima-Trujillo"
+                      value={g.concepto}
+                      onChange={(e) => setGasto(i, { concepto: e.target.value })}
+                    />
+                    <div className="relative w-[120px] shrink-0">
+                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">
+                        {sim(moneda)}
+                      </span>
+                      <input
+                        className={`${INPUT_STD} pl-7 text-right`}
+                        inputMode="decimal"
+                        placeholder="30.00"
+                        value={g.monto}
+                        onChange={(e) => setGasto(i, { monto: e.target.value.replace(/[^\d.,]/g, '') })}
+                      />
+                    </div>
+                    {/* La decision que importa: un flete sube el costo real de la
+                        mercaderia; un interes por pagar a 30 dias no. */}
+                    <button
+                      type="button"
+                      onClick={() => setGasto(i, { prorratea: !g.prorratea })}
+                      title={g.prorratea
+                        ? 'Se reparte entre las lineas y sube su costo'
+                        : 'Solo suma al total: no toca el costo de los productos'}
+                      className={`h-[30px] shrink-0 rounded-[6px] px-2.5 text-[10px] font-semibold ring-1 transition-colors ${
+                        g.prorratea
+                          ? 'bg-[#004A94] text-white ring-[#004A94]'
+                          : 'bg-white text-gray-600 ring-gray-300'
+                      }`}
+                    >
+                      {g.prorratea ? 'Al costo' : 'Solo al total'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGastos((gs) => gs.filter((_, j) => j !== i))}
+                      title="Quitar"
+                      className="h-[30px] w-[30px] shrink-0 rounded-[6px] text-gray-400 hover:bg-red-50 hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {gastosProrrateables > 0 && (
+                  <p className="pt-0.5 text-[10px] text-gray-500">
+                    {sim(moneda)} {gastosProrrateables.toFixed(2)} se reparten entre{' '}
+                    {lineasProrrateables} {lineasProrrateables === 1 ? 'linea' : 'lineas'} de producto
+                    {totalMercaderia > 0 && lineasProrrateables > 0
+                      ? ` · encarece la mercaderia un ${((gastosProrrateables / totalMercaderia) * 100).toFixed(1)}%`
+                      : ''}
+                    {lineasProrrateables === 0 ? ' — todavia no hay ninguna, se reparte al guardar' : ''}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1229,7 +1352,7 @@ export default function NuevaCompraPage() {
           sedeId={sedeId}
           moneda={moneda}
           yaAgregadas={lineas.map((l) => l.varianteId).filter(Boolean) as string[]}
-          onElegir={(v) => agregarVariante(productoVariantes, v)}
+          onElegir={(v, costo) => agregarVariante(productoVariantes, v, costo)}
           onCerrar={() => setProductoVariantes(null)}
         />
       )}

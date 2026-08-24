@@ -143,6 +143,14 @@ export default function CompraDetallePage() {
                       Comprado: {num(d.cantidadOriginal)} {d.unidadOriginalSimbolo ?? 'paq.'} × {num(d.factorAplicado ?? 0)} = {num(d.cantidad)} unid. base
                     </span>
                   )}
+                  {/* El costo del lote no es total/cantidad cuando hubo flete:
+                      sin esta linea el numero parece salido de la nada. */}
+                  {d.gastoProrrateado != null && num(d.gastoProrrateado) > 0 && num(d.cantidad) > 0 && (
+                    <span className="block text-[10px] text-amber-700">
+                      + {sim(c.moneda)} {num(d.gastoProrrateado).toFixed(2)} de gastos → costo {sim(c.moneda)}{' '}
+                      {((num(d.total) + num(d.gastoProrrateado)) / num(d.cantidad)).toFixed(4)} c/u
+                    </span>
+                  )}
                   {d.nuevoPrecioVenta != null && num(d.nuevoPrecioVenta) > 0 && (
                     <span className="block text-[10px] text-blue-600">Nuevo precio venta al confirmar: {sim(c.moneda)} {num(d.nuevoPrecioVenta).toFixed(2)}</span>
                   )}
@@ -162,6 +170,17 @@ export default function CompraDetallePage() {
           <Row label="Subtotal" val={`${sim(c.moneda)} ${num(c.subtotal).toFixed(2)}`} />
           {num(c.descuento) > 0 && <Row label="Descuento" val={`- ${sim(c.moneda)} ${num(c.descuento).toFixed(2)}`} />}
           <Row label="Impuestos" val={`${sim(c.moneda)} ${num(c.impuestos).toFixed(2)}`} />
+          {/* Cada gasto por separado: "Total 950" sin desglose no se puede
+              cuadrar contra la factura del proveedor. */}
+          {(c.gastos ?? []).map((g) => (
+            <div key={g.id} className="flex justify-between text-xs text-gray-600">
+              <span className="truncate pr-2">
+                {g.concepto}
+                {!g.prorratea && <span className="ml-1 text-[10px] text-gray-400">(no va al costo)</span>}
+              </span>
+              <span className="shrink-0">{sim(c.moneda)} {num(g.monto).toFixed(2)}</span>
+            </div>
+          ))}
           <div className="flex justify-between border-t pt-1 font-semibold text-[#004A94]">
             <span>Total</span><span>{sim(c.moneda)} {num(c.total).toFixed(2)}</span>
           </div>

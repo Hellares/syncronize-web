@@ -32,6 +32,23 @@ export interface CompraDetalleItem {
   factorAplicado?: number | string | null;
   nuevoPrecioVenta?: number | string | null;
   loteId?: string | null;
+  /** Flete/gastos que le tocaron a ESTA linea al confirmar. Ya esta sumado al
+   *  costo del lote: se muestra para explicar por que el costo subio. */
+  gastoProrrateado?: number | string | null;
+}
+
+/** Gasto de la factura que no es un producto: flete, movilidad, embalaje. */
+export interface CompraGastoItem {
+  id: string;
+  concepto: string;
+  monto: number | string;
+  porcentajeIGV: number | string;
+  igv: number | string;
+  base: number | string;
+  /** false = solo suma al total (interes, multa): NO toca el costo. */
+  prorratea: boolean;
+  criterio: 'VALOR' | 'CANTIDAD';
+  orden: number;
 }
 
 export const TIPOS_DOC_PROVEEDOR = ['FACTURA', 'BOLETA', 'GUIA', 'TICKET'] as const;
@@ -50,6 +67,9 @@ export interface CompraDetalle extends CompraListItem {
   /** true (default backend): los precios de las líneas YA incluyen IGV (se extrae, no se suma) */
   precioIncluyeIgv?: boolean;
   detalles: CompraDetalleItem[];
+  /** Suma de los gastos, prorrateen o no. Ya viene dentro de `total`. */
+  totalGastos?: number | string;
+  gastos?: CompraGastoItem[];
 }
 
 /** GET /productos/:id/historial-compras — shape exacto de producto-trazabilidad.service */
@@ -258,4 +278,16 @@ export interface CrearCompraInput {
   /** default backend true: los precios YA incluyen IGV (se extrae en vez de sumarse) */
   precioIncluyeIgv?: boolean;
   detalles: CrearCompraLinea[];
+  gastos?: CrearCompraGasto[];
+}
+
+export interface CrearCompraGasto {
+  concepto: string;
+  monto: number;
+  /** 0 = el monto es todo base (el caso normal: el flete viene sin IGV). */
+  porcentajeIGV?: number;
+  /** default true: se reparte entre las lineas y sube su costo. */
+  prorratea?: boolean;
+  criterio?: 'VALOR' | 'CANTIDAD';
+  orden?: number;
 }
