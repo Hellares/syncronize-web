@@ -169,7 +169,7 @@ export default function OrdenDetailPage() {
   const persona = orden.cliente?.persona;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => router.push('/dashboard/servicios')} className="text-gray-400 hover:text-gray-600">←</button>
         <h1 className="rounded-md bg-[#437EFF]/10 px-2.5 py-1 text-lg font-bold text-[#004A94]">{orden.codigo}</h1>
@@ -236,132 +236,144 @@ export default function OrdenDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Cliente */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Cliente</p>
-          {esEmpresa ? (
-            <>
-              <p className="text-sm font-medium text-gray-900">{orden.clienteEmpresa?.razonSocial}</p>
-              <p className="text-xs text-gray-500">RUC {orden.clienteEmpresa?.ruc ?? orden.clienteEmpresa?.numeroDocumento}</p>
-              {orden.clienteEmpresa?.telefono && <p className="text-xs text-gray-500">{orden.clienteEmpresa.telefono}</p>}
-              {orden.contactoClienteEmpresa?.nombre && <p className="mt-1 text-[11px] text-gray-400">Contacto: {orden.contactoClienteEmpresa.nombre}{orden.contactoClienteEmpresa.cargo ? ` (${orden.contactoClienteEmpresa.cargo})` : ''}</p>}
-            </>
-          ) : persona ? (
-            <>
-              <p className="text-sm font-medium text-gray-900">{[persona.nombres, persona.apellidos].filter(Boolean).join(' ')}</p>
-              {persona.dni && <p className="text-xs text-gray-500">DNI {persona.dni}</p>}
-              {persona.telefono && <p className="text-xs text-gray-500">{persona.telefono}</p>}
-            </>
-          ) : <p className="text-sm text-gray-400">Sin cliente asignado</p>}
+      {/* Dos columnas: a la izquierda lo que se lee y se edita del trabajo, a
+          la derecha la plata, que es lo que se consulta a cada rato y no
+          tiene por qué obligar a scrollear hasta el medio de la página. */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Cliente */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Cliente</p>
+            {esEmpresa ? (
+              <>
+                <p className="text-sm font-medium text-gray-900">{orden.clienteEmpresa?.razonSocial}</p>
+                <p className="text-xs text-gray-500">RUC {orden.clienteEmpresa?.ruc ?? orden.clienteEmpresa?.numeroDocumento}</p>
+                {orden.clienteEmpresa?.telefono && <p className="text-xs text-gray-500">{orden.clienteEmpresa.telefono}</p>}
+                {orden.contactoClienteEmpresa?.nombre && <p className="mt-1 text-[11px] text-gray-400">Contacto: {orden.contactoClienteEmpresa.nombre}{orden.contactoClienteEmpresa.cargo ? ` (${orden.contactoClienteEmpresa.cargo})` : ''}</p>}
+              </>
+            ) : persona ? (
+              <>
+                <p className="text-sm font-medium text-gray-900">{[persona.nombres, persona.apellidos].filter(Boolean).join(' ')}</p>
+                {persona.dni && <p className="text-xs text-gray-500">DNI {persona.dni}</p>}
+                {persona.telefono && <p className="text-xs text-gray-500">{persona.telefono}</p>}
+              </>
+            ) : <p className="text-sm text-gray-400">Sin cliente asignado</p>}
+          </div>
+
+          {/* Equipo */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Equipo</p>
+            <p className="text-sm font-medium text-gray-900">{orden.tipoEquipo ?? '—'}{orden.marcaEquipo ? ` · ${orden.marcaEquipo}` : ''}</p>
+            {orden.modeloEquipo?.modelo && <p className="text-xs text-gray-500">{orden.modeloEquipo.marca} {orden.modeloEquipo.modelo}</p>}
+            {orden.numeroSerie && <p className="text-xs text-gray-500">S/N: {orden.numeroSerie}</p>}
+            {orden.condicionEquipo && <p className="mt-1 text-[11px] text-gray-400">{orden.condicionEquipo}</p>}
+          </div>
         </div>
 
-        {/* Equipo */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Equipo</p>
-          <p className="text-sm font-medium text-gray-900">{orden.tipoEquipo ?? '—'}{orden.marcaEquipo ? ` · ${orden.marcaEquipo}` : ''}</p>
-          {orden.modeloEquipo?.modelo && <p className="text-xs text-gray-500">{orden.modeloEquipo.marca} {orden.modeloEquipo.modelo}</p>}
-          {orden.numeroSerie && <p className="text-xs text-gray-500">S/N: {orden.numeroSerie}</p>}
-          {orden.condicionEquipo && <p className="mt-1 text-[11px] text-gray-400">{orden.condicionEquipo}</p>}
-        </div>
-      </div>
+        {/* Problema / notas */}
+        {(orden.descripcionProblema || orden.notas) && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            {orden.descripcionProblema && <><p className="text-[10px] uppercase text-gray-400">Problema reportado</p><p className="text-sm text-gray-700">{orden.descripcionProblema}</p></>}
+            {orden.notas && <p className="mt-1 text-xs text-gray-500">{orden.notas}</p>}
+          </div>
+        )}
 
-      {/* Problema / notas */}
-      {(orden.descripcionProblema || orden.notas) && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          {orden.descripcionProblema && <><p className="text-[10px] uppercase text-gray-400">Problema reportado</p><p className="text-sm text-gray-700">{orden.descripcionProblema}</p></>}
-          {orden.notas && <p className="mt-1 text-xs text-gray-500">{orden.notas}</p>}
-        </div>
-      )}
+        {/* Datos personalizados (campos dinámicos del servicio) */}
+        {orden.datosPersonalizados && Object.keys(orden.datosPersonalizados).length > 0 && (
+          <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
+        )}
 
-      {/* Datos personalizados (campos dinámicos del servicio) */}
-      {orden.datosPersonalizados && Object.keys(orden.datosPersonalizados).length > 0 && (
-        <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
-      )}
+        {/* Imágenes de la orden (+ firma del cliente) */}
+        <OrdenImagenesSection orden={orden} canManageSettings={permissions.canManageSettings} forceShow={forceShowImagenes} />
 
-      {/* Imágenes de la orden (+ firma del cliente) */}
-      <OrdenImagenesSection orden={orden} canManageSettings={permissions.canManageSettings} forceShow={forceShowImagenes} />
-
-      {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
-      <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
-
-      {/* Libro de adelantos (modelo acumulativo 07-07) */}
-      {(permissions.canManageOrders || (orden.adelantos ?? []).length > 0) && (
-        <AdelantosOrdenWidget orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
-      )}
-
-      {/* Componentes */}
-      {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase text-gray-400">Componentes ({(orden.componentes ?? []).length})</p>
-            {permissions.canManageOrders && puedeModificarComponentes && (
-              <button onClick={() => setComponenteOpen(true)} className="text-[11px] font-semibold text-[#437EFF] hover:underline">+ Agregar</button>
+        {/* Componentes */}
+        {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase text-gray-400">Componentes ({(orden.componentes ?? []).length})</p>
+              {permissions.canManageOrders && puedeModificarComponentes && (
+                <button onClick={() => setComponenteOpen(true)} className="text-[11px] font-semibold text-[#437EFF] hover:underline">+ Agregar</button>
+              )}
+            </div>
+            {(orden.componentes ?? []).length === 0 ? (
+              <p className="text-xs text-gray-400">Sin componentes registrados.</p>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-gray-400">
+                  {puedeModificarComponentes
+                    ? 'Toca un componente para editar su acción/costos o agregar imágenes.'
+                    : 'Orden cerrada: los componentes quedan solo de consulta.'}
+                </p>
+                {orden.componentes!.map(c => {
+                  const accion = c.tipoAccion as TipoAccionComponente;
+                  const total = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
+                  return (
+                    <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
+                      <button onClick={() => setComponenteDetalle(c)} className="min-w-0 flex-1 text-left hover:opacity-70">
+                        <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className={TIPO_ACCION_COLOR[accion] ?? 'text-teal-600'}>{TIPO_ACCION_LABEL[accion] ?? c.tipoAccion}</span></span>
+                        {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
+                        {total > 0 && <p className="text-[10px] text-gray-400">M.O. {fmt(c.costoAccion)} · Repuesto/compra {fmt(c.costoRepuestos)}</p>}
+                      </button>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="text-gray-500">{fmt(total)}</span>
+                        {permissions.canManageOrders && puedeModificarComponentes && (
+                          <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-          {(orden.componentes ?? []).length === 0 ? (
-            <p className="text-xs text-gray-400">Sin componentes registrados.</p>
-          ) : (
-            <div className="space-y-1.5">
-              <p className="text-[10px] text-gray-400">
-                {puedeModificarComponentes
-                  ? 'Toca un componente para editar su acción/costos o agregar imágenes.'
-                  : 'Orden cerrada: los componentes quedan solo de consulta.'}
-              </p>
-              {orden.componentes!.map(c => {
-                const accion = c.tipoAccion as TipoAccionComponente;
-                const total = Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
-                return (
-                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
-                    <button onClick={() => setComponenteDetalle(c)} className="min-w-0 flex-1 text-left hover:opacity-70">
-                      <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className={TIPO_ACCION_COLOR[accion] ?? 'text-teal-600'}>{TIPO_ACCION_LABEL[accion] ?? c.tipoAccion}</span></span>
-                      {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
-                      {total > 0 && <p className="text-[10px] text-gray-400">M.O. {fmt(c.costoAccion)} · Repuesto/compra {fmt(c.costoRepuestos)}</p>}
-                    </button>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="text-gray-500">{fmt(total)}</span>
-                      {permissions.canManageOrders && puedeModificarComponentes && (
-                        <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Historial */}
-      {historial.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Historial</p>
-          <div className="space-y-2">
-            {historial.map(h => (
-              <div key={h.id} className="flex gap-2 text-xs">
-                <span className="text-gray-300">•</span>
-                <div>
-                  <p className="text-gray-700">
-                    {h.estadoAnterior ? `${ESTADO_OS_CONFIG[h.estadoAnterior]?.label ?? h.estadoAnterior} → ` : ''}
-                    <span className="font-medium">{ESTADO_OS_CONFIG[h.estadoNuevo]?.label ?? h.estadoNuevo}</span>
-                  </p>
-                  {h.notas && <p className="text-gray-500">{h.notas}</p>}
-                  <p className="text-[10px] text-gray-400">{fmtFecha(h.creadoEn)}{h.comunicarCliente ? ' · cliente notificado' : ''}</p>
+        {/* Historial */}
+        {historial.length > 0 && (
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Historial</p>
+            <div className="space-y-2">
+              {historial.map(h => (
+                <div key={h.id} className="flex gap-2 text-xs">
+                  <span className="text-gray-300">•</span>
+                  <div>
+                    <p className="text-gray-700">
+                      {h.estadoAnterior ? `${ESTADO_OS_CONFIG[h.estadoAnterior]?.label ?? h.estadoAnterior} → ` : ''}
+                      <span className="font-medium">{ESTADO_OS_CONFIG[h.estadoNuevo]?.label ?? h.estadoNuevo}</span>
+                    </p>
+                    {h.notas && <p className="text-gray-500">{h.notas}</p>}
+                    <p className="text-[10px] text-gray-400">{fmtFecha(h.creadoEn)}{h.comunicarCliente ? ' · cliente notificado' : ''}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tercerización B2B (si aplica) */}
+        <TercerizacionCard orden={orden} />
+
+        {/* Cronómetro de tiempo en taller */}
+        <TiempoServicioCard orden={orden} historial={historial} />
+
+        {/* Chat con el cliente */}
+        {permissions.canManageOrders && <MensajesOrden ordenId={id} />}
+        </div>
+
+        {/* ── Columna de la plata ── */}
+        <div className="lg:col-span-1">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
+            <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+
+            {/* Libro de adelantos (modelo acumulativo 07-07) */}
+            {(permissions.canManageOrders || (orden.adelantos ?? []).length > 0) && (
+              <AdelantosOrdenWidget orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+            )}
           </div>
         </div>
-      )}
-
-      {/* Tercerización B2B (si aplica) */}
-      <TercerizacionCard orden={orden} />
-
-      {/* Cronómetro de tiempo en taller */}
-      <TiempoServicioCard orden={orden} historial={historial} />
-
-      {/* Chat con el cliente */}
-      {permissions.canManageOrders && <MensajesOrden ordenId={id} />}
+      </div>
 
       {transicionOpen && (
         <TransicionEstadoDialog
