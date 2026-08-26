@@ -7,6 +7,7 @@ import type {
   PagoContadoCompra,
   BancoEmpresa,
   CrearCompraInput,
+  ActualizarCompraInput,
   HistorialComprasProducto,
 } from '@/core/types/compra';
 
@@ -27,6 +28,17 @@ export async function listarCompras(filtros: ComprasFiltros = {}): Promise<Compr
 
 export async function crearCompra(dto: CrearCompraInput): Promise<CompraDetalle> {
   const res = await apiClient.post(BASE(), dto);
+  return res.data;
+}
+
+/** Edita una compra en BORRADOR. Es un MERGE: lo que no va en el dto se
+ *  conserva, y `detalles`/`gastos` se reemplazan ENTEROS si vienen — mandar
+ *  una linea de menos la BORRA. */
+export async function actualizarCompra(
+  id: string,
+  dto: ActualizarCompraInput,
+): Promise<CompraDetalle> {
+  const res = await apiClient.put(`${BASE()}/${id}`, dto);
   return res.data;
 }
 

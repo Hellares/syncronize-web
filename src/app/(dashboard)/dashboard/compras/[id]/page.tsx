@@ -108,6 +108,10 @@ export default function CompraDetallePage() {
               <button onClick={onEliminar} disabled={busy} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-500 hover:bg-red-50 disabled:opacity-60">
                 Eliminar
               </button>
+              <Link href={`/dashboard/compras/${id}/editar`}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-[#004A94] hover:bg-blue-50">
+                Editar
+              </Link>
               <button onClick={onConfirmar} disabled={busy} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
                 Confirmar
               </button>

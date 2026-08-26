@@ -1,3 +1,5 @@
+import type { UnidadMedidaRef } from './producto';
+
 export type EstadoCompra = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
 
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'YAPE' | 'PLIN' | 'TARJETA';
@@ -18,13 +20,34 @@ export interface CompraListItem {
   proveedor?: { id: string; nombre: string; codigo: string } | null;
 }
 
+/** Lo que el detalle trae del producto/variante de la linea. Alcanza para
+ *  REABRIR la linea en el formulario en la unidad en que se escribio. */
+export interface DetalleProductoRef {
+  id?: string;
+  nombre?: string;
+  factorCompra?: number | string | null;
+  unidadCompra?: UnidadMedidaRef | null;
+  factorPresentacion?: number | string | null;
+  unidadPresentacion?: UnidadMedidaRef | null;
+  unidadMedida?: UnidadMedidaRef | null;
+}
+
 export interface CompraDetalleItem {
   id: string;
+  productoId?: string | null;
+  varianteId?: string | null;
+  /** Linea que vino de una orden de compra. Viaja de vuelta al editar o
+   *  confirmar deja de descontar lo recibido de la orden. */
+  ordenCompraDetalleId?: string | null;
   descripcion: string;
   cantidad: number;
   precioUnitario: number | string;
+  descuento?: number | string;
+  porcentajeIGV?: number | string;
   subtotal: number | string;
   total: number | string;
+  producto?: DetalleProductoRef | null;
+  variante?: DetalleProductoRef | null;
   // Snapshot empaque variable (cantidad/precio SIEMPRE en unidad atómica; esto es la doble vista)
   usaUnidadCompra?: boolean;
   cantidadOriginal?: number | string | null;
@@ -48,6 +71,11 @@ export interface CompraGastoItem {
   /** false = solo suma al total (interes, multa): NO toca el costo. */
   prorratea: boolean;
   criterio: 'VALOR' | 'CANTIDAD';
+  /** Categoria del catalogo de gastos (la misma de caja chica). 🔴 Viaja de
+   *  vuelta al editar: guardar REEMPLAZA la lista de gastos, y un gasto que
+   *  vuelve sin categoria deja de sumar en el reporte. */
+  categoriaGastoId?: string | null;
+  categoriaGasto?: { id: string; nombre: string; icono?: string | null; color?: string | null } | null;
   orden: number;
 }
 
@@ -55,6 +83,10 @@ export const TIPOS_DOC_PROVEEDOR = ['FACTURA', 'BOLETA', 'GUIA', 'TICKET'] as co
 export type TipoDocProveedor = typeof TIPOS_DOC_PROVEEDOR[number];
 
 export interface CompraDetalle extends CompraListItem {
+  /** El detalle si los trae (el listado no siempre): son los que necesita el
+   *  formulario para reabrir el borrador en el proveedor y la sede correctos. */
+  proveedorId?: string;
+  sedeId?: string;
   subtotal: number | string;
   descuento: number | string;
   impuestos: number | string;
@@ -145,6 +177,12 @@ export interface CrearCompraLinea {
   factorCompra?: number;
   /** Ajusta el precio de venta del producto al confirmar la compra (+ historial) */
   nuevoPrecioVenta?: number;
+  descuento?: number;
+  /** Solo al EDITAR: sin el, el backend recalcula con el 18 por defecto y una
+   *  linea exonerada cambia sola de impuesto. */
+  porcentajeIGV?: number;
+  /** Solo al EDITAR: conserva el vinculo con la linea de la orden de compra. */
+  ordenCompraDetalleId?: string;
 }
 
 // ─── Órdenes de Compra (PO) + recepción ─────────────────────────────────────
@@ -281,6 +319,10 @@ export interface CrearCompraInput {
   gastos?: CrearCompraGasto[];
 }
 
+/** Edicion de una compra en BORRADOR. El backend hace MERGE: lo que no va,
+ *  se conserva; `detalles` y `gastos` se reemplazan ENTEROS si vienen. */
+export type ActualizarCompraInput = Partial<CrearCompraInput>;
+
 export interface CrearCompraGasto {
   concepto: string;
   monto: number;
@@ -289,5 +331,6 @@ export interface CrearCompraGasto {
   /** default true: se reparte entre las lineas y sube su costo. */
   prorratea?: boolean;
   criterio?: 'VALOR' | 'CANTIDAD';
+  categoriaGastoId?: string | null;
   orden?: number;
 }
