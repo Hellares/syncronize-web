@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AxiosError } from 'axios';
+import { useImagenPegada } from '../hooks/use-imagen-pegada';
 import type { OrdenServicioComponente, TipoAccionComponente, UpdateServicioComponenteDto } from '@/core/types/orden-servicio';
 import { TIPOS_ACCION, TIPO_ACCION_LABEL } from '@/core/types/orden-servicio';
 import * as osService from '../services/orden-servicio-service';
@@ -197,10 +198,7 @@ function ComponenteImagenes({ empresaId, componenteId, canManage }: { empresaId:
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const subir = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { setError('Solo se permiten imágenes'); return; }
     setError('');
     setProgress(0);
@@ -216,7 +214,22 @@ function ComponenteImagenes({ empresaId, componenteId, canManage }: { empresaId:
     } finally {
       setProgress(null);
     }
+  }, [empresaId, componenteId, cargar]);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await subir(file);
   };
+
+  // Este bloque vive DENTRO de un diálogo y convive con la tarjeta de
+  // imágenes de la orden, que también escucha el pegado. El hook resuelve el
+  // empate: gana el último en montarse, o sea este mientras esté abierto.
+  const { arrastrando, zona } = useImagenPegada({
+    activo: canManage && progress == null,
+    prefijoNombre: 'evidencia',
+    onImagen: subir,
+  });
 
   const eliminar = async (archivoId: string) => {
     if (!confirm('¿Eliminar esta imagen?')) return;
@@ -231,7 +244,8 @@ function ComponenteImagenes({ empresaId, componenteId, canManage }: { empresaId:
   };
 
   return (
-    <div>
+    <div {...zona}
+      className={`rounded-lg transition-colors ${arrastrando ? 'bg-blue-50/60 ring-1 ring-[#437EFF]' : ''}`}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase text-gray-400">Evidencia ({imagenes.length})</p>
         {canManage && (
@@ -243,6 +257,13 @@ function ComponenteImagenes({ empresaId, componenteId, canManage }: { empresaId:
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
       </div>
       {error && <p className="mb-2 text-[11px] text-red-500">{error}</p>}
+      {canManage && progress == null && (
+        <p className="mb-2 text-[10px] text-gray-400">
+          {arrastrando
+            ? 'Soltá la imagen para subirla.'
+            : <>Pegá una captura con <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">Ctrl</kbd> + <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">V</kbd>, o arrastrá una acá.</>}
+        </p>
+      )}
       {loading ? (
         <div className="flex justify-center py-4"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
       ) : imagenes.length === 0 ? (
