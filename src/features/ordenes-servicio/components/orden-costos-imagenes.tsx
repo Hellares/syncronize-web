@@ -206,6 +206,21 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
   );
 }
 
+/**
+ * Nombre para una imagen pegada del portapapeles.
+ *
+ * Una captura llega como `image.png` a secas: con dos o tres, la lista de
+ * archivos queda ilegible. Lleva el código de la orden y la hora, que es como
+ * uno las distingue después.
+ */
+function nombreDeCaptura(blob: File | Blob, codigoOrden: string) {
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const t = new Date();
+  const dosDigitos = (n: number) => String(n).padStart(2, '0');
+  const sello = `${t.getFullYear()}${dosDigitos(t.getMonth() + 1)}${dosDigitos(t.getDate())}-${dosDigitos(t.getHours())}${dosDigitos(t.getMinutes())}${dosDigitos(t.getSeconds())}`;
+  return `captura-${codigoOrden}-${sello}.${ext}`;
+}
+
 /* --- Imágenes de la orden (entidadTipo ORDEN_SERVICIO) + firma del cliente --- */
 export function OrdenImagenesSection({ orden, canManageSettings, forceShow }: { orden: OrdenServicio; canManageSettings: boolean; forceShow: boolean }) {
   const empresaId = orden.empresaId;
@@ -232,10 +247,7 @@ export function OrdenImagenesSection({ orden, canManageSettings, forceShow }: { 
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  const subir = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { setError('Solo se permiten imágenes'); return; }
     setError(''); setProgress(0);
     try {
@@ -245,7 +257,40 @@ export function OrdenImagenesSection({ orden, canManageSettings, forceShow }: { 
       const m = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(Array.isArray(m) ? m.join(', ') : m || 'No se pudo subir la imagen (requiere permiso de configuración)');
     } finally { setProgress(null); }
+  }, [empresaId, orden.id, cargar]);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await subir(file);
   };
+
+  /**
+   * Pegar una captura con Ctrl+V.
+   *
+   * Es el camino natural cuando el técnico recorta la pantalla del equipo o
+   * un mensaje del cliente: sin esto hay que guardar el recorte a disco solo
+   * para volver a elegirlo.
+   *
+   * 🔴 Escucha en `document` y no en la tarjeta porque el usuario pega apenas
+   * copió, sin haber tocado nada de la página — no hay foco donde poner el
+   * listener. A cambio hay que ignorar el pegado que va a un campo de texto,
+   * o pegar una URL en las notas subiría lo que hubiera en el portapapeles.
+   */
+  useEffect(() => {
+    if (!canManageSettings) return;
+    const alPegar = (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
+      const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
+      const blob = item?.getAsFile();
+      if (!blob) return;
+      e.preventDefault();
+      void subir(new File([blob], nombreDeCaptura(blob, orden.codigo), { type: blob.type }));
+    };
+    document.addEventListener('paste', alPegar);
+    return () => document.removeEventListener('paste', alPegar);
+  }, [canManageSettings, subir, orden.codigo]);
 
   const eliminar = async (id: string) => {
     if (!confirm('¿Eliminar esta imagen?')) return;
@@ -273,6 +318,11 @@ export function OrdenImagenesSection({ orden, canManageSettings, forceShow }: { 
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
       </div>
       {error && <p className="mb-2 text-[11px] text-red-500">{error}</p>}
+      {canManageSettings && progress == null && (
+        <p className="mb-2 text-[10px] text-gray-400">
+          También podés pegar una captura con <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">Ctrl</kbd> + <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">V</kbd>.
+        </p>
+      )}
       {loading ? (
         <div className="flex justify-center py-4"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
       ) : archivos.length === 0 ? (
