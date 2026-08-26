@@ -535,11 +535,22 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   const [serie, setSerie] = useState('');
   const [marcas, setMarcas] = useState<string[]>([]);
   // Acción
-  const [tipoAccion, setTipoAccion] = useState<TipoAccionComponente>('REPARAR');
+  // DIAGNOSTICAR y no REPARAR: cuando se agrega un componente a una orden
+  // recien recibida todavia no se sabe que hay que hacerle. Mismo default
+  // que el app.
+  const [tipoAccion, setTipoAccion] = useState<TipoAccionComponente>('DIAGNOSTICAR');
   const [descripcionAccion, setDescripcionAccion] = useState('');
   const [costoAccion, setCostoAccion] = useState('');
+  const [tiempoAccion, setTiempoAccion] = useState('');
   const [costoRepuestos, setCostoRepuestos] = useState('');
   const [garantiaMeses, setGarantiaMeses] = useState('');
+  // Resultado, observaciones y prueba: el app los ofrece al AGREGAR, no solo
+  // al editar. Quien carga el componente con el equipo ya abierto suele
+  // saberlos, y obligarlo a guardar y reabrir para anotarlos era el motivo de
+  // que la web quedara corta.
+  const [resultadoAccion, setResultadoAccion] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  const [pruebaRealizada, setPruebaRealizada] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -622,7 +633,11 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
         tipoAccion,
         descripcionAccion: descripcionAccion.trim() || undefined,
         costoAccion: costoAccion ? parseFloat(costoAccion) : undefined,
+        tiempoAccion: tiempoAccion ? parseInt(tiempoAccion, 10) : undefined,
         costoRepuestos: costoRepuestos ? parseFloat(costoRepuestos) : undefined,
+        resultadoAccion: resultadoAccion.trim() || undefined,
+        observaciones: observaciones.trim() || undefined,
+        pruebaRealizada,
         garantiaMeses: garantiaMeses ? parseInt(garantiaMeses, 10) : undefined,
       });
       onSuccess();
@@ -727,12 +742,22 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
               </select>
             </div>
             <input className={inputClass} value={descripcionAccion} onChange={e => setDescripcionAccion(e.target.value)} placeholder="Descripción de la acción (opcional)" />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div><label className="mb-1 block text-[10px] text-gray-400">Costo M.O.</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
+              <div><label className="mb-1 block text-[10px] text-gray-400">Tiempo (min)</label><input className={inputClass} type="number" step="1" min="0" value={tiempoAccion} onChange={e => setTiempoAccion(e.target.value)} /></div>
               <div><label className="mb-1 block text-[10px] text-gray-400">Repuestos</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
               <div><label className="mb-1 block text-[10px] text-gray-400">Garantía (m)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
             </div>
             <p className="text-[10px] text-gray-400">Mano de obra y repuestos se suman al total al cliente.</p>
+            <input className={inputClass} value={resultadoAccion} onChange={e => setResultadoAccion(e.target.value)} placeholder="Resultado (opcional)" />
+            <input className={inputClass} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)" />
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5">
+              <input type="checkbox" className="mt-0.5 accent-[#004A94]" checked={pruebaRealizada} onChange={e => setPruebaRealizada(e.target.checked)} />
+              <span className="text-[11px] text-gray-600">
+                <span className="font-medium text-gray-800">Prueba realizada</span><br />
+                Se probó el componente después de la acción.
+              </span>
+            </label>
             {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
           </div>
         )}
