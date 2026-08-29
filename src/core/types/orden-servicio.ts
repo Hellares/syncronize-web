@@ -150,6 +150,14 @@ export interface AdelantoOrden {
   monto: number;
   metodoPago?: string | null;
   nota?: string | null;
+  /**
+   * A qué se imputa el abono. null = al costo del servicio (o sin imputar).
+   *
+   * 🔴 Es una ETIQUETA, no una cuenta aparte: el saldo de la orden sigue
+   * siendo `facturable − adelanto − descuento`. Sirve para decir "estos 100
+   * son la carcasa", no para abrir un saldo por repuesto.
+   */
+  servicioComponenteId?: string | null;
   creadoPorNombre?: string | null;
   creadoEn: string;
   anulado?: boolean;
@@ -160,6 +168,8 @@ export interface AgregarAdelantoDto {
   monto: number;
   metodoPago?: string;
   nota?: string;
+  /** Componente al que se imputa. Omitir = al costo del servicio. */
+  servicioComponenteId?: string;
 }
 
 export interface HistorialOS {
@@ -300,6 +310,38 @@ export function estaCobradaOrden(o: { comprobanteId?: string | null; ventaDetall
 // El cliente paga los componentes/repuestos (costoAccion=M.O. + costoRepuestos)
 // MÁS el costo del servicio: Total = Σ componentes + costoTotal − descuento.
 // El backend cobra exactamente eso (orden-servicio.service.ts: facturable).
+
+/** Nombre legible de un componente de la orden. */
+export function nombreComponenteOrden(c: OrdenServicioComponente): string {
+  const base =
+    c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente';
+  return c.componente?.modelo ? `${base} ${c.componente.modelo}` : base;
+}
+
+/** Lo que el cliente paga por un componente = mano de obra + repuestos. */
+export function costoComponenteOrden(c: OrdenServicioComponente): number {
+  return Number(c.costoAccion ?? 0) + Number(c.costoRepuestos ?? 0);
+}
+
+/**
+ * Cuánto del adelanto quedó imputado a cada componente, por id.
+ *
+ * Solo filas NO anuladas, y solo abonos: los ajustes negativos corrigen el
+ * total de la orden, no el pago de un repuesto, así que el backend los guarda
+ * sin imputar.
+ */
+export function adelantoPorComponenteOrden(o: {
+  adelantos?: AdelantoOrden[];
+}): Record<string, number> {
+  const acc: Record<string, number> = {};
+  for (const a of o.adelantos ?? []) {
+    if (a.anulado || !a.servicioComponenteId) continue;
+    const prev = acc[a.servicioComponenteId] ?? 0;
+    acc[a.servicioComponenteId] =
+      Math.round((prev + Number(a.monto)) * 100) / 100;
+  }
+  return acc;
+}
 
 /** Subtotal de componentes/repuestos = Σ(costoAccion + costoRepuestos). */
 export function subtotalComponentesOrden(o: { componentes?: OrdenServicioComponente[] }): number {

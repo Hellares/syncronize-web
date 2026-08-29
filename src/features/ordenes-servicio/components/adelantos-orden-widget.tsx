@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { AxiosError } from 'axios';
-import type { OrdenServicio, AdelantoOrden } from '@/core/types/orden-servicio';
+import type { OrdenServicio, AdelantoOrden, OrdenServicioComponente } from '@/core/types/orden-servicio';
+import { costoComponenteOrden, nombreComponenteOrden } from '@/core/types/orden-servicio';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as osService from '../services/orden-servicio-service';
 
@@ -95,6 +96,14 @@ export default function AdelantosOrdenWidget({ orden, canManage, onChanged }: Pr
                     {a.creadoPorNombre ? ` · ${a.creadoPorNombre}` : ''}
                     {a.nota ? ` · ${a.nota}` : ''}
                   </p>
+                  {a.servicioComponenteId && (
+                    <p className="text-[10px] font-medium text-green-700">
+                      🔧 {nombreComponenteOrden(
+                        (orden.componentes ?? []).find(c => c.id === a.servicioComponenteId)
+                          ?? ({} as OrdenServicioComponente),
+                      )}
+                    </p>
+                  )}
                 </div>
                 {canManage && !bloqueado && !a.anulado && !esAjuste && (
                   <button onClick={() => setAnulando(a)} title="Anular abono (EGRESO en caja)"
@@ -113,6 +122,7 @@ export default function AdelantosOrdenWidget({ orden, canManage, onChanged }: Pr
       {showForm && (
         <AbonoFormDialog
           ordenId={orden.id}
+          componentes={orden.componentes ?? []}
           onSaved={() => { setShowForm(false); onChanged(); }}
           onClose={() => setShowForm(false)}
         />
@@ -141,10 +151,17 @@ export default function AdelantosOrdenWidget({ orden, canManage, onChanged }: Pr
 }
 
 /* --- Registrar abono (POST /ordenes-servicio/:id/adelantos) --- */
-function AbonoFormDialog({ ordenId, onSaved, onClose }: { ordenId: string; onSaved: () => void; onClose: () => void }) {
+function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
+  ordenId: string;
+  componentes: OrdenServicioComponente[];
+  onSaved: () => void;
+  onClose: () => void;
+}) {
   const [monto, setMonto] = useState('');
   const [metodoPago, setMetodoPago] = useState<string>('EFECTIVO');
   const [nota, setNota] = useState('');
+  // '' = al costo del servicio, que es lo que fue siempre todo abono anterior.
+  const [componenteId, setComponenteId] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -158,6 +175,7 @@ function AbonoFormDialog({ ordenId, onSaved, onClose }: { ordenId: string; onSav
         monto: m,
         metodoPago,
         nota: nota.trim() || undefined,
+        servicioComponenteId: componenteId || undefined,
       });
       onSaved();
     } catch (err) {
@@ -191,6 +209,33 @@ function AbonoFormDialog({ ordenId, onSaved, onClose }: { ordenId: string; onSav
               ))}
             </div>
           </div>
+          {componentes.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">¿A qué corresponde?</label>
+              <div className="max-h-40 space-y-1 overflow-y-auto">
+                <label className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 ${componenteId === '' ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-200'}`}>
+                  <span className="flex items-center gap-2 text-xs text-gray-700">
+                    <input type="radio" name="imputacion" checked={componenteId === ''} onChange={() => setComponenteId('')} className="accent-[#004A94]" />
+                    Costo del servicio
+                  </span>
+                </label>
+                {componentes.map(c => {
+                  const costo = costoComponenteOrden(c);
+                  return (
+                    <label key={c.id} className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 ${componenteId === c.id ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-200'}`}>
+                      <span className="flex min-w-0 items-center gap-2 text-xs text-gray-700">
+                        <input type="radio" name="imputacion" checked={componenteId === c.id} onChange={() => setComponenteId(c.id)} className="accent-[#004A94]" />
+                        <span className="truncate">🔧 {nombreComponenteOrden(c)}</span>
+                      </span>
+                      <span className="shrink-0 text-[11px] font-semibold text-gray-500">
+                        {costo > 0 ? fmt(costo) : 'sin costear'}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Nota</label>
             <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Opcional"

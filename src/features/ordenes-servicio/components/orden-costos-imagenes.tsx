@@ -9,6 +9,7 @@ import { useImagenPegada } from '../hooks/use-imagen-pegada';
 import type { OrdenServicio } from '@/core/types/orden-servicio';
 import {
   subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden,
+  adelantoPorComponenteOrden, nombreComponenteOrden,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -52,6 +53,7 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
   const isTerminal = orden.estado === 'CANCELADO' || orden.estado === 'FINALIZADO';
   const hasCosts = subtotalComp > 0 || costoTotal != null;
   const compsConCosto = componentes.filter(c => Number(c.costoAccion ?? 0) > 0 || Number(c.costoRepuestos ?? 0) > 0);
+  const imputado = adelantoPorComponenteOrden(orden);
 
   return (
     <div className={`${CARD_BASE} p-4`}>
@@ -73,16 +75,25 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
             <div className="mb-1">
               {compsConCosto.map(c => {
                 const mo = Number(c.costoAccion ?? 0), rep = Number(c.costoRepuestos ?? 0);
-                const nombre = `${c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}${c.componente?.modelo ? ` ${c.componente.modelo}` : ''}`;
+                // Lo que el cliente ya dejó pagado de ESTE repuesto. Es una
+                // etiqueta sobre el mismo adelanto de la orden: no abre un
+                // saldo aparte, solo dice qué quedó cubierto.
+                const abonado = imputado[c.id] ?? 0;
+                const cubierta = abonado > 0 && abonado + 0.005 >= mo + rep;
                 return (
                   <div key={c.id} className="mb-1">
-                    <div className="flex items-center justify-between">
-                      <span className="truncate text-xs text-gray-700">🔧 {nombre}</span>
-                      <span className="text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs text-gray-700">🔧 {nombreComponenteOrden(c)}</span>
+                      <span className="shrink-0 text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
                     </div>
-                    <div className="ml-5 flex flex-wrap gap-x-4 text-[10px] text-gray-400">
+                    <div className="ml-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
                       {mo > 0 && <span>Mano de obra: <b className="text-gray-500">{fmt(mo)}</b></span>}
                       {rep > 0 && <span>Repuesto/compra: <b className="text-gray-500">{fmt(rep)}</b></span>}
+                      {cubierta ? (
+                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✓ pagado</span>
+                      ) : abonado > 0 ? (
+                        <span className="rounded bg-green-50 px-1.5 py-0.5 text-[9px] font-semibold text-green-700">Abonado {fmt(abonado)}</span>
+                      ) : null}
                     </div>
                   </div>
                 );
