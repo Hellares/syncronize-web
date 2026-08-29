@@ -10,6 +10,7 @@ import {
 } from '@/core/types/orden-servicio';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
+import Card from '@/components/ui/Card';
 
 const ESTADOS: Array<{ value: EstadoOrdenServicio | ''; label: string }> = [
   { value: '', label: 'Todas' },
@@ -173,8 +174,7 @@ export default function ServiciosPage() {
             const total = costoFinalOrden(o);              // total al cliente = servicio + componentes − descuento
             const saldo = saldoPendienteOrden(o) ?? 0;
             return (
-              <button key={o.id} onClick={() => router.push(`/dashboard/servicios/${o.id}`)}
-                className="borde-degradado relative rounded-xl bg-white p-3 text-left ring-1 ring-blue-400/40 shadow-sm transition-all duration-300 hover:shadow-[0_0_30px_1px_rgba(0,255,117,0.30)] hover:ring-transparent">
+              <Card key={o.id} onClick={() => router.push(`/dashboard/servicios/${o.id}`)}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="rounded-md bg-[#437EFF]/10 px-2 py-0.5 text-[11px] font-semibold text-[#004A94]">{o.codigo}</span>
@@ -217,7 +217,7 @@ export default function ServiciosPage() {
                     )
                   )}
                 </div>
-              </button>
+              </Card>
             );
           })}
         </div>
