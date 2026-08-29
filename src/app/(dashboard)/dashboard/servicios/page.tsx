@@ -26,6 +26,12 @@ const ESTADOS: Array<{ value: EstadoOrdenServicio | ''; label: string }> = [
 ];
 const LIMIT = 15;
 
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo del buscador de productos y del modulo de compras. En la barra de
+// filtros los controles NO son w-full: el ancho lo pone cada uno.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -125,17 +131,22 @@ export default function ServiciosPage() {
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          className="min-w-[200px] flex-1 max-w-sm rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
-          value={search} onChange={e => handleSearch(e.target.value)}
-          placeholder="Buscar por código o problema..." />
+        <div className="relative min-w-[200px] max-w-sm flex-1">
+          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            className={`${INPUT_STD} w-full pl-9`}
+            value={search} onChange={e => handleSearch(e.target.value)}
+            placeholder="Buscar por código o problema..." />
+        </div>
         <select value={tipoServicio} onChange={e => setTipoServicio(e.target.value as TipoServicio | '')}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
+          className={INPUT_STD}>
           <option value="">Todos los tipos</option>
           {TIPOS_SERVICIO.map(t => <option key={t} value={t}>{TIPO_SERVICIO_LABEL[t]}</option>)}
         </select>
         <select value={prioridad} onChange={e => setPrioridad(e.target.value as PrioridadServicio | '')}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
+          className={INPUT_STD}>
           <option value="">Toda prioridad</option>
           {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORIDAD_LABEL[p]}</option>)}
         </select>
@@ -163,7 +174,7 @@ export default function ServiciosPage() {
             const saldo = saldoPendienteOrden(o) ?? 0;
             return (
               <button key={o.id} onClick={() => router.push(`/dashboard/servicios/${o.id}`)}
-                className="rounded-xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-[#437EFF]/40 hover:bg-[#437EFF]/5">
+                className="rounded-xl bg-white p-3 text-left ring-1 ring-blue-400 shadow-md transition-all duration-300 hover:bg-[#437EFF]/5 hover:shadow-lg hover:shadow-blue-200">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="rounded-md bg-[#437EFF]/10 px-2 py-0.5 text-[11px] font-semibold text-[#004A94]">{o.codigo}</span>
