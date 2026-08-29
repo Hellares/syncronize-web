@@ -578,7 +578,10 @@ optgroup,
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1px;
+  /* 3px, no 1px: al hover el borde ENSANCHA respecto del ring de reposo, y esa
+     diferencia de grosor es parte del efecto. Entra holgado en el `p-3` de la
+     card, asi que no toca el texto. */
+  padding: 3px;
   background: linear-gradient(163deg, #00ff75 0%, #3700ff 100%);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
