@@ -15,6 +15,7 @@ import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as osService from '../services/orden-servicio-service';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
+import { CARD_BASE } from '@/components/ui/Card';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -53,7 +54,7 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
   const compsConCosto = componentes.filter(c => Number(c.costoAccion ?? 0) > 0 || Number(c.costoRepuestos ?? 0) > 0);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={`${CARD_BASE} p-4`}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-medium uppercase text-gray-400">Resumen de costos</p>
         {canManage && !isTerminal && (
@@ -272,7 +273,7 @@ export function OrdenImagenesSection({ orden, canManageSettings, forceShow }: { 
 
   return (
     <div {...zona}
-      className={`rounded-xl border bg-white p-4 transition-colors ${arrastrando ? 'border-[#437EFF] bg-blue-50/40' : 'border-gray-200'}`}>
+      className={`relative rounded-xl bg-white p-4 shadow-sm ring-1 transition-all duration-300 ${arrastrando ? 'bg-blue-50/40 ring-[#437EFF]' : 'ring-blue-400/40'}`}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-gray-400">Imágenes ({archivos.length})</p>
         {canManageSettings && (

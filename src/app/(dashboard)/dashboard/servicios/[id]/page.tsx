@@ -23,6 +23,7 @@ import { ComponenteDetailDialog } from '@/features/ordenes-servicio/components/c
 import { ResumenCostosCard, OrdenImagenesSection } from '@/features/ordenes-servicio/components/orden-costos-imagenes';
 import AdelantosOrdenWidget from '@/features/ordenes-servicio/components/adelantos-orden-widget';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { CARD_BASE } from '@/components/ui/Card';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -206,7 +207,7 @@ export default function OrdenDetailPage() {
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-sm text-red-600">{error}</p></div>}
 
       {/* Info */}
-      <div className="grid grid-cols-2 gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-4">
+      <div className={`${CARD_BASE} grid grid-cols-2 gap-3 p-4 sm:grid-cols-4`}>
         <div><p className="text-[10px] uppercase text-gray-400">Servicio</p><p className="text-xs font-medium text-gray-700">{TIPO_SERVICIO_LABEL[orden.tipoServicio]}</p></div>
         <div><p className="text-[10px] uppercase text-gray-400">Creada</p><p className="text-xs font-medium text-gray-700">{fmtFecha(orden.creadoEn)}</p></div>
         <div>
@@ -243,7 +244,7 @@ export default function OrdenDetailPage() {
         <div className="space-y-4 lg:col-span-2">
         <div className="grid gap-4 md:grid-cols-2">
           {/* Cliente */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className={`${CARD_BASE} p-4`}>
             <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Cliente</p>
             {esEmpresa ? (
               <>
@@ -262,7 +263,7 @@ export default function OrdenDetailPage() {
           </div>
 
           {/* Equipo */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className={`${CARD_BASE} p-4`}>
             <p className="mb-1.5 text-xs font-semibold uppercase text-gray-400">Equipo</p>
             <p className="text-sm font-medium text-gray-900">{orden.tipoEquipo ?? '—'}{orden.marcaEquipo ? ` · ${orden.marcaEquipo}` : ''}</p>
             {orden.modeloEquipo?.modelo && <p className="text-xs text-gray-500">{orden.modeloEquipo.marca} {orden.modeloEquipo.modelo}</p>}
@@ -273,7 +274,7 @@ export default function OrdenDetailPage() {
 
         {/* Problema / notas */}
         {(orden.descripcionProblema || orden.notas) && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className={`${CARD_BASE} p-4`}>
             {orden.descripcionProblema && <><p className="text-[10px] uppercase text-gray-400">Problema reportado</p><p className="text-sm text-gray-700">{orden.descripcionProblema}</p></>}
             {orden.notas && <p className="mt-1 text-xs text-gray-500">{orden.notas}</p>}
           </div>
@@ -289,7 +290,7 @@ export default function OrdenDetailPage() {
 
         {/* Componentes */}
         {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className={`${CARD_BASE} p-4`}>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase text-gray-400">Componentes ({(orden.componentes ?? []).length})</p>
               {permissions.canManageOrders && puedeModificarComponentes && (
@@ -331,7 +332,7 @@ export default function OrdenDetailPage() {
 
         {/* Historial */}
         {historial.length > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className={`${CARD_BASE} p-4`}>
             <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Historial</p>
             <div className="space-y-2">
               {historial.map(h => (
