@@ -9,6 +9,7 @@ import type React from 'react';
 import { AxiosError } from 'axios';
 import type { MensajeServicio } from '@/core/types/orden-servicio';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
+import { CARD_BASE } from '@/components/ui/Card';
 
 function fmtHora(iso?: string): string {
   if (!iso) return '';
@@ -75,7 +76,7 @@ export function MensajesOrden({ ordenId }: { ordenId: string }) {
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={`${CARD_BASE} p-4`}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-gray-400">Mensajes con el cliente</p>
         <button onClick={() => { setLoading(true); cargar(); }} className="text-[11px] font-semibold text-[#437EFF] hover:underline">

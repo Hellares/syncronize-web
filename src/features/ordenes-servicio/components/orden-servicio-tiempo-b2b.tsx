@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TercerizacionRef } from '@/core/types/orden-servicio';
 import { ESTADO_OS_CONFIG, ESTADO_TERCERIZACION_CONFIG } from '@/core/types/orden-servicio';
+import { CARD_BASE } from '@/components/ui/Card';
 
 const TERMINALES: EstadoOrdenServicio[] = ['FINALIZADO', 'CANCELADO'];
 
@@ -59,7 +60,7 @@ export function TiempoServicioCard({ orden, historial }: { orden: OrdenServicio;
   const desglose = Object.entries(tiempos).filter(([, ms]) => ms > 0).sort((a, b) => b[1] - a[1]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={`${CARD_BASE} p-4`}>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-gray-400">Tiempo en taller</p>
         <span className="text-sm font-bold text-[#004A94]">{fmtDur(totalMs)}{esTerminal ? '' : ' ⏱'}</span>
@@ -113,7 +114,7 @@ export function TercerizacionCard({ orden }: { orden: OrdenServicio }) {
   const recibida = orden.tercerizacionDestino;
   if (!enviada && !recibida) return null;
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={`${CARD_BASE} p-4`}>
       <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Tercerización B2B</p>
       <div className="space-y-2">
         {enviada && <TercerizacionBloque t={enviada} rol="enviada" />}

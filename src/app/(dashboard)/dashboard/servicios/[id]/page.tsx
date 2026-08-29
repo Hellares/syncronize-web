@@ -364,7 +364,7 @@ export default function OrdenDetailPage() {
 
         {/* ── Columna de la plata ── */}
         <div className="lg:col-span-1">
-          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:-mx-1 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:px-1 lg:pb-1">
             {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
             <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
 

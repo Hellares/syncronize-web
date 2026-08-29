@@ -5,6 +5,7 @@
 // por la forma del valor.
 
 import type { CampoServicio, TipoCampoServicio } from '@/core/types/servicio-catalogo';
+import { CARD_BASE } from '@/components/ui/Card';
 
 interface Entrada {
   nombre: string;
@@ -31,7 +32,7 @@ export function DatosPersonalizadosView({ datos, campos }: {
   if (entradas.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={`${CARD_BASE} p-4`}>
       <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Datos del servicio</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
         {entradas.map((e) => (
