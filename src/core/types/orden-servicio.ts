@@ -323,6 +323,23 @@ export function saldoPendienteOrden(o: OrdenServicio): number | null {
   return cf - Number(o.adelanto ?? 0);
 }
 
+/**
+ * Base facturable = costo del servicio + componentes, SIN restar el descuento.
+ *
+ * 🔴 Es exactamente lo que el endpoint `/cobrables` pone en
+ * `OrdenCobrable.costoTotal`: ahí NO viene el costo del servicio pelado. Y es
+ * contra esto que el backend valida el `precioUnitario` de la línea al cobrar
+ * (`validarYBloquearCobroVenta` → 409 SALDO_ORDEN_DESACTUALIZADO si no
+ * coincide). Armar un `OrdenCobrable` a mano desde una orden cruda obliga a
+ * calcularlo igual, o la línea sale por el servicio solo y el cobro se rechaza.
+ *
+ * Redondea el subtotal de componentes a 2 decimales ANTES de sumar, como
+ * `OrdenServicioService.facturable`: redondear al final da otro centavo.
+ */
+export function baseFacturableOrden(o: { costoTotal?: number | null; componentes?: OrdenServicioComponente[] }): number {
+  return Number(o.costoTotal ?? 0) + Math.round(subtotalComponentesOrden(o) * 100) / 100;
+}
+
 /** Costo neto = costoTotal − descuento (precio de la línea de venta al cobrar vía VR; el adelanto va aparte). */
 export function costoNetoOrden(o: { costoTotal?: number | null; descuento?: number | null }): number {
   return Math.round((Number(o.costoTotal ?? 0) - Number(o.descuento ?? 0)) * 100) / 100;
@@ -420,6 +437,11 @@ export interface OrdenCobrable {
   tipoEquipo?: string | null;
   marcaEquipo?: string | null;
   numeroSerie?: string | null;
+  /**
+   * 🔴 NO es el costo del servicio: el backend expone acá la BASE FACTURABLE
+   * (servicio + componentes), para que el cliente saque
+   * `costoNeto = costoTotal − descuento` igual que el server.
+   */
   costoTotal: number;
   adelanto: number;
   descuento: number;

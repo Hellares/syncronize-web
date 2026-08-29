@@ -9,7 +9,7 @@ import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto
 import type { VentaItem, Venta, NivelPrecio } from '@/core/types/venta';
 import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
-import { costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
+import { baseFacturableOrden, costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
 import * as cajaService from '@/features/caja/services/caja-service';
@@ -307,15 +307,24 @@ function VentaRapidaInner() {
     osService.getOrden(ordenServicioParam).then(orden => {
       if (cancel) return;
       if (!ESTADOS_OS_COBRABLES.includes(orden.estado)) { setInfo(`La orden ${orden.codigo} no está en estado cobrable`); return; }
-      const costoTotal = Number(orden.costoTotal ?? 0);
-      if (costoTotal <= 0) { setInfo(`La orden ${orden.codigo} no tiene costo definido`); return; }
+      // `OrdenCobrable.costoTotal` es la BASE FACTURABLE (servicio +
+      // componentes), no el costo del servicio: cuando el objeto viene del
+      // selector lo arma el backend, pero acá lo armamos a mano desde la orden
+      // cruda y hay que calcular lo mismo. Sin esto, una orden con repuestos
+      // entraba al carrito por el servicio pelado y el cobro moría en 409
+      // SALDO_ORDEN_DESACTUALIZADO.
+      const facturable = baseFacturableOrden(orden);
+      // Se mira el facturable y no `costoTotal`: una orden de solo repuestos
+      // tiene el costo del servicio en null y es perfectamente cobrable.
+      if (facturable <= 0) { setInfo(`La orden ${orden.codigo} no tiene costo definido`); return; }
       const adelanto = Number(orden.adelanto ?? 0);
       const descuento = Number(orden.descuento ?? 0);
       agregarOrden({
         id: orden.id, codigo: orden.codigo, estado: orden.estado, tipoServicio: orden.tipoServicio,
         servicioNombre: orden.servicio?.nombre ?? null, tipoEquipo: orden.tipoEquipo ?? null,
         marcaEquipo: orden.marcaEquipo ?? null, numeroSerie: orden.numeroSerie ?? null,
-        costoTotal, adelanto, descuento, saldoPendiente: Math.max(0, costoTotal - adelanto - descuento),
+        costoTotal: facturable, adelanto, descuento,
+        saldoPendiente: Math.max(0, Math.round((facturable - adelanto - descuento) * 100) / 100),
         cliente: orden.cliente?.persona ? { clienteId: orden.clienteId ?? '', nombre: nombreClienteOrden(orden), numeroDocumento: orden.cliente.persona.dni ?? null, telefono: orden.cliente.persona.telefono ?? null, email: orden.cliente.persona.email ?? null } : null,
         clienteEmpresa: orden.clienteEmpresa ? { clienteEmpresaId: orden.clienteEmpresaId ?? '', razonSocial: orden.clienteEmpresa.razonSocial ?? '', ruc: orden.clienteEmpresa.ruc ?? orden.clienteEmpresa.numeroDocumento ?? null, email: orden.clienteEmpresa.email ?? null, direccion: orden.clienteEmpresa.direccion ?? null } : null,
       });
