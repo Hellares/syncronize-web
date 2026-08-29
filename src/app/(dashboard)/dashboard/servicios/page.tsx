@@ -155,7 +155,7 @@ export default function ServiciosPage() {
       ) : items.length === 0 ? (
         <div className="py-20 text-center"><p className="text-4xl mb-2">🛠️</p><p className="text-gray-400">Sin órdenes con estos filtros</p></div>
       ) : (
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
           {items.map(o => {
             const cfg = ESTADO_OS_CONFIG[o.estado];
             const prio = PRIORIDAD_CONFIG[o.prioridad];
@@ -176,8 +176,8 @@ export default function ServiciosPage() {
                   {TIPO_SERVICIO_LABEL[o.tipoServicio]}
                   {o.tipoEquipo ? ` · ${o.tipoEquipo}` : ''}{o.marcaEquipo ? ` ${o.marcaEquipo}` : ''}
                 </p>
-                <div className="mt-1.5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${prio.text} ${prio.bg}`}>{PRIORIDAD_LABEL[o.prioridad]}</span>
                     <span className="text-[10px] text-gray-400">{fmtFecha(o.creadoEn)}</span>
                     {/* Un solo chip, en orden de urgencia: ya salió → atrasada →
