@@ -562,3 +562,41 @@ optgroup,
 [role='dialog'] {
   font-family: var(--font-sans);
 }
+
+/* Borde en degradado verde→azul del diseño que eligió el user (Uiverse):
+   `linear-gradient(163deg, #00ff75, #3700ff)`.
+
+   Va en un ::before enmascarado y no como `background-image` con
+   `background-clip: border-box` porque el fondo de la card tiene que seguir
+   siendo blanco y el borde tiene que poder APARECER con una transición: un
+   background-image no se puede interpolar, una opacidad sí.
+
+   La máscara recorta el relleno y deja solo el anillo de 1px: el degradado se
+   pinta en todo el rectángulo y `mask-composite: exclude` le saca el centro. */
+.borde-degradado::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(163deg, #00ff75 0%, #3700ff 100%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s;
+  /* El ::before tapa la card entera: sin esto se come el click y el hover. */
+  pointer-events: none;
+}
+.borde-degradado:hover::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .borde-degradado::before { transition: none; }
+}
