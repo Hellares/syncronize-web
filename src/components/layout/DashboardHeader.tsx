@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
-import { SIDEBAR_SECTIONS, ACCESOS_RAPIDOS } from './sidebar-config';
+import { ACCESOS_RAPIDOS, ICONOS, buscarPorRuta, tienePermiso } from './sidebar-config';
 
 interface Props {
   onMenuToggle: () => void;
@@ -16,28 +16,21 @@ interface Props {
  *
  * Antes decia "Dashboard / Panel de gestion" FIJO en todas las pantallas, asi
  * que la cabecera no aportaba nada. Se deriva de la ruta contra el mismo
- * `SIDEBAR_SECTIONS` que dibuja el menu, para que las dos digan lo mismo.
+ * catalogo que dibuja el menu, para que las dos digan lo mismo.
  */
 function useRuta(pathname: string) {
   return useMemo(() => {
-    let mejor: { seccion: string; item: string; href: string } | null = null;
-    for (const seccion of SIDEBAR_SECTIONS) {
-      for (const item of seccion.items) {
-        const coincide = pathname === item.href || pathname.startsWith(item.href + '/');
-        // Gana el href MAS LARGO: /dashboard/compras/nueva tiene que resolver a
-        // "Nueva compra" y no a "Compras", que tambien es prefijo.
-        if (coincide && (!mejor || item.href.length > mejor.href.length)) {
-          mejor = { seccion: seccion.label, item: item.label, href: item.href };
-        }
-      }
-    }
-    if (!mejor) return { seccion: null, titulo: 'Panel', exacta: true };
+    const hallado = buscarPorRuta(pathname);
+    if (!hallado) return { seccion: null, titulo: 'Panel', exacta: true };
+    const { seccion, item, exacta } = hallado;
     return {
-      seccion: mejor.seccion === mejor.item ? null : mejor.seccion,
-      titulo: mejor.item,
+      // Un item de primer nivel (Dashboard, Mi Perfil) no tiene seccion, y
+      // repetir el nombre cuando seccion e item coinciden solo hace ruido.
+      seccion: seccion && seccion.label !== item.label ? seccion.label : null,
+      titulo: item.label,
       // Una subruta sin entrada propia (el detalle de una compra) no es la
       // pagina del menu: se marca para no afirmar de mas en el titulo.
-      exacta: pathname === mejor.href,
+      exacta,
     };
   }, [pathname]);
 }
@@ -52,7 +45,12 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
   const ruta = useRuta(pathname);
   // Mismos permisos que el menú: un vendedor sin cotizaciones no ve el acceso.
   const accesos = useMemo(
-    () => ACCESOS_RAPIDOS.filter((a) => !a.permission || permissions[a.permission]),
+    () => {
+      const ocultos = new Set(permissions.accesosRapidosOcultos ?? []);
+      return ACCESOS_RAPIDOS.filter(
+        (a) => tienePermiso(permissions, a.permission) && !(a.ocultableId && ocultos.has(a.ocultableId)),
+      );
+    },
     [permissions],
   );
 
@@ -105,7 +103,7 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
                 ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
                 : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
               <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                <path d={a.icon} />
+                <path d={ICONOS[a.icon]} />
               </svg>
               <span className="hidden lg:inline">{a.label}</span>
             </Link>

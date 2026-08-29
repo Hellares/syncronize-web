@@ -41,6 +41,24 @@ export interface EmpresaPermissions {
   canApprovePlanilla: boolean;
   canViewReportesIncidencia: boolean;
   canManageReportesIncidencia: boolean;
+  canViewGastosRecurrentes: boolean;
+  canManageGastosRecurrentes: boolean;
+  // Caja: el flag manda sobre el rol. Un cajero puede tener `canManageCaja`
+  // y aun asi no poder CERRAR: eso lo decide `canCerrarCaja`, no el rol.
+  canAbrirCaja: boolean;
+  canCerrarCaja: boolean;
+  canEditarCostoProducto: boolean;
+  canEditarPrecioVenta: boolean;
+  canDescuentoLibre: boolean;
+  /**
+   * Ids de botones del dashboard e items del menu que el admin le oculto a
+   * este usuario (`UsuarioSedeRol.accesosRapidosOcultos`, consolidado entre
+   * sedes por el backend).
+   *
+   * OCULTA, no prohibe: la ruta se sigue pudiendo alcanzar escribiendola. Lo
+   * que impide de verdad son los permisos de arriba.
+   */
+  accesosRapidosOcultos: string[];
 }
 
 export interface EmpresaStatistics {

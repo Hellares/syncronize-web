@@ -57,6 +57,10 @@ const DEFAULT_PERMISSIONS: EmpresaPermissions = {
   canViewPlanilla: false, canManagePlanilla: false,
   canApproveIncidencias: false, canApprovePlanilla: false,
   canViewReportesIncidencia: false, canManageReportesIncidencia: false,
+  canViewGastosRecurrentes: false, canManageGastosRecurrentes: false,
+  canAbrirCaja: false, canCerrarCaja: false,
+  canEditarCostoProducto: false, canEditarPrecioVenta: false, canDescuentoLibre: false,
+  accesosRapidosOcultos: [],
 };
 
 const EmpresaCtx = createContext<EmpresaContextType | null>(null);
