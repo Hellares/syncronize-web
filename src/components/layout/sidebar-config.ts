@@ -27,6 +27,13 @@ export type CondicionPermiso = keyof EmpresaPermissions | (keyof EmpresaPermissi
 
 export interface SidebarItem {
   label: string;
+  /**
+   * Etiqueta para la cabecera, donde el ancho es escaso. Cae en `label`.
+   *
+   * Solo la usa el texto visible: el `title` sigue diciendo el nombre completo,
+   * asi que abreviar no le esconde a nadie a donde va el boton.
+   */
+  labelCorto?: string;
   href: string;
   /** Clave de `ICONOS`. */
   icon: string;
@@ -520,4 +527,5 @@ export const ACCESOS_RAPIDOS: SidebarItem[] = [
   { label: 'Venta Rápida', href: '/dashboard/venta-rapida', permission: 'canViewVentas', ocultableId: 'venta-rapida', icon: 'rayo' },
   { label: 'Ventas', href: '/dashboard/ventas', permission: 'canViewVentas', ocultableId: 'ventas', icon: 'ticket' },
   { label: 'Cotizaciones', href: '/dashboard/cotizaciones', permission: 'canViewCotizaciones', ocultableId: 'cotizaciones', icon: 'cotizacion' },
+  { label: 'Órdenes de Servicio', labelCorto: 'Órdenes', href: '/dashboard/servicios', permission: 'canManageOrders', ocultableId: 'ordenes-servicio', icon: 'reporte' },
 ];
