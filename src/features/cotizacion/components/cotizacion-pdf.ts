@@ -226,7 +226,22 @@ export async function construirCotizacionPdf(params: {
     // Los datos fiscales salen de `completa` (que ya aplico la sede) y caen al
     // contexto de empresa si no vinieron.
     const ruc = marca?.ruc ?? empresa?.ruc;
-    const direccion = marca?.direccion ?? empresa?.direccionFiscal;
+    // 🔴 La direccion es la de la SEDE emisora, no la fiscal. Es la misma regla
+    // que `direccionEfectiva` del app --sede primero, empresa despues-- con la
+    // que se imprimen boletas y facturas; sin esto la cotizacion diria una
+    // direccion distinta que el comprobante de la misma venta.
+    //
+    // `marca.direccion` NO sirve: el backend la resuelve como
+    // `direccionFiscalSede ?? direccionFiscal`, o sea siempre la fiscal.
+    const sedeDoc = cfg?.sede;
+    const direccionSede = [
+      sedeDoc?.direccion,
+      sedeDoc?.distrito,
+      sedeDoc?.provincia,
+      sedeDoc?.departamento,
+    ].filter(Boolean).join(', ');
+    const direccion =
+      direccionSede || marca?.direccion || empresa?.direccionFiscal;
     const telefono = marca?.telefono ?? empresa?.telefono;
     const email = marca?.email ?? empresa?.email;
     // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
@@ -262,23 +277,11 @@ export async function construirCotizacionPdf(params: {
   y += 5;
 
   doc.setFont('helvetica', 'normal');
-  // La direccion de la sede sale de `completa` --`Cotizacion.sede` solo trae el
-  // nombre--. Se usa la direccion OPERATIVA y no la fiscal porque la fiscal ya
-  // esta arriba, en los datos de la empresa: repetirla no aporta.
-  const sedeCfg = cfg?.sede;
-  const dirSede = sedeCfg?.direccion || sedeCfg?.direccionFiscalSede;
-  const nombreSede = sedeCfg?.nombre || c.sede?.nombre;
-  const sedeConDireccion = nombreSede
-    ? dirSede
-      ? `${nombreSede} - ${dirSede}`
-      : nombreSede
-    : '-';
-
-  // Codigo, fecha y vencimiento ya estan en la cabecera: repetirlos aca solo
-  // gastaba renglones.
+  // Codigo, fecha y vencimiento estan en la cabecera, y la sede tambien: su
+  // direccion va bajo el RUC. Repetir cualquiera de los dos aca solo gastaba
+  // renglones.
   const infoLines = [
     ['Vendedor:', vendedorNombre],
-    ['Sede:', sedeConDireccion],
     ['Moneda:', c.moneda],
   ];
 
