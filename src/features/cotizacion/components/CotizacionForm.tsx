@@ -204,6 +204,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   // ── Step 1: Cliente ─────────────────────────────────────────────────────────
   const [sedeId, setSedeId] = useState(initialData?.sedeId || '');
   const [clienteId, setClienteId] = useState<string | undefined>(initialData?.clienteId);
+  // Persona y empresa son tablas DISTINTAS con su propia FK: mandar el id de
+  // una empresa como `clienteId` reventaba el create con 500.
+  const [clienteEmpresaId, setClienteEmpresaId] = useState<string | undefined>(
+    initialData?.clienteEmpresaId ?? undefined,
+  );
   const [nombreCotizacion, setNombreCotizacion] = useState(initialData?.nombre || '');
   const [nombreCliente, setNombreCliente] = useState(initialData?.nombreCliente || '');
   const [documentoCliente, setDocumentoCliente] = useState(initialData?.documentoCliente || '');
@@ -622,6 +627,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
         sedeId,
         vendedorId: authState.user.id,
         clienteId,
+        clienteEmpresaId,
         nombre: nombreCotizacion.trim() || undefined,
         nombreCliente: nombreCliente.trim(),
         documentoCliente: documentoCliente.trim() || undefined,
@@ -754,7 +760,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
             initialNombre={nombreCliente}
             initialDocumento={documentoCliente}
             onClienteSelected={data => {
-              setClienteId(data.clienteId);
+              // Solo uno de los dos queda seteado: el otro se limpia, o al
+              // cambiar de empresa a persona viajarian los dos.
+              const esEmpresa = data.tipoCliente === 'empresa';
+              setClienteId(esEmpresa ? undefined : data.clienteId);
+              setClienteEmpresaId(esEmpresa ? data.clienteId : undefined);
               setNombreCliente(data.nombreCliente);
               setDocumentoCliente(data.documentoCliente ?? '');
               setEmailCliente(data.emailCliente ?? '');

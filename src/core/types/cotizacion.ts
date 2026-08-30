@@ -146,7 +146,16 @@ export interface CreateCotizacionDetalleDto {
 export interface CreateCotizacionDto {
   sedeId: string;
   vendedorId: string;
+  /** Cliente PERSONA (EmpresaPersona). Excluyente con `clienteEmpresaId`. */
   clienteId?: string;
+  /**
+   * Cliente EMPRESA (ClienteEmpresa).
+   *
+   * 🔴 Son tablas distintas con su propia FK: mandar el id de una empresa como
+   * `clienteId` hace fallar el create con 500
+   * (`Cotizacion_clienteId_fkey`).
+   */
+  clienteEmpresaId?: string;
   nombre?: string;
   nombreCliente: string;
   documentoCliente?: string;

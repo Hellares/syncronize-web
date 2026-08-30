@@ -16,6 +16,12 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 interface ClienteSelectorProps {
   onClienteSelected: (data: {
     clienteId?: string;
+    /**
+     * Que entidad es el id de arriba. 🔴 Sin esto el consumidor no puede saber
+     * contra que tabla apunta: persona y empresa viven en tablas distintas y
+     * cada una tiene su propia FK.
+     */
+    tipoCliente?: 'persona' | 'empresa';
     nombreCliente: string;
     documentoCliente?: string;
     emailCliente?: string;
@@ -69,6 +75,7 @@ export default function ClienteSelector({ onClienteSelected, initialNombre = '',
   const emitir = (s: Seleccion | null) => {
     onClienteSelected({
       clienteId: s?.clienteId,
+      tipoCliente: s?.tipo,
       nombreCliente: s?.nombre ?? '',
       documentoCliente: s?.documento ?? '',
       emailCliente: s?.email ?? '',
