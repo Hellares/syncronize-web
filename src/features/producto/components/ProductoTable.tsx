@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Producto, PaginationMeta, StockPorSedeInfo } from '@/core/types/producto';
 import { infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 import StockBadge from './StockBadge';
 
 interface Props {
@@ -115,6 +116,10 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
             {productos.map((p) => {
               const stock = getStockForSede(p, sedeId);
               const img = getImageUrl(p);
+              // Un granel se GUARDA en gramos y se LEE en kilos: sin esto la
+              // lista muestra "0.01" y "28000" donde el app dice "S/ 8.00/kg"
+              // y "28 kg". Sin presentación el factor es 1 y no cambia nada.
+              const pres = presentacionPlana(p);
 
               return (
                 // La fila entera lleva al detalle. El nombre sigue siendo un
@@ -181,24 +186,28 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   <td className="px-4 py-3 text-right">
                     {infoLiquidacionActiva(stock) ? (
                       <>
-                        <span className="text-xs text-gray-400 line-through block">S/ {Number(stock.precio).toFixed(2)}</span>
-                        <span className="font-bold text-red-600">S/ {Number(stock.precioLiquidacion).toFixed(2)}</span>
+                        <span className="text-xs text-gray-400 line-through block">{pres.precioTexto(Number(stock.precio))}</span>
+                        <span className="font-bold text-red-600">{pres.precioTexto(Number(stock.precioLiquidacion))}</span>
                       </>
                     ) : infoOfertaActiva(stock) ? (
                       <>
-                        <span className="text-xs text-gray-400 line-through block">S/ {Number(stock.precio).toFixed(2)}</span>
-                        <span className="font-bold text-green-600">S/ {Number(stock.precioOferta).toFixed(2)}</span>
+                        <span className="text-xs text-gray-400 line-through block">{pres.precioTexto(Number(stock.precio))}</span>
+                        <span className="font-bold text-green-600">{pres.precioTexto(Number(stock.precioOferta))}</span>
                       </>
                     ) : (
                       <span className="font-medium text-gray-900">
-                        {stock.precio != null ? `S/ ${Number(stock.precio).toFixed(2)}` : '—'}
+                        {stock.precio != null ? pres.precioTexto(Number(stock.precio)) : '—'}
                       </span>
                     )}
                   </td>
 
                   {/* Stock */}
                   <td className="px-4 py-3 text-center">
-                    <StockBadge cantidad={stock.cantidad ?? 0} stockMinimo={stock.stockMinimo ?? undefined} />
+                    <StockBadge
+                      cantidad={stock.cantidad ?? 0}
+                      texto={pres.cantidadTexto(stock.cantidad ?? 0)}
+                      stockMinimo={stock.stockMinimo ?? undefined}
+                    />
                   </td>
 
                   {/* Estado (clickeable si puede gestionar) */}

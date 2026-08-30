@@ -389,11 +389,19 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                   <div key={s.sedeId} className="border-b border-gray-50 pb-3 last:border-0 last:pb-0">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-gray-700">{s.sedeNombre}</span>
-                      <StockBadge cantidad={s.cantidad} stockMinimo={s.stockMinimo ?? undefined} />
+                      {/* Un granel se guarda en gramos y se lee en kilos: sin
+                          esto acá salen "28000" y "S/ 0.01". El umbral de stock
+                          bajo sigue comparándose en unidad de venta, que es
+                          como está guardado `stockMinimo`. */}
+                      <StockBadge
+                        cantidad={s.cantidad}
+                        texto={presentacionPlana(producto).cantidadTexto(s.cantidad)}
+                        stockMinimo={s.stockMinimo ?? undefined}
+                      />
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                      {s.precio != null && <span>Precio: S/ {Number(s.precio).toFixed(2)}</span>}
-                      {s.precioCosto != null && <span>Costo: S/ {Number(s.precioCosto).toFixed(2)}</span>}
+                      {s.precio != null && <span>Precio: {presentacionPlana(producto).precioTexto(Number(s.precio))}</span>}
+                      {s.precioCosto != null && <span>Costo: {presentacionPlana(producto).precioTexto(Number(s.precioCosto))}</span>}
                       {/* Margen: es el numero que se mira, y estaba a la vista
                           la resta pero no el resultado. Un margen negativo
                           significa que se esta vendiendo a perdida. */}
