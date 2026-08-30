@@ -185,7 +185,16 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
 
                   {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
                   <td className="px-4 py-3 text-right">
-                    {infoLiquidacionActiva(stock) ? (
+                    {/* 🔴 Un producto CON variantes no tiene precio propio: el
+                        precio vive en cada variante y el de la fila padre salia
+                        de la primera que tuviera uno, o sea un numero que no
+                        representa a nada. El app hace lo mismo --todo su bloque
+                        de precio esta detras de `if (!tieneVariantes)`-- y en su
+                        lugar ofrece entrar a las variantes, que aca es el boton
+                        Gestionar. */}
+                    {p.tieneVariantes ? (
+                      <span className="text-xs text-gray-300">—</span>
+                    ) : infoLiquidacionActiva(stock) ? (
                       <>
                         <span className="text-xs text-gray-400 line-through block">{pres.precioTexto(Number(stock.precio))}</span>
                         <span className="font-bold text-red-600">{pres.precioTexto(Number(stock.precioLiquidacion))}</span>

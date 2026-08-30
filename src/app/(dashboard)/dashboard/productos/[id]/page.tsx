@@ -161,15 +161,19 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                       const efectivo = fila ? infoPrecioEfectivo(fila) : null;
                       const rebajado = fila ? (infoLiquidacionActiva(fila) || infoOfertaActiva(fila)) : false;
                       const stock = variante.stocksPorSede?.reduce((a, b) => a + b.cantidad, 0) ?? 0;
+                      // Este panel es la variante ELEGIDA, no la lista: acá el
+                      // precio sí es el dato que se vino a ver. Va en la unidad
+                      // en la que se habla ("S/ 8.00/kg"), no por gramo.
+                      const u = presentacionDeVariante(variante, producto);
                       return (
                         <>
                           <p className={`text-lg font-bold ${efectivo == null ? 'text-amber-600' : rebajado ? 'text-red-600' : 'text-[#004A94]'}`}>
-                            {efectivo != null ? `S/ ${Number(efectivo).toFixed(2)}` : 'sin precio'}
+                            {efectivo != null ? u.precioTexto(Number(efectivo)) : 'sin precio'}
                           </p>
                           {rebajado && fila?.precio != null && (
-                            <p className="text-[10px] text-gray-400 line-through">S/ {Number(fila.precio).toFixed(2)}</p>
+                            <p className="text-[10px] text-gray-400 line-through">{u.precioTexto(Number(fila.precio))}</p>
                           )}
-                          <p className="mt-0.5 text-[11px] text-gray-500">stock {stock}</p>
+                          <p className="mt-0.5 text-[11px] text-gray-500">stock {u.cantidadTexto(stock)}</p>
                         </>
                       );
                     })()}

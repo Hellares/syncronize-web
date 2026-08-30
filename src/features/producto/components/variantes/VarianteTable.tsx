@@ -35,17 +35,22 @@ function stockTotal(v: ProductoVariante): number {
 }
 
 /**
- * 🔴 Ya NO se muestra el precio de la variante —el app tampoco lo hace— pero
- * esto se queda: de acá sale el punto ámbar "Sin precio", que es lo único que
- * avisa que una variante existe, tiene stock y aun así no se puede vender.
+ * Precio de la variante, en la unidad en la que se habla ("S/ 8.00/kg").
+ *
+ * `sinPrecio` alimenta además el punto ámbar del estado: es lo único que avisa
+ * que una variante existe, tiene stock y aun así NO SE PUEDE VENDER.
  */
-function precioDe(v: ProductoVariante): { texto: string; sinPrecio: boolean; rebajado: boolean } {
+function precioDe(
+  v: ProductoVariante,
+  presentacionProducto?: PresentacionPlana | null,
+): { texto: string; sinPrecio: boolean; rebajado: boolean } {
   const fila = v.stocksPorSede?.find((s) => s.precioConfigurado);
   if (!fila) return { texto: '—', sinPrecio: true, rebajado: false };
   const efectivo = infoPrecioEfectivo(fila);
   if (efectivo == null) return { texto: '—', sinPrecio: true, rebajado: false };
   const rebajado = infoLiquidacionActiva(fila) || infoOfertaActiva(fila);
-  return { texto: `S/ ${Number(efectivo).toFixed(2)}`, sinPrecio: false, rebajado };
+  const u = presentacionDeVariante(v, presentacionProducto);
+  return { texto: u.precioTexto(Number(efectivo)), sinPrecio: false, rebajado };
 }
 
 /**
@@ -66,7 +71,7 @@ function estadoDe(v: ProductoVariante, ejes: string[]): { color: string; titulo:
       alerta: true,
     };
   }
-  if (precioDe(v).sinPrecio) return { color: 'bg-amber-500', titulo: 'Sin precio', alerta: true };
+  if (precioDe(v, null).sinPrecio) return { color: 'bg-amber-500', titulo: 'Sin precio', alerta: true };
   return { color: 'bg-green-500', titulo: 'Activa', alerta: false };
 }
 
@@ -83,6 +88,7 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
               </th>
             ))}
             <th className="whitespace-nowrap px-2.5 py-2 text-[9.5px] font-bold uppercase tracking-wide text-gray-500">SKU</th>
+            <th className="whitespace-nowrap px-2.5 py-2 text-right text-[9.5px] font-bold uppercase tracking-wide text-gray-500">Precio</th>
             <th className="whitespace-nowrap px-2.5 py-2 text-center text-[9.5px] font-bold uppercase tracking-wide text-gray-500">Stock</th>
             <th className="w-16 px-2.5 py-2" />
           </tr>
@@ -90,6 +96,7 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
         <tbody>
           {variantes.map((v) => {
             const est = estadoDe(v, ejes);
+            const precio = precioDe(v, presentacionProducto);
             const stock = stockTotal(v);
             const stockTexto = presentacionDeVariante(v, presentacionProducto).cantidadTexto(stock);
             return (
@@ -119,6 +126,12 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
 
                 <td className="whitespace-nowrap px-2.5 py-1.5">
                   <span className="font-mono text-[10px] text-gray-400">{v.sku}</span>
+                </td>
+
+                <td className={`whitespace-nowrap px-2.5 py-1.5 text-right text-[11.5px] font-bold ${
+                  precio.sinPrecio ? 'text-amber-600' : precio.rebajado ? 'text-red-600' : 'text-gray-900'
+                }`}>
+                  {precio.texto}
                 </td>
 
                 <td className="whitespace-nowrap px-2.5 py-1.5 text-center">

@@ -80,7 +80,8 @@ export default function VarianteCard({ variante, presentacionProducto, canManage
         </div>
       )}
 
-      {/* Precio y Stock */}
+      {/* Precio y Stock, los dos en la unidad en la que se habla: un granel
+          mostraba "S/ 0.01" y "28000" en vez de "S/ 8.00/kg" y "28 kg". */}
       <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
         <div>
           <div className="flex items-center gap-1.5">
@@ -92,11 +93,18 @@ export default function VarianteCard({ variante, presentacionProducto, canManage
               <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">OFERTA</span>
             )}
           </div>
-          {/* Sin precio, como el app: el de una variante se mira y se edita en
-              su propia pantalla de precios, no de refilón en la tarjeta. Se
-              conserva el aviso cuando NO tiene ninguno configurado, porque esa
-              variante no se puede vender. */}
-          {precio == null && <p className="text-xs text-amber-600">Sin precio</p>}
+          {precio != null ? (
+            <p className={`text-sm font-bold ${liqActiva ? 'text-red-600' : ofertaActiva ? 'text-green-600' : 'text-gray-900'}`}>
+              {presentacionDeVariante(variante, presentacionProducto).precioTexto(Number(precio))}
+              {(liqActiva || ofertaActiva) && precioBase != null && precioBase !== precio && (
+                <span className="ml-1.5 text-xs font-normal text-gray-400 line-through">
+                  {presentacionDeVariante(variante, presentacionProducto).precioTexto(Number(precioBase))}
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-600">Sin precio</p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-[10px] font-medium uppercase text-gray-400">Stock</p>
