@@ -28,11 +28,31 @@ export default function VarianteCard({ variante, presentacionProducto, canManage
   const liqActiva = stockConPrecio ? infoLiquidacionActiva(stockConPrecio) : false;
   const ofertaActiva = !liqActiva && stockConPrecio ? infoOfertaActiva(stockConPrecio) : false;
   const precioBase = stockConPrecio?.precio;
+  // El thumbnail cuando existe: en una lista larga, la imagen completa de cada
+  // variante son varios MB por pantalla.
+  const primeraImagen = variante.archivos?.[0];
+  const miniatura = primeraImagen ? (primeraImagen.urlThumbnail ?? primeraImagen.url) : null;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
+        {/* El hueco se dibuja igual sin imagen: lo que se quiere ver de un
+            vistazo es cuáles todavía no tienen. */}
+        {miniatura ? (
+          <img
+            src={miniatura}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-gray-200"
+            onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+          />
+        ) : (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 ring-1 ring-dashed ring-gray-200" title="Sin imagen">
+            <svg className="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z" />
+            </svg>
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h4 className="truncate text-sm font-semibold text-gray-900">{variante.nombre}</h4>

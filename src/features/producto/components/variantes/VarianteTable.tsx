@@ -25,6 +25,17 @@ interface Props {
   onImagenes?: (v: ProductoVariante) => void;
 }
 
+/**
+ * Miniatura de la variante: la primera de sus imágenes.
+ *
+ * Se prefiere el thumbnail cuando existe: en una lista de 91 variantes,
+ * bajar la imagen a tamaño completo de cada una son varios MB por pantalla.
+ */
+function miniaturaDe(v: ProductoVariante): string | null {
+  const a = v.archivos?.[0];
+  return a ? (a.urlThumbnail ?? a.url) : null;
+}
+
 /** Valor de un eje en una variante, o null si esa variante no lo declara. */
 function valorDe(v: ProductoVariante, eje: string): string | null {
   const av = v.atributosValores.find((a) => a.atributo.nombre === eje);
@@ -84,6 +95,7 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
         <thead className="border-b border-gray-100 bg-gray-50/70">
           <tr>
             <th className="w-7 px-2.5 py-2" />
+            <th className="w-10 px-2.5 py-2" />
             {ejes.map((e) => (
               <th key={e} className="whitespace-nowrap px-2.5 py-2 text-[9.5px] font-bold uppercase tracking-wide text-gray-500">
                 {e}
@@ -113,6 +125,29 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
               >
                 <td className="px-2.5 py-1.5">
                   <span className={`inline-block h-[7px] w-[7px] rounded-full ${est.color}`} title={est.titulo} />
+                </td>
+
+                {/* Miniatura. El hueco se dibuja igual cuando NO hay imagen:
+                    la pregunta que se responde de un vistazo es justamente
+                    cuáles todavía no tienen. */}
+                <td className="px-2.5 py-1.5">
+                  {miniaturaDe(v) ? (
+                    <img
+                      src={miniaturaDe(v)!}
+                      alt=""
+                      className="h-7 w-7 rounded object-cover ring-1 ring-gray-200"
+                      onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
+                    />
+                  ) : (
+                    <div
+                      className="flex h-7 w-7 items-center justify-center rounded bg-gray-50 ring-1 ring-dashed ring-gray-200"
+                      title="Sin imagen"
+                    >
+                      <svg className="h-3.5 w-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z" />
+                      </svg>
+                    </div>
+                  )}
                 </td>
 
                 {ejes.map((e) => {
