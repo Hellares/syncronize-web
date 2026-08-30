@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AxiosError } from 'axios';
 import Card from '@/components/ui/Card';
-import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
+import * as storageService from '@/features/storage/services/storage-service';
+import { reducirImagen } from '@/core/utils/imagen';
 import * as cfgService from '@/features/configuracion-documentos/services/configuracion-documentos-service';
 import {
   FORMATOS_PAPEL,
@@ -49,6 +51,9 @@ function CampoColor({ label, value, onChange, ayuda }: {
 
 export default function ConfiguracionDocumentosPage() {
   const permissions = usePermissions();
+  const { empresa } = useEmpresa();
+  const inputLogo = useRef<HTMLInputElement>(null);
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
   const [config, setConfig] = useState<ConfiguracionDocumentos | null>(null);
   const [plantilla, setPlantilla] = useState<PlantillaDocumento | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +81,41 @@ export default function ConfiguracionDocumentosPage() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  /**
+   * Sube el logo y deja la URL en el formulario (se persiste al Guardar).
+   *
+   * Mismo camino que el app: `/storage/upload` con entidad EMPRESA y categoria
+   * LOGO. Se achica antes a 800x400, como hace el app al elegirlo desde la
+   * galeria: el logo va embebido en CADA PDF, y la foto original solo engorda
+   * los documentos sin verse mejor en los ~28 mm que ocupa en la hoja.
+   */
+  const subirLogo = async (file: File) => {
+    if (!empresa?.id) return;
+    setSubiendoLogo(true);
+    setError(null);
+    setOk(null);
+    try {
+      const reducido = await reducirImagen(file, 800, 400);
+      const res = await storageService.uploadFile({
+        file: reducido,
+        empresaId: empresa.id,
+        entidadTipo: 'EMPRESA',
+        entidadId: empresa.id,
+        categoria: 'LOGO',
+      });
+      setConfig((c) => (c ? { ...c, logoUrl: res.url } : c));
+      setOk('Logo subido. Falta Guardar para que salga en los documentos.');
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo subir el logo');
+    } finally {
+      setSubiendoLogo(false);
+      // Se limpia para que elegir el MISMO archivo otra vez vuelva a disparar
+      // el onChange (el input no cambia de valor y no emite el evento).
+      if (inputLogo.current) inputLogo.current.value = '';
+    }
+  };
 
   const guardar = async () => {
     if (!config || !plantilla) return;
@@ -176,19 +216,35 @@ export default function ConfiguracionDocumentosPage() {
             <input value={config.nombreComercial ?? ''} onChange={e => setConfig({ ...config, nombreComercial: e.target.value })}
               placeholder="El que ve el cliente" className={`${INPUT_STD} w-full`} />
           </div>
+
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-gray-600">URL del logo</label>
-            <input value={config.logoUrl ?? ''} onChange={e => setConfig({ ...config, logoUrl: e.target.value })}
-              placeholder="Vacío = se usa el logo de la empresa" className={`${INPUT_STD} w-full`} />
+            <label className="mb-1 block text-[11px] font-medium text-gray-600">Logo</label>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-zinc-100 ring-1 ring-blue-400">
+                {config.logoUrl
+                  ? <img src={config.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                  : <span className="text-[9px] text-zinc-500">sin logo</span>}
+              </div>
+              <div className="flex flex-col gap-1">
+                <input ref={inputLogo} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) subirLogo(f); }} />
+                <button type="button" onClick={() => inputLogo.current?.click()} disabled={subiendoLogo}
+                  className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-50">
+                  {subiendoLogo ? 'Subiendo…' : config.logoUrl ? 'Cambiar' : 'Subir logo'}
+                </button>
+                {config.logoUrl && !subiendoLogo && (
+                  <button type="button" onClick={() => setConfig({ ...config, logoUrl: '' })}
+                    className="text-[10px] text-red-500 hover:underline">
+                    Quitar
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="mt-1 text-[10px] text-gray-400">
+              Sin logo propio se usa el de la empresa. Se achica a 800×400 al subirlo.
+            </p>
           </div>
         </div>
-
-        {config.logoUrl && (
-          <div className="mt-3 flex items-center gap-3">
-            <img src={config.logoUrl} alt="Logo" className="h-12 w-auto rounded border border-gray-200 bg-white object-contain p-1" />
-            <span className="text-[10px] text-gray-400">Así entra en el PDF</span>
-          </div>
-        )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <CampoColor label="Primario" value={config.colorPrimario}

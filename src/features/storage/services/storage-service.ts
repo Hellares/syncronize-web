@@ -20,7 +20,7 @@ export interface ArchivoResponse {
 }
 
 export type EntidadTipo = 'PRODUCTO' | 'PRODUCTO_VARIANTE' | 'SERVICIO' | 'SERVICIO_COMPONENTE' | 'ORDEN_SERVICIO' | 'EMPRESA';
-export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL' | 'EVIDENCIA' | 'FIRMA';
+export type CategoriaArchivo = 'PRINCIPAL' | 'GALERIA' | 'THUMBNAIL' | 'EVIDENCIA' | 'FIRMA' | 'LOGO';
 
 export async function uploadFile(params: {
   file: File;
