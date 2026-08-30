@@ -284,12 +284,13 @@ export async function construirCotizacionPdf(params: {
 
   if (c.nombre) infoLines.unshift(['Nombre:', c.nombre]);
 
+  // Email y direccion quedan fuera a pedido: en una cotizacion no aportan y
+  // ocupaban dos renglones de la columna. Siguen viajando en el objeto, asi
+  // que volver a mostrarlos es agregar la fila.
   const clienteLines = !ver('mostrarDatosCliente') ? [] : [
     ['Nombre:', c.nombreCliente],
     ['Documento:', c.documentoCliente || '-'],
-    ['Email:', c.emailCliente || '-'],
     ['Telefono:', c.telefonoCliente || '-'],
-    ['Direccion:', c.direccionCliente || '-'],
   ];
 
   // Cada columna avanza SU propio alto y los valores se parten al ancho de su
