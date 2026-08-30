@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import * as cotizacionService from '../services/cotizacion-service';
+import * as cfgService from '@/features/configuracion-documentos/services/configuracion-documentos-service';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
 import * as comboService from '@/features/producto/services/combo-service';
@@ -252,6 +253,28 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const [tipoCambio, setTipoCambio] = useState<number | ''>(initialData?.tipoCambio || '');
   const [observaciones, setObservaciones] = useState(initialData?.observaciones || '');
   const [condiciones, setCondiciones] = useState(initialData?.condiciones || '');
+
+  /**
+   * Las condiciones por defecto de la plantilla, solo al CREAR.
+   *
+   * No se tocan al editar --ahi manda lo que la cotizacion tiene guardado-- ni
+   * si el usuario ya escribio algo: el default rellena, no pisa.
+   */
+  useEffect(() => {
+    if (mode !== 'create') return;
+    let cancelado = false;
+    cfgService
+      .getPlantilla('COTIZACION')
+      .then(plt => {
+        const texto = plt.condicionesPorDefecto?.trim();
+        if (cancelado || !texto) return;
+        setCondiciones(actual => (actual.trim() ? actual : texto));
+      })
+      // Sin configuracion el formulario arranca vacio, como siempre: quedarse
+      // sin crear la cotizacion por un default seria mucho peor.
+      .catch(() => {});
+    return () => { cancelado = true; };
+  }, [mode]);
   const [fechaVencimiento, setFechaVencimiento] = useState(
     initialData?.fechaVencimiento ? initialData.fechaVencimiento.slice(0, 10) : '',
   );

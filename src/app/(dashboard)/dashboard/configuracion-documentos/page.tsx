@@ -292,6 +292,7 @@ export default function ConfiguracionDocumentosPage() {
           mostrarFirma: plantilla.mostrarFirma,
           mostrarCodigoQR: plantilla.mostrarCodigoQR,
           mostrarPiePagina: plantilla.mostrarPiePagina,
+          condicionesPorDefecto: plantilla.condicionesPorDefecto?.trim() || null,
           logoUrl: plantilla.logoUrl?.trim() || null,
           posicionLogo: plantilla.posicionLogo ?? 'IZQUIERDA',
           colorEncabezado: plantilla.colorEncabezado?.trim() || undefined,
@@ -472,6 +473,23 @@ export default function ConfiguracionDocumentosPage() {
               </span>
             </label>
           ))}
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">
+            Condiciones por defecto
+          </label>
+          <textarea
+            value={plantilla.condicionesPorDefecto ?? ''}
+            onChange={e => setPlantilla({ ...plantilla, condicionesPorDefecto: e.target.value })}
+            rows={6}
+            placeholder={'* Todos los precios incluyen IGV (18%)\n* Nuestros precios están sujetos a stock y tipo de cambio del día\n* Los montos mostrados están expresados en SOLES (S/.)'}
+            className="w-full resize-y rounded-[6px] bg-zinc-100 px-3 py-2 font-sans text-xs text-[#004A94] shadow-md outline-none ring-1 ring-blue-400 transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 focus:shadow-lg focus:shadow-blue-200"
+          />
+          <p className="mt-1 text-[10px] text-gray-400">
+            Con esto arranca cada cotización nueva; después se puede editar en cada una.
+            Cambiarlo acá no toca las ya emitidas.
+          </p>
         </div>
 
         <p className="mt-4 mb-1 text-[11px] font-medium text-gray-600">Colores propios de la cotización</p>

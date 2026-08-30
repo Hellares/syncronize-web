@@ -82,6 +82,14 @@ export interface PlantillaDocumento {
   /** null = usa `colorTexto` de la configuración global. */
   colorCuerpo?: string | null;
   /**
+   * Condiciones con las que nace un documento nuevo de este tipo.
+   *
+   * 🔴 Es un DEFAULT del formulario, no algo que se inyecte al imprimir: la
+   * cotización guarda su propio texto, así que cambiar esto NO reescribe las
+   * ya emitidas.
+   */
+  condicionesPorDefecto?: string | null;
+  /**
    * Logo propio de ESTE tipo de documento. null = usa el de la marca.
    *
    * Un logo cuadrado se ve bien en un ticket de 80 mm y se pierde en la
