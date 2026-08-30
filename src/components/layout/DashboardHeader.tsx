@@ -105,7 +105,7 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
               <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                 <path d={ICONOS[a.icon]} />
               </svg>
-              <span className="hidden lg:inline">{a.labelCorto ?? a.label}</span>
+              <span className="hidden xl:inline">{a.labelCorto ?? a.label}</span>
             </Link>
           );
         })}

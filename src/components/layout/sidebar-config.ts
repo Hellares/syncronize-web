@@ -528,4 +528,10 @@ export const ACCESOS_RAPIDOS: SidebarItem[] = [
   { label: 'Ventas', href: '/dashboard/ventas', permission: 'canViewVentas', ocultableId: 'ventas', icon: 'ticket' },
   { label: 'Cotizaciones', href: '/dashboard/cotizaciones', permission: 'canViewCotizaciones', ocultableId: 'cotizaciones', icon: 'cotizacion' },
   { label: 'Órdenes de Servicio', labelCorto: 'Órdenes', href: '/dashboard/servicios', permission: 'canManageOrders', ocultableId: 'ordenes-servicio', icon: 'reporte' },
+  // 🔑 Caja va con `alcancia` y no con el `ticket` del menú a propósito: abajo
+  // de `xl` la cabecera muestra SOLO iconos, y en el menú Caja y Ventas
+  // comparten icono. Dos botones idénticos no se pueden distinguir.
+  { label: 'Caja', href: '/dashboard/caja', permission: 'canViewCaja', ocultableId: 'caja', icon: 'alcancia' },
+  { label: 'Cola POS', href: '/dashboard/pos', permission: 'canViewVentas', ocultableId: 'cola-pos', icon: 'cola' },
+  { label: 'Recepcion/Compras', labelCorto: 'Compras', href: '/dashboard/compras', permission: 'canViewCompras', icon: 'delivery' },
 ];
