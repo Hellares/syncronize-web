@@ -448,7 +448,7 @@ export const SIDEBAR_NODES: SidebarNode[] = [
         { label: 'Perfil de Empresa', href: '/dashboard/perfil-empresa', icon: 'maletin', permission: 'canManageSettings', enConstruccion: true },
         // La web ya tenía esta pantalla colgada de Facturación.
         { label: 'Configuración Fiscal', href: '/dashboard/facturacion/configuracion', icon: 'engranaje', permission: 'canManageSettings', ocultableId: 'config' },
-        { label: 'Configuración Documentos', href: '/dashboard/configuracion-documentos', icon: 'documento', permission: 'canManageSettings', enConstruccion: true },
+        { label: 'Configuración Documentos', href: '/dashboard/configuracion-documentos', icon: 'documento', permission: 'canManageSettings' },
         { label: 'QR de cobro Yape/Plin', href: '/dashboard/qr-cobro', icon: 'qr', permission: 'canManageSettings', enConstruccion: true },
         { label: 'Integración Yape', href: '/dashboard/integraciones/yape', icon: 'intercambio', permission: 'canManageSettings' },
         { label: 'WhatsApp de la empresa', href: '/dashboard/whatsapp', icon: 'chat', permission: 'canManageSettings', enConstruccion: true },
