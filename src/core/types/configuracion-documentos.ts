@@ -17,6 +17,14 @@ export type TipoDocumento =
 
 export type FormatoPapel = 'A4' | 'TICKET_80MM' | 'TICKET_58MM';
 
+export type PosicionLogo = 'IZQUIERDA' | 'CENTRO' | 'DERECHA';
+
+export const POSICIONES_LOGO: { value: PosicionLogo; label: string }[] = [
+  { value: 'IZQUIERDA', label: 'Izquierda' },
+  { value: 'CENTRO', label: 'Centro' },
+  { value: 'DERECHA', label: 'Derecha' },
+];
+
 /** Configuración global: la marca, común a todos los documentos. */
 export interface ConfiguracionDocumentos {
   id: string;
@@ -73,6 +81,8 @@ export interface PlantillaDocumento {
   colorEncabezado?: string | null;
   /** null = usa `colorTexto` de la configuración global. */
   colorCuerpo?: string | null;
+  /** Dónde va el logo en la hoja. */
+  posicionLogo?: PosicionLogo;
   isActive: boolean;
   esPorDefecto: boolean;
 }

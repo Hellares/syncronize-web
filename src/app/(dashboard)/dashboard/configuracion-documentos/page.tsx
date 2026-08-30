@@ -9,11 +9,118 @@ import { reducirImagen } from '@/core/utils/imagen';
 import * as cfgService from '@/features/configuracion-documentos/services/configuracion-documentos-service';
 import {
   FORMATOS_PAPEL,
+  POSICIONES_LOGO,
   SECCIONES_PLANTILLA,
   margenesDePlantilla,
   type ConfiguracionDocumentos,
+  type ConfiguracionCompleta,
   type PlantillaDocumento,
+  type PosicionLogo,
 } from '@/core/types/configuracion-documentos';
+import { construirCotizacionPdf } from '@/features/cotizacion/components/cotizacion-pdf';
+import type { Cotizacion } from '@/core/types/cotizacion';
+import type { EmpresaInfo } from '@/core/types/empresa';
+
+/**
+ * Cotizacion de muestra para la vista previa.
+ *
+ * Trae de todo --descuento, IGV, observaciones y condiciones-- para que ningun
+ * interruptor de seccion parezca no hacer nada al probarlo.
+ */
+const COTIZACION_MUESTRA: Cotizacion = {
+  id: 'muestra', empresaId: 'muestra', sedeId: 'muestra', vendedorId: 'muestra',
+  codigo: 'COT-000123', nombre: 'Ejemplo de cotización',
+  nombreCliente: 'Cliente de ejemplo S.A.C.', documentoCliente: '20123456789',
+  emailCliente: 'contacto@ejemplo.com', telefonoCliente: '999 888 777',
+  direccionCliente: 'Av. Siempre Viva 742',
+  moneda: 'PEN', subtotal: 550, descuento: 50, impuestos: 90, total: 590,
+  fechaEmision: new Date().toISOString(),
+  fechaVencimiento: new Date(Date.now() + 7 * 864e5).toISOString(),
+  estado: 'PENDIENTE' as Cotizacion['estado'],
+  observaciones: 'Los precios no incluyen instalación ni traslado.',
+  condiciones: 'Validez de 7 días. 50% de adelanto para iniciar.',
+  creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString(),
+  sede: { id: 'muestra', nombre: 'Sede Principal' },
+  vendedorNombre: 'Vendedor de ejemplo',
+  detalles: [
+    { id: '1', cotizacionId: 'muestra', descripcion: 'Producto de ejemplo A', cantidad: 2,
+      precioUnitario: 150, descuento: 0, tipoAfectacion: '10', porcentajeIGV: 18,
+      igv: 45.76, icbper: 0, subtotal: 254.24, total: 300, orden: 1 },
+    { id: '2', cotizacionId: 'muestra', descripcion: 'Producto de ejemplo B', cantidad: 1,
+      precioUnitario: 200, descuento: 50, tipoAfectacion: '10', porcentajeIGV: 18,
+      igv: 22.88, icbper: 0, subtotal: 127.12, total: 150, orden: 2 },
+    { id: '3', cotizacionId: 'muestra', descripcion: 'Servicio de instalación', cantidad: 1,
+      precioUnitario: 140, descuento: 0, tipoAfectacion: '10', porcentajeIGV: 18,
+      igv: 21.36, icbper: 0, subtotal: 118.64, total: 140, orden: 3 },
+  ],
+};
+
+/**
+ * Vista previa: el PDF REAL, con los valores del formulario todavia sin
+ * guardar.
+ *
+ * Se dibuja con `construirCotizacionPdf`, el mismo que usa la descarga. Un
+ * mockup en HTML seria mas barato pero se separaria del PDF a la primera
+ * correccion, y entonces mentiria justo donde el usuario confia.
+ */
+function VistaPrevia({ config, plantilla, empresa }: {
+  config: ConfiguracionDocumentos;
+  plantilla: PlantillaDocumento;
+  empresa: EmpresaInfo | null;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    let creada: string | null = null;
+    // Debounce: mover un margen con las flechas dispara un render por pulsacion
+    // y cada uno arma un PDF entero.
+    const t = setTimeout(async () => {
+      try {
+        const cfg: ConfiguracionCompleta = { configuracion: config, plantilla };
+        const doc = await construirCotizacionPdf({
+          cotizacion: COTIZACION_MUESTRA, mode: 'interno', empresa, cfg,
+        });
+        if (cancelado) return;
+        creada = doc.output('bloburl') as unknown as string;
+        setUrl(creada);
+        setError(false);
+      } catch {
+        if (!cancelado) setError(true);
+      }
+    }, 400);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(t);
+      // Sin esto cada tecleo deja un blob vivo hasta recargar la pagina.
+      if (creada) URL.revokeObjectURL(creada);
+    };
+  }, [config, plantilla, empresa]);
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase text-gray-400">Vista previa</p>
+        <span className="text-[10px] text-gray-400">Datos de ejemplo</span>
+      </div>
+      {error ? (
+        <p className="text-xs text-red-600">No se pudo generar la vista previa</p>
+      ) : url ? (
+        <iframe src={`${url}#toolbar=0&navpanes=0`} title="Vista previa de la cotización"
+          className="h-[520px] w-full rounded-[6px] bg-white ring-1 ring-blue-400" />
+      ) : (
+        <div className="flex h-[520px] items-center justify-center rounded-[6px] bg-zinc-100 ring-1 ring-blue-400">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" />
+        </div>
+      )}
+      <p className="mt-2 text-[10px] text-gray-400">
+        Es el PDF real, con los cambios que todavía no guardaste.
+      </p>
+    </div>
+  );
+}
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
 const INPUT_STD =
@@ -153,6 +260,7 @@ export default function ConfiguracionDocumentosPage() {
           mostrarFirma: plantilla.mostrarFirma,
           mostrarCodigoQR: plantilla.mostrarCodigoQR,
           mostrarPiePagina: plantilla.mostrarPiePagina,
+          posicionLogo: plantilla.posicionLogo ?? 'DERECHA',
           colorEncabezado: plantilla.colorEncabezado?.trim() || undefined,
           colorCuerpo: plantilla.colorCuerpo?.trim() || undefined,
         }),
@@ -189,7 +297,7 @@ export default function ConfiguracionDocumentosPage() {
     setPlantilla({ ...plantilla, [k]: v === '' ? 0 : Number(v) });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Configuración de documentos</h1>
@@ -205,6 +313,9 @@ export default function ConfiguracionDocumentosPage() {
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-sm text-red-600">{error}</p></div>}
       {ok && <div className="rounded-lg border border-green-200 bg-green-50 p-3"><p className="text-sm text-green-700">{ok}</p></div>}
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_440px]">
+      <div className="space-y-4">
 
       {/* ── Marca ── */}
       <Card padding="p-4">
@@ -243,6 +354,25 @@ export default function ConfiguracionDocumentosPage() {
             <p className="mt-1 text-[10px] text-gray-400">
               Sin logo propio se usa el de la empresa. Se achica a 800×400 al subirlo.
             </p>
+            <div className="mt-2">
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">Posición en la hoja</label>
+              <div className="flex gap-1.5">
+                {POSICIONES_LOGO.map(pos => (
+                  <button key={pos.value} type="button"
+                    onClick={() => setPlantilla({ ...plantilla, posicionLogo: pos.value })}
+                    className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      (plantilla.posicionLogo ?? 'DERECHA') === pos.value
+                        ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
+                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}>
+                    {pos.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-gray-400">
+                A la izquierda o al centro, los datos de la empresa bajan para no encimarse.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -337,6 +467,17 @@ export default function ConfiguracionDocumentosPage() {
             ayuda={`Vacío = usa el color de texto (${config.colorTexto})`} />
         </div>
       </Card>
+
+      </div>
+
+      {/* El preview NO lleva overflow: un contenedor con scroll le recorta el
+          ring a la Card (el ring se dibuja por fuera del borde). */}
+      <div className="xl:sticky xl:top-4 xl:self-start">
+        <Card padding="p-4">
+          <VistaPrevia config={config} plantilla={plantilla} empresa={empresa ?? null} />
+        </Card>
+      </div>
+      </div>
     </div>
   );
 }
