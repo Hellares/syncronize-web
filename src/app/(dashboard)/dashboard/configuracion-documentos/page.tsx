@@ -15,7 +15,6 @@ import {
   type ConfiguracionDocumentos,
   type ConfiguracionCompleta,
   type PlantillaDocumento,
-  type PosicionLogo,
 } from '@/core/types/configuracion-documentos';
 import { construirCotizacionPdf } from '@/features/cotizacion/components/cotizacion-pdf';
 import type { Cotizacion } from '@/core/types/cotizacion';
@@ -126,6 +125,76 @@ function VistaPrevia({ config, plantilla, empresa }: {
 const INPUT_STD =
   'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
+/**
+ * Campo de logo: sube el archivo y deja la URL en el formulario.
+ *
+ * Mismo camino que el app: `/storage/upload` con entidad EMPRESA y categoria
+ * LOGO. Se achica antes a 800x400 --el logo va embebido en CADA PDF y ocupa
+ * pocos milimetros en la hoja, asi que la foto original solo engorda los
+ * documentos.
+ */
+function CampoLogo({ label, value, onChange, ayuda, empresaId, onError, onOk }: {
+  label: string;
+  value?: string | null;
+  onChange: (url: string) => void;
+  ayuda?: string;
+  empresaId?: string;
+  onError: (m: string) => void;
+  onOk: (m: string) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [subiendo, setSubiendo] = useState(false);
+
+  const subir = async (file: File) => {
+    if (!empresaId) return;
+    setSubiendo(true);
+    try {
+      const reducido = await reducirImagen(file, 800, 400);
+      const res = await storageService.uploadFile({
+        file: reducido, empresaId, entidadTipo: 'EMPRESA', entidadId: empresaId, categoria: 'LOGO',
+      });
+      onChange(res.url);
+      onOk('Logo subido. Falta Guardar para que salga en los documentos.');
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      onError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo subir el logo');
+    } finally {
+      setSubiendo(false);
+      // Se limpia para que elegir el MISMO archivo otra vez vuelva a disparar
+      // el onChange (el input no cambia de valor y no emite el evento).
+      if (input.current) input.current.value = '';
+    }
+  };
+
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-medium text-gray-600">{label}</label>
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-zinc-100 ring-1 ring-blue-400">
+          {value
+            ? <img src={value} alt={label} className="h-full w-full object-contain p-1" />
+            : <span className="text-[9px] text-zinc-500">sin logo</span>}
+        </div>
+        <div className="flex flex-col gap-1">
+          <input ref={input} type="file" accept="image/*" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) subir(f); }} />
+          <button type="button" onClick={() => input.current?.click()} disabled={subiendo}
+            className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-50">
+            {subiendo ? 'Subiendo…' : value ? 'Cambiar' : 'Subir logo'}
+          </button>
+          {value && !subiendo && (
+            <button type="button" onClick={() => onChange('')}
+              className="text-[10px] text-red-500 hover:underline">
+              Quitar
+            </button>
+          )}
+        </div>
+      </div>
+      {ayuda && <p className="mt-1 text-[10px] text-gray-400">{ayuda}</p>}
+    </div>
+  );
+}
+
 /** Campo de color: la muestra para elegir y el hex para pegar uno de la marca. */
 function CampoColor({ label, value, onChange, ayuda }: {
   label: string;
@@ -159,8 +228,6 @@ function CampoColor({ label, value, onChange, ayuda }: {
 export default function ConfiguracionDocumentosPage() {
   const permissions = usePermissions();
   const { empresa } = useEmpresa();
-  const inputLogo = useRef<HTMLInputElement>(null);
-  const [subiendoLogo, setSubiendoLogo] = useState(false);
   const [config, setConfig] = useState<ConfiguracionDocumentos | null>(null);
   const [plantilla, setPlantilla] = useState<PlantillaDocumento | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -188,41 +255,6 @@ export default function ConfiguracionDocumentosPage() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
-
-  /**
-   * Sube el logo y deja la URL en el formulario (se persiste al Guardar).
-   *
-   * Mismo camino que el app: `/storage/upload` con entidad EMPRESA y categoria
-   * LOGO. Se achica antes a 800x400, como hace el app al elegirlo desde la
-   * galeria: el logo va embebido en CADA PDF, y la foto original solo engorda
-   * los documentos sin verse mejor en los ~28 mm que ocupa en la hoja.
-   */
-  const subirLogo = async (file: File) => {
-    if (!empresa?.id) return;
-    setSubiendoLogo(true);
-    setError(null);
-    setOk(null);
-    try {
-      const reducido = await reducirImagen(file, 800, 400);
-      const res = await storageService.uploadFile({
-        file: reducido,
-        empresaId: empresa.id,
-        entidadTipo: 'EMPRESA',
-        entidadId: empresa.id,
-        categoria: 'LOGO',
-      });
-      setConfig((c) => (c ? { ...c, logoUrl: res.url } : c));
-      setOk('Logo subido. Falta Guardar para que salga en los documentos.');
-    } catch (err) {
-      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo subir el logo');
-    } finally {
-      setSubiendoLogo(false);
-      // Se limpia para que elegir el MISMO archivo otra vez vuelva a disparar
-      // el onChange (el input no cambia de valor y no emite el evento).
-      if (inputLogo.current) inputLogo.current.value = '';
-    }
-  };
 
   const guardar = async () => {
     if (!config || !plantilla) return;
@@ -260,7 +292,8 @@ export default function ConfiguracionDocumentosPage() {
           mostrarFirma: plantilla.mostrarFirma,
           mostrarCodigoQR: plantilla.mostrarCodigoQR,
           mostrarPiePagina: plantilla.mostrarPiePagina,
-          posicionLogo: plantilla.posicionLogo ?? 'DERECHA',
+          logoUrl: plantilla.logoUrl?.trim() || null,
+          posicionLogo: plantilla.posicionLogo ?? 'IZQUIERDA',
           colorEncabezado: plantilla.colorEncabezado?.trim() || undefined,
           colorCuerpo: plantilla.colorCuerpo?.trim() || undefined,
         }),
@@ -328,52 +361,10 @@ export default function ConfiguracionDocumentosPage() {
               placeholder="El que ve el cliente" className={`${INPUT_STD} w-full`} />
           </div>
 
-          <div>
-            <label className="mb-1 block text-[11px] font-medium text-gray-600">Logo</label>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-zinc-100 ring-1 ring-blue-400">
-                {config.logoUrl
-                  ? <img src={config.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
-                  : <span className="text-[9px] text-zinc-500">sin logo</span>}
-              </div>
-              <div className="flex flex-col gap-1">
-                <input ref={inputLogo} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) subirLogo(f); }} />
-                <button type="button" onClick={() => inputLogo.current?.click()} disabled={subiendoLogo}
-                  className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-50">
-                  {subiendoLogo ? 'Subiendo…' : config.logoUrl ? 'Cambiar' : 'Subir logo'}
-                </button>
-                {config.logoUrl && !subiendoLogo && (
-                  <button type="button" onClick={() => setConfig({ ...config, logoUrl: '' })}
-                    className="text-[10px] text-red-500 hover:underline">
-                    Quitar
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="mt-1 text-[10px] text-gray-400">
-              Sin logo propio se usa el de la empresa. Se achica a 800×400 al subirlo.
-            </p>
-            <div className="mt-2">
-              <label className="mb-1 block text-[11px] font-medium text-gray-600">Posición en la hoja</label>
-              <div className="flex gap-1.5">
-                {POSICIONES_LOGO.map(pos => (
-                  <button key={pos.value} type="button"
-                    onClick={() => setPlantilla({ ...plantilla, posicionLogo: pos.value })}
-                    className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                      (plantilla.posicionLogo ?? 'DERECHA') === pos.value
-                        ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
-                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}>
-                    {pos.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-[10px] text-gray-400">
-                A la izquierda o al centro, los datos de la empresa bajan para no encimarse.
-              </p>
-            </div>
-          </div>
+          <CampoLogo label="Logo de la marca" value={config.logoUrl}
+            onChange={url => setConfig({ ...config, logoUrl: url })}
+            ayuda="Se usa en los documentos que no tengan uno propio. Se achica a 800×400."
+            empresaId={empresa?.id} onError={setError} onOk={setOk} />
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -417,6 +408,32 @@ export default function ConfiguracionDocumentosPage() {
       {/* ── Plantilla de cotización ── */}
       <Card padding="p-4">
         <p className="mb-3 text-xs font-semibold uppercase text-gray-400">Cotización</p>
+
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <CampoLogo label="Logo de la cotización" value={plantilla.logoUrl}
+            onChange={url => setPlantilla({ ...plantilla, logoUrl: url })}
+            ayuda="Vacío = usa el de la marca. Para la cabecera A4 conviene uno apaisado, no el cuadrado del ticket."
+            empresaId={empresa?.id} onError={setError} onOk={setOk} />
+          <div>
+            <label className="mb-1 block text-[11px] font-medium text-gray-600">Posición del logo</label>
+            <div className="flex gap-1.5">
+              {POSICIONES_LOGO.map(pos => (
+                <button key={pos.value} type="button"
+                  onClick={() => setPlantilla({ ...plantilla, posicionLogo: pos.value })}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    (plantilla.posicionLogo ?? 'IZQUIERDA') === pos.value
+                      ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}>
+                  {pos.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-gray-400">
+              A la izquierda va al lado del nombre de la empresa; centrado o a la derecha, el bloque de datos baja.
+            </p>
+          </div>
+        </div>
 
         <p className="text-[11px] text-gray-500">
           Formato <b className="text-gray-700">{FORMATOS_PAPEL.find(f => f.value === plantilla.formatoPapel)?.label ?? plantilla.formatoPapel}</b>

@@ -81,6 +81,13 @@ export interface PlantillaDocumento {
   colorEncabezado?: string | null;
   /** null = usa `colorTexto` de la configuración global. */
   colorCuerpo?: string | null;
+  /**
+   * Logo propio de ESTE tipo de documento. null = usa el de la marca.
+   *
+   * Un logo cuadrado se ve bien en un ticket de 80 mm y se pierde en la
+   * cabecera de una cotización A4, que pide uno apaisado.
+   */
+  logoUrl?: string | null;
   /** Dónde va el logo en la hoja. */
   posicionLogo?: PosicionLogo;
   isActive: boolean;

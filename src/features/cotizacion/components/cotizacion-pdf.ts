@@ -29,21 +29,36 @@ type DocConAutoTable = { lastAutoTable?: { finalY: number } };
  * proposito: el PDF tiene que salir igual. Quedarse sin cotizacion por un
  * logo que no carga seria mucho peor que una cotizacion sin logo.
  */
-async function cargarLogo(url?: string | null): Promise<string | null> {
+type LogoCargado = { dataUrl: string; ancho: number; alto: number };
+
+async function cargarLogo(url?: string | null): Promise<LogoCargado | null> {
   if (!url) return null;
   try {
     const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) return null;
     const blob = await res.blob();
-    return await new Promise<string | null>((resolve) => {
+    const dataUrl = await new Promise<string | null>((resolve) => {
       const fr = new FileReader();
       fr.onload = () => resolve(typeof fr.result === 'string' ? fr.result : null);
       fr.onerror = () => resolve(null);
       fr.readAsDataURL(blob);
     });
+    if (!dataUrl) return null;
+    // Las medidas reales importan: dibujar con un ancho y un alto fijos
+    // DEFORMA el logo, y un logo estirado se nota mas que uno chico.
+    const bitmap = await createImageBitmap(blob);
+    const medidas = { ancho: bitmap.width, alto: bitmap.height };
+    bitmap.close();
+    return { dataUrl, ...medidas };
   } catch {
     return null;
   }
+}
+
+/** Encaja un logo dentro de una caja sin deformarlo. */
+function encajarLogo(logo: LogoCargado, maxAncho: number, maxAlto: number) {
+  const escala = Math.min(maxAncho / logo.ancho, maxAlto / logo.alto);
+  return { w: logo.ancho * escala, h: logo.alto * escala };
 }
 
 /**
@@ -90,7 +105,12 @@ export async function construirCotizacionPdf(params: {
   const mrg = plt ? margenesDePlantilla(plt) : { top: 20, bottom: 10, left: 15, right: 15 };
   const colorEnc = hexARgb(plt?.colorEncabezado || marca?.colorPrimario || '#004A94');
   const colorTxt = hexARgb(plt?.colorCuerpo || marca?.colorTexto || '#000000');
-  const logoData = ver('mostrarLogo') ? await cargarLogo(marca?.logoUrl) : null;
+  // El logo de la PLANTILLA gana sobre el de la marca: un logo cuadrado sirve
+  // para un ticket de 80 mm y se pierde en una cabecera A4, que pide uno
+  // apaisado. Sin logo propio se cae al de la marca.
+  const logoData = ver('mostrarLogo')
+    ? await cargarLogo(plt?.logoUrl || marca?.logoUrl)
+    : null;
 
   const doc = new jsPDF('p', 'mm', 'a4');
   const docAT = doc as unknown as DocConAutoTable;
@@ -105,75 +125,129 @@ export async function construirCotizacionPdf(params: {
 
   doc.setTextColor(...colorTxt);
 
-  // Posicion del logo. A la DERECHA convive con el bloque de la empresa, que
-  // arranca a la izquierda; a la IZQUIERDA o al CENTRO ocupa esa misma franja,
-  // asi que el bloque baja en vez de encimarse.
-  const posLogo = (plt?.posicionLogo ?? 'DERECHA').toUpperCase();
-  if (logoData) {
-    const anchoLogo = 28;
-    const altoLogo = 14;
+// ── Cabecera ──
+  //
+  // Dos columnas: a la izquierda logo + empresa, a la derecha el titulo con la
+  // fecha y el codigo. Antes el codigo y la fecha vivian abajo, en
+  // "Informacion General": estan arriba porque son lo primero que se busca al
+  // recibir una cotizacion.
+
+  // Banda de color al tope de la hoja. Va en y=0 a proposito, por fuera del
+  // margen: es un elemento de marca, no contenido.
+  doc.setFillColor(...colorEnc);
+  doc.rect(0, 0, pageWidth, 2.5, 'F');
+
+  const yBanda = Math.max(mrg.top, 6);
+  const posLogo = (plt?.posicionLogo ?? 'IZQUIERDA').toUpperCase();
+
+  // El logo se encaja en una caja SIN deformarse; la caja define cuanto
+  // desplaza al texto que tiene al lado.
+  const cajaLogo = { w: 22, h: 18 };
+  const dim = logoData ? encajarLogo(logoData, cajaLogo.w, cajaLogo.h) : null;
+
+  // Con el logo centrado o a la derecha, la fila de la empresa arranca DEBAJO
+  // de el; a la izquierda comparten fila.
+  let yFila = yBanda + 4;
+  if (dim && posLogo !== 'IZQUIERDA') {
     const xLogo =
-      posLogo === 'IZQUIERDA'
-        ? marginL
-        : posLogo === 'CENTRO'
-          ? (pageWidth - anchoLogo) / 2
-          : pageWidth - marginR - anchoLogo;
+      posLogo === 'CENTRO'
+        ? (pageWidth - dim.w) / 2
+        : pageWidth - marginR - dim.w;
     try {
-      doc.addImage(logoData, 'PNG', xLogo, mrg.top, anchoLogo, altoLogo, undefined, 'FAST');
+      doc.addImage(logoData!.dataUrl, xLogo, yFila, dim.w, dim.h, undefined, 'FAST');
     } catch {
       // Formato que jsPDF no digiere: se sigue sin logo.
     }
-    if (posLogo !== 'DERECHA') y = mrg.top + altoLogo + 5;
+    yFila += dim.h + 4;
   }
 
-  // Header - Empresa. El nombre comercial manda sobre la razon social: es
-  // el que el cliente reconoce.
-  if (ver('mostrarDatosEmpresa')) {
-    doc.setFontSize(16);
+  // Columna derecha: titulo + ficha de fecha y codigo.
+  const anchoFicha = 62;
+  const xFicha = pageWidth - marginR - anchoFicha;
+  let yDer = yFila;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(...colorEnc);
+  doc.text('Cotización', pageWidth - marginR, yDer + 7, { align: 'right' });
+  yDer += 13;
+
+  // Barra vertical de acento al costado de la ficha, como en el modelo.
+  const filas: [string, string][] = [
+    ['Fecha:', formatDate(c.fechaEmision)],
+    ['N° de Cotización:', c.codigo],
+  ];
+  if (c.fechaVencimiento) filas.push(['Válida hasta:', formatDate(c.fechaVencimiento)]);
+
+  const altoFicha = filas.length * 4.6;
+  doc.setFillColor(...colorEnc);
+  doc.rect(xFicha, yDer - 1, 1.1, altoFicha, 'F');
+
+  doc.setFontSize(8);
+  let yf = yDer + 2.2;
+  for (const [label, valor] of filas) {
     doc.setFont('helvetica', 'bold');
-    doc.text(
-      marca?.nombreComercial || empresa?.nombre || empresa?.razonSocial || 'Empresa',
-      margin, y,
-    );
-    y += 6;
-    doc.setFontSize(9);
+    doc.setTextColor(...colorEnc);
+    doc.text(label, xFicha + 3, yf);
     doc.setFont('helvetica', 'normal');
-    // Los datos fiscales salen de `completa` (que ya aplico la sede) y
-    // caen al contexto de empresa si no vinieron.
+    doc.setTextColor(...colorTxt);
+    doc.text(valor, xFicha + 32, yf);
+    yf += 4.6;
+  }
+  const yFinDer = yf;
+
+  // Columna izquierda: logo + datos de la empresa.
+  let xTexto = marginL;
+  if (dim && posLogo === 'IZQUIERDA') {
+    try {
+      doc.addImage(logoData!.dataUrl, marginL, yFila, dim.w, dim.h, undefined, 'FAST');
+    } catch {
+      // idem
+    }
+    xTexto = marginL + dim.w + 5;
+  }
+
+  let yIzq = yFila;
+  if (ver('mostrarDatosEmpresa')) {
+    // El nombre comercial manda sobre la razon social: es el que el cliente
+    // reconoce.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...colorEnc);
+    doc.text(
+      (marca?.nombreComercial || empresa?.nombre || empresa?.razonSocial || 'Empresa').toUpperCase(),
+      xTexto, yIzq + 4,
+    );
+    yIzq += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...colorTxt);
+    // Los datos fiscales salen de `completa` (que ya aplico la sede) y caen al
+    // contexto de empresa si no vinieron.
     const ruc = marca?.ruc ?? empresa?.ruc;
     const direccion = marca?.direccion ?? empresa?.direccionFiscal;
     const telefono = marca?.telefono ?? empresa?.telefono;
     const email = marca?.email ?? empresa?.email;
-    if (ruc) {
-      doc.text(`RUC: ${ruc}`, margin, y);
-      y += 4;
-    }
-    if (direccion) {
-      doc.text(direccion, margin, y);
-      y += 4;
-    }
-    if (telefono || email) {
-      doc.text([telefono, email].filter(Boolean).join(' | '), margin, y);
-      y += 4;
+    // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
+    // si no, la direccion larga se le mete encima.
+    const anchoTexto = xFicha - xTexto - 6;
+    const lineas: string[] = [];
+    if (ruc) lineas.push(`RUC: ${ruc}`);
+    if (direccion) lineas.push(...doc.splitTextToSize(direccion, anchoTexto));
+    if (telefono || email) lineas.push([telefono, email].filter(Boolean).join(' | '));
+    for (const linea of lineas) {
+      doc.text(linea, xTexto, yIzq);
+      yIzq += 3.6;
     }
   }
 
-  // Con logo, el titulo nunca sube por encima de su base.
-  if (logoData) y = Math.max(y, mrg.top + 16);
+  // La cabecera termina donde termine la columna mas larga.
+  y = Math.max(yIzq, yFinDer, yFila + (dim && posLogo === 'IZQUIERDA' ? dim.h : 0)) + 3;
 
-  // Cotizacion title
-  y += 4;
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...colorEnc);
-  doc.text(`COTIZACION ${c.codigo}`, pageWidth - marginR, y, { align: 'right' });
-  doc.setTextColor(...colorTxt);
-  y += 3;
-
-  // Linea separadora
   doc.setDrawColor(...colorEnc);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - marginR, y);
+  doc.setLineWidth(0.4);
+  doc.line(marginL, y, pageWidth - marginR, y);
   y += 6;
 
   // Info general + Cliente
@@ -188,16 +262,15 @@ export async function construirCotizacionPdf(params: {
   y += 5;
 
   doc.setFont('helvetica', 'normal');
+  // Codigo, fecha y vencimiento ya estan en la cabecera: repetirlos aca solo
+  // gastaba renglones.
   const infoLines = [
-    ['Codigo:', c.codigo],
-    ['Fecha:', formatDate(c.fechaEmision)],
-    ['Vencimiento:', c.fechaVencimiento ? formatDate(c.fechaVencimiento) : '-'],
     ['Vendedor:', vendedorNombre],
     ['Sede:', c.sede?.nombre || '-'],
     ['Moneda:', c.moneda],
   ];
 
-  if (c.nombre) infoLines.splice(1, 0, ['Nombre:', c.nombre]);
+  if (c.nombre) infoLines.unshift(['Nombre:', c.nombre]);
 
   const clienteLines = !ver('mostrarDatosCliente') ? [] : [
     ['Nombre:', c.nombreCliente],
