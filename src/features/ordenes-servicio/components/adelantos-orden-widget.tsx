@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AxiosError } from 'axios';
 import type { OrdenServicio, AdelantoOrden, OrdenServicioComponente } from '@/core/types/orden-servicio';
-import { costoComponenteOrden, nombreComponenteOrden } from '@/core/types/orden-servicio';
+import { adelantoPorComponenteOrden, costoComponenteOrden, nombreComponenteOrden } from '@/core/types/orden-servicio';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
 import * as osService from '../services/orden-servicio-service';
 
@@ -123,6 +123,7 @@ export default function AdelantosOrdenWidget({ orden, canManage, onChanged }: Pr
         <AbonoFormDialog
           ordenId={orden.id}
           componentes={orden.componentes ?? []}
+          imputado={adelantoPorComponenteOrden(orden)}
           onSaved={() => { setShowForm(false); onChanged(); }}
           onClose={() => setShowForm(false)}
         />
@@ -151,9 +152,11 @@ export default function AdelantosOrdenWidget({ orden, canManage, onChanged }: Pr
 }
 
 /* --- Registrar abono (POST /ordenes-servicio/:id/adelantos) --- */
-function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
+function AbonoFormDialog({ ordenId, componentes, imputado, onSaved, onClose }: {
   ordenId: string;
   componentes: OrdenServicioComponente[];
+  /** Lo ya abonado a cada componente, por id. */
+  imputado: Record<string, number>;
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -162,6 +165,15 @@ function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
   const [nota, setNota] = useState('');
   // '' = al costo del servicio, que es lo que fue siempre todo abono anterior.
   const [componenteId, setComponenteId] = useState('');
+
+  // Solo los que todavía deben algo. Uno ya cubierto no acepta más plata —el
+  // backend lo rechaza— así que ofrecerlo sería prometer un error. Los que
+  // están SIN COSTEAR siempre se ofrecen: no hay total que completar.
+  const pendientes = componentes.filter(c => {
+    const costo = costoComponenteOrden(c);
+    if (costo <= 0) return true;
+    return (imputado[c.id] ?? 0) + 0.005 < costo;
+  });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -209,7 +221,7 @@ function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
               ))}
             </div>
           </div>
-          {componentes.length > 0 && (
+          {pendientes.length > 0 && (
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">¿A qué corresponde?</label>
               <div className="max-h-40 space-y-1 overflow-y-auto">
@@ -219,8 +231,12 @@ function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
                     Costo del servicio
                   </span>
                 </label>
-                {componentes.map(c => {
+                {pendientes.map(c => {
                   const costo = costoComponenteOrden(c);
+                  const abonado = imputado[c.id] ?? 0;
+                  // Con algo abonado, lo útil es cuánto FALTA: es el número
+                  // que el cajero tiene que escribir arriba.
+                  const falta = Math.round((costo - abonado) * 100) / 100;
                   return (
                     <label key={c.id} className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 ${componenteId === c.id ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-200'}`}>
                       <span className="flex min-w-0 items-center gap-2 text-xs text-gray-700">
@@ -228,7 +244,11 @@ function AbonoFormDialog({ ordenId, componentes, onSaved, onClose }: {
                         <span className="truncate">🔧 {nombreComponenteOrden(c)}</span>
                       </span>
                       <span className="shrink-0 text-[11px] font-semibold text-gray-500">
-                        {costo > 0 ? fmt(costo) : 'sin costear'}
+                        {costo <= 0
+                          ? 'sin costear'
+                          : abonado > 0
+                            ? <span className="text-amber-600">Falta {fmt(falta)}</span>
+                            : fmt(costo)}
                       </span>
                     </label>
                   );
