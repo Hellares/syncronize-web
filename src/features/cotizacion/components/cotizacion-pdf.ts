@@ -262,11 +262,23 @@ export async function construirCotizacionPdf(params: {
   y += 5;
 
   doc.setFont('helvetica', 'normal');
+  // La direccion de la sede sale de `completa` --`Cotizacion.sede` solo trae el
+  // nombre--. Se usa la direccion OPERATIVA y no la fiscal porque la fiscal ya
+  // esta arriba, en los datos de la empresa: repetirla no aporta.
+  const sedeCfg = cfg?.sede;
+  const dirSede = sedeCfg?.direccion || sedeCfg?.direccionFiscalSede;
+  const nombreSede = sedeCfg?.nombre || c.sede?.nombre;
+  const sedeConDireccion = nombreSede
+    ? dirSede
+      ? `${nombreSede} - ${dirSede}`
+      : nombreSede
+    : '-';
+
   // Codigo, fecha y vencimiento ya estan en la cabecera: repetirlos aca solo
   // gastaba renglones.
   const infoLines = [
     ['Vendedor:', vendedorNombre],
-    ['Sede:', c.sede?.nombre || '-'],
+    ['Sede:', sedeConDireccion],
     ['Moneda:', c.moneda],
   ];
 
@@ -280,22 +292,33 @@ export async function construirCotizacionPdf(params: {
     ['Direccion:', c.direccionCliente || '-'],
   ];
 
-  const maxLines = Math.max(infoLines.length, clienteLines.length);
-  for (let i = 0; i < maxLines; i++) {
-    if (infoLines[i]) {
+  // Cada columna avanza SU propio alto y los valores se parten al ancho de su
+  // columna: una direccion larga --la de la sede o la del cliente-- antes se
+  // dibujaba en una sola linea y se montaba sobre la columna de al lado.
+  const sangriaValor = 25;
+  const dibujarColumna = (
+    filas: string[][],
+    x: number,
+    ancho: number,
+    yInicial: number,
+  ) => {
+    let yc = yInicial;
+    for (const [label, valor] of filas) {
       doc.setFont('helvetica', 'bold');
-      doc.text(infoLines[i][0], col1X, y);
+      doc.text(label, x, yc);
       doc.setFont('helvetica', 'normal');
-      doc.text(infoLines[i][1], col1X + 25, y);
+      const partes: string[] = doc.splitTextToSize(valor || '-', ancho - sangriaValor);
+      doc.text(partes, x + sangriaValor, yc);
+      yc += 4.5 * partes.length;
     }
-    if (clienteLines[i]) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(clienteLines[i][0], col2X, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(clienteLines[i][1], col2X + 25, y);
-    }
-    y += 4.5;
-  }
+    return yc;
+  };
+
+  const yInfo = dibujarColumna(infoLines, col1X, col2X - 4 - col1X, y);
+  const yCliente = clienteLines.length
+    ? dibujarColumna(clienteLines, col2X, pageWidth - marginR - col2X, y)
+    : y;
+  y = Math.max(yInfo, yCliente);
 
   y += 4;
 

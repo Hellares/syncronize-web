@@ -98,7 +98,23 @@ export interface PlantillaDocumento {
 export interface ConfiguracionCompleta {
   configuracion: ConfiguracionDocumentos;
   plantilla: PlantillaDocumento;
-  sede?: { id: string; nombre: string } | null;
+  /**
+   * Sede emisora, solo si se pidió con `sedeId`. Trae la dirección: la del
+   * documento sale de acá, no de `Cotizacion.sede`, que solo tiene el nombre.
+   */
+  sede?: {
+    id: string;
+    nombre: string;
+    direccion?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    distrito?: string | null;
+    provincia?: string | null;
+    departamento?: string | null;
+    rucSede?: string | null;
+    razonSocialSede?: string | null;
+    direccionFiscalSede?: string | null;
+  } | null;
 }
 
 export type UpdateConfiguracionDto = Partial<

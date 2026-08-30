@@ -62,7 +62,7 @@ export interface Cotizacion {
   actualizadoEn: string;
   detalles?: CotizacionDetalle[];
   sede?: { id: string; nombre: string };
-  vendedor?: { id: string; persona?: { nombres: string; apellidos: string } };
+  vendedor?: { id: string; aliasTicket?: string | null; persona?: { nombres: string; apellidos: string } };
   cliente?: { id: string; persona?: { nombres: string; apellidos: string } };
   // Campos nuevos (paridad Flutter 2026-06)
   sedeNombre?: string;
@@ -87,6 +87,11 @@ export interface Cotizacion {
 /** Vendedor para el ticket: alias si existe, si no el nombre (paridad Cotizacion.vendedorParaTicket Flutter) */
 export function vendedorParaTicket(c: Cotizacion): string {
   if (c.vendedorAlias && c.vendedorAlias.trim()) return c.vendedorAlias;
+  // 🔴 El backend NO manda `vendedorAlias` plano: el alias viene anidado en
+  // `vendedor.aliasTicket`. Sin este caso el alias no se veia nunca y siempre
+  // salia el nombre completo, que es justo lo que el alias evita.
+  const alias = c.vendedor?.aliasTicket;
+  if (alias && alias.trim()) return alias;
   if (c.vendedorNombre) return c.vendedorNombre;
   const p = c.vendedor?.persona;
   return p ? `${p.nombres ?? ''} ${p.apellidos ?? ''}`.trim() : '';
