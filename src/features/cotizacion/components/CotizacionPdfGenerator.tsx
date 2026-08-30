@@ -5,6 +5,7 @@ import { AxiosError } from 'axios';
 import type { Cotizacion } from '@/core/types/cotizacion';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import * as whatsappService from '@/features/whatsapp/services/whatsapp-service';
+import * as cfgService from '@/features/configuracion-documentos/services/configuracion-documentos-service';
 import { construirCotizacionPdf, type ModoCotizacionPdf } from './cotizacion-pdf';
 
 interface Props {
@@ -32,6 +33,10 @@ export default function CotizacionPdfGenerator({ cotizacion, onClose }: Props) {
   const [enviarWa, setEnviarWa] = useState(false);
   const [numero, setNumero] = useState(c.telefonoCliente ?? '');
   const [waConectado, setWaConectado] = useState<boolean | null>(null);
+  // El nombre con el que la empresa se presenta. Sale de la MISMA fuente que
+  // el encabezado del PDF, para que el mensaje y el documento no digan
+  // nombres distintos.
+  const [nombreMarca, setNombreMarca] = useState<string>('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
@@ -45,6 +50,14 @@ export default function CotizacionPdfGenerator({ cotizacion, onClose }: Props) {
       // Sin respuesta se asume NO conectado: prometer un envío que va a fallar
       // es peor que ofrecer la descarga, que siempre funciona.
       .catch(() => { if (!cancelado) setWaConectado(false); });
+
+    cfgService
+      .getConfiguracion()
+      .then(cfg => {
+        if (!cancelado) setNombreMarca(cfg.nombreComercial?.trim() ?? '');
+      })
+      // Sin configuracion se cae al nombre de la empresa, mas abajo.
+      .catch(() => {});
     return () => { cancelado = true; };
   }, [empresa?.id]);
 
@@ -79,7 +92,9 @@ export default function CotizacionPdfGenerator({ cotizacion, onClose }: Props) {
         numero: tel,
         base64: base64Pelado(doc.output('datauristring')),
         nombreArchivo,
-        caption: `Hola${c.nombreCliente ? ` ${c.nombreCliente}` : ''}, te enviamos la cotización ${c.codigo}.`,
+        caption:
+          `Hola, te saludamos tus amigos de ${nombreMarca || empresa.nombre || empresa.razonSocial || 'la empresa'}. ` +
+          `Te enviamos la cotización ${c.codigo}.`,
       });
       setEnviado(true);
     } catch (err) {
