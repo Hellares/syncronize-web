@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Producto, PaginationMeta, StockPorSedeInfo } from '@/core/types/producto';
 import { infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
 import { presentacionPlana } from '@/core/utils/unidad-presentacion';
+import { stockPorVarianteTexto } from './variantes/filtro-variantes';
 import StockBadge from './StockBadge';
 
 interface Props {
@@ -203,9 +204,12 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
 
                   {/* Stock */}
                   <td className="px-4 py-3 text-center">
+                    {/* 🔴 Un par SACO→GRANEL tiene variantes en unidades
+                        DISTINTAS: sumarlas da "31290 g", que no son ni gramos
+                        ni sacos. Se muestran por separado, como el app. */}
                     <StockBadge
                       cantidad={stock.cantidad ?? 0}
-                      texto={pres.cantidadTexto(stock.cantidad ?? 0)}
+                      texto={stockPorVarianteTexto(p) ?? pres.cantidadTexto(stock.cantidad ?? 0)}
                       stockMinimo={stock.stockMinimo ?? undefined}
                     />
                   </td>

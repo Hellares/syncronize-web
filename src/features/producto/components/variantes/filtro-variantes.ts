@@ -1,4 +1,4 @@
-import type { ProductoVariante } from '@/core/types/producto';
+import type { Producto, ProductoVariante } from '@/core/types/producto';
 import { simboloUnidad } from '@/core/types/producto';
 import { UnidadPresentacion, presentacionPlana, type PresentacionPlana } from '@/core/utils/unidad-presentacion';
 import { coincideTodosLosTerminos, normalizarTexto, terminosBusqueda } from '@/core/utils/busqueda-texto';
@@ -249,4 +249,48 @@ export function resumenVisible(
 
   const texto = u0.cantidadTexto(total);
   return { cantidad: visibles.length, stock: u0.simboloVisible == null ? `${texto} u` : texto };
+}
+
+/**
+ * Stock del producto AGRUPADO por unidad: "31.289 kg · 1 und".
+ *
+ * Port de `ProductoListItem.stockPorVarianteTexto` del app. Un par
+ * SACO→GRANEL tiene variantes en unidades DISTINTAS: sumarlas da "31290 g",
+ * que no son ni gramos ni sacos. Se agrupa por símbolo en vez de enumerar
+ * variante por variante, porque un producto con doce sabores daría una tira
+ * ilegible.
+ *
+ * Devuelve null cuando todas comparten unidad (colores, tallas) o cuando el
+ * payload no trae el stock de las variantes: ahí el badge de siempre alcanza.
+ */
+export function stockPorVarianteTexto(producto: Producto): string | null {
+  const vs = producto.variantes;
+  if (!producto.tieneVariantes || !vs || vs.length < 2) return null;
+
+  const primera = vs[0];
+  const enUnidadesDistintas = vs.some(
+    (v) =>
+      v.unidadMedidaId !== primera.unidadMedidaId ||
+      Number(v.factorPresentacion ?? 1) !== Number(primera.factorPresentacion ?? 1),
+  );
+  if (!enUnidadesDistintas) return null;
+
+  const porUnidad = new Map<string, number>();
+  for (const v of vs) {
+    const total = v.stocksPorSede?.reduce((a, b) => a + (b.cantidad ?? 0), 0) ?? 0;
+    if (total <= 0) continue;
+    const pres = presentacionDeVariante(v, producto);
+    const simbolo = pres.simboloVisible ?? simboloUnidad(v.unidadMedida) ?? 'und';
+    porUnidad.set(simbolo, (porUnidad.get(simbolo) ?? 0) + pres.cantidad(total));
+  }
+  if (porUnidad.size === 0) return null;
+
+  return [...porUnidad.entries()]
+    .map(([simbolo, valor]) => `${sinCerosSobrantes(valor)} ${simbolo}`)
+    .join(' · ');
+}
+
+function sinCerosSobrantes(v: number): string {
+  if (Number.isInteger(v)) return v.toFixed(0);
+  return v.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
 }
