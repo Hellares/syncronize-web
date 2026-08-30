@@ -90,14 +90,21 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
                     {/* El chip de deuda va en ESTA fila, junto al abonado, y no
                         debajo del precio: es una línea menos de alto por
                         componente y el abono queda al lado de lo que falta. */}
-                    <div className="ml-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] text-gray-400">
-                      <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <div className="ml-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] text-gray-400">
+                      <span className="flex min-w-0 items-start gap-1.5">
+                        {/* Misma flecha que el app: marca que esto cuelga del
+                            componente de arriba y no es una linea suelta. */}
+                        <svg className="mt-[1px] h-3 w-3 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 10l5 5-5 5M4 4v7a4 4 0 0 0 4 4h12" />
+                        </svg>
+                        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         {/* Con UN solo motivo su importe ES el total de arriba:
                             repetirlo no agrega nada. Con dos, cada importe sí
                             dice cómo se compone el total. */}
                         {mo > 0 && <span>Mano de obra{unSoloMotivo ? '' : <>: <b className="text-gray-500">{fmt(mo)}</b></>}</span>}
                         {rep > 0 && <span>Repuesto/compra{unSoloMotivo ? '' : <>: <b className="text-gray-500">{fmt(rep)}</b></>}</span>}
-                        {abonado > 0 && <span>Abonado: <b className="text-green-700">{fmt(abonado)}</b></span>}
+                          {abonado > 0 && <span>Abonado: <b className="text-green-700">{fmt(abonado)}</b></span>}
+                        </span>
                       </span>
                       {cubierta ? (
                         <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✓ pagado</span>
