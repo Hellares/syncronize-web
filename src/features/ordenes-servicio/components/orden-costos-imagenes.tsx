@@ -80,26 +80,30 @@ export function ResumenCostosCard({ orden, canManage, onChanged }: { orden: Orde
                 // saldo aparte, solo dice qué quedó cubierto.
                 const abonado = imputado[c.id] ?? 0;
                 const cubierta = abonado > 0 && abonado + 0.005 >= mo + rep;
+                const unSoloMotivo = (mo > 0) !== (rep > 0);
                 return (
                   <div key={c.id} className="mb-1">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-xs text-gray-700">🔧 {nombreComponenteOrden(c)}</span>
-                      {/* Lo que falta va DEBAJO del precio, no al lado del
-                          desglose: el saldo del repuesto se lee contra su
-                          total, y así no hay que restar al ojo. */}
-                      <div className="flex shrink-0 flex-col items-end gap-0.5">
-                        <span className="text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
-                        {cubierta ? (
-                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✓ pagado</span>
-                        ) : abonado > 0 ? (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">Debe {fmt(mo + rep - abonado)}</span>
-                        ) : null}
-                      </div>
+                      <span className="shrink-0 text-xs font-semibold text-gray-700">{fmt(mo + rep)}</span>
                     </div>
-                    <div className="ml-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
-                      {mo > 0 && <span>Mano de obra: <b className="text-gray-500">{fmt(mo)}</b></span>}
-                      {rep > 0 && <span>Repuesto/compra: <b className="text-gray-500">{fmt(rep)}</b></span>}
-                      {abonado > 0 && !cubierta && <span>Abonado: <b className="text-green-700">{fmt(abonado)}</b></span>}
+                    {/* El chip de deuda va en ESTA fila, junto al abonado, y no
+                        debajo del precio: es una línea menos de alto por
+                        componente y el abono queda al lado de lo que falta. */}
+                    <div className="ml-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] text-gray-400">
+                      <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        {/* Con UN solo motivo su importe ES el total de arriba:
+                            repetirlo no agrega nada. Con dos, cada importe sí
+                            dice cómo se compone el total. */}
+                        {mo > 0 && <span>Mano de obra{unSoloMotivo ? '' : <>: <b className="text-gray-500">{fmt(mo)}</b></>}</span>}
+                        {rep > 0 && <span>Repuesto/compra{unSoloMotivo ? '' : <>: <b className="text-gray-500">{fmt(rep)}</b></>}</span>}
+                        {abonado > 0 && <span>Abonado: <b className="text-green-700">{fmt(abonado)}</b></span>}
+                      </span>
+                      {cubierta ? (
+                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✓ pagado</span>
+                      ) : abonado > 0 ? (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">Debe {fmt(mo + rep - abonado)}</span>
+                      ) : null}
                     </div>
                   </div>
                 );
