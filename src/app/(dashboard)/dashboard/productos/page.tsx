@@ -9,6 +9,7 @@ import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as stockService from '@/features/stock/services/stock-service';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import ProductoImagenesDialog from '@/features/producto/components/ProductoImagenesDialog';
 import type { ProductoStock } from '@/core/types/stock';
 import type { Producto } from '@/core/types/producto';
 import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
@@ -16,7 +17,7 @@ import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-c
 export default function ProductosPage() {
   const { productos, meta, filtros, isLoading, error, updateFiltros, setPage, reload, resetFiltros } = useProductos();
   const permissions = usePermissions();
-  const { sedes } = useEmpresa();
+  const { sedes, empresa } = useEmpresa();
   const sedeActiva = sedes.find((s) => s.id === filtros.sedeId);
 
   /**
@@ -50,6 +51,7 @@ export default function ProductosPage() {
   const [preciosStock, setPreciosStock] = useState<ProductoStock | null>(null);
   const [preciosCargando, setPreciosCargando] = useState<string | null>(null);
   const [preciosError, setPreciosError] = useState<string | null>(null);
+  const [imagenesTarget, setImagenesTarget] = useState<Producto | null>(null);
 
   /**
    * Los precios son POR SEDE, y la lista de productos no siempre tiene una
@@ -176,6 +178,7 @@ export default function ProductosPage() {
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}
         onConfigurarPrecios={permissions.canManageProducts ? abrirPrecios : undefined}
+        onGestionarImagenes={permissions.canManageProducts ? setImagenesTarget : undefined}
         hayFiltros={hayFiltros}
         onLimpiarFiltros={resetFiltros}
         puedeCrear={permissions.canManageProducts}
@@ -188,6 +191,16 @@ export default function ProductosPage() {
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm text-amber-800">{preciosError}</p>
         </div>
+      )}
+
+      {imagenesTarget && (
+        <ProductoImagenesDialog
+          key={imagenesTarget.id}
+          producto={imagenesTarget}
+          empresaId={empresa?.id}
+          onClose={() => setImagenesTarget(null)}
+          onChanged={reload}
+        />
       )}
 
       <UpdatePreciosDialog

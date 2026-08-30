@@ -19,6 +19,8 @@ interface Props {
   onToggleActive?: (producto: Producto) => void;
   /** Abre el diálogo de precios de la sede activa. */
   onConfigurarPrecios?: (producto: Producto) => void;
+  /** Abre el diálogo de imágenes del producto. */
+  onGestionarImagenes?: (producto: Producto) => void;
   /** Hay algo filtrado: cambia QUE dice el vacio. */
   hayFiltros?: boolean;
   onLimpiarFiltros?: () => void;
@@ -40,7 +42,7 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
   const router = useRouter();
 
   if (isLoading) {
@@ -258,6 +260,20 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <circle cx="12" cy="12" r="8.5" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5a2.6 2.6 0 00-2.5-1.5c-1.4 0-2.3.8-2.3 1.8 0 2.4 5 1.2 5 3.7 0 1.1-1 1.9-2.5 1.9a2.7 2.7 0 01-2.6-1.6M12 6.5v11" />
+                          </svg>
+                        </button>
+                      )}
+                      {/* Clip = imágenes. Solo en productos SIN variantes,
+                          igual que el app: las de un producto con variantes
+                          son de cada variante. */}
+                      {onGestionarImagenes && !p.tieneVariantes && (
+                        <button
+                          onClick={() => onGestionarImagenes(p)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-violet-50 hover:text-violet-600"
+                          title="Imágenes"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
                           </svg>
                         </button>
                       )}

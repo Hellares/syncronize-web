@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
+import { useImagenPegada, nombreDeCaptura } from '@/features/ordenes-servicio/hooks/use-imagen-pegada';
 
 interface ImageItem {
   id: string;
@@ -24,6 +25,8 @@ interface InitialImage {
 interface Props {
   empresaId: string;
   productoId?: string;
+  /** Va en el nombre del archivo pegado, para distinguirlo después. */
+  nombreProducto?: string;
   initialImages?: InitialImage[];
   maxImages?: number;
   onChange?: (images: ArchivoResponse[]) => void;
@@ -32,7 +35,7 @@ interface Props {
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-export default function ImageUploader({ empresaId, productoId, initialImages = [], maxImages = 10, onChange }: Props) {
+export default function ImageUploader({ empresaId, productoId, nombreProducto, initialImages = [], maxImages = 10, onChange }: Props) {
   const [images, setImages] = useState<ImageItem[]>(
     initialImages.map((img) => ({ id: img.id, url: img.url, urlThumbnail: img.urlThumbnail }))
   );
@@ -105,6 +108,24 @@ export default function ImageUploader({ empresaId, productoId, initialImages = [
     if (inputRef.current) inputRef.current.value = '';
   }, [images.length, maxImages, handleUpload]);
 
+  /**
+   * Pegar (Ctrl+V) y arrastrar, con el mismo camino que la subida normal.
+   *
+   * El portapapeles entrega la captura como `image.png` a secas: se le pone un
+   * nombre con el producto y la hora, o con tres capturas la lista queda
+   * ilegible.
+   */
+  const { arrastrando, zona } = useImagenPegada({
+    activo: images.length < maxImages,
+    prefijoNombre: nombreProducto ?? 'producto',
+    onImagen: (file) =>
+      handleUpload(
+        file.name && file.name !== 'image.png'
+          ? file
+          : new File([file], nombreDeCaptura(file, nombreProducto ?? 'producto'), { type: file.type }),
+      ),
+  });
+
   const handleDelete = useCallback(async (imageId: string) => {
     const image = images.find((i) => i.id === imageId);
     if (!image) return;
@@ -138,7 +159,10 @@ export default function ImageUploader({ empresaId, productoId, initialImages = [
   }, [images, handleUpload]);
 
   return (
-    <div className="space-y-3">
+    <div
+      {...zona}
+      className={`space-y-3 rounded-lg transition-colors ${arrastrando ? 'bg-[#437EFF]/5 ring-2 ring-dashed ring-[#437EFF]' : ''}`}
+    >
       {error && (
         <div className="flex items-center justify-between rounded-lg bg-red-50 border border-red-200 px-3 py-2">
           <p className="text-xs text-red-600">{error}</p>
@@ -211,7 +235,10 @@ export default function ImageUploader({ empresaId, productoId, initialImages = [
       </div>
 
       <p className="text-[10px] text-gray-400">
-        {images.length}/{maxImages} imágenes · JPG, PNG, WebP · Máx 10MB
+        {images.length}/{maxImages} imágenes · JPG, PNG, WebP · Máx 10MB ·
+        {' '}pegá con <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">Ctrl</kbd>
+        {' '}+{' '}
+        <kbd className="rounded border border-gray-200 bg-gray-50 px-1 font-sans text-[9px] text-gray-500">V</kbd> o arrastrá
       </p>
 
       <input
