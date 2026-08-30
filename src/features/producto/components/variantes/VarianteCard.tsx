@@ -13,9 +13,11 @@ interface Props {
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Abre el diálogo de imágenes de la variante. */
+  onImagenes?: () => void;
 }
 
-export default function VarianteCard({ variante, presentacionProducto, canManage, onView, onEdit, onDelete }: Props) {
+export default function VarianteCard({ variante, presentacionProducto, canManage, onView, onEdit, onDelete, onImagenes }: Props) {
   const stockTotal = variante.stocksPorSede?.reduce((sum, s) => sum + s.cantidad, 0) ?? 0;
   // El stock se guarda en unidad de venta y se lee en la de presentación:
   // "28 kg", no "28000".
@@ -54,6 +56,13 @@ export default function VarianteCard({ variante, presentacionProducto, canManage
           </button>
           {canManage && (
             <>
+              {onImagenes && (
+                <button onClick={onImagenes} title="Imágenes" className="rounded-lg p-1.5 text-gray-400 hover:bg-violet-50 hover:text-violet-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                  </svg>
+                </button>
+              )}
               <button onClick={onEdit} title="Editar" className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-50 hover:text-[#437EFF]">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

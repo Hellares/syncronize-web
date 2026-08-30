@@ -25,6 +25,11 @@ interface InitialImage {
 interface Props {
   empresaId: string;
   productoId?: string;
+  /**
+   * Si viene, las imágenes son de la VARIANTE y no del producto: cambia la
+   * entidad con la que se guardan, no solo el id.
+   */
+  varianteId?: string;
   /** Va en el nombre del archivo pegado, para distinguirlo después. */
   nombreProducto?: string;
   initialImages?: InitialImage[];
@@ -35,7 +40,7 @@ interface Props {
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-export default function ImageUploader({ empresaId, productoId, nombreProducto, initialImages = [], maxImages = 10, onChange }: Props) {
+export default function ImageUploader({ empresaId, productoId, varianteId, nombreProducto, initialImages = [], maxImages = 10, onChange }: Props) {
   const [images, setImages] = useState<ImageItem[]>(
     initialImages.map((img) => ({ id: img.id, url: img.url, urlThumbnail: img.urlThumbnail }))
   );
@@ -71,8 +76,8 @@ export default function ImageUploader({ empresaId, productoId, nombreProducto, i
       const result = await storageService.uploadFile({
         file,
         empresaId,
-        entidadTipo: 'PRODUCTO',
-        entidadId: productoId,
+        entidadTipo: varianteId ? 'PRODUCTO_VARIANTE' : 'PRODUCTO',
+        entidadId: varianteId ?? productoId,
         categoria: 'GALERIA',
         onProgress: (progress) => updateImage(tempId, { progress }),
       });
@@ -93,7 +98,7 @@ export default function ImageUploader({ empresaId, productoId, nombreProducto, i
     } catch {
       updateImage(tempId, { isUploading: false, error: 'Error al subir imagen' });
     }
-  }, [empresaId, productoId, updateImage, onChange]);
+  }, [empresaId, productoId, varianteId, updateImage, onChange]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);

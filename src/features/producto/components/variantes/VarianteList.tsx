@@ -16,6 +16,7 @@ import VarianteTable from './VarianteTable';
 import VarianteFormDialog from './VarianteFormDialog';
 import GenerarCombinacionesDialog from './GenerarCombinacionesDialog';
 import VarianteDetailDialog from './VarianteDetailDialog';
+import ProductoImagenesDialog from '../ProductoImagenesDialog';
 
 interface Props {
   productoId: string;
@@ -50,7 +51,7 @@ export default function VarianteList({
   const {
     variantes, atributosDisponibles, isLoading, isSubmitting,
     error, successMessage, clearMessages,
-    createVariante, updateVariante, deleteVariante, generarCombinaciones,
+    createVariante, updateVariante, deleteVariante, generarCombinaciones, loadVariantes,
   } = useVariantes(productoId);
 
   const permissions = usePermissions();
@@ -58,7 +59,7 @@ export default function VarianteList({
 
   // 🔴 Precio y costo son POR SEDE: sin decir de cual se habla, el filtro
   // numerico compararia contra un numero que no es el que esta en la tabla.
-  const { sedes } = useEmpresa();
+  const { sedes, empresa } = useEmpresa();
   const sedesActivas = useMemo(() => sedes.filter((s) => s.isActive), [sedes]);
   // Derivada y no en estado: las sedes llegan del contexto DESPUES del primer
   // render, y sembrar el default desde un efecto encadena renders.
@@ -75,6 +76,7 @@ export default function VarianteList({
   const [formOpen, setFormOpen] = useState(false);
   const [editingVariante, setEditingVariante] = useState<ProductoVariante | null>(null);
   const [generarOpen, setGenerarOpen] = useState(false);
+  const [imagenesVariante, setImagenesVariante] = useState<ProductoVariante | null>(null);
   const [detailVariante, setDetailVariante] = useState<ProductoVariante | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductoVariante | null>(null);
   /**
@@ -430,6 +432,7 @@ export default function VarianteList({
         <VarianteTable
           variantes={filtradas}
           presentacionProducto={presentacionProducto}
+          onImagenes={canManage ? setImagenesVariante : undefined}
           ejes={ejes}
           canManage={canManage}
           seleccionadaId={seleccionadaId}
@@ -444,6 +447,7 @@ export default function VarianteList({
               key={v.id}
               variante={v}
               presentacionProducto={presentacionProducto}
+              onImagenes={canManage ? () => setImagenesVariante(v) : undefined}
               canManage={canManage}
               onView={() => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
               onEdit={() => handleEdit(v)}
@@ -479,6 +483,19 @@ export default function VarianteList({
         variante={detailVariante}
         onClose={() => setDetailVariante(null)}
       />
+
+      {/* Imágenes de UNA variante. Se monta con `key` para que cada una entre
+          con estado limpio, igual que el de producto. */}
+      {imagenesVariante && (
+        <ProductoImagenesDialog
+          key={imagenesVariante.id}
+          producto={imagenesVariante}
+          esVariante
+          empresaId={empresa?.id}
+          onClose={() => setImagenesVariante(null)}
+          onChanged={loadVariantes}
+        />
+      )}
 
       {/* Delete Dialog */}
       {deleteTarget && (

@@ -21,6 +21,8 @@ interface Props {
   onView: (v: ProductoVariante) => void;
   onEdit: (v: ProductoVariante) => void;
   onDelete: (v: ProductoVariante) => void;
+  /** Abre el diálogo de imágenes de la variante. */
+  onImagenes?: (v: ProductoVariante) => void;
 }
 
 /** Valor de un eje en una variante, o null si esa variante no lo declara. */
@@ -75,7 +77,7 @@ function estadoDe(v: ProductoVariante, ejes: string[]): { color: string; titulo:
   return { color: 'bg-green-500', titulo: 'Activa', alerta: false };
 }
 
-export default function VarianteTable({ variantes, presentacionProducto, ejes, canManage, seleccionadaId, onView, onEdit, onDelete }: Props) {
+export default function VarianteTable({ variantes, presentacionProducto, ejes, canManage, seleccionadaId, onView, onEdit, onDelete, onImagenes }: Props) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-gray-100">
       <table className="w-full border-collapse text-left">
@@ -145,6 +147,17 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
                 <td className="px-2.5 py-1.5 text-right">
                   {canManage && (
                     <div className="inline-flex gap-1.5 text-gray-300">
+                      {onImagenes && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onImagenes(v); }}
+                          title="Imágenes"
+                          className="rounded p-0.5 transition-colors hover:bg-violet-50 hover:text-violet-600"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                          </svg>
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); onEdit(v); }}
                         title="Editar"
