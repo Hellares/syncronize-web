@@ -333,8 +333,8 @@ export async function construirCotizacionPdf(params: {
   } else if (mode === 'interno') {
     // Full detail table
     const tableHead = [['#', 'Descripcion', 'Cant.', 'P. Unit.', 'Desc.', 'IGV', 'Total']];
-    const tableBody = detalles.map((d, i) => [
-      String(i + 1),
+    const tableBody = detalles.map((d) => [
+      '-',
       d.descripcion,
       String(d.cantidad),
       `${currSymbol} ${fmt(d.precioUnitario)}`,
@@ -367,8 +367,8 @@ export async function construirCotizacionPdf(params: {
   } else {
     // Client mode - simplified
     const tableHead = [['#', 'Descripcion', 'Cant.', 'Total']];
-    const tableBody = detalles.map((d, i) => [
-      String(i + 1),
+    const tableBody = detalles.map((d) => [
+      '-',
       d.descripcion,
       String(d.cantidad),
       `${currSymbol} ${fmt(d.total)}`,
@@ -448,8 +448,10 @@ export async function construirCotizacionPdf(params: {
     doc.text('Condiciones:', margin, y);
     y += 4;
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(125, 125, 125);
     const condLines = doc.splitTextToSize(c.condiciones, pageWidth - margin * 2);
     doc.text(condLines, margin, y);
+    doc.setTextColor(...colorTxt);
   }
 
   // Espacio de firma: se ancla ABAJO y no despues del texto, porque es
