@@ -234,6 +234,15 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           </svg>
                         </button>
                       )}
+                      {p.tieneVariantes && (
+                        <Link
+                          href={`/dashboard/productos/${p.id}/variantes`}
+                          className="rounded-lg border border-[#437EFF] px-2 py-1 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5"
+                          title="Gestionar variantes"
+                        >
+                          Gestionar
+                        </Link>
+                      )}
                       {!p.esCombo && (
                         <Link
                           href={`/dashboard/productos/${p.id}/componentes`}

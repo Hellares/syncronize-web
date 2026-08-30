@@ -467,6 +467,17 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           columnas —un eje por atributo— no entra en dos tercios. */}
       {producto.tieneVariantes && (
         <div className="rounded-xl border border-gray-200 bg-white p-5">
+          {/* La lista se queda: acá es un SELECTOR del que dependen la galería
+              y la edición de precios por variante. La pantalla aparte es el
+              centro de gestión (mayoreo, análisis, edición masiva). */}
+          <div className="mb-3 flex justify-end">
+            <Link
+              href={`/dashboard/productos/${producto.id}/variantes`}
+              className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5"
+            >
+              Gestionar variantes
+            </Link>
+          </div>
           <VarianteList
             productoId={producto.id}
             productoNombre={producto.nombre}
