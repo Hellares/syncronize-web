@@ -2,17 +2,24 @@
 
 import type { ProductoVariante } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoOfertaActiva, infoLiquidacionActiva } from '@/core/types/producto';
+import type { PresentacionPlana } from '@/core/utils/unidad-presentacion';
+import { presentacionDeVariante } from './filtro-variantes';
 
 interface Props {
   variante: ProductoVariante;
+  /** Presentación del PRODUCTO; la variante sin una propia la hereda. */
+  presentacionProducto?: PresentacionPlana | null;
   canManage: boolean;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-export default function VarianteCard({ variante, canManage, onView, onEdit, onDelete }: Props) {
+export default function VarianteCard({ variante, presentacionProducto, canManage, onView, onEdit, onDelete }: Props) {
   const stockTotal = variante.stocksPorSede?.reduce((sum, s) => sum + s.cantidad, 0) ?? 0;
+  // El stock se guarda en unidad de venta y se lee en la de presentación:
+  // "28 kg", no "28000".
+  const stockTexto = presentacionDeVariante(variante, presentacionProducto).cantidadTexto(stockTotal);
   const stockConPrecio = variante.stocksPorSede?.find(s => s.precioConfigurado);
   // Precio efectivo con la misma prioridad que Flutter/backend: liquidación > oferta vigente > base
   const precio = stockConPrecio ? infoPrecioEfectivo(stockConPrecio) : undefined;
@@ -85,16 +92,11 @@ export default function VarianteCard({ variante, canManage, onView, onEdit, onDe
               <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">OFERTA</span>
             )}
           </div>
-          {precio != null ? (
-            <p className={`text-sm font-bold ${liqActiva ? 'text-red-600' : ofertaActiva ? 'text-green-600' : 'text-gray-900'}`}>
-              S/ {Number(precio).toFixed(2)}
-              {(liqActiva || ofertaActiva) && precioBase != null && precioBase !== precio && (
-                <span className="ml-1.5 text-xs font-normal text-gray-400 line-through">S/ {Number(precioBase).toFixed(2)}</span>
-              )}
-            </p>
-          ) : (
-            <p className="text-xs text-gray-400">Sin precio</p>
-          )}
+          {/* Sin precio, como el app: el de una variante se mira y se edita en
+              su propia pantalla de precios, no de refilón en la tarjeta. Se
+              conserva el aviso cuando NO tiene ninguno configurado, porque esa
+              variante no se puede vender. */}
+          {precio == null && <p className="text-xs text-amber-600">Sin precio</p>}
         </div>
         <div className="text-right">
           <p className="text-[10px] font-medium uppercase text-gray-400">Stock</p>
@@ -104,7 +106,7 @@ export default function VarianteCard({ variante, canManage, onView, onEdit, onDe
             ) : (
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             )}
-            {stockTotal}
+            {stockTexto}
           </span>
         </div>
       </div>

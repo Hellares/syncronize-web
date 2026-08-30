@@ -2,9 +2,17 @@
 
 import type { ProductoVariante } from '@/core/types/producto';
 import { infoLiquidacionActiva, infoOfertaActiva, infoPrecioEfectivo } from '@/core/types/producto';
+import type { PresentacionPlana } from '@/core/utils/unidad-presentacion';
+import { presentacionDeVariante } from './filtro-variantes';
 
 interface Props {
   variantes: ProductoVariante[];
+  /**
+   * Presentación del PRODUCTO: la variante que no tiene una propia la hereda.
+   * Sin esto el stock de un granel se imprime en gramos ("28000") en vez de
+   * en la unidad en la que se habla ("28 kg").
+   */
+  presentacionProducto?: PresentacionPlana | null;
   /** Ejes del producto, en orden. Cada uno es una COLUMNA. */
   ejes: string[];
   canManage: boolean;
@@ -26,6 +34,11 @@ function stockTotal(v: ProductoVariante): number {
   return v.stocksPorSede?.reduce((s, x) => s + x.cantidad, 0) ?? 0;
 }
 
+/**
+ * 🔴 Ya NO se muestra el precio de la variante —el app tampoco lo hace— pero
+ * esto se queda: de acá sale el punto ámbar "Sin precio", que es lo único que
+ * avisa que una variante existe, tiene stock y aun así no se puede vender.
+ */
 function precioDe(v: ProductoVariante): { texto: string; sinPrecio: boolean; rebajado: boolean } {
   const fila = v.stocksPorSede?.find((s) => s.precioConfigurado);
   if (!fila) return { texto: '—', sinPrecio: true, rebajado: false };
@@ -57,7 +70,7 @@ function estadoDe(v: ProductoVariante, ejes: string[]): { color: string; titulo:
   return { color: 'bg-green-500', titulo: 'Activa', alerta: false };
 }
 
-export default function VarianteTable({ variantes, ejes, canManage, seleccionadaId, onView, onEdit, onDelete }: Props) {
+export default function VarianteTable({ variantes, presentacionProducto, ejes, canManage, seleccionadaId, onView, onEdit, onDelete }: Props) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-gray-100">
       <table className="w-full border-collapse text-left">
@@ -70,7 +83,6 @@ export default function VarianteTable({ variantes, ejes, canManage, seleccionada
               </th>
             ))}
             <th className="whitespace-nowrap px-2.5 py-2 text-[9.5px] font-bold uppercase tracking-wide text-gray-500">SKU</th>
-            <th className="whitespace-nowrap px-2.5 py-2 text-right text-[9.5px] font-bold uppercase tracking-wide text-gray-500">Precio</th>
             <th className="whitespace-nowrap px-2.5 py-2 text-center text-[9.5px] font-bold uppercase tracking-wide text-gray-500">Stock</th>
             <th className="w-16 px-2.5 py-2" />
           </tr>
@@ -78,8 +90,8 @@ export default function VarianteTable({ variantes, ejes, canManage, seleccionada
         <tbody>
           {variantes.map((v) => {
             const est = estadoDe(v, ejes);
-            const precio = precioDe(v);
             const stock = stockTotal(v);
+            const stockTexto = presentacionDeVariante(v, presentacionProducto).cantidadTexto(stock);
             return (
               <tr
                 key={v.id}
@@ -109,17 +121,11 @@ export default function VarianteTable({ variantes, ejes, canManage, seleccionada
                   <span className="font-mono text-[10px] text-gray-400">{v.sku}</span>
                 </td>
 
-                <td className={`whitespace-nowrap px-2.5 py-1.5 text-right text-[11.5px] font-bold ${
-                  precio.sinPrecio ? 'text-amber-600' : precio.rebajado ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  {precio.texto}
-                </td>
-
                 <td className="whitespace-nowrap px-2.5 py-1.5 text-center">
                   <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
                     stock <= 0 ? 'bg-red-100 text-red-700' : stock < 5 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                   }`}>
-                    {stock}
+                    {stockTexto}
                   </span>
                 </td>
 

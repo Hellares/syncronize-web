@@ -429,6 +429,7 @@ export default function VarianteList({
       ) : vistaEfectiva === 'tabla' ? (
         <VarianteTable
           variantes={filtradas}
+          presentacionProducto={presentacionProducto}
           ejes={ejes}
           canManage={canManage}
           seleccionadaId={seleccionadaId}
@@ -442,6 +443,7 @@ export default function VarianteList({
             <VarianteCard
               key={v.id}
               variante={v}
+              presentacionProducto={presentacionProducto}
               canManage={canManage}
               onView={() => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
               onEdit={() => handleEdit(v)}
