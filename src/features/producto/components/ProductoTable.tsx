@@ -222,7 +222,12 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                       {/* El ojo se fue: para ver el detalle se hace click en la
                           fila. Su lugar lo ocupa lo que antes solo estaba en
                           Stock por Sede. */}
-                      {onConfigurarPrecios && (
+                      {/* 🔴 Solo en productos SIN variantes: `ProductoStock` es
+                          XOR, asi que un producto con variantes tiene sus filas
+                          de stock POR VARIANTE y no propias. La moneda no
+                          tendria nada que abrir; los precios de esos se tocan
+                          desde Gestionar. */}
+                      {onConfigurarPrecios && !p.tieneVariantes && (
                         <button
                           onClick={() => onConfigurarPrecios(p)}
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600"
