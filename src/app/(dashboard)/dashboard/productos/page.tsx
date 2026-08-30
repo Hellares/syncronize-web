@@ -7,6 +7,9 @@ import ProductoTable from '@/features/producto/components/ProductoTable';
 import ProductoFilters from '@/features/producto/components/ProductoFilters';
 import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
+import * as stockService from '@/features/stock/services/stock-service';
+import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import type { ProductoStock } from '@/core/types/stock';
 import type { Producto } from '@/core/types/producto';
 import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
 
@@ -42,6 +45,41 @@ export default function ProductosPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<Producto | null>(null);
   const [isToggling, setIsToggling] = useState(false);
+
+  // ── Configurar precios desde la lista (paridad con el botón de la card del app) ──
+  const [preciosStock, setPreciosStock] = useState<ProductoStock | null>(null);
+  const [preciosCargando, setPreciosCargando] = useState<string | null>(null);
+  const [preciosError, setPreciosError] = useState<string | null>(null);
+
+  /**
+   * Los precios son POR SEDE, y la lista de productos no siempre tiene una
+   * filtrada. Se usa la del filtro y, si no hay, la sede principal: es la misma
+   * decisión que toma el app, que trabaja con "la sede actual".
+   */
+  const sedeParaPrecios =
+    filtros.sedeId ?? sedes.find((s) => s.esPrincipal)?.id ?? sedes[0]?.id;
+
+  const abrirPrecios = async (producto: Producto) => {
+    if (!sedeParaPrecios) {
+      setPreciosError('La empresa no tiene sedes: no hay dónde configurar precios.');
+      return;
+    }
+    setPreciosCargando(producto.id);
+    setPreciosError(null);
+    try {
+      // El mismo camino del app: se resuelve el ProductoStock de esa sede y el
+      // diálogo trabaja sobre él.
+      const stock = await stockService.getStockByProductoSede(producto.id, sedeParaPrecios);
+      setPreciosStock(stock);
+    } catch {
+      // Sin fila de stock en esa sede no hay precios que editar. Se dice cuál
+      // es la sede: si no, parece que el producto está roto.
+      const nombreSede = sedes.find((s) => s.id === sedeParaPrecios)?.nombre ?? 'esa sede';
+      setPreciosError(`"${producto.nombre}" no tiene stock en ${nombreSede}, así que no hay precios que configurar ahí.`);
+    } finally {
+      setPreciosCargando(null);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -137,9 +175,26 @@ export default function ProductosPage() {
         onPageChange={setPage}
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}
+        onConfigurarPrecios={permissions.canManageProducts ? abrirPrecios : undefined}
         hayFiltros={hayFiltros}
         onLimpiarFiltros={resetFiltros}
         puedeCrear={permissions.canManageProducts}
+      />
+
+      {preciosCargando && (
+        <p className="text-xs text-gray-500">Cargando precios…</p>
+      )}
+      {preciosError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm text-amber-800">{preciosError}</p>
+        </div>
+      )}
+
+      <UpdatePreciosDialog
+        isOpen={!!preciosStock}
+        stock={preciosStock}
+        onSuccess={() => { setPreciosStock(null); reload(); }}
+        onClose={() => setPreciosStock(null)}
       />
 
       {/* Delete dialog */}

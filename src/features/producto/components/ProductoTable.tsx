@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Producto, PaginationMeta, StockPorSedeInfo } from '@/core/types/producto';
 import { infoLiquidacionActiva, infoOfertaActiva } from '@/core/types/producto';
 import StockBadge from './StockBadge';
@@ -14,6 +15,8 @@ interface Props {
   onPageChange: (page: number) => void;
   onDelete: (producto: Producto) => void;
   onToggleActive?: (producto: Producto) => void;
+  /** Abre el diálogo de precios de la sede activa. */
+  onConfigurarPrecios?: (producto: Producto) => void;
   /** Hay algo filtrado: cambia QUE dice el vacio. */
   hayFiltros?: boolean;
   onLimpiarFiltros?: () => void;
@@ -35,7 +38,9 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+  const router = useRouter();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -112,7 +117,14 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
               const img = getImageUrl(p);
 
               return (
-                <tr key={p.id} className="transition-colors hover:bg-gray-50/50">
+                // La fila entera lleva al detalle. El nombre sigue siendo un
+                // <Link> de verdad: sin eso no hay teclado, ni "abrir en pestaña
+                // nueva", ni ver la URL al pasar por encima.
+                <tr
+                  key={p.id}
+                  onClick={() => router.push(`/dashboard/productos/${p.id}`)}
+                  className="cursor-pointer transition-colors hover:bg-gray-50/50"
+                >
                   {/* Producto (imagen + nombre + badges) */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -192,7 +204,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   {/* Estado (clickeable si puede gestionar) */}
                   <td className="px-4 py-3 text-center">
                     <button
-                      onClick={() => canManage && onToggleActive?.(p)}
+                      onClick={e => { e.stopPropagation(); if (canManage) onToggleActive?.(p); }}
                       disabled={!canManage || !onToggleActive}
                       title={canManage ? (p.isActive ? 'Click para desactivar' : 'Click para activar') : undefined}
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
@@ -203,19 +215,25 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                     </button>
                   </td>
 
-                  {/* Acciones */}
-                  <td className="px-4 py-3 text-right">
+                  {/* Acciones. `stopPropagation` en toda la celda: sin eso,
+                      cada boton navegaria al detalle ademas de lo suyo. */}
+                  <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <Link
-                        href={`/dashboard/productos/${p.id}`}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        title="Ver"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </Link>
+                      {/* El ojo se fue: para ver el detalle se hace click en la
+                          fila. Su lugar lo ocupa lo que antes solo estaba en
+                          Stock por Sede. */}
+                      {onConfigurarPrecios && (
+                        <button
+                          onClick={() => onConfigurarPrecios(p)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600"
+                          title="Configurar precios"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <circle cx="12" cy="12" r="8.5" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5a2.6 2.6 0 00-2.5-1.5c-1.4 0-2.3.8-2.3 1.8 0 2.4 5 1.2 5 3.7 0 1.1-1 1.9-2.5 1.9a2.7 2.7 0 01-2.6-1.6M12 6.5v11" />
+                          </svg>
+                        </button>
+                      )}
                       {!p.esCombo && (
                         <Link
                           href={`/dashboard/productos/${p.id}/componentes`}

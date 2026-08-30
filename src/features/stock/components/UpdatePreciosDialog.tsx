@@ -279,7 +279,12 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
         <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
           <h3 className="text-lg font-bold text-gray-900">Configurar Precios y Stock</h3>
-          <p className="mt-1 text-xs text-gray-500">{nombreProductoStock(stock)}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {nombreProductoStock(stock)}
+            {stock.sede?.nombre && (
+              <span className="ml-1 font-semibold text-[#004A94]">· {stock.sede.nombre}</span>
+            )}
+          </p>
 
           <div className="mt-4 space-y-4">
             {/* En qué unidad se está hablando. Una sola vez y arriba de todo:
