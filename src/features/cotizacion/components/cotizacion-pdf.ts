@@ -214,25 +214,16 @@ export async function construirCotizacionPdf(params: {
     const nombreCabecera = (
       marca?.nombreComercial || empresa?.nombre || empresa?.razonSocial || 'Empresa'
     ).toUpperCase();
-    // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
-    // si no, una linea larga --el nombre, la razon social o la direccion-- se
-    // le mete encima.
-    const anchoTexto = xFicha - xTexto - 6;
-    // El nombre va en el MISMO cuerpo que el RUC: 8 pt y color de cuerpo. Lo
-    // unico que lo distingue es la negrita, asi que todo el bloque de la
-    // izquierda se lee como una sola ficha.
+    // 🔴 El nombre va en `colorEncabezado` --el que ELIGE el usuario-- y en
+    // 12 pt. Es lo unico de la cabecera que lleva su marca cuando la empresa no
+    // tiene logo: bajarlo al color de cuerpo lo deja NEGRO y le borra la
+    // configuracion. La razon social de abajo es la que se suma al bloque de
+    // datos fiscales; el nombre no se toca.
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...colorTxt);
-    // 4 mm hasta la primera linea base y 3.6 entre lineas: el mismo paso que
-    // usa el resto del bloque, para que un nombre de dos renglones no abra un
-    // hueco antes del RUC.
-    let yNombre = yIzq + 4;
-    for (const linea of doc.splitTextToSize(nombreCabecera, anchoTexto)) {
-      doc.text(linea, xTexto, yNombre);
-      yNombre += 3.6;
-    }
-    yIzq = yNombre;
+    doc.setFontSize(12);
+    doc.setTextColor(...colorEnc);
+    doc.text(nombreCabecera, xTexto, yIzq + 4);
+    yIzq += 8;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
@@ -263,6 +254,10 @@ export async function construirCotizacionPdf(params: {
     // misma persona juridica, o el documento diria un RUC con el nombre de
     // otra.
     const razonSocial = sedeDoc?.razonSocialSede ?? empresa?.razonSocial;
+    // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
+    // si no, una linea larga --la razon social o la direccion-- se le mete
+    // encima.
+    const anchoTexto = xFicha - xTexto - 6;
     const lineas: string[] = [];
     // La razon social va ARRIBA del RUC: el nombre de la cabecera es el
     // COMERCIAL, y el cliente necesita el legal para saber a quien le compra.
