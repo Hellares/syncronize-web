@@ -13,6 +13,7 @@ import type { Producto, ProductoVariante, StockPorSedeInfo } from '@/core/types/
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { NivelPrecio } from '@/core/types/venta';
 import { nivelAplicable, precioConNivel, cantidadesGrupoMayoreo, tituloYContextoLinea } from '@/core/types/venta';
+import NumeroInput from '@/components/ui/NumeroInput';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
@@ -942,9 +943,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                             className="flex h-8 w-8 items-center justify-center text-gray-500 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
                           </button>
-                          <input type="number" min={0.01} step="any" value={item.cantidad}
-                            onChange={e => setCantidad(item.key, parseFloat(e.target.value) || 0)}
-                            className="w-12 border-0 bg-transparent p-0 text-center text-[13px] font-bold text-[#043261] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+                          <NumeroInput value={item.cantidad} onChange={n => setCantidad(item.key, n)}
+                            title="Cantidad"
+                            className="w-12 border-0 bg-transparent p-0 text-center text-[13px] font-bold text-[#043261] outline-none" />
                           <button type="button" onClick={() => setCantidad(item.key, item.cantidad + 1)}
                             className="flex h-8 w-8 items-center justify-center text-gray-500 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
@@ -956,11 +957,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           className={`flex h-8 items-center gap-1 rounded-full border px-2.5 text-[11px] ${item.descuento > 0
                             ? 'border-amber-300 bg-amber-50 font-bold text-amber-700'
                             : 'border-gray-200 text-gray-500'} ${puedeDescuento ? '' : 'opacity-50'}`}>
-                          <input type="number" min={0} max={100} step="any" value={item.descuento || ''}
-                            disabled={!puedeDescuento}
-                            onChange={e => setDescuentoPct(item.key, parseFloat(e.target.value))}
-                            placeholder="0"
-                            className="w-8 border-0 bg-transparent p-0 text-right text-[11px] font-inherit outline-none [appearance:textfield] disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none" />
+                          <NumeroInput value={item.descuento} onChange={n => setDescuentoPct(item.key, n)}
+                            ocultarSi={0} placeholder="0" disabled={!puedeDescuento}
+                            className="w-8 border-0 bg-transparent p-0 text-right text-[11px] font-inherit outline-none disabled:cursor-not-allowed" />
                           % desc
                         </label>
 
@@ -970,9 +969,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                         {esManual && (
                           <label className="flex h-8 items-center gap-1 rounded-full border border-gray-200 px-2.5 text-[11px] text-gray-500">
                             P.U
-                            <input type="number" min={0} step="any" value={item.precioUnitario}
-                              onChange={e => setPrecio(item.key, parseFloat(e.target.value))}
-                              className="w-16 border-0 bg-transparent p-0 text-right text-[11px] font-semibold text-[#043261] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+                            <NumeroInput value={item.precioUnitario} onChange={n => setPrecio(item.key, n)}
+                              ocultarSi={0} placeholder="0.00" title="Precio unitario"
+                              className="w-16 border-0 bg-transparent p-0 text-right text-[11px] font-semibold text-[#043261] outline-none" />
                           </label>
                         )}
 
