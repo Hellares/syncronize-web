@@ -14,6 +14,7 @@ import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto
 import type { NivelPrecio } from '@/core/types/venta';
 import { nivelAplicable, precioConNivel, cantidadesGrupoMayoreo, tituloYContextoLinea } from '@/core/types/venta';
 import NumeroInput from '@/components/ui/NumeroInput';
+import CrearProductoRapidoDialog from '@/features/producto/components/CrearProductoRapidoDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 import ClienteSelector from './ClienteSelector';
@@ -199,6 +200,11 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const [descuentoDesbloqueado, setDescuentoDesbloqueado] = useState(false);
   const [authDescuentoOpen, setAuthDescuentoOpen] = useState(false);
   const puedeDescuento = permissions.canManageDiscounts || descuentoDesbloqueado;
+  // Alta rápida de producto desde una línea manual. Las DOS cosas hacen falta:
+  // crear el producto pide MANAGE_PRODUCTS y ponerle precio, EDITAR_COSTO_PRODUCTO.
+  // Sin alguno de los dos el backend responde 403, así que el botón ni aparece.
+  const puedeCrearProducto = permissions.canManageProducts && permissions.canEditarCostoProducto;
+  const [crearProductoDe, setCrearProductoDe] = useState<string | null>(null);
 
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -993,6 +999,26 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           </label>
                         )}
 
+                        {/* Alta rapida: lo cotizado casi siempre es un producto
+                            NUEVO, que se escribe a mano porque todavia no esta
+                            en el inventario. Desde aca se registra con lo que ya
+                            escribio, sin abrir el formulario de productos. */}
+                        {esManual && puedeCrearProducto && (
+                          <button
+                            type="button"
+                            onClick={() => setCrearProductoDe(item.key)}
+                            disabled={!item.descripcion.trim() || item.precioUnitario <= 0}
+                            title={
+                              !item.descripcion.trim() || item.precioUnitario <= 0
+                                ? 'Escribi la descripcion y el precio para poder registrarlo'
+                                : 'Registrar este item como producto del inventario'
+                            }
+                            className="flex h-8 items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            + Crear producto
+                          </button>
+                        )}
+
                         {item.nivelAplicado && (
                           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-blue-700">{item.nivelAplicado}</span>
                         )}
@@ -1358,6 +1384,37 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
           onClose={() => setVariantePicker(null)}
           onConfirm={(v, c) => { void addVarianteItem(variantePicker, v, c); }} />
       )}
+
+      {crearProductoDe && (() => {
+        const it = items.find(i => i.key === crearProductoDe);
+        if (!it || !empresa?.id || !sedeId) return null;
+        return (
+          <CrearProductoRapidoDialog
+            empresaId={empresa.id}
+            sedeId={sedeId}
+            nombreInicial={it.descripcion}
+            precioInicial={it.precioUnitario}
+            cantidadInicial={it.cantidad}
+            onClose={() => setCrearProductoDe(null)}
+            onCreado={(producto, precio) => {
+              // La linea deja de ser suelta: queda enganchada al producto, asi
+              // que si la cotizacion se convierte en venta descuenta stock.
+              // `precioManual` se mantiene: el precio es el que tecleo, no hay
+              // que recalcularlo por niveles que el producto todavia no tiene.
+              setItems(prev => prev.map(i => i.key === crearProductoDe
+                ? {
+                    ...i,
+                    productoId: producto.id,
+                    productoNombre: producto.nombre,
+                    descripcion: producto.nombre,
+                    precioBase: precio,
+                  }
+                : i));
+              setCrearProductoDe(null);
+            }}
+          />
+        );
+      })()}
 
       {/* Autorización para habilitar descuentos (paridad VR, operacion APLICAR_DESCUENTO) */}
       <AutorizacionDialog
