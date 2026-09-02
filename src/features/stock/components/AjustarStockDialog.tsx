@@ -13,7 +13,21 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de `CotizacionForm`, `ConfirmarPagoDialog` y los formularios de compra.
+// Antes esto era `border border-gray-200`, que sobre el blanco del dialogo casi
+// no se ve: no se distinguia donde empezaba cada campo.
+// El ring va BAKED porque el error de este dialogo es un banner, no una marca
+// por campo.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+// Un textarea no lleva alto fijo.
+const INPUT_STD_TA =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
+// Los contenedores llevan el MISMO ring que los inputs: si no, quedan como
+// cajas grises al lado de campos con borde azul.
+const CAJA = 'rounded-[6px] ring-1 shadow-md transition-all duration-300';
 
 export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }: Props) {
   const [tipo, setTipo] = useState<TipoMovimientoStock | ''>('');
@@ -70,15 +84,17 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleClose}>
-      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+      {/* `font-sans` explicito = Amazon Ember del tema. Se hereda del body, pero
+          dejarlo escrito evita que un contenedor con otra familia lo pise. */}
+      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-gray-900">Ajustar Stock</h3>
         <p className="mt-1 text-xs text-gray-500">{nombreProductoStock(stock)} — Actual: {stock.stockActual} | Disponible: {stockDisponibleVenta(stock)}</p>
 
         <div className="mt-4 space-y-4">
           {/* Tipo de Movimiento */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de Movimiento *</label>
-            <select className={`${inputClass} bg-white`} value={tipo} onChange={e => setTipo(e.target.value as TipoMovimientoStock)}>
+            <label className={LABEL}>Tipo de Movimiento *</label>
+            <select className={INPUT_STD} value={tipo} onChange={e => setTipo(e.target.value as TipoMovimientoStock)}>
               <option value="">Seleccionar tipo</option>
               {Object.entries(grouped).map(([category, types]) => (
                 <optgroup key={category} label={category}>
@@ -92,13 +108,13 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
 
           {/* Cantidad */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Cantidad *</label>
-            <input className={inputClass} type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="0" />
+            <label className={LABEL}>Cantidad *</label>
+            <input className={INPUT_STD} type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="0" />
           </div>
 
           {/* Preview */}
           {cantidadNum > 0 && selectedInfo && (
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+            <div className={`${CAJA} bg-zinc-100 ring-blue-400 p-3`}>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Stock anterior:</span>
                 <span className="font-medium">{stock.stockActual}</span>
@@ -109,7 +125,7 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
                   {selectedInfo.isEntry ? '+' : '-'}{cantidadNum}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm border-t border-gray-200 pt-2 mt-2">
+              <div className="flex items-center justify-between text-sm border-t border-blue-200 pt-2 mt-2">
                 <span className="text-gray-700 font-medium">Stock resultante:</span>
                 <span className={`font-bold ${preview < 0 ? 'text-red-600' : 'text-gray-900'}`}>{preview}</span>
               </div>
@@ -118,15 +134,15 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
 
           {/* Motivo */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Motivo</label>
-            <input className={inputClass} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Razón del ajuste" />
+            <label className={LABEL}>Motivo</label>
+            <input className={INPUT_STD} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Razón del ajuste" />
           </div>
 
           {/* Documento */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tipo Documento</label>
-              <select className={`${inputClass} bg-white`} value={tipoDocumento} onChange={e => setTipoDocumento(e.target.value)}>
+              <label className={LABEL}>Tipo Documento</label>
+              <select className={INPUT_STD} value={tipoDocumento} onChange={e => setTipoDocumento(e.target.value)}>
                 <option value="">Ninguno</option>
                 <option value="FACTURA">Factura</option>
                 <option value="BOLETA">Boleta</option>
@@ -138,19 +154,19 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">N° Documento</label>
-              <input className={inputClass} value={numeroDocumento} onChange={e => setNumeroDocumento(e.target.value)} placeholder="Ej: F001-0001" />
+              <label className={LABEL}>N° Documento</label>
+              <input className={INPUT_STD} value={numeroDocumento} onChange={e => setNumeroDocumento(e.target.value)} placeholder="Ej: F001-0001" />
             </div>
           </div>
 
           {/* Observaciones */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Observaciones</label>
-            <textarea className={`${inputClass} min-h-[60px]`} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones adicionales" />
+            <label className={LABEL}>Observaciones</label>
+            <textarea className={`${INPUT_STD_TA} min-h-[60px]`} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones adicionales" />
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+            <div className={`${CAJA} bg-red-50 ring-red-400 p-3`}>
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}

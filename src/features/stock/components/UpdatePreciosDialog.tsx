@@ -17,8 +17,16 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
-const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de `CotizacionForm`, `AjustarStockDialog` y los formularios de compra.
+// El `border border-gray-200` de antes casi no se veia sobre el blanco del
+// dialogo. El ring va BAKED: aca el error es un banner, no una marca por campo.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
+// Los contenedores llevan el MISMO ring que los inputs: si no quedan como cajas
+// grises al lado de campos con borde azul. El fondo lo pone cada uso.
+const CAJA = 'rounded-[6px] ring-1 shadow-md transition-all duration-300';
 
 // Motivos de cambio de costo (paridad _MotivoCambioCostoDialog Flutter)
 const TIPOS_CAMBIO_COSTO: { value: TipoCambioPrecioSede; label: string }[] = [
@@ -277,7 +285,7 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-        <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
           <h3 className="text-lg font-bold text-gray-900">Configurar Precios y Stock</h3>
           <p className="mt-1 text-xs text-gray-500">
             {nombreProductoStock(stock)}
@@ -302,28 +310,28 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
             {/* Precios */}
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Precio Venta</label>
-                <input className={inputClass} type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} placeholder="0.00" />
+                <label className={LABEL}>Precio Venta</label>
+                <input className={INPUT_STD} type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} placeholder="0.00" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Precio Costo</label>
-                <input className={inputClass} type="number" step="0.01" value={precioCosto} onChange={e => setPrecioCosto(e.target.value)} placeholder="0.00" />
+                <label className={LABEL}>Precio Costo</label>
+                <input className={INPUT_STD} type="number" step="0.01" value={precioCosto} onChange={e => setPrecioCosto(e.target.value)} placeholder="0.00" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Precio Oferta</label>
-                <input className={inputClass} type="number" step="0.01" value={precioOferta} onChange={e => setPrecioOferta(e.target.value)} placeholder="0.00" />
+                <label className={LABEL}>Precio Oferta</label>
+                <input className={INPUT_STD} type="number" step="0.01" value={precioOferta} onChange={e => setPrecioOferta(e.target.value)} placeholder="0.00" />
               </div>
             </div>
 
             {/* Auditoría de cambio de costo */}
             {costoChanged && precioCosto && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <div className={`${CAJA} bg-amber-50 ring-amber-400 p-3 space-y-2`}>
                 <p className="text-xs font-medium text-amber-700">Cambio de costo detectado — indica el motivo (auditoría)</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <select className={selectClass} value={tipoCambioCosto} onChange={e => setTipoCambioCosto(e.target.value as TipoCambioPrecioSede)}>
+                  <select className={INPUT_STD} value={tipoCambioCosto} onChange={e => setTipoCambioCosto(e.target.value as TipoCambioPrecioSede)}>
                     {TIPOS_CAMBIO_COSTO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
-                  <input className={inputClass} value={razonCosto} onChange={e => setRazonCosto(e.target.value)} placeholder="Razón (opcional)" />
+                  <input className={INPUT_STD} value={razonCosto} onChange={e => setRazonCosto(e.target.value)} placeholder="Razón (opcional)" />
                 </div>
               </div>
             )}
@@ -340,18 +348,18 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
             {enOferta && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Inicio Oferta</label>
-                  <input className={inputClass} type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />
+                  <label className={LABEL}>Inicio Oferta</label>
+                  <input className={INPUT_STD} type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Fin Oferta</label>
-                  <input className={inputClass} type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} />
+                  <label className={LABEL}>Fin Oferta</label>
+                  <input className={INPUT_STD} type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} />
                 </div>
               </div>
             )}
 
             {/* Liquidación */}
-            <div className={`rounded-lg border p-3 ${liquidacionActiva ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className={`${CAJA} p-3 ${liquidacionActiva ? 'bg-red-50 ring-red-400' : 'bg-zinc-100 ring-blue-400'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800">
@@ -376,7 +384,7 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
             </div>
 
             {/* Niveles de precio por volumen */}
-            <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+            <div className={`${CAJA} bg-white ring-blue-400 p-3 space-y-2`}>
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-800">Precios por volumen</p>
                 {!nivelForm && (
@@ -432,12 +440,12 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
               {nivelForm && (
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-2.5 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
-                    <input className={inputClass} value={nivelForm.nombre} onChange={e => setNivelForm({ ...nivelForm, nombre: e.target.value })} placeholder="Nombre (ej: Por Mayor)" />
-                    <input className={inputClass} type="number" step="0.01" value={nivelForm.precio} onChange={e => setNivelForm({ ...nivelForm, precio: e.target.value })} placeholder={simbolo ? `Precio S/ por ${simbolo}` : 'Precio fijo S/'} />
+                    <input className={INPUT_STD} value={nivelForm.nombre} onChange={e => setNivelForm({ ...nivelForm, nombre: e.target.value })} placeholder="Nombre (ej: Por Mayor)" />
+                    <input className={INPUT_STD} type="number" step="0.01" value={nivelForm.precio} onChange={e => setNivelForm({ ...nivelForm, precio: e.target.value })} placeholder={simbolo ? `Precio S/ por ${simbolo}` : 'Precio fijo S/'} />
                     {/* Con presentación el mínimo se teclea en kilos y admite
                         decimales: "1.5 kg" son 1500 g. */}
-                    <input className={inputClass} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMinima} onChange={e => setNivelForm({ ...nivelForm, cantidadMinima: e.target.value })} placeholder={simbolo ? `Desde (${simbolo})` : 'Cant. mínima'} />
-                    <input className={inputClass} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMaxima} onChange={e => setNivelForm({ ...nivelForm, cantidadMaxima: e.target.value })} placeholder={simbolo ? `Hasta (${simbolo}, vacío = ∞)` : 'Cant. máx (vacío = ∞)'} />
+                    <input className={INPUT_STD} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMinima} onChange={e => setNivelForm({ ...nivelForm, cantidadMinima: e.target.value })} placeholder={simbolo ? `Desde (${simbolo})` : 'Cant. mínima'} />
+                    <input className={INPUT_STD} type="number" min="0" step={tienePresentacion ? 'any' : '1'} value={nivelForm.cantidadMaxima} onChange={e => setNivelForm({ ...nivelForm, cantidadMaxima: e.target.value })} placeholder={simbolo ? `Hasta (${simbolo}, vacío = ∞)` : 'Cant. máx (vacío = ∞)'} />
                   </div>
                   {nivelError && <p className="text-[11px] text-red-600">{nivelError}</p>}
                   <div className="flex justify-end gap-2">
@@ -461,24 +469,24 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
 
             {/* Ubicación */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Ubicación</label>
-              <input className={inputClass} value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Ej: Pasillo A, Estante 3" />
+              <label className={LABEL}>Ubicación</label>
+              <input className={INPUT_STD} value={ubicacion} onChange={e => setUbicacion(e.target.value)} placeholder="Ej: Pasillo A, Estante 3" />
             </div>
 
             {/* Min/Max */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Mínimo{simbolo && ` (${simbolo})`}</label>
-                <input className={inputClass} type="number" min="0" value={stockMinimo} onChange={e => setStockMinimo(e.target.value)} placeholder="0" />
+                <label className={LABEL}>Stock Mínimo{simbolo && ` (${simbolo})`}</label>
+                <input className={INPUT_STD} type="number" min="0" value={stockMinimo} onChange={e => setStockMinimo(e.target.value)} placeholder="0" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Stock Máximo{simbolo && ` (${simbolo})`}</label>
-                <input className={inputClass} type="number" min="0" value={stockMaximo} onChange={e => setStockMaximo(e.target.value)} placeholder="0" />
+                <label className={LABEL}>Stock Máximo{simbolo && ` (${simbolo})`}</label>
+                <input className={INPUT_STD} type="number" min="0" value={stockMaximo} onChange={e => setStockMaximo(e.target.value)} placeholder="0" />
               </div>
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+              <div className={`${CAJA} bg-red-50 ring-red-400 p-3`}>
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
