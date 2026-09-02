@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AxiosError } from 'axios';
 import * as cotizacionService from '../services/cotizacion-service';
@@ -219,6 +219,9 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const [direccionCliente, setDireccionCliente] = useState(initialData?.direccionCliente || '');
 
   // ── Step 2: Items ───────────────────────────────────────────────────────────
+  // Key del item manual recien agregado, para darle el foco apenas se monta.
+  // Va en un ref y no en estado: nadie tiene que re-renderizar por esto.
+  const focoManual = useRef<string | null>(null);
   const [items, setItems] = useState<ItemLinea[]>(() => {
     if (initialData?.detalles) {
       return initialData.detalles.map(d => ({
@@ -507,8 +510,12 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     // de pantalla justo cuando es el unico que pide atencion.
     // Ojo: el orden del array es el orden del documento, asi que tambien sale
     // primero en la cotizacion guardada y en el PDF.
+    const key = genKey();
+    // El cursor arranca en la descripcion: es el unico campo que nace vacio y
+    // sin el que la linea no se puede guardar.
+    focoManual.current = key;
     setItems(prev => [{
-      key: genKey(),
+      key,
       descripcion: '',
       cantidad: 1,
       precioBase: 0,
@@ -910,6 +917,12 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                           {esManual ? (
                             <input
                               type="text"
+                              ref={el => {
+                                if (el && focoManual.current === item.key) {
+                                  focoManual.current = null;
+                                  el.focus();
+                                }
+                              }}
                               value={item.descripcion}
                               onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
                               placeholder="Descripcion"
