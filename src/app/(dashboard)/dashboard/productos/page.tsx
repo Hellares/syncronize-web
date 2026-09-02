@@ -9,6 +9,7 @@ import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as stockService from '@/features/stock/services/stock-service';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
+import AjustarStockDialog from '@/features/stock/components/AjustarStockDialog';
 import ProductoImagenesDialog from '@/features/producto/components/ProductoImagenesDialog';
 import type { ProductoStock } from '@/core/types/stock';
 import type { Producto } from '@/core/types/producto';
@@ -52,6 +53,7 @@ export default function ProductosPage() {
   const [preciosCargando, setPreciosCargando] = useState<string | null>(null);
   const [preciosError, setPreciosError] = useState<string | null>(null);
   const [imagenesTarget, setImagenesTarget] = useState<Producto | null>(null);
+  const [stockAjuste, setStockAjuste] = useState<ProductoStock | null>(null);
 
   /**
    * Los precios son POR SEDE, y la lista de productos no siempre tiene una
@@ -60,6 +62,30 @@ export default function ProductosPage() {
    */
   const sedeParaPrecios =
     filtros.sedeId ?? sedes.find((s) => s.esPrincipal)?.id ?? sedes[0]?.id;
+
+  /**
+   * Ajustar el stock desde la lista, como el boton "+" de la card del app.
+   *
+   * Mismo camino que los precios: el stock es POR SEDE, asi que se resuelve el
+   * `ProductoStock` de la sede activa y el dialogo --el mismo que usa la
+   * pantalla de Stock-- trabaja sobre el. No hace falta uno nuevo.
+   */
+  const abrirAjusteStock = async (producto: Producto) => {
+    if (!sedeParaPrecios) {
+      setPreciosError('La empresa no tiene sedes: no hay dónde ajustar stock.');
+      return;
+    }
+    setPreciosCargando(producto.id);
+    setPreciosError(null);
+    try {
+      const stock = await stockService.getStockByProductoSede(producto.id, sedeParaPrecios);
+      setStockAjuste(stock);
+    } catch {
+      setPreciosError(`No se pudo abrir el stock de "${producto.nombre}" en esta sede.`);
+    } finally {
+      setPreciosCargando(null);
+    }
+  };
 
   const abrirPrecios = async (producto: Producto) => {
     if (!sedeParaPrecios) {
@@ -178,6 +204,7 @@ export default function ProductosPage() {
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}
         onConfigurarPrecios={permissions.canManageProducts ? abrirPrecios : undefined}
+        onAjustarStock={permissions.canManageProducts ? abrirAjusteStock : undefined}
         onGestionarImagenes={permissions.canManageProducts ? setImagenesTarget : undefined}
         hayFiltros={hayFiltros}
         onLimpiarFiltros={resetFiltros}
@@ -202,6 +229,13 @@ export default function ProductosPage() {
           onChanged={reload}
         />
       )}
+
+      <AjustarStockDialog
+        isOpen={!!stockAjuste}
+        stock={stockAjuste}
+        onSuccess={() => { setStockAjuste(null); reload(); }}
+        onClose={() => setStockAjuste(null)}
+      />
 
       <UpdatePreciosDialog
         isOpen={!!preciosStock}

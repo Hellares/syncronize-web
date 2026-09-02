@@ -21,6 +21,8 @@ interface Props {
   onConfigurarPrecios?: (producto: Producto) => void;
   /** Abre el diálogo de imágenes del producto. */
   onGestionarImagenes?: (producto: Producto) => void;
+  /** Abre el diálogo de ajuste de stock de la sede activa. */
+  onAjustarStock?: (producto: Producto) => void;
   /** Hay algo filtrado: cambia QUE dice el vacio. */
   hayFiltros?: boolean;
   onLimpiarFiltros?: () => void;
@@ -42,7 +44,7 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, onAjustarStock, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
   const router = useRouter();
 
   if (isLoading) {
@@ -251,6 +253,21 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           de stock POR VARIANTE y no propias. La moneda no
                           tendria nada que abrir; los precios de esos se tocan
                           desde Gestionar. */}
+                      {/* "+" de stock: el mismo boton que la card del app.
+                          Oculto en productos con VARIANTES --`ProductoStock` es
+                          XOR: sus filas de stock son por variante-- y en COMBOS,
+                          cuyo stock es el de sus componentes. Igual que el app. */}
+                      {onAjustarStock && !p.tieneVariantes && !p.esCombo && (
+                        <button
+                          onClick={() => onAjustarStock(p)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-50 hover:text-[#437EFF]"
+                          title="Agregar o ajustar stock en esta sede"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        </button>
+                      )}
                       {onConfigurarPrecios && !p.tieneVariantes && (
                         <button
                           onClick={() => onConfigurarPrecios(p)}
