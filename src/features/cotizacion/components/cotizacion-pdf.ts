@@ -220,10 +220,12 @@ export async function construirCotizacionPdf(params: {
     // configuracion. La razon social de abajo es la que se suma al bloque de
     // datos fiscales; el nombre no se toca.
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(...colorEnc);
     doc.text(nombreCabecera, xTexto, yIzq + 4);
-    yIzq += 8;
+    // 9 mm hasta la razon social, no 8: a 14 pt el nombre ocupa ~1 mm mas y sin
+    // esto la linea de abajo le queda pegada.
+    yIzq += 9;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
