@@ -134,6 +134,16 @@ function calcItem(item: ItemLinea) {
   return { baseAmount: bruto, descAmount, subtotal, igv, icbperTotal, total };
 }
 
+/**
+ * Para comparar nombres "a ojo": sin mayusculas, sin tildes y con los espacios
+ * de mas colapsados. El backend busca insensible a mayusculas pero NO ignora
+ * tildes, asi que esta comparacion es solo para decidir si el aviso dice
+ * "ya existe" o "hay parecidos".
+ */
+function normalizarNombre(v: string) {
+  return v.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ');
+}
+
 function genKey() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -205,6 +215,13 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   // Sin alguno de los dos el backend responde 403, así que el botón ni aparece.
   const puedeCrearProducto = permissions.canManageProducts && permissions.canEditarCostoProducto;
   const [crearProductoDe, setCrearProductoDe] = useState<string | null>(null);
+  // Aviso de "esto ya existe" mientras se escribe --o se PEGA-- la descripcion
+  // de una linea manual. Solo se busca para la ultima linea tocada.
+  const [dupKey, setDupKey] = useState<string | null>(null);
+  const [dupTexto, setDupTexto] = useState('');
+  const [dupResultados, setDupResultados] = useState<Producto[]>([]);
+  // Linea manual que hay que borrar cuando se confirme la variante elegida.
+  const manualAReemplazar = useRef<string | null>(null);
 
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
@@ -538,6 +555,62 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
     }, ...prev]);
     setCompatibilidad(null);
   }, []);
+
+  // Busca en el catalogo lo que se escribe en una linea manual.
+  //
+  // 🔴 SIN `sedeId`: filtrar por sede deja fuera los productos que no tienen
+  // fila de stock en esa sede, y un duplicado creado en OTRA sede sigue siendo
+  // un duplicado. Ademas el backend busca con `contains` + `mode:'insensitive'`,
+  // asi que "teclado razer" encuentra "TECLADO RAZER".
+  useEffect(() => {
+    const q = dupTexto.trim();
+    if (q.length < 3) { setDupResultados([]); return; }
+    let cancelado = false;
+    const t = setTimeout(() => {
+      productoService
+        .getProductos({ page: 1, limit: 3, search: q, isActive: true })
+        .then(r => { if (!cancelado) setDupResultados(r.data); })
+        .catch(() => { if (!cancelado) setDupResultados([]); });
+    }, 450);
+    return () => { cancelado = true; clearTimeout(t); };
+  }, [dupTexto]);
+
+  /**
+   * Reemplaza una linea manual por el producto del catalogo que el aviso
+   * encontro. `addProductItem` ya resuelve precio de sede, IGV, ICBPER y
+   * niveles: no hay que rearmar la linea a mano.
+   *
+   * Si el producto tiene variantes, `addProductItem` abre el selector y la linea
+   * manual recien se borra cuando se confirma una: borrarla antes dejaria al
+   * usuario sin nada si cancela.
+   */
+  const usarDelCatalogo = useCallback(async (key: string, encontrado: Producto) => {
+    setDupKey(null);
+    setDupResultados([]);
+    // La ficha completa, que trae `stocksPorSede` y las variantes.
+    const prod = await productoService.getProducto(encontrado.id).catch(() => encontrado);
+    if (prod.tieneVariantes) {
+      manualAReemplazar.current = key;
+      await addProductItem(prod);
+      return;
+    }
+    await addProductItem(prod);
+    // La cantidad que ya habia tecleado se traslada a la linea nueva: canjear
+    // el item no es empezar de cero, y `addProductItem` siempre arranca en 1.
+    setItems(prev => {
+      const manual = prev.find(i => i.key === key);
+      const restantes = prev.filter(i => i.key !== key);
+      const cant = manual?.cantidad ?? 1;
+      if (cant === 1) return restantes;
+      const idx = restantes.findIndex(
+        i => i.productoId === prod.id && !i.varianteId && !i.origenComboId,
+      );
+      if (idx < 0) return restantes;
+      const next = [...restantes];
+      next[idx] = { ...next[idx], cantidad: cant };
+      return recalcNivelesEnLote(next);
+    });
+  }, [addProductItem]);
 
   const updateItem = useCallback((key: string, field: keyof ItemLinea, value: string | number | boolean) => {
     setItems(prev => prev.map(item => (item.key === key ? ({ ...item, [field]: value } as ItemLinea) : item)));
@@ -921,6 +994,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
                           {esManual ? (
+                            <>
                             <input
                               type="text"
                               ref={el => {
@@ -930,10 +1004,50 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
                                 }
                               }}
                               value={item.descripcion}
-                              onChange={e => updateItem(item.key, 'descripcion', e.target.value)}
+                              onChange={e => {
+                                updateItem(item.key, 'descripcion', e.target.value);
+                                // Tambien corre al PEGAR: onChange dispara igual.
+                                setDupKey(item.key);
+                                setDupTexto(e.target.value);
+                              }}
                               placeholder="Descripcion"
                               className={`${INPUT_STD} w-full text-xs ${stepErrors[`desc_${item.key}`] ? 'ring-red-400' : 'ring-blue-400'}`}
                             />
+                            {dupKey === item.key && dupResultados.length > 0 && (() => {
+                              const exacto = dupResultados.find(
+                                p => normalizarNombre(p.nombre) === normalizarNombre(item.descripcion),
+                              );
+                              return (
+                                <div className={`mt-1 rounded-lg border px-2 py-1.5 ${exacto ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+                                  <p className={`text-[10px] font-semibold ${exacto ? 'text-amber-800' : 'text-gray-500'}`}>
+                                    {exacto
+                                      ? `"${exacto.nombre}" YA EXISTE en el catalogo`
+                                      : 'Parecidos que ya estan en el catalogo:'}
+                                  </p>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {dupResultados.map(p => (
+                                      <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => { void usarDelCatalogo(item.key, p); }}
+                                        title="Usar este producto en lugar del item manual"
+                                        className="max-w-full truncate rounded-full border border-[#004A94]/30 bg-white px-2 py-0.5 text-[10px] font-semibold text-[#004A94] hover:bg-[#004A94] hover:text-white"
+                                      >
+                                        {p.nombre} · usar este
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setDupKey(null); setDupResultados([]); }}
+                                    className="mt-1 text-[10px] text-gray-400 hover:underline"
+                                  >
+                                    Es otro producto, seguir a mano
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                            </>
                           ) : (
                             <>
                               <p className="truncate text-[13px] font-semibold text-[#043261]">
@@ -1381,8 +1495,21 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       )}
       {variantePicker && (
         <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#004A94" cantidadesEnCarrito={cantidadesPorVariante}
-          onClose={() => setVariantePicker(null)}
-          onConfirm={(v, c) => { void addVarianteItem(variantePicker, v, c); }} />
+          onClose={() => {
+            setVariantePicker(null);
+            // Cancelo: la linea manual se queda como estaba.
+            manualAReemplazar.current = null;
+          }}
+          onConfirm={(v, c) => {
+            void addVarianteItem(variantePicker, v, c);
+            // La linea manual que se estaba reemplazando recien se va ahora,
+            // con la variante ya elegida.
+            const k = manualAReemplazar.current;
+            if (k) {
+              manualAReemplazar.current = null;
+              setItems(prev => prev.filter(i => i.key !== k));
+            }
+          }} />
       )}
 
       {crearProductoDe && (() => {
