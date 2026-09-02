@@ -136,9 +136,12 @@ function calcItem(item: ItemLinea) {
 
 /**
  * Para comparar nombres "a ojo": sin mayusculas, sin tildes y con los espacios
- * de mas colapsados. El backend busca insensible a mayusculas pero NO ignora
- * tildes, asi que esta comparacion es solo para decidir si el aviso dice
- * "ya existe" o "hay parecidos".
+ * de mas colapsados.
+ *
+ * 🔑 Es la MISMA normalizacion que usa el backend para llenar
+ * `Producto.textoBusqueda` (`lower(unaccent(...))`, ver
+ * `texto-busqueda.util.ts`). Si alla cambia, esto tambien: si no, el cartel
+ * diria "hay parecidos" sobre un producto que el backend considera idéntico.
  */
 function normalizarNombre(v: string) {
   return v.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ');
@@ -560,8 +563,16 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   //
   // 🔴 SIN `sedeId`: filtrar por sede deja fuera los productos que no tienen
   // fila de stock en esa sede, y un duplicado creado en OTRA sede sigue siendo
-  // un duplicado. Ademas el backend busca con `contains` + `mode:'insensitive'`,
-  // asi que "teclado razer" encuentra "TECLADO RAZER".
+  // un duplicado.
+  //
+  // El backend no compara contra `nombre` sino contra `Producto.textoBusqueda`
+  // --nombre + descripcion + codigos + marca y categoria RESUELTAS, en
+  // minusculas y sin tildes-- y exige que aparezcan TODAS las palabras. Por eso
+  // "teclado razer" encuentra "TECLADO RAZER" y tambien "Razer Teclado", y por
+  // eso hay que esperar parecidos de mas: "teclado" matchea todo lo que tenga
+  // esa palabra en la categoria. Para eso el cartel distingue exacto de
+  // parecido. `isActive: true` deja fuera los DESACTIVADOS: un duplicado
+  // desactivado no se avisa, pero tampoco se puede vender.
   useEffect(() => {
     const q = dupTexto.trim();
     if (q.length < 3) { setDupResultados([]); return; }
@@ -587,6 +598,12 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
   const usarDelCatalogo = useCallback(async (key: string, encontrado: Producto) => {
     setDupKey(null);
     setDupResultados([]);
+    const cantManual = items.find(i => i.key === key)?.cantidad ?? 1;
+    // Si el producto YA estaba en el carrito, `addProductItem` le suma 1. La
+    // linea manual tiene que SUMARSE a lo que habia, no pisarlo.
+    const cantPrevia = items.find(
+      i => i.productoId === encontrado.id && !i.varianteId && !i.origenComboId,
+    )?.cantidad ?? 0;
     // La ficha completa, que trae `stocksPorSede` y las variantes.
     const prod = await productoService.getProducto(encontrado.id).catch(() => encontrado);
     if (prod.tieneVariantes) {
@@ -595,22 +612,23 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       return;
     }
     await addProductItem(prod);
-    // La cantidad que ya habia tecleado se traslada a la linea nueva: canjear
-    // el item no es empezar de cero, y `addProductItem` siempre arranca en 1.
+    // La cantidad tecleada se traslada a la linea del catalogo: canjear el item
+    // no es empezar de cero, y `addProductItem` siempre suma 1.
     setItems(prev => {
-      const manual = prev.find(i => i.key === key);
       const restantes = prev.filter(i => i.key !== key);
-      const cant = manual?.cantidad ?? 1;
-      if (cant === 1) return restantes;
       const idx = restantes.findIndex(
         i => i.productoId === prod.id && !i.varianteId && !i.origenComboId,
       );
+      // Un combo se expande en sus componentes: no hay una linea con este
+      // productoId y no hay nada que trasladar.
       if (idx < 0) return restantes;
+      const total = cantPrevia + cantManual;
+      if (restantes[idx].cantidad === total) return restantes;
       const next = [...restantes];
-      next[idx] = { ...next[idx], cantidad: cant };
+      next[idx] = { ...next[idx], cantidad: total };
       return recalcNivelesEnLote(next);
     });
-  }, [addProductItem]);
+  }, [addProductItem, items]);
 
   const updateItem = useCallback((key: string, field: keyof ItemLinea, value: string | number | boolean) => {
     setItems(prev => prev.map(item => (item.key === key ? ({ ...item, [field]: value } as ItemLinea) : item)));
