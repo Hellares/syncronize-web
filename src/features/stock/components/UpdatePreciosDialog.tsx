@@ -285,7 +285,8 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-        <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
+        <div role="dialog" aria-modal="true" aria-label="Configurar precios y stock"
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
           <h3 className="text-lg font-bold text-gray-900">Configurar Precios y Stock</h3>
           <p className="mt-1 text-xs text-gray-500">
             {nombreProductoStock(stock)}

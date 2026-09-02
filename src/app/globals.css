@@ -33,12 +33,17 @@
 }
 
 /* Amazon Ember — fuente principal de la web (copiada de los assets de Flutter).
+   woff2 primero y el .ttf como respaldo: el mismo diseño pesa un 65% menos
+   (1079 KB -> 385 KB en total; la cara Bold, 248 -> 69 KB). El .ttf queda por
+   si un navegador viejo no soporta woff2, pero no se descarga si el woff2 sirve.
+
    font-weight con RANGOS: Amazon Ember solo trae caras 300/400/500/700, así que
    pesos intermedios (p.ej. 600 = font-semibold) deben mapear a una cara real y
    NO caer a la fuente del sistema. Cada cara cubre un rango. */
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-DisplayLight.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-DisplayLight.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-DisplayLight.ttf') format('truetype');
   font-weight: 1 349;
   font-style: normal;
   font-display: swap;
@@ -48,42 +53,48 @@
    rango normal (350-599) para mantener TODO en V1 consistente. */
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-Medium.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-Medium.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-Medium.ttf') format('truetype');
   font-weight: 350 599;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-Bold.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-Bold.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-Bold.ttf') format('truetype');
   font-weight: 600 1000;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-LightItalic.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-LightItalic.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-LightItalic.ttf') format('truetype');
   font-weight: 300;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-Italic.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-Italic.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-Italic.ttf') format('truetype');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember';
-  src: url('/fonts/AmazonEmber-MediumItalic.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-MediumItalic.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-MediumItalic.ttf') format('truetype');
   font-weight: 500;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Amazon Ember Mono';
-  src: url('/fonts/AmazonEmber-Mono.ttf') format('truetype');
+  src: url('/fonts/AmazonEmber-Mono.woff2') format('woff2'),
+       url('/fonts/AmazonEmber-Mono.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

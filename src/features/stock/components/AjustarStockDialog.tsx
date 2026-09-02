@@ -86,7 +86,8 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleClose}>
       {/* `font-sans` explicito = Amazon Ember del tema. Se hereda del body, pero
           dejarlo escrito evita que un contenedor con otra familia lo pise. */}
-      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Ajustar stock"
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-gray-900">Ajustar Stock</h3>
         <p className="mt-1 text-xs text-gray-500">{nombreProductoStock(stock)} — Actual: {stock.stockActual} | Disponible: {stockDisponibleVenta(stock)}</p>
 
