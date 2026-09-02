@@ -211,14 +211,28 @@ export async function construirCotizacionPdf(params: {
   if (ver('mostrarDatosEmpresa')) {
     // El nombre comercial manda sobre la razon social: es el que el cliente
     // reconoce.
+    const nombreCabecera = (
+      marca?.nombreComercial || empresa?.nombre || empresa?.razonSocial || 'Empresa'
+    ).toUpperCase();
+    // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
+    // si no, una linea larga --el nombre, la razon social o la direccion-- se
+    // le mete encima.
+    const anchoTexto = xFicha - xTexto - 6;
+    // El nombre va en el MISMO cuerpo que el RUC: 8 pt y color de cuerpo. Lo
+    // unico que lo distingue es la negrita, asi que todo el bloque de la
+    // izquierda se lee como una sola ficha.
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...colorEnc);
-    doc.text(
-      (marca?.nombreComercial || empresa?.nombre || empresa?.razonSocial || 'Empresa').toUpperCase(),
-      xTexto, yIzq + 4,
-    );
-    yIzq += 8;
+    doc.setFontSize(8);
+    doc.setTextColor(...colorTxt);
+    // 4 mm hasta la primera linea base y 3.6 entre lineas: el mismo paso que
+    // usa el resto del bloque, para que un nombre de dos renglones no abra un
+    // hueco antes del RUC.
+    let yNombre = yIzq + 4;
+    for (const linea of doc.splitTextToSize(nombreCabecera, anchoTexto)) {
+      doc.text(linea, xTexto, yNombre);
+      yNombre += 3.6;
+    }
+    yIzq = yNombre;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
@@ -244,10 +258,19 @@ export async function construirCotizacionPdf(params: {
       direccionSede || marca?.direccion || empresa?.direccionFiscal;
     const telefono = marca?.telefono ?? empresa?.telefono;
     const email = marca?.email ?? empresa?.email;
-    // El texto se corta ANTES de la ficha de la derecha, no contra el margen:
-    // si no, la direccion larga se le mete encima.
-    const anchoTexto = xFicha - xTexto - 6;
+    // La razon social se resuelve IGUAL que el RUC --sede primero, empresa
+    // despues--: en una empresa multi-RUC los dos tienen que hablar de la
+    // misma persona juridica, o el documento diria un RUC con el nombre de
+    // otra.
+    const razonSocial = sedeDoc?.razonSocialSede ?? empresa?.razonSocial;
     const lineas: string[] = [];
+    // La razon social va ARRIBA del RUC: el nombre de la cabecera es el
+    // COMERCIAL, y el cliente necesita el legal para saber a quien le compra.
+    // Si ese nombre YA es la razon social, repetirla gastaria un renglon para
+    // decir dos veces lo mismo.
+    if (razonSocial && razonSocial.trim().toUpperCase() !== nombreCabecera) {
+      lineas.push(...doc.splitTextToSize(razonSocial, anchoTexto));
+    }
     if (ruc) lineas.push(`RUC: ${ruc}`);
     if (direccion) lineas.push(...doc.splitTextToSize(direccion, anchoTexto));
     if (telefono || email) lineas.push([telefono, email].filter(Boolean).join(' | '));
