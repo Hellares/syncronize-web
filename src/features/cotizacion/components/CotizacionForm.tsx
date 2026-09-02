@@ -502,7 +502,12 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
 
   // ── Add manual item ─────────────────────────────────────────────────────────
   const addManualItem = useCallback(() => {
-    setItems(prev => [...prev, {
+    // Va PRIMERO, no al final: un item manual nace vacio y hay que escribirle
+    // descripcion, cantidad y precio. Al fondo de una lista larga queda fuera
+    // de pantalla justo cuando es el unico que pide atencion.
+    // Ojo: el orden del array es el orden del documento, asi que tambien sale
+    // primero en la cotizacion guardada y en el PDF.
+    setItems(prev => [{
       key: genKey(),
       descripcion: '',
       cantidad: 1,
@@ -517,7 +522,7 @@ export default function CotizacionForm({ mode, cotizacionId, initialData }: Coti
       niveles: [],
       precioManual: true,
       enLiquidacion: false,
-    }]);
+    }, ...prev]);
     setCompatibilidad(null);
   }, []);
 
