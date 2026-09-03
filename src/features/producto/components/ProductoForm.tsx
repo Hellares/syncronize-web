@@ -13,6 +13,7 @@ import * as configPrecioService from '../services/configuracion-precio-service';
 import ImageUploader from './ImageUploader';
 import CodigoProductoSunatSelector from './CodigoProductoSunatSelector';
 import PrecioNivelSection from './precios/PrecioNivelSection';
+import { agruparPorSeccion } from './FichaTecnicaAtributos';
 import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 interface Props {
@@ -92,17 +93,27 @@ export default function ProductoForm({ empresaId, producto }: Props) {
     });
   }, []);
 
-  // Al editar, se marcan TODAS las plantillas que el producto ya cumple, no
-  // solo la primera: un producto puede traer atributos de varias.
+  /**
+   * Al editar se marcan las plantillas que el producto ya usa, con la MISMA
+   * regla que la ficha técnica del detalle --misma función, para que no se
+   * separen--: manda `plantillasAtributosIds` si el producto lo guardó, y si
+   * no, cada valor cae en la primera plantilla que lo reclama.
+   *
+   * 🔴 Antes se exigía que la plantilla tuviera TODOS sus atributos cargados
+   * (`every`). Un producto con FABRICANTE pero sin CPU no marcaba la plantilla
+   * CPU, aunque el detalle sí le mostraba la sección. Y con `some` tampoco
+   * alcanza: media docena de plantillas comparten FABRICANTE y se marcarían
+   * todas.
+   */
   useEffect(() => {
     if (!producto?.atributosValores?.length || plantillas.length === 0 || plantillasSeleccionadas.length) return;
-    const attrIds = new Set(producto.atributosValores.map(av => av.atributoId));
-    const coinciden = plantillas.filter(p =>
-      p.atributos.length > 0 && p.atributos.every(pa => attrIds.has(pa.atributoId))
+    const secciones = agruparPorSeccion(
+      producto.atributosValores,
+      plantillas,
+      producto.plantillasAtributosIds ?? [],
     );
-    if (coinciden.length) {
-      setPlantillasSeleccionadas(coinciden.map(p => p.id));
-    }
+    const ids = secciones.filter(sec => !sec.suelto).map(sec => sec.id);
+    if (ids.length) setPlantillasSeleccionadas(ids);
   }, [producto, plantillas, plantillasSeleccionadas.length]);
 
   // Todos los atributos de las plantillas elegidas, sin repetir: un
