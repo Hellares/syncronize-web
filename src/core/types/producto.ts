@@ -405,6 +405,21 @@ export interface PlantillaAtributo {
   atributo: PlantillaAtributoInfo;
 }
 
+/** Lo que espera `POST/PATCH /producto-atributo-plantillas`. */
+export interface CreateAtributoPlantillaDto {
+  nombre: string;
+  descripcion?: string;
+  icono?: string;
+  categoriaId?: string;
+  orden?: number;
+  atributos: Array<{
+    atributoId: string;
+    orden?: number;
+    requeridoOverride?: boolean;
+    valoresOverride?: string[];
+  }>;
+}
+
 export interface AtributoPlantilla {
   id: string;
   empresaId: string;

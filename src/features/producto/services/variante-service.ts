@@ -1,17 +1,6 @@
 import { apiClient } from '@/core/api/client';
 import { PRODUCTO_ENDPOINTS } from '@/core/api/endpoints';
-import type {
-  ProductoVariante,
-  ProductoAtributo,
-  AtributoValor,
-  AtributoPlantilla,
-  CreateVarianteDto,
-  UpdateVarianteDto,
-  GenerarCombinacionesDto,
-  SetVarianteAtributosDto,
-  CreateProductoAtributoDto,
-  UpdateProductoAtributoDto,
-} from '@/core/types/producto';
+import type { ProductoVariante, ProductoAtributo, AtributoValor, AtributoPlantilla, CreateVarianteDto, UpdateVarianteDto, GenerarCombinacionesDto, SetVarianteAtributosDto, CreateProductoAtributoDto, UpdateProductoAtributoDto, CreateAtributoPlantillaDto } from '@/core/types/producto';
 
 export async function getVariantes(productoId: string): Promise<ProductoVariante[]> {
   const res = await apiClient.get<ProductoVariante[]>(PRODUCTO_ENDPOINTS.VARIANTES(productoId));
@@ -86,6 +75,20 @@ export async function deleteProductoAtributo(id: string): Promise<void> {
 export async function getPlantillas(): Promise<AtributoPlantilla[]> {
   const res = await apiClient.get<AtributoPlantilla[]>(PRODUCTO_ENDPOINTS.PLANTILLAS);
   return res.data;
+}
+
+export async function createPlantilla(data: CreateAtributoPlantillaDto): Promise<AtributoPlantilla> {
+  const res = await apiClient.post<AtributoPlantilla>(PRODUCTO_ENDPOINTS.PLANTILLAS, data);
+  return res.data;
+}
+
+export async function updatePlantilla(id: string, data: CreateAtributoPlantillaDto): Promise<AtributoPlantilla> {
+  const res = await apiClient.patch<AtributoPlantilla>(PRODUCTO_ENDPOINTS.PLANTILLA(id), data);
+  return res.data;
+}
+
+export async function deletePlantilla(id: string): Promise<void> {
+  await apiClient.delete(PRODUCTO_ENDPOINTS.PLANTILLA(id));
 }
 
 export async function getPlantilla(id: string): Promise<AtributoPlantilla> {

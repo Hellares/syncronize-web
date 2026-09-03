@@ -200,7 +200,7 @@ export const SIDEBAR_NODES: SidebarNode[] = [
         { label: 'Marcas', href: '/dashboard/marcas', icon: 'etiqueta' },
         { label: 'Unidades de Medida', href: '/dashboard/unidades', icon: 'regla' },
         { label: 'Atributos', href: '/dashboard/atributos', icon: 'sliders' },
-        { label: 'Plantillas de Atributos', href: '/dashboard/plantillas-atributos', icon: 'plantilla', enConstruccion: true },
+        { label: 'Plantillas de Atributos', href: '/dashboard/plantillas-atributos', icon: 'plantilla' },
         { label: 'Configuraciones de Precio', href: '/dashboard/configuraciones-precio', icon: 'grafico' },
         { label: 'Configuración de Códigos', href: '/dashboard/configuracion-codigos', icon: 'qr', enConstruccion: true },
         { label: 'Ajuste Masivo de Precios', href: '/dashboard/ajuste-precios', icon: 'porcentaje' },
