@@ -147,6 +147,25 @@ export default function Sidebar({ isOpen, onClose }: Props) {
   const [hover, setHover] = useState(false);
   const [fijado, setFijado] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * 🔴 Si el puntero HACE hover. En una tablet no lo hace, y este menu de
+   * escritorio se despliega con `onMouseEnter`: con el dedo, Android manda
+   * eventos de mouse sinteticos mezclados con un `mouseleave` inmediato, asi
+   * que el riel abria a veces si y a veces no. Con un mouse conectado anda
+   * bien, que es exactamente lo que reporto el usuario.
+   *
+   * Arranca en `true` para no cambiar nada en escritorio antes de medir.
+   */
+  const [punteroFino, setPunteroFino] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const aplicar = () => setPunteroFino(mq.matches);
+    aplicar();
+    // Enchufar o soltar el mouse cambia el modo sin recargar.
+    mq.addEventListener('change', aplicar);
+    return () => mq.removeEventListener('change', aplicar);
+  }, []);
 
   // El pin sobrevive a la recarga: quien lo deja fijo no quiere volver a
   // fijarlo cada vez que entra.
@@ -231,6 +250,9 @@ export default function Sidebar({ isOpen, onClose }: Props) {
   // segundo gesto para ver a donde se fue. El drawer del app hace lo mismo.
   useEffect(() => {
     if (isOpen) onClose();
+    // En tactil el riel queda desplegado ENCIMA del contenido: navegar tiene
+    // que cerrarlo, igual que hace el cajon de movil.
+    setHover(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -307,8 +329,12 @@ export default function Sidebar({ isOpen, onClose }: Props) {
           roza el borde izquierdo. */}
       <div className="hidden shrink-0 lg:block" style={{ width: SIDEBAR_RIEL }} aria-hidden="true" />
       <aside
-        onMouseEnter={entrar}
-        onMouseLeave={salir}
+        onMouseEnter={punteroFino ? entrar : undefined}
+        onMouseLeave={punteroFino ? salir : undefined}
+        // Con el dedo: tocar el riel lo despliega. No se cierra desde aca --el
+        // click burbujea desde los links y las secciones-- sino tocando fuera
+        // o al navegar.
+        onPointerDown={!punteroFino && !abierto ? () => setHover(true) : undefined}
         style={{ width: abierto ? SIDEBAR_ABIERTO : SIDEBAR_RIEL }}
         className={`fixed bottom-0 left-0 top-0 z-40 hidden overflow-hidden bg-[#0B2E52] transition-[width] duration-200 ease-out lg:block ${
           abierto && !fijado ? 'shadow-[6px_0_24px_-8px_rgba(11,46,82,.45)]' : ''
@@ -317,6 +343,16 @@ export default function Sidebar({ isOpen, onClose }: Props) {
       >
         {contenido(abierto)}
       </aside>
+
+      {/* Tactil: sin `mouseleave` no hay forma de cerrarlo, y el riel
+          desplegado tapa el contenido. El fondo lo cierra al tocar afuera. */}
+      {!punteroFino && abierto && !fijado && (
+        <div
+          className="fixed inset-0 z-30 hidden lg:block"
+          onPointerDown={() => setHover(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Móvil: cajón de siempre, sin hover */}
       {isOpen && (
