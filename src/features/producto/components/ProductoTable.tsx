@@ -111,14 +111,14 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-[#b9d4f0] bg-[#cfe0f5]">
             <tr>
-              <th className="px-4 py-3 font-semibold text-[#004A94]">Producto</th>
-              <th className="hidden px-4 py-3 font-semibold text-[#004A94] md:table-cell">Código</th>
-              <th className="hidden px-4 py-3 font-semibold text-[#004A94] lg:table-cell">Categoría</th>
-              <th className="hidden px-4 py-3 font-semibold text-[#004A94] lg:table-cell">Marca</th>
-              <th className="px-4 py-3 font-semibold text-[#004A94] text-right">Precio</th>
-              <th className="px-4 py-3 font-semibold text-[#004A94] text-center">Stock</th>
-              <th className="px-4 py-3 font-semibold text-[#004A94] text-center">Estado</th>
-              <th className="px-4 py-3 font-semibold text-[#004A94] text-right">Acciones</th>
+              <th className="px-4 py-3 font-medium text-[#004A94]">Producto</th>
+              <th className="hidden px-4 py-3 font-medium text-[#004A94] md:table-cell">Código</th>
+              <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Categoría</th>
+              <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Marca</th>
+              <th className="px-4 py-3 font-medium text-[#004A94] text-right">Precio</th>
+              <th className="px-4 py-3 font-medium text-[#004A94] text-center">Stock</th>
+              <th className="px-4 py-3 font-medium text-[#004A94] text-center">Estado</th>
+              <th className="px-4 py-3 font-medium text-[#004A94] text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
