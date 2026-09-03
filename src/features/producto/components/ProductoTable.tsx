@@ -109,7 +109,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
           ring. */}
       <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm">
         <table className="w-full text-left text-[13px]">
-          <thead className="border-b border-[#b9d4f0] bg-[#cfe0f5]">
+          <thead className="border-b border-[#cfe0f5] bg-[#eaf2fd]">
             <tr>
               <th className="px-4 py-3 font-medium text-[#004A94]">Producto</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] md:table-cell">Código</th>
