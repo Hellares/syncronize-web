@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useProductoForm } from '../hooks/use-producto-form';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
-import type { Producto, AtributoPlantilla } from '@/core/types/producto';
+import type { Producto, AtributoPlantilla, PlantillaAtributo } from '@/core/types/producto';
 import type { ConfiguracionPrecio } from '@/core/types/precio';
 import type { CatalogoItem, UnidadMedida } from '@/features/catalogo/services/catalogo-service';
 import * as catalogoService from '@/features/catalogo/services/catalogo-service';
@@ -104,6 +104,71 @@ export default function ProductoForm({ empresaId, producto }: Props) {
       setPlantillasSeleccionadas(coinciden.map(p => p.id));
     }
   }, [producto, plantillas, plantillasSeleccionadas.length]);
+
+  // Todos los atributos de las plantillas elegidas, sin repetir: un
+  // dependiente puede colgar de uno que vive en OTRA plantilla.
+  const atributosEnJuego = (() => {
+    const mapa = new Map<string, PlantillaAtributo['atributo']>();
+    for (const p of plantillasElegidas) {
+      for (const pa of p.atributos) if (!mapa.has(pa.atributoId)) mapa.set(pa.atributoId, pa.atributo);
+    }
+    return mapa;
+  })();
+
+  /**
+   * Los valores que este atributo puede ofrecer AHORA.
+   *
+   * 🔴 `atributo.valores` es un espejo PLANO de las opciones: en un
+   * dependiente trae todas las ramas mezcladas (los procesadores de todas las
+   * marcas). La jerarquia vive en `opciones[].padreValor`, asi que un
+   * dependiente solo ofrece las opciones que cuelgan del valor elegido en su
+   * padre. Sin padre elegido no ofrece nada y se bloquea.
+   */
+  const opcionesDe = (pa: PlantillaAtributo) => {
+    const attr = pa.atributo;
+    const override = pa.valoresOverride?.length ? pa.valoresOverride : null;
+
+    if (attr.dependeDeAtributoId && attr.opciones?.length) {
+      const padre = atributosEnJuego.get(attr.dependeDeAtributoId);
+      const valorPadre = form.atributos[attr.dependeDeAtributoId] || '';
+      if (!valorPadre) {
+        return { valores: [] as string[], esperandoA: padre?.nombre ?? 'el atributo del que depende' };
+      }
+      let valores = attr.opciones.filter(o => o.padreValor === valorPadre).map(o => o.valor);
+      // Un override de plantilla es una lista plana: no puede expresar la
+      // jerarquia, asi que RESTRINGE lo ya filtrado en vez de reemplazarlo.
+      if (override) valores = valores.filter(v => override.includes(v));
+      return { valores, esperandoA: null as string | null };
+    }
+
+    return { valores: override ?? attr.valores ?? [], esperandoA: null as string | null };
+  };
+
+  /**
+   * Escribe un valor y limpia EN CADENA los descendientes que dejaron de
+   * colgar de el: elegido QUALCOMM despues de SAMSUNG, "Exynos" no puede
+   * quedar seleccionado, ni el modelo que colgaba de Exynos.
+   */
+  const setValorAtributo = (atributoId: string, valor: string) => {
+    const next = { ...form.atributos, [atributoId]: valor };
+    const visitados = new Set<string>();
+    const limpiarHijos = (padreId: string) => {
+      if (visitados.has(padreId)) return;
+      visitados.add(padreId);
+      for (const [hijoId, hijo] of atributosEnJuego) {
+        if (hijo.dependeDeAtributoId !== padreId) continue;
+        const actual = next[hijoId];
+        if (!actual) continue;
+        const sigueColgando = hijo.opciones?.some(o => o.valor === actual && o.padreValor === next[padreId]);
+        if (!sigueColgando) {
+          next[hijoId] = '';
+          limpiarHijos(hijoId);
+        }
+      }
+    };
+    limpiarHijos(atributoId);
+    updateField('atributos', next);
+  };
 
   const agregarPlantilla = (plantillaId: string) => {
     if (!plantillaId || plantillasSeleccionadas.includes(plantillaId)) return;
@@ -271,11 +336,10 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                       .sort((a, b) => a.orden - b.orden)
                       .map(pa => {
                         const attr = pa.atributo;
-                        const valores = pa.valoresOverride?.length ? pa.valoresOverride : attr.valores;
+                        const { valores, esperandoA } = opcionesDe(pa);
                         const esRequerido = pa.requeridoOverride ?? attr.requerido;
                         const valor = form.atributos[pa.atributoId] || '';
-                        const setValor = (v: string) =>
-                          updateField('atributos', { ...form.atributos, [pa.atributoId]: v });
+                        const setValor = (v: string) => setValorAtributo(pa.atributoId, v);
 
                         return (
                           <div key={pa.atributoId}>
@@ -284,10 +348,18 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                               {attr.unidad ? ` (${attr.unidad})` : ''}
                               {esRequerido && <span className="text-red-500 ml-0.5">*</span>}
                             </label>
-                            {valores && valores.length > 0 ? (
+                            {esperandoA ? (
+                              <select className={`${selectClass} cursor-not-allowed opacity-60`} value="" disabled>
+                                <option value="">Elegí primero {esperandoA}</option>
+                              </select>
+                            ) : valores && valores.length > 0 ? (
                               <select className={selectClass} value={valor} onChange={e => setValor(e.target.value)}>
                                 <option value="">Seleccionar</option>
                                 {valores.map(v => <option key={v} value={v}>{v}</option>)}
+                              </select>
+                            ) : attr.dependeDeAtributoId ? (
+                              <select className={`${selectClass} cursor-not-allowed opacity-60`} value="" disabled>
+                                <option value="">Sin opciones para esa combinación</option>
                               </select>
                             ) : attr.tipo === 'BOOLEAN' ? (
                               <select className={selectClass} value={valor} onChange={e => setValor(e.target.value)}>
