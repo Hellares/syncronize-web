@@ -556,7 +556,12 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                 de guardar del formulario. */}
             {isEditing && producto && (
               <div className="rounded-lg bg-zinc-50 p-3 ring-1 ring-[#cfe0f5]">
-                <PrecioNivelSection productoId={producto.id} presentacion={presentacionPlana(producto)} />
+                <PrecioNivelSection
+                  productoId={producto.id}
+                  presentacion={presentacionPlana(producto)}
+                  precioBase={producto.stocksPorSede?.find(st => st.precioConfigurado)?.precio ?? null}
+                  precioCosto={producto.stocksPorSede?.find(st => st.precioConfigurado)?.precioCosto ?? null}
+                />
               </div>
             )}
           </Section>

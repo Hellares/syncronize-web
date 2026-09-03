@@ -12,9 +12,14 @@ interface Props {
   varianteId?: string;
   /** Unidad en la que se leen y se teclean estos niveles (ver el form). */
   presentacion?: UnidadPresentacion;
+  /** Precio de venta y costo del producto en la sede, en unidad de VENTA.
+   *  El diálogo los muestra como referencia y avisa si el nivel queda bajo
+   *  costo: sin esto se teclea a ciegas. */
+  precioBase?: number | null;
+  precioCosto?: number | null;
 }
 
-export default function PrecioNivelSection({ productoId, varianteId, presentacion }: Props) {
+export default function PrecioNivelSection({ productoId, varianteId, presentacion, precioBase, precioCosto }: Props) {
   const u = presentacion ?? UnidadPresentacion.ninguna();
   const { niveles, isLoading, isSubmitting, error, success, create, update, remove } = usePrecioNiveles(productoId, varianteId);
   const permissions = usePermissions();
@@ -83,6 +88,9 @@ export default function PrecioNivelSection({ productoId, varianteId, presentacio
         nivel={editing}
         isSubmitting={isSubmitting}
         presentacion={presentacion}
+        precioBase={precioBase}
+        precioCosto={precioCosto}
+        nivelesExistentes={niveles}
         onSave={async (data) => {
           if (editing) await update(editing.id, data);
           else await create(data);

@@ -14,13 +14,27 @@ interface Props {
    * como S/0.008. Sin esto el formulario cargaria mayoreo a los 3 GRAMOS.
    */
   presentacion?: UnidadPresentacion;
+  /** Precio de venta del producto en la sede, en UNIDAD DE VENTA. */
+  precioBase?: number | null;
+  /** Costo del producto en la sede, en UNIDAD DE VENTA. */
+  precioCosto?: number | null;
+  /** Los niveles que el producto ya tiene, para ver el escalonado. */
+  nivelesExistentes?: PrecioNivel[];
   onSave: (data: CreatePrecioNivelDto) => void;
   onClose: () => void;
 }
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
+const CAJA = 'rounded-[6px] ring-1 shadow-md transition-all duration-300';
 
-export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, presentacion, onSave, onClose }: Props) {
+const money = (n: number) => `S/ ${n.toFixed(2)}`;
+
+export default function PrecioNivelFormDialog({
+  isOpen, nivel, isSubmitting, presentacion, precioBase, precioCosto, nivelesExistentes = [], onSave, onClose,
+}: Props) {
   const u = presentacion ?? UnidadPresentacion.ninguna();
   const simbolo = u.simboloVisible ?? '';
   // 🔴 Primitivo y no el objeto: `presentacion` se construye en el llamador y
@@ -30,11 +44,18 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
   const [nombre, setNombre] = useState('');
   const [cantidadMinima, setCantidadMinima] = useState('');
   const [cantidadMaxima, setCantidadMaxima] = useState('');
+  const [tieneMaxima, setTieneMaxima] = useState(false);
   const [tipoPrecio, setTipoPrecio] = useState<TipoPrecioNivel>('PRECIO_FIJO');
   const [precio, setPrecio] = useState('');
   const [porcentajeDesc, setPorcentajeDesc] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Los precios del producto se guardan por unidad de VENTA y acá se teclea y
+  // se lee en la de PRESENTACION: para mostrarlos hay que multiplicar, que es
+  // la inversa de lo que hace `precioAUnidadDeVenta` al guardar.
+  const baseVista = precioBase != null ? Number(precioBase) * factor : null;
+  const costoVista = precioCosto != null ? Number(precioCosto) * factor : null;
 
   useEffect(() => {
     if (isOpen) {
@@ -46,6 +67,7 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
             ? ''
             : String(factor > 1 ? nivel.cantidadMaxima / factor : nivel.cantidadMaxima),
         );
+        setTieneMaxima(nivel.cantidadMaxima != null);
         setTipoPrecio(nivel.tipoPrecio);
         setPrecio(
           nivel.precio == null
@@ -55,12 +77,34 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
         setPorcentajeDesc(nivel.porcentajeDesc != null ? String(nivel.porcentajeDesc) : '');
         setDescripcion(nivel.descripcion || '');
       } else {
-        setNombre(''); setCantidadMinima(''); setCantidadMaxima(''); setTipoPrecio('PRECIO_FIJO');
-        setPrecio(''); setPorcentajeDesc(''); setDescripcion('');
+        setNombre(''); setCantidadMinima(''); setCantidadMaxima(''); setTieneMaxima(false);
+        setTipoPrecio('PRECIO_FIJO'); setPrecio(''); setPorcentajeDesc(''); setDescripcion('');
       }
       setErrors({});
     }
   }, [isOpen, nivel, factor]);
+
+  /**
+   * A cuánto queda la unidad con lo tecleado. Con precio fijo es el precio; con
+   * porcentaje sale del precio de venta, asi que sin precio de venta no hay
+   * nada que calcular.
+   */
+  const precioFinal = (() => {
+    if (tipoPrecio === 'PRECIO_FIJO') {
+      const p = parseFloat(precio);
+      return p > 0 ? p : null;
+    }
+    const pct = parseFloat(porcentajeDesc);
+    if (baseVista == null || isNaN(pct)) return null;
+    return baseVista * (1 - pct / 100);
+  })();
+
+  const ahorroPct =
+    precioFinal != null && baseVista != null && baseVista > 0
+      ? ((baseVista - precioFinal) / baseVista) * 100
+      : null;
+  const perdida =
+    precioFinal != null && costoVista != null && precioFinal < costoVista ? costoVista - precioFinal : null;
 
   const handleSubmit = () => {
     const errs: Record<string, string> = {};
@@ -70,7 +114,7 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
     const minVenta = u.activa
       ? Math.round(u.cantidadAUnidadDeVenta(parseFloat(cantidadMinima)))
       : parseInt(cantidadMinima);
-    const maxVenta = !cantidadMaxima ? undefined
+    const maxVenta = !tieneMaxima || !cantidadMaxima ? undefined
       : u.activa ? Math.round(u.cantidadAUnidadDeVenta(parseFloat(cantidadMaxima))) : parseInt(cantidadMaxima);
     if (!cantidadMinima || isNaN(minVenta) || minVenta < 1) {
       errs.cantidadMinima = simbolo ? `Muy chica para ${simbolo}` : 'Debe ser >= 1';
@@ -78,8 +122,19 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
     if (maxVenta != null && (isNaN(maxVenta) || maxVenta <= minVenta)) {
       errs.cantidadMaxima = 'Debe ser mayor a la mínima';
     }
-    if (tipoPrecio === 'PRECIO_FIJO' && (!precio || parseFloat(precio) <= 0)) errs.precio = 'Requerido';
-    if (tipoPrecio === 'PORCENTAJE_DESCUENTO' && (!porcentajeDesc || parseFloat(porcentajeDesc) <= 0)) errs.porcentajeDesc = 'Requerido';
+    if (tipoPrecio === 'PRECIO_FIJO') {
+      const p = parseFloat(precio);
+      if (!precio || p <= 0) errs.precio = 'Requerido';
+      // Un nivel por volumen que no baja el precio no es un nivel.
+      else if (baseVista != null && baseVista > 0 && p >= baseVista) {
+        errs.precio = `Debe ser menor al precio de venta (${money(baseVista)})`;
+      }
+    }
+    if (tipoPrecio === 'PORCENTAJE_DESCUENTO') {
+      const pct = parseFloat(porcentajeDesc);
+      if (!porcentajeDesc || pct <= 0) errs.porcentajeDesc = 'Requerido';
+      else if (pct > 100) errs.porcentajeDesc = 'Entre 0 y 100';
+    }
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
     onSave({
@@ -95,63 +150,163 @@ export default function PrecioNivelFormDialog({ isOpen, nivel, isSubmitting, pre
 
   if (!isOpen) return null;
 
+  const otros = nivelesExistentes.filter(n => n.id !== nivel?.id);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900">{nivel ? 'Editar Nivel de Precio' : 'Nuevo Nivel de Precio'}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={nivel ? 'Editar nivel de precio' : 'Nuevo nivel de precio'}
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-medium text-gray-900">{nivel ? 'Editar nivel de precio' : 'Nuevo nivel de precio'}</h3>
+        <p className="mt-1 text-[11px] text-gray-500">
+          Un nivel cobra más barato a partir de cierta cantidad{simbolo ? ` (en ${simbolo})` : ''}.
+        </p>
+
+        {/* Contra qué se compara: el precio y el costo del producto en la sede.
+            Sin esto se teclea a ciegas y no se sabe si el nivel deja ganancia. */}
+        {(baseVista != null || costoVista != null) && (
+          <div className={`${CAJA} mt-4 flex gap-4 bg-[#eaf2fd] ring-[#cfe0f5] px-3 py-2`}>
+            {baseVista != null && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[#7ea6d8]">Precio venta</p>
+                <p className="text-[13px] font-medium text-[#004A94]">{money(baseVista)}{simbolo && <span className="text-[10px] text-[#7ea6d8]"> /{simbolo}</span>}</p>
+              </div>
+            )}
+            {costoVista != null && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-[#7ea6d8]">Precio costo</p>
+                <p className="text-[13px] font-medium text-[#004A94]">{money(costoVista)}{simbolo && <span className="text-[10px] text-[#7ea6d8]"> /{simbolo}</span>}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Nombre *</label>
-            <input className={inputClass} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Precio por Mayor" />
-            {errors.nombre && <p className="mt-1 text-xs text-red-500">{errors.nombre}</p>}
+            <label className={LABEL}>Nombre *</label>
+            <input className={INPUT_STD} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Precio por Mayor" />
+            {errors.nombre && <p className="mt-1 text-[11px] text-red-500">{errors.nombre}</p>}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Cantidad Mín *{simbolo && ` (${simbolo})`}</label>
-              <input className={inputClass} type="number" min="0" step={u.activa ? 'any' : '1'} value={cantidadMinima} onChange={e => setCantidadMinima(e.target.value)} placeholder="1" />
-              {errors.cantidadMinima && <p className="mt-1 text-xs text-red-500">{errors.cantidadMinima}</p>}
+              <label className={LABEL}>Cantidad mín *{simbolo && ` (${simbolo})`}</label>
+              <input className={INPUT_STD} type="number" min="0" step={u.activa ? 'any' : '1'} value={cantidadMinima} onChange={e => setCantidadMinima(e.target.value)} placeholder="1" />
+              {errors.cantidadMinima && <p className="mt-1 text-[11px] text-red-500">{errors.cantidadMinima}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Cantidad Máx{simbolo && ` (${simbolo})`}</label>
-              <input className={inputClass} type="number" min="0" step={u.activa ? 'any' : '1'} value={cantidadMaxima} onChange={e => setCantidadMaxima(e.target.value)} placeholder="Sin límite" />
-              {errors.cantidadMaxima && <p className="mt-1 text-xs text-red-500">{errors.cantidadMaxima}</p>}
+              {/* La máxima es opcional y por defecto NO existe: un nivel sin
+                  tope es lo normal ("desde 12 en adelante"). */}
+              <label className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={tieneMaxima}
+                  onChange={e => { setTieneMaxima(e.target.checked); if (!e.target.checked) setCantidadMaxima(''); }}
+                  className="accent-[#004A94]"
+                />
+                Cantidad máx{simbolo && ` (${simbolo})`}
+              </label>
+              <input
+                className={`${INPUT_STD} ${tieneMaxima ? '' : 'cursor-not-allowed opacity-50'}`}
+                type="number" min="0" step={u.activa ? 'any' : '1'} disabled={!tieneMaxima}
+                value={cantidadMaxima} onChange={e => setCantidadMaxima(e.target.value)}
+                placeholder={tieneMaxima ? '0' : 'Sin límite'}
+              />
+              {errors.cantidadMaxima && <p className="mt-1 text-[11px] text-red-500">{errors.cantidadMaxima}</p>}
             </div>
           </div>
+
           <div>
-            <label className="mb-2 block text-xs font-medium text-gray-600">Tipo de Precio</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={tipoPrecio === 'PRECIO_FIJO'} onChange={() => setTipoPrecio('PRECIO_FIJO')} className="text-[#437EFF] focus:ring-[#437EFF]" />
-                Precio Fijo
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={tipoPrecio === 'PORCENTAJE_DESCUENTO'} onChange={() => setTipoPrecio('PORCENTAJE_DESCUENTO')} className="text-[#437EFF] focus:ring-[#437EFF]" />
-                % Descuento
-              </label>
+            <label className={LABEL}>Tipo de precio</label>
+            <div className="flex gap-2">
+              {([['PRECIO_FIJO', 'Precio fijo'], ['PORCENTAJE_DESCUENTO', '% Descuento']] as const).map(([valor, texto]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => setTipoPrecio(valor)}
+                  className={`h-[30px] flex-1 rounded-[6px] text-xs transition-colors ${tipoPrecio === valor
+                    ? 'bg-[#eaf2fd] font-medium text-[#004A94] ring-1 ring-[#004A94]'
+                    : 'bg-zinc-100 text-gray-500 ring-1 ring-blue-400 hover:text-[#004A94]'}`}
+                >
+                  {texto}
+                </button>
+              ))}
             </div>
           </div>
+
           {tipoPrecio === 'PRECIO_FIJO' ? (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Precio *{simbolo && ` (por ${simbolo})`}</label>
-              <input className={inputClass} type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} placeholder="0.00" />
-              {errors.precio && <p className="mt-1 text-xs text-red-500">{errors.precio}</p>}
+              <label className={LABEL}>Precio *{simbolo && ` (por ${simbolo})`}</label>
+              <input className={INPUT_STD} type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} placeholder="0.00" />
+              {errors.precio && <p className="mt-1 text-[11px] text-red-500">{errors.precio}</p>}
             </div>
           ) : (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Descuento % *</label>
-              <input className={inputClass} type="number" step="0.1" min="0" max="100" value={porcentajeDesc} onChange={e => setPorcentajeDesc(e.target.value)} placeholder="10" />
-              {errors.porcentajeDesc && <p className="mt-1 text-xs text-red-500">{errors.porcentajeDesc}</p>}
+              <label className={LABEL}>Descuento % *</label>
+              <input className={INPUT_STD} type="number" step="0.1" min="0" max="100" value={porcentajeDesc} onChange={e => setPorcentajeDesc(e.target.value)} placeholder="10" />
+              {errors.porcentajeDesc && <p className="mt-1 text-[11px] text-red-500">{errors.porcentajeDesc}</p>}
             </div>
           )}
+
+          {/* A cuánto queda la unidad, y el aviso si eso está por debajo del
+              costo: es la pregunta que se hace quien carga el nivel. */}
+          {precioFinal != null && (
+            <div className={`${CAJA} ${perdida != null ? 'bg-red-50 ring-red-400' : 'bg-zinc-100 ring-blue-400'} px-3 py-2`}>
+              <p className="text-xs text-gray-700">
+                Precio final <span className="font-medium text-[#004A94]">{money(precioFinal)}</span>
+                {simbolo && <span className="text-[10px] text-gray-400"> /{simbolo}</span>}
+                {ahorroPct != null && ahorroPct > 0 && (
+                  <span className="ml-1 text-[11px] text-green-600">(−{ahorroPct.toFixed(1)}%)</span>
+                )}
+              </p>
+              {perdida != null && (
+                <p className="mt-1 text-[11px] font-medium text-red-700">
+                  Pérdida de {money(perdida)} por {simbolo || 'unidad'} — está por debajo del costo.
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Descripción</label>
-            <input className={inputClass} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Opcional" />
+            <label className={LABEL}>Descripción</label>
+            <input className={INPUT_STD} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Opcional" />
           </div>
+
+          {/* Los niveles que ya existen, para no pisar un tramo ni dejar un
+              hueco entre dos. */}
+          {otros.length > 0 && (
+            <div>
+              <p className="mb-1 text-[11px] font-medium text-gray-600">Niveles que ya tiene</p>
+              <div className="space-y-1">
+                {otros.map(n => (
+                  <div key={n.id} className="flex items-center justify-between rounded-[6px] bg-zinc-50 px-2.5 py-1.5 text-[11px] ring-1 ring-[#cfe0f5]">
+                    <span className="truncate text-gray-700">
+                      {n.nombre}
+                      <span className="ml-1 text-gray-400">
+                        {u.cantidadTexto(n.cantidadMinima)}
+                        {n.cantidadMaxima ? `-${u.cantidadTexto(n.cantidadMaxima)}` : '+'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-medium text-[#004A94]">
+                      {n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
+                        ? money(Number(n.precio) * factor)
+                        : n.porcentajeDesc != null ? `−${n.porcentajeDesc}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="mt-6 flex gap-3 justify-end">
+
+        <div className="mt-6 flex justify-end gap-3">
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
-            {isSubmitting ? 'Guardando...' : nivel ? 'Actualizar' : 'Crear'}
+          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50">
+            {isSubmitting ? 'Guardando…' : nivel ? 'Actualizar' : 'Crear'}
           </button>
         </div>
       </div>

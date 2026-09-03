@@ -328,7 +328,12 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               vendiendo bajo costo la variante de S/112. */}
           {!producto.tieneVariantes && !producto.esCombo && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <PrecioNivelSection productoId={producto.id} presentacion={presentacionPlana(producto)} />
+              <PrecioNivelSection
+                productoId={producto.id}
+                presentacion={presentacionPlana(producto)}
+                precioBase={producto.stocksPorSede?.find((st) => st.precioConfigurado)?.precio ?? null}
+                precioCosto={producto.stocksPorSede?.find((st) => st.precioConfigurado)?.precioCosto ?? null}
+              />
             </div>
           )}
 
