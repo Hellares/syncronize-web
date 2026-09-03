@@ -15,9 +15,10 @@ export default function NuevoProductoPage() {
   }
 
   return (
-    // 868 y no `max-w-3xl` (768): el formulario es de DOS columnas y con 768
-    // quedaban angostas. Son +50 px para cada una.
-    <div className="mx-auto max-w-[868px] space-y-4">
+    // Sin tope de ancho ni centrado, igual que el DETALLE del producto: con
+    // `max-w-3xl` (768px) las dos columnas quedaban angostas por mas grande
+    // que fuera la pantalla. El listado tampoco tiene tope.
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Nuevo Producto</h1>
         <p className="text-sm text-gray-500">Completa la información del producto</p>

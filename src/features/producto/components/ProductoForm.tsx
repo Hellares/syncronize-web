@@ -130,9 +130,11 @@ export default function ProductoForm({ empresaId, producto }: Props) {
       {/* 🔴 Dos columnas: a la izquierda lo que DEFINE al producto
           --nombre, clasificacion, atributos, medidas--; a la derecha lo que
           decide DONDE y COMO se vende, que casi nunca se toca al editar.
+          La proporcion es la MISMA del detalle del producto (2/3 + 1/3), para
+          que las dos pantallas del mismo producto se lean igual.
           En `lg` hacia abajo vuelve a una sola columna. */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
         {/* Info Básica */}
         <Section title="Información Básica">
           <Field label="Nombre *" error={errors.nombre}>
