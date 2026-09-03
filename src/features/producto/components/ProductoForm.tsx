@@ -66,11 +66,16 @@ export default function ProductoForm({ empresaId, producto }: Props) {
   const [marcas, setMarcas] = useState<CatalogoItem[]>([]);
   const [unidades, setUnidades] = useState<UnidadMedida[]>([]);
   const [plantillas, setPlantillas] = useState<AtributoPlantilla[]>([]);
-  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>('');
+  const [plantillasSeleccionadas, setPlantillasSeleccionadas] = useState<string[]>([]);
   const [configsPrecio, setConfigsPrecio] = useState<ConfiguracionPrecio[]>([]);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
 
-  const selectedPlantilla = plantillas.find(p => p.id === selectedPlantillaId) ?? null;
+  // Las plantillas elegidas, en el orden en que se agregaron, y las que
+  // todavia se pueden agregar.
+  const plantillasElegidas = plantillasSeleccionadas
+    .map(id => plantillas.find(p => p.id === id))
+    .filter((p): p is AtributoPlantilla => !!p);
+  const plantillasDisponibles = plantillas.filter(p => !plantillasSeleccionadas.includes(p.id));
 
   useEffect(() => {
     let failed = false;
@@ -85,33 +90,45 @@ export default function ProductoForm({ empresaId, producto }: Props) {
     });
   }, []);
 
-  // Auto-detect plantilla when editing a product with existing attributes
+  // Al editar, se marcan TODAS las plantillas que el producto ya cumple, no
+  // solo la primera: un producto puede traer atributos de varias.
   useEffect(() => {
-    if (!producto?.atributosValores?.length || plantillas.length === 0 || selectedPlantillaId) return;
+    if (!producto?.atributosValores?.length || plantillas.length === 0 || plantillasSeleccionadas.length) return;
     const attrIds = new Set(producto.atributosValores.map(av => av.atributoId));
-    const match = plantillas.find(p =>
+    const coinciden = plantillas.filter(p =>
       p.atributos.length > 0 && p.atributos.every(pa => attrIds.has(pa.atributoId))
     );
-    if (match) {
-      setSelectedPlantillaId(match.id);
+    if (coinciden.length) {
+      setPlantillasSeleccionadas(coinciden.map(p => p.id));
     }
-  }, [producto, plantillas, selectedPlantillaId]);
+  }, [producto, plantillas, plantillasSeleccionadas.length]);
 
-  const handlePlantillaChange = (plantillaId: string) => {
-    setSelectedPlantillaId(plantillaId);
-    if (!plantillaId) {
-      updateField('atributos', {});
-      return;
-    }
+  const agregarPlantilla = (plantillaId: string) => {
+    if (!plantillaId || plantillasSeleccionadas.includes(plantillaId)) return;
     const plantilla = plantillas.find(p => p.id === plantillaId);
-    if (plantilla) {
-      const newAttrs: Record<string, string> = {};
-      for (const pa of plantilla.atributos) {
-        // Keep existing value if available, otherwise empty
-        newAttrs[pa.atributoId] = form.atributos[pa.atributoId] || '';
-      }
-      updateField('atributos', newAttrs);
+    if (!plantilla) return;
+    setPlantillasSeleccionadas(prev => [...prev, plantillaId]);
+    // Se siembran las claves que falten SIN pisar lo que ya estaba cargado.
+    const next = { ...form.atributos };
+    for (const pa of plantilla.atributos) {
+      if (next[pa.atributoId] === undefined) next[pa.atributoId] = '';
     }
+    updateField('atributos', next);
+  };
+
+  const quitarPlantilla = (plantillaId: string) => {
+    const restantes = plantillasSeleccionadas.filter(id => id !== plantillaId);
+    setPlantillasSeleccionadas(restantes);
+    // 🔴 Un atributo puede estar en DOS plantillas: su valor solo se descarta
+    // si ninguna de las que quedan lo pide.
+    const siguenPedidos = new Set(
+      restantes.flatMap(id => plantillas.find(p => p.id === id)?.atributos.map(pa => pa.atributoId) ?? []),
+    );
+    const next: Record<string, string> = {};
+    for (const [attrId, valor] of Object.entries(form.atributos)) {
+      if (siguenPedidos.has(attrId)) next[attrId] = valor;
+    }
+    updateField('atributos', next);
   };
 
   return (
@@ -188,87 +205,118 @@ export default function ProductoForm({ empresaId, producto }: Props) {
         {/* Atributos (via Plantilla) */}
         {!form.tieneVariantes && !form.esCombo && plantillas.length > 0 && (
           <Section title="Atributos" defaultOpen={isEditing && Object.keys(form.atributos).length > 0}>
+            {/* Se pueden aplicar VARIAS plantillas, como en el app. Lo que se
+                guarda no cambia --pares atributo/valor planos--: la plantilla
+                solo decide que campos se piden. */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Plantilla de Atributos</label>
-              <select className={selectClass} value={selectedPlantillaId} onChange={e => handlePlantillaChange(e.target.value)}>
-                <option value="">Ninguna (sin plantilla)</option>
-                {plantillas.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.icono ? `${p.icono} ` : ''}{p.nombre} ({p.atributos.length} atributos)
-                  </option>
-                ))}
-              </select>
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">Agregar plantilla</label>
+              {plantillasDisponibles.length > 0 ? (
+                <select className={selectClass} value="" onChange={e => agregarPlantilla(e.target.value)}>
+                  <option value="">Elegí una plantilla</option>
+                  {plantillasDisponibles.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.icono ? `${p.icono} ` : ''}{p.nombre} ({p.atributos.length} atributos)
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-[11px] text-gray-400">Ya aplicaste todas las plantillas disponibles.</p>
+              )}
             </div>
 
-            {selectedPlantilla && (
-              <>
-                <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5">
-                  <p className="text-xs text-blue-700">
-                    <strong>{selectedPlantilla.atributos.length}</strong> atributos
-                    {selectedPlantilla.atributos.filter(pa => pa.requeridoOverride ?? pa.atributo.requerido).length > 0 &&
-                      <> — <strong>{selectedPlantilla.atributos.filter(pa => pa.requeridoOverride ?? pa.atributo.requerido).length}</strong> requeridos</>
-                    }
-                    . Complete los valores para guardar.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {selectedPlantilla.atributos
-                    .sort((a, b) => a.orden - b.orden)
-                    .map(pa => {
-                      const attr = pa.atributo;
-                      const valores = pa.valoresOverride?.length ? pa.valoresOverride : attr.valores;
-                      const esRequerido = pa.requeridoOverride ?? attr.requerido;
-
-                      return (
-                        <div key={pa.atributoId}>
-                          <label className="mb-1 block text-xs font-medium text-gray-600">
-                            {attr.nombre}
-                            {attr.unidad ? ` (${attr.unidad})` : ''}
-                            {esRequerido && <span className="text-red-500 ml-0.5">*</span>}
-                          </label>
-                          {valores && valores.length > 0 ? (
-                            <select
-                              className={selectClass}
-                              value={form.atributos[pa.atributoId] || ''}
-                              onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
-                            >
-                              <option value="">Seleccionar</option>
-                              {valores.map(v => <option key={v} value={v}>{v}</option>)}
-                            </select>
-                          ) : attr.tipo === 'BOOLEAN' ? (
-                            <select
-                              className={selectClass}
-                              value={form.atributos[pa.atributoId] || ''}
-                              onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
-                            >
-                              <option value="">Seleccionar</option>
-                              <option value="true">Sí</option>
-                              <option value="false">No</option>
-                            </select>
-                          ) : attr.tipo === 'NUMERO' ? (
-                            <input
-                              className={inputClass}
-                              type="number"
-                              step="any"
-                              value={form.atributos[pa.atributoId] || ''}
-                              onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
-                              placeholder={`Valor de ${attr.nombre}`}
-                            />
-                          ) : (
-                            <input
-                              className={inputClass}
-                              value={form.atributos[pa.atributoId] || ''}
-                              onChange={(e) => updateField('atributos', { ...form.atributos, [pa.atributoId]: e.target.value })}
-                              placeholder={`Valor de ${attr.nombre}`}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </>
+            {plantillasElegidas.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {plantillasElegidas.map(p => (
+                  <span
+                    key={p.id}
+                    className="inline-flex items-center gap-1 rounded bg-[#eaf2fd] py-1 pl-2 pr-1 text-[11px] font-medium text-[#004A94] ring-1 ring-[#cfe0f5]"
+                  >
+                    {p.icono ? `${p.icono} ` : ''}{p.nombre}
+                    {/* La "x" va DENTRO del chip y con su propio click: la
+                        plantilla se quita desde ahi, no tocando el chip entero. */}
+                    <button
+                      type="button"
+                      onClick={() => quitarPlantilla(p.id)}
+                      title={`Quitar ${p.nombre}`}
+                      className="rounded p-0.5 text-[#7ea6d8] transition-colors hover:bg-white hover:text-[#004A94]"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
             )}
+
+            {/* Una CARD por plantilla, con sus atributos en dos columnas: es
+                lo que aprovecha el ancho sin mezclar campos de plantillas
+                distintas en la misma grilla. */}
+            {plantillasElegidas.map(plantilla => {
+              const requeridos = plantilla.atributos.filter(pa => pa.requeridoOverride ?? pa.atributo.requerido).length;
+              return (
+                <div key={plantilla.id} className="rounded-lg bg-zinc-50 ring-1 ring-[#cfe0f5]">
+                  <div className="flex items-center justify-between border-b border-[#cfe0f5] px-3 py-2">
+                    <span className="text-[12px] font-medium text-[#004A94]">
+                      {plantilla.icono ? `${plantilla.icono} ` : ''}{plantilla.nombre}
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      {plantilla.atributos.length} atributos{requeridos > 0 ? ` · ${requeridos} requeridos` : ''}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 p-3 sm:grid-cols-2">
+                    {[...plantilla.atributos]
+                      .sort((a, b) => a.orden - b.orden)
+                      .map(pa => {
+                        const attr = pa.atributo;
+                        const valores = pa.valoresOverride?.length ? pa.valoresOverride : attr.valores;
+                        const esRequerido = pa.requeridoOverride ?? attr.requerido;
+                        const valor = form.atributos[pa.atributoId] || '';
+                        const setValor = (v: string) =>
+                          updateField('atributos', { ...form.atributos, [pa.atributoId]: v });
+
+                        return (
+                          <div key={pa.atributoId}>
+                            <label className="mb-1 block text-[11px] font-medium text-gray-600">
+                              {attr.nombre}
+                              {attr.unidad ? ` (${attr.unidad})` : ''}
+                              {esRequerido && <span className="text-red-500 ml-0.5">*</span>}
+                            </label>
+                            {valores && valores.length > 0 ? (
+                              <select className={selectClass} value={valor} onChange={e => setValor(e.target.value)}>
+                                <option value="">Seleccionar</option>
+                                {valores.map(v => <option key={v} value={v}>{v}</option>)}
+                              </select>
+                            ) : attr.tipo === 'BOOLEAN' ? (
+                              <select className={selectClass} value={valor} onChange={e => setValor(e.target.value)}>
+                                <option value="">Seleccionar</option>
+                                <option value="true">Sí</option>
+                                <option value="false">No</option>
+                              </select>
+                            ) : attr.tipo === 'NUMERO' ? (
+                              <input
+                                className={inputClass}
+                                type="number"
+                                step="any"
+                                value={valor}
+                                onChange={e => setValor(e.target.value)}
+                                placeholder={`Valor de ${attr.nombre}`}
+                              />
+                            ) : (
+                              <input
+                                className={inputClass}
+                                value={valor}
+                                onChange={e => setValor(e.target.value)}
+                                placeholder={`Valor de ${attr.nombre}`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })}
           </Section>
         )}
 
