@@ -346,7 +346,7 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
                 Valores Predefinidos {requiereValores && <span className="text-red-500">*</span>}
               </label>
               <textarea
-                className={`${inputClass} min-h-[60px]`}
+                className={`${textareaClass} min-h-[60px]`}
                 value={valoresText}
                 onChange={e => setValoresText(e.target.value)}
                 placeholder="Separa los valores con comas. Ej: Rojo, Azul, Verde, Negro"
@@ -426,12 +426,12 @@ function AtributoCard({ attr, canManage, onEdit, onDelete }: {
         {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-medium text-gray-900">{attr.nombre}</h4>
+            <h4 className="text-xs font-medium text-gray-900">{attr.nombre}</h4>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${cfg.color}`}>{cfg.label}</span>
             {attr.requerido && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Requerido</span>}
             {!attr.isActive && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">Inactivo</span>}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="mt-0.5 text-[11px] text-gray-500">
             Clave: <span className="font-mono">{attr.clave}</span>
             {attr.unidad && <> | Unidad: {attr.unidad}</>}
             {attr.valores.length > 0 && <> | {attr.valores.length} valores</>}
@@ -551,7 +551,7 @@ export default function AtributosPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2 items-start">
           {atributos.map(attr => (
             <AtributoCard
               key={attr.id}
