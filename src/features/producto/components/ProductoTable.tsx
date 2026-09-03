@@ -61,7 +61,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
     // falta es SACAR el filtro. Un solo mensaje dejaba al usuario mirando una
     // lista vacia sin enterarse de que seguia filtrando.
     return (
-      <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
+      <div className="rounded-xl bg-white py-16 text-center ring-1 ring-blue-400/40 shadow-sm">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-300">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
             {hayFiltros
@@ -103,9 +103,13 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
   return (
     <div>
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      {/* 🔴 Ring azul, no `border border-gray-200`: ese gris sobre el fondo
+          #f5f7fa del dashboard tiene contraste casi nulo y el borde de la
+          tabla se pierde. Es el mismo motivo por el que `ui/Card.tsx` usa
+          ring. */}
+      <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-100 bg-gray-50/50">
+          <thead className="border-b border-gray-200 bg-gray-50/50">
             <tr>
               <th className="px-4 py-3 font-medium text-gray-500">Producto</th>
               <th className="hidden px-4 py-3 font-medium text-gray-500 md:table-cell">Código</th>
@@ -117,7 +121,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
               <th className="px-4 py-3 font-medium text-gray-500 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-200">
             {productos.map((p) => {
               const stock = getStockForSede(p, sedeId);
               const img = getImageUrl(p);
@@ -136,7 +140,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   className="cursor-pointer transition-colors hover:bg-gray-50/50"
                 >
                   {/* Producto (imagen + nombre + badges) */}
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2.5">
                     <div className="flex items-center gap-3">
                       {img ? (
                         <img src={img} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -173,22 +177,22 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Código */}
-                  <td className="hidden px-4 py-3 md:table-cell">
+                  <td className="hidden px-4 py-2.5 md:table-cell">
                     <span className="font-mono text-xs text-gray-500">{p.codigoEmpresa}</span>
                   </td>
 
                   {/* Categoría */}
-                  <td className="hidden px-4 py-3 lg:table-cell">
+                  <td className="hidden px-4 py-2.5 lg:table-cell">
                     <span className="text-xs text-gray-500">{p.categoria?.nombre || '—'}</span>
                   </td>
 
                   {/* Marca */}
-                  <td className="hidden px-4 py-3 lg:table-cell">
+                  <td className="hidden px-4 py-2.5 lg:table-cell">
                     <span className="text-xs text-gray-500">{p.marca?.nombre || '—'}</span>
                   </td>
 
                   {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-2.5 text-right">
                     {/* 🔴 Un producto CON variantes no tiene precio propio: el
                         precio vive en cada variante y el de la fila padre salia
                         de la primera que tuviera uno, o sea un numero que no
@@ -216,7 +220,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Stock */}
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-2.5 text-center">
                     {/* 🔴 Un par SACO→GRANEL tiene variantes en unidades
                         DISTINTAS: sumarlas da "31290 g", que no son ni gramos
                         ni sacos. Se muestran por separado, como el app. */}
@@ -228,7 +232,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Estado (clickeable si puede gestionar) */}
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-2.5 text-center">
                     <button
                       onClick={e => { e.stopPropagation(); if (canManage) onToggleActive?.(p); }}
                       disabled={!canManage || !onToggleActive}
@@ -243,7 +247,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
 
                   {/* Acciones. `stopPropagation` en toda la celda: sin eso,
                       cada boton navegaria al detalle ademas de lo suyo. */}
-                  <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {/* El ojo se fue: para ver el detalle se hace click en la
                           fila. Su lugar lo ocupa lo que antes solo estaba en
