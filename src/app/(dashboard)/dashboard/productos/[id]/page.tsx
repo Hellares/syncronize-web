@@ -286,16 +286,25 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
               y no se mostraban en ningun lado del detalle — el marketplace si
               los renderiza. En un producto sin variantes es SU informacion. */}
           {(producto.atributosValores?.length ?? 0) > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <div className="rounded-xl bg-white p-5 ring-1 ring-blue-400/40 shadow-sm">
               <div className="mb-3 flex items-baseline justify-between">
                 <h3 className="text-sm font-medium text-gray-900">Ficha técnica</h3>
                 <span className="text-[11px] text-gray-400">{producto.atributosValores!.length} atributos</span>
               </div>
-              <div className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
-                {producto.atributosValores!.map((av) => (
-                  <div key={av.id} className="flex items-baseline justify-between gap-3 border-b border-gray-50 py-1.5">
-                    <span className="shrink-0 text-xs text-gray-500">{av.atributo.nombre}</span>
-                    <span className="min-w-0 truncate text-right text-xs font-semibold text-gray-800">
+              {/* Tabla `nombre | valor` con filas alternadas, como la ficha del
+                  app. La grilla de tres columnas de antes separaba las filas
+                  con un `border-gray-50` que no se ve, asi que los pares
+                  quedaban flotando sin alinear. El nombre se lleva 2/5 y el
+                  valor 3/5: los nombres son cortos y los valores se van
+                  largos. */}
+              <div className="overflow-hidden rounded-[6px] ring-1 ring-[#cfe0f5]">
+                {producto.atributosValores!.map((av, i) => (
+                  <div
+                    key={av.id}
+                    className={`flex items-baseline gap-3 px-3 py-1.5 ${i % 2 === 0 ? 'bg-zinc-50' : 'bg-white'} ${i > 0 ? 'border-t border-[#e6eef8]' : ''}`}
+                  >
+                    <span className="w-2/5 shrink-0 text-[11px] text-gray-500">{av.atributo.nombre}</span>
+                    <span className="min-w-0 flex-1 text-[11px] font-medium text-gray-800">
                       {av.valor || <span className="font-normal text-amber-600">sin valor</span>}
                       {av.atributo.unidad && <span className="ml-0.5 font-normal text-gray-400">{av.atributo.unidad}</span>}
                     </span>
