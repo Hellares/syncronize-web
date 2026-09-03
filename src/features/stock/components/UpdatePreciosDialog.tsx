@@ -453,7 +453,7 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
                     <button type="button" onClick={() => { setNivelForm(null); setNivelError(''); }}
                       className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
                     <button type="button" onClick={handleGuardarNivel} disabled={nivelSaving}
-                      className="rounded-lg bg-[#004A94] px-3 py-1 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+                      className="rounded-lg bg-[#004A94] px-3 py-1 text-xs font-medium text-white hover:bg-[#003570] disabled:opacity-50">
                       {nivelSaving ? 'Guardando...' : nivelForm.id ? 'Actualizar' : 'Agregar'}
                     </button>
                   </div>
@@ -497,7 +497,7 @@ export default function UpdatePreciosDialog({ isOpen, stock, onSuccess, onClose 
             <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               Cancelar
             </button>
-            <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+            <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50">
               {isSubmitting ? 'Guardando...' : 'Guardar'}
             </button>
           </div>

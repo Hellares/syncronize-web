@@ -177,7 +177,7 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
           <button onClick={handleClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             Cancelar
           </button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50">
             {isSubmitting ? 'Ajustando...' : 'Confirmar Ajuste'}
           </button>
         </div>
