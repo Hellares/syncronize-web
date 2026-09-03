@@ -534,4 +534,10 @@ export const ACCESOS_RAPIDOS: SidebarItem[] = [
   { label: 'Caja', href: '/dashboard/caja', permission: 'canViewCaja', ocultableId: 'caja', icon: 'alcancia' },
   { label: 'Cola POS', href: '/dashboard/pos', permission: 'canViewVentas', ocultableId: 'cola-pos', icon: 'cola' },
   { label: 'Recepcion/Compras', labelCorto: 'Compras', href: '/dashboard/compras', permission: 'canViewCompras', icon: 'delivery' },
+  // El boton muestra `labelCorto` y el tooltip usa `label`: en la cabecera
+  // dice PROD --que es lo que pidio el user-- sin perder el nombre real al
+  // pasar el mouse. El icono `caja` es la CAJA DE PRODUCTO, no la de dinero:
+  // esa es `alcancia`, asi que abajo de `xl`, donde solo se ven iconos, los
+  // dos accesos siguen siendo distinguibles.
+  { label: 'Productos', labelCorto: 'PROD', href: '/dashboard/productos', permission: 'canViewProducts', ocultableId: 'productos', icon: 'caja' },
 ];
