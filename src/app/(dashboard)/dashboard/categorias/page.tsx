@@ -56,7 +56,7 @@ export default function CategoriasPage() {
           {filteredEmpresa.length === 0 ? (
             <p className="col-span-full py-10 text-center text-gray-400">No hay categorías activas</p>
           ) : filteredEmpresa.map((cat) => (
-            <div key={cat.id} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-sm">
+            <div key={cat.id} className="flex items-center justify-between rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm p-4 transition-all hover:shadow-md">
               <div>
                 <p className="text-sm font-medium text-gray-900">{getNombreDisplay(cat)}</p>
                 <p className="text-xs text-gray-500">

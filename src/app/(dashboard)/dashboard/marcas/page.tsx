@@ -56,12 +56,12 @@ export default function MarcasPage() {
           {filteredEmpresa.length === 0 ? (
             <p className="col-span-full py-10 text-center text-gray-400">No hay marcas activas</p>
           ) : filteredEmpresa.map((marca) => (
-            <div key={marca.id} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 transition-all hover:shadow-sm">
+            <div key={marca.id} className="flex items-center justify-between rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm p-4 transition-all hover:shadow-md">
               <div className="flex items-center gap-3">
                 {(marca.logoPersonalizado || marca.marcaMaestra?.logo) ? (
                   <img src={marca.logoPersonalizado || marca.marcaMaestra?.logo} alt="" className="h-8 w-8 rounded-lg object-contain" />
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-400">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-400">
                     {getMarcaNombreDisplay(marca).charAt(0)}
                   </div>
                 )}
@@ -97,7 +97,7 @@ export default function MarcasPage() {
                   {marca.logo ? (
                     <img src={marca.logo} alt="" className="h-8 w-8 rounded-lg object-contain" />
                   ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-400">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-400">
                       {marca.nombre.charAt(0)}
                     </div>
                   )}

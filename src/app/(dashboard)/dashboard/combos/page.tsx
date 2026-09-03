@@ -92,13 +92,13 @@ export default function CombosPage() {
         <div className="flex items-center gap-2">
           {sedes.filter(s => s.isActive).length > 1 && (
             <select value={sedeId} onChange={e => setSedeId(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#437EFF] bg-white">
+              className="bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200">
               {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
             </select>
           )}
           {permissions.canManageProducts && (
             <Link href={`/dashboard/combos/nuevo`}
-              className="rounded-lg bg-[#004A94] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#003570] transition-colors">
+              className="rounded-lg bg-[#004A94] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#003570] transition-colors">
               + Nuevo Combo
             </Link>
           )}
@@ -111,7 +111,7 @@ export default function CombosPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar combo..."
-          className="w-56 rounded-lg border border-gray-200 px-3 py-1.5 text-xs outline-none focus:border-[#437EFF]"
+          className="w-56 bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200"
         />
         <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
           {([['todos', 'Todos'], ['oferta', 'En oferta'], ['sin-oferta', 'Sin oferta']] as const).map(([v, l]) => (
@@ -122,8 +122,8 @@ export default function CombosPage() {
           ))}
         </div>
         <label className="flex items-center gap-1.5 text-xs text-gray-600">
-          <input type="checkbox" checked={soloConStock} onChange={e => setSoloConStock(e.target.checked)}
-            className="rounded border-gray-300 text-[#437EFF]" />
+          <input type="checkbox" checked={soloConStock} onChange={e => setSoloConStock(e.target.checked)} 
+            className="accent-[#004A94]" />
           Solo con stock
         </label>
       </div>
@@ -151,10 +151,10 @@ export default function CombosPage() {
             return (
               <div key={c.id}
                 onClick={() => router.push(`/dashboard/combos/${c.id}?sedeId=${sedeId}`)}
-                className="cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md">
+                className="cursor-pointer rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm p-4 transition-shadow hover:shadow-md">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{c.nombre}</p>
+                    <p className="font-medium text-gray-900 truncate">{c.nombre}</p>
                     {c.descripcion && <p className="text-xs text-gray-400 truncate">{c.descripcion}</p>}
                   </div>
                   {permissions.canManageProducts && (
@@ -211,7 +211,7 @@ export default function CombosPage() {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-gray-900">Eliminar combo</h3>
+            <h3 className="text-sm font-medium text-gray-900">Eliminar combo</h3>
             <p className="mt-2 text-sm text-gray-600">
               ¿Eliminar <strong>{deleteTarget.nombre}</strong>? Irá a la papelera de productos y podrás restaurarlo.
             </p>
@@ -221,7 +221,7 @@ export default function CombosPage() {
                 Cancelar
               </button>
               <button onClick={handleDelete} disabled={isDeleting}
-                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">
+                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50">
                 {isDeleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
