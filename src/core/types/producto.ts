@@ -227,6 +227,9 @@ export interface Producto {
   imagenes?: string[];
   archivos?: ProductoArchivo[];
   atributosValores?: AtributoValor[];
+  /** Las plantillas con las que se cargaron los atributos, EN ORDEN.
+   *  Es el que manda para agrupar la ficha técnica. */
+  plantillasAtributosIds?: string[];
   variantes?: ProductoVariante[];
   stocksPorSede?: StockPorSedeInfo[];
   comboReservado?: number;

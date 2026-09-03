@@ -9,6 +9,7 @@ import VarianteList from '@/features/producto/components/variantes/VarianteList'
 import ImageGallery from '@/features/producto/components/ImageGallery';
 import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
+import FichaTecnicaAtributos from '@/features/producto/components/FichaTecnicaAtributos';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
 import NivelesVarianteInline from '@/features/producto/components/variantes/NivelesVarianteInline';
@@ -291,26 +292,10 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                 <h3 className="text-sm font-medium text-gray-900">Ficha técnica</h3>
                 <span className="text-[11px] text-gray-400">{producto.atributosValores!.length} atributos</span>
               </div>
-              {/* Tabla `nombre | valor` con filas alternadas, como la ficha del
-                  app. La grilla de tres columnas de antes separaba las filas
-                  con un `border-gray-50` que no se ve, asi que los pares
-                  quedaban flotando sin alinear. El nombre se lleva 2/5 y el
-                  valor 3/5: los nombres son cortos y los valores se van
-                  largos. */}
-              <div className="overflow-hidden rounded-[6px] ring-1 ring-[#cfe0f5]">
-                {producto.atributosValores!.map((av, i) => (
-                  <div
-                    key={av.id}
-                    className={`flex items-baseline gap-3 px-3 py-1.5 ${i % 2 === 0 ? 'bg-zinc-50' : 'bg-white'} ${i > 0 ? 'border-t border-[#e6eef8]' : ''}`}
-                  >
-                    <span className="w-2/5 shrink-0 text-[11px] text-gray-500">{av.atributo.nombre}</span>
-                    <span className="min-w-0 flex-1 text-[11px] font-medium text-gray-800">
-                      {av.valor || <span className="font-normal text-amber-600">sin valor</span>}
-                      {av.atributo.unidad && <span className="ml-0.5 font-normal text-gray-400">{av.atributo.unidad}</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <FichaTecnicaAtributos
+                atributosValores={producto.atributosValores!}
+                plantillasIds={producto.plantillasAtributosIds ?? []}
+              />
             </div>
           )}
 
