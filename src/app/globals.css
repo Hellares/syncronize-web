@@ -103,6 +103,12 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* 🔴 El dashboard es un diseño de MODO CLARO: el fondo (#f5f7fa) y las
+     cards blancas están fijos en el CSS. Sin declarar el esquema, Chrome en
+     modo oscuro oscurece por su cuenta los controles nativos --select,
+     scrollbars, inputs de fecha-- contra un fondo que no cambia. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -112,12 +118,6 @@
   --font-mono: 'Amazon Ember Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 @keyframes badges-scroll {
   0% {
