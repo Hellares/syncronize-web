@@ -57,6 +57,21 @@ export default function PrecioNivelFormDialog({
   const baseVista = precioBase != null ? Number(precioBase) * factor : null;
   const costoVista = precioCosto != null ? Number(precioCosto) * factor : null;
 
+  /**
+   * El nivel mas alto que ya existe. Un nivel nuevo tiene que arrancar DONDE
+   * TERMINA ese: si el anterior cubre 3-6, este empieza en 7.
+   */
+  const ultimoNivel = (() => {
+    const otrosNiveles = nivelesExistentes.filter(n => n.id !== nivel?.id);
+    if (!otrosNiveles.length) return null;
+    return otrosNiveles.reduce((a, b) => (b.cantidadMinima > a.cantidadMinima ? b : a));
+  })();
+
+  // 🔴 En granel no se sugiere numero: el siguiente entero es UN GRAMO mas y
+  // "6.001 kg" no es una sugerencia, es ruido. Se avisa el tope y listo.
+  const minSugerido =
+    ultimoNivel?.cantidadMaxima != null && !u.activa ? ultimoNivel.cantidadMaxima + 1 : null;
+
   useEffect(() => {
     if (isOpen) {
       if (nivel) {
@@ -77,12 +92,14 @@ export default function PrecioNivelFormDialog({
         setPorcentajeDesc(nivel.porcentajeDesc != null ? String(nivel.porcentajeDesc) : '');
         setDescripcion(nivel.descripcion || '');
       } else {
-        setNombre(''); setCantidadMinima(''); setCantidadMaxima(''); setTieneMaxima(false);
+        setNombre('');
+        setCantidadMinima(minSugerido != null ? String(minSugerido) : '');
+        setCantidadMaxima(''); setTieneMaxima(false);
         setTipoPrecio('PRECIO_FIJO'); setPrecio(''); setPorcentajeDesc(''); setDescripcion('');
       }
       setErrors({});
     }
-  }, [isOpen, nivel, factor]);
+  }, [isOpen, nivel, factor, minSugerido]);
 
   /**
    * A cuánto queda la unidad con lo tecleado. Con precio fijo es el precio; con
@@ -192,11 +209,44 @@ export default function PrecioNivelFormDialog({
             {errors.nombre && <p className="mt-1 text-[11px] text-red-500">{errors.nombre}</p>}
           </div>
 
+          {/* Los niveles que ya existen, para no pisar un tramo ni dejar un
+              hueco entre dos. */}
+          {otros.length > 0 && (
+            <div>
+              <p className="mb-1 text-[11px] font-medium text-gray-600">Niveles que ya tiene</p>
+              <div className="space-y-1">
+                {otros.map(n => (
+                  <div key={n.id} className="flex items-center justify-between rounded-[6px] bg-zinc-50 px-2.5 py-1.5 text-[11px] ring-1 ring-[#cfe0f5]">
+                    <span className="truncate text-gray-700">
+                      {n.nombre}
+                      <span className="ml-1 text-gray-400">
+                        {u.cantidadTexto(n.cantidadMinima)}
+                        {n.cantidadMaxima ? `-${u.cantidadTexto(n.cantidadMaxima)}` : '+'}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-medium text-[#004A94]">
+                      {n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
+                        ? money(Number(n.precio) * factor)
+                        : n.porcentajeDesc != null ? `−${n.porcentajeDesc}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Cantidad mín *{simbolo && ` (${simbolo})`}</label>
               <input className={INPUT_STD} type="number" min="0" step={u.activa ? 'any' : '1'} value={cantidadMinima} onChange={e => setCantidadMinima(e.target.value)} placeholder="1" />
               {errors.cantidadMinima && <p className="mt-1 text-[11px] text-red-500">{errors.cantidadMinima}</p>}
+              {!errors.cantidadMinima && !nivel && ultimoNivel && (
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {ultimoNivel.cantidadMaxima != null
+                    ? `"${ultimoNivel.nombre}" llega hasta ${u.cantidadTexto(ultimoNivel.cantidadMaxima)}${u.activa ? '' : `, así que este arranca en ${u.cantidadTexto(ultimoNivel.cantidadMaxima + 1)}`}.`
+                    : `"${ultimoNivel.nombre}" no tiene tope (${u.cantidadTexto(ultimoNivel.cantidadMinima)}+): ponele un máximo antes de agregar otro.`}
+                </p>
+              )}
             </div>
             <div>
               {/* La máxima es opcional y por defecto NO existe: un nivel sin
@@ -276,31 +326,6 @@ export default function PrecioNivelFormDialog({
             <input className={INPUT_STD} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Opcional" />
           </div>
 
-          {/* Los niveles que ya existen, para no pisar un tramo ni dejar un
-              hueco entre dos. */}
-          {otros.length > 0 && (
-            <div>
-              <p className="mb-1 text-[11px] font-medium text-gray-600">Niveles que ya tiene</p>
-              <div className="space-y-1">
-                {otros.map(n => (
-                  <div key={n.id} className="flex items-center justify-between rounded-[6px] bg-zinc-50 px-2.5 py-1.5 text-[11px] ring-1 ring-[#cfe0f5]">
-                    <span className="truncate text-gray-700">
-                      {n.nombre}
-                      <span className="ml-1 text-gray-400">
-                        {u.cantidadTexto(n.cantidadMinima)}
-                        {n.cantidadMaxima ? `-${u.cantidadTexto(n.cantidadMaxima)}` : '+'}
-                      </span>
-                    </span>
-                    <span className="shrink-0 font-medium text-[#004A94]">
-                      {n.tipoPrecio === 'PRECIO_FIJO' && n.precio != null
-                        ? money(Number(n.precio) * factor)
-                        : n.porcentajeDesc != null ? `−${n.porcentajeDesc}%` : '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
