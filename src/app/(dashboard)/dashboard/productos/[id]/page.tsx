@@ -115,7 +115,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           </Link>
           <Link
             href={`/dashboard/productos/${producto.id}/editar`}
-            className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]"
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570]"
           >
             Editar
           </Link>
@@ -226,7 +226,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Información</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Información</h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
               {producto.sku && <div><span className="text-gray-500">SKU:</span> <span className="font-medium">{producto.sku}</span></div>}
               {producto.codigoBarras && <div><span className="text-gray-500">Código Barras:</span> <span className="font-medium">{producto.codigoBarras}</span></div>}
@@ -288,7 +288,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           {(producto.atributosValores?.length ?? 0) > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <div className="mb-3 flex items-baseline justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Ficha técnica</h3>
+                <h3 className="text-sm font-medium text-gray-900">Ficha técnica</h3>
                 <span className="text-[11px] text-gray-400">{producto.atributosValores!.length} atributos</span>
               </div>
               <div className="grid gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -308,7 +308,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           {/* Dimensiones */}
           {producto.dimensiones && Object.keys(producto.dimensiones).length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Dimensiones</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Dimensiones</h3>
               <div className="flex gap-4">
                 {Object.entries(producto.dimensiones).map(([key, val]) => (
                   <div key={key} className="rounded-lg bg-gray-50 px-4 py-2 text-center">
@@ -349,7 +349,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
                   <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  <h3 className="text-sm font-semibold text-purple-900">Producto Combo</h3>
+                  <h3 className="text-sm font-medium text-purple-900">Producto Combo</h3>
                   <span className="rounded-full bg-purple-200 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                     {producto.tipoPrecioCombo === 'FIJO' ? 'Precio Fijo' : producto.tipoPrecioCombo === 'CALCULADO' ? 'Precio Calculado' : 'Calculado con Descuento'}
                   </span>
@@ -384,7 +384,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
           {/* Stock por sede */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">Stock por Sede</h3>
+              <h3 className="text-sm font-medium text-gray-900">Stock por Sede</h3>
               <Link href="/dashboard/stock" className="text-[10px] font-medium text-[#437EFF] hover:underline">Ver todo</Link>
             </div>
             {producto.stocksPorSede && producto.stocksPorSede.length > 0 ? (
@@ -440,7 +440,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Badges */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Configuración</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Configuración</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Marketplace</span>

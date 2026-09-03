@@ -30,7 +30,7 @@ export default function PrecioNivelSection({ productoId, varianteId, presentacio
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">Niveles de Precio</h3>
+        <h3 className="text-sm font-medium text-gray-900">Niveles de Precio</h3>
         {canManage && (
           <button onClick={() => { setEditing(null); setFormOpen(true); }}
             className="rounded-lg border border-[#437EFF] px-2.5 py-1 text-[11px] font-medium text-[#437EFF] hover:bg-[#437EFF]/5">
