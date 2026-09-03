@@ -69,8 +69,15 @@ const TIPOS_OFRECIDOS: AtributoTipo[] = [
   'INSPECCION_VISUAL', 'PRODUCTO_CATALOGO',
 ];
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
-const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de `CotizacionForm`, `ProductoForm` y los dialogos de stock. El
+// `border-gray-200` de antes casi no se ve sobre el blanco del dialogo. El
+// ring va BAKED: el error de este formulario es un banner, no una marca por
+// campo.
+const inputClass = "w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200";
+// 🔴 El textarea NO puede llevar el alto fijo del estandar: lo aplasta.
+const textareaClass = "w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200";
+const selectClass = inputClass;
 
 // --- Form Dialog ---
 
@@ -219,13 +226,14 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900">{atributo ? 'Editar Atributo' : 'Nuevo Atributo'}</h3>
+      <div role="dialog" aria-modal="true" aria-label="Atributo"
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-medium text-gray-900">{atributo ? 'Editar Atributo' : 'Nuevo Atributo'}</h3>
 
         <div className="mt-4 space-y-4">
           {/* Nombre */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Nombre *</label>
+            <label className="mb-1 block text-[11px] font-medium text-gray-600">Nombre *</label>
             <input className={inputClass} value={nombre} onChange={e => handleNombreChange(e.target.value)} placeholder="Ej: Color, Talla, Material" />
             {errors.nombre && <p className="mt-1 text-xs text-red-500">{errors.nombre}</p>}
           </div>
@@ -233,13 +241,13 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
           {/* Clave + Tipo */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Clave *</label>
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">Clave *</label>
               <input className={inputClass} value={clave} onChange={e => setClave(e.target.value)} placeholder="color" />
               <p className="mt-0.5 text-[10px] text-gray-400">Identificador único, se genera automáticamente</p>
               {errors.clave && <p className="mt-1 text-xs text-red-500">{errors.clave}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tipo *</label>
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">Tipo *</label>
               <select className={selectClass} value={tipo} onChange={e => handleTipoChange(e.target.value as AtributoTipo)}>
                 {/* Se recorre la lista ordenada, no el mapa: el mapa incluye
                     los legacy, que no se ofrecen al crear. Si el atributo que
@@ -254,20 +262,20 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
 
           {/* Descripción */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Descripción</label>
-            <textarea className={`${inputClass} min-h-[60px]`} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción opcional del atributo" />
+            <label className="mb-1 block text-[11px] font-medium text-gray-600">Descripción</label>
+            <textarea className={`${textareaClass} min-h-[60px]`} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción opcional del atributo" />
           </div>
 
           {/* Unidad (solo para tipos que la usen) */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Unidad</label>
+            <label className="mb-1 block text-[11px] font-medium text-gray-600">Unidad</label>
             <input className={inputClass} value={unidad} onChange={e => setUnidad(e.target.value)} placeholder="Ej: GB, cm, MHz, kg" />
           </div>
 
           {/* Cadena de dependencia: FABRICANTE → FAMILIA → PROCESADOR */}
           {esDependiente && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">
                 Depende de <span className="text-red-500">*</span>
               </label>
               {candidatosPadre.length === 0 ? (
@@ -299,7 +307,7 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
           {/* Un campo por rama del padre */}
           {esDependiente && padreElegido && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">
                 Valores por cada {padreElegido.nombre} <span className="text-red-500">*</span>
               </label>
               {padreElegido.valores.length === 0 ? (
@@ -334,7 +342,7 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
           {/* Valores (solo si el tipo no los prohíbe y no es dependiente) */}
           {!prohibeValores && !esDependiente && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">
                 Valores Predefinidos {requiereValores && <span className="text-red-500">*</span>}
               </label>
               <textarea
@@ -355,28 +363,28 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
           )}
 
           {prohibeValores && (
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+            <div className="rounded-[6px] bg-zinc-100 p-2.5 ring-1 ring-blue-400 shadow-md">
               <p className="text-xs text-gray-500">El tipo <strong>{TIPO_CONFIG[tipo].label}</strong> no usa valores predefinidos. El valor se ingresa directamente al asignar.</p>
             </div>
           )}
 
           {/* Checkboxes de configuración */}
-          <div className="space-y-2 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-700 mb-2">Configuración</p>
+          <div className="space-y-2 border-t border-[#cfe0f5] pt-4">
+            <p className="text-xs font-medium text-gray-700 mb-2">Configuración</p>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={requerido} onChange={e => setRequerido(e.target.checked)} className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+              <input type="checkbox" checked={requerido} onChange={e => setRequerido(e.target.checked)} className="accent-[#004A94]" />
               Requerido al crear variantes
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={mostrarEnListado} onChange={e => setMostrarEnListado(e.target.checked)} className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+              <input type="checkbox" checked={mostrarEnListado} onChange={e => setMostrarEnListado(e.target.checked)} className="accent-[#004A94]" />
               Mostrar en listado de productos
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={usarParaFiltros} onChange={e => setUsarParaFiltros(e.target.checked)} className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+              <input type="checkbox" checked={usarParaFiltros} onChange={e => setUsarParaFiltros(e.target.checked)} className="accent-[#004A94]" />
               Usar para filtros de búsqueda
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={mostrarEnMarketplace} onChange={e => setMostrarEnMarketplace(e.target.checked)} className="rounded border-gray-300 text-[#437EFF] focus:ring-[#437EFF]" />
+              <input type="checkbox" checked={mostrarEnMarketplace} onChange={e => setMostrarEnMarketplace(e.target.checked)} className="accent-[#004A94]" />
               Mostrar en marketplace
             </label>
           </div>
@@ -384,7 +392,7 @@ function AtributoFormDialog({ isOpen, atributo, existentes, isSubmitting, onSave
 
         <div className="mt-6 flex gap-3 justify-end">
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50">
             {isSubmitting ? 'Guardando...' : atributo ? 'Actualizar' : 'Crear'}
           </button>
         </div>
@@ -405,7 +413,7 @@ function AtributoCard({ attr, canManage, onEdit, onDelete }: {
   const cfg = TIPO_CONFIG[attr.tipo] || TIPO_CONFIG.TEXTO;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <div className="overflow-hidden rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm">
       {/* Header (always visible) */}
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Icono tipo */}
@@ -418,7 +426,7 @@ function AtributoCard({ attr, canManage, onEdit, onDelete }: {
         {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-semibold text-gray-900">{attr.nombre}</h4>
+            <h4 className="text-sm font-medium text-gray-900">{attr.nombre}</h4>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${cfg.color}`}>{cfg.label}</span>
             {attr.requerido && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Requerido</span>}
             {!attr.isActive && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">Inactivo</span>}
@@ -452,7 +460,7 @@ function AtributoCard({ attr, canManage, onEdit, onDelete }: {
 
       {/* Expanded content */}
       {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-3 bg-gray-50/50">
+        <div className="border-t border-[#cfe0f5] bg-[#eaf2fd]/40 px-4 py-3 space-y-3">
           {/* Descripción */}
           {attr.descripcion && (
             <div>
@@ -519,7 +527,7 @@ export default function AtributosPage() {
           <p className="text-sm text-gray-500">Define atributos para crear variantes (color, talla, material, etc.)</p>
         </div>
         {canManage && (
-          <button onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570]">
+          <button onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570]">
             + Nuevo Atributo
           </button>
         )}
@@ -571,8 +579,9 @@ export default function AtributosPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTarget(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900">Eliminar Atributo</h3>
+          <div role="dialog" aria-modal="true" aria-label="Eliminar atributo"
+            className="w-full max-w-sm rounded-2xl bg-white p-6 font-sans shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-medium text-gray-900">Eliminar Atributo</h3>
             <p className="mt-2 text-sm text-gray-500">
               ¿Eliminar <strong>{deleteTarget.nombre}</strong>? Si está en uso en plantillas activas, no se podrá eliminar.
             </p>
