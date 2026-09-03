@@ -118,9 +118,69 @@ function PlantillaDialog({ plantilla, atributos, categorias, isSubmitting, onGua
   );
   const [error, setError] = useState('');
   const [busca, setBusca] = useState('');
+  const [aviso, setAviso] = useState('');
 
-  const alternar = (id: string) =>
-    setElegidos(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  const porId = useMemo(() => new Map(atributos.map(a => [a.id, a])), [atributos]);
+
+  /**
+   * La cadena entera de un atributo, de la raíz hasta él:
+   * FABRICANTE › FAMILIA › PROCESADOR. Es exactamente lo que se agrega si lo
+   * elegís.
+   */
+  const cadenaDe = useCallback((a: ProductoAtributo): string[] => {
+    const nombres = [a.nombre];
+    let padreId = a.dependeDeAtributoId ?? null;
+    // Tope de saltos por si una cadena quedara ciclada.
+    for (let i = 0; padreId && i < 10; i++) {
+      const padre = porId.get(padreId);
+      if (!padre) break;
+      nombres.unshift(padre.nombre);
+      padreId = padre.dependeDeAtributoId ?? null;
+    }
+    return nombres;
+  }, [porId]);
+
+  /** Nadie depende de él: es la última pata, la que conviene elegir porque
+   *  arrastra a todos sus padres de una. */
+  const esUltimoNivel = (a: ProductoAtributo) => !atributos.some(x => x.dependeDeAtributoId === a.id);
+
+  const alternar = (id: string) => {
+    const a = porId.get(id);
+    if (!a) return;
+    setAviso('');
+    setElegidos(prev => {
+      if (prev.includes(id)) {
+        // 🔴 Al quitar uno se van TAMBIÉN los que dependen de él: un
+        // dependiente sin su padre no tiene de dónde sacar sus opciones.
+        const fuera = new Set([id]);
+        for (let cambio = true; cambio;) {
+          cambio = false;
+          for (const x of atributos) {
+            if (x.dependeDeAtributoId && fuera.has(x.dependeDeAtributoId) && !fuera.has(x.id)) {
+              fuera.add(x.id);
+              cambio = true;
+            }
+          }
+        }
+        return prev.filter(x => !fuera.has(x));
+      }
+
+      // Al agregar entra la CADENA COMPLETA, de la raíz hacia abajo: sin el
+      // padre, el dependiente no ofrece nada.
+      const cadenaIds: string[] = [];
+      let actual: ProductoAtributo | undefined = a;
+      for (let i = 0; actual && i < 10; i++) {
+        cadenaIds.unshift(actual.id);
+        actual = actual.dependeDeAtributoId ? porId.get(actual.dependeDeAtributoId) : undefined;
+      }
+      const nuevos = cadenaIds.filter(x => !prev.includes(x));
+      const extra = nuevos.filter(x => x !== id).map(x => porId.get(x)?.nombre).filter(Boolean);
+      if (extra.length) {
+        setAviso(`Se agregó también ${extra.join(', ')}: ${a.nombre} depende de ${extra[extra.length - 1]}.`);
+      }
+      return [...prev, ...nuevos];
+    });
+  };
 
   const visibles = atributos.filter(a =>
     !busca.trim() || a.nombre.toLowerCase().includes(busca.trim().toLowerCase()));
@@ -200,8 +260,18 @@ function PlantillaDialog({ plantilla, atributos, categorias, isSubmitting, onGua
                         {puesto + 1}
                       </span>
                     )}
-                    <span className="truncate text-[11px] text-gray-700">{a.nombre}</span>
+                    <span className="min-w-0 truncate text-[11px] text-gray-700">{a.nombre}</span>
                     <span className="shrink-0 text-[10px] text-gray-400">{a.tipo}</span>
+                    {/* El que cierra una cadena avisa qué bloque entra con él:
+                        elegir PROCESADOR trae FABRICANTE y FAMILIA. */}
+                    {a.dependeDeAtributoId && esUltimoNivel(a) && (
+                      <span className="hidden shrink-0 items-center gap-1 rounded bg-[#eaf2fd] px-1.5 py-0.5 text-[9px] font-medium text-[#004A94] ring-1 ring-[#cfe0f5] sm:inline-flex">
+                        <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h6v6H4zM14 6h6v6h-6zM9 18h10" />
+                        </svg>
+                        agrega el bloque: {cadenaDe(a).join(' › ')}
+                      </span>
+                    )}
                   </label>
                   {elegido && (
                     <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[10px] text-gray-500">
@@ -220,6 +290,7 @@ function PlantillaDialog({ plantilla, atributos, categorias, isSubmitting, onGua
           </div>
         </div>
 
+        {aviso && <p className="mt-2 text-[11px] text-[#004A94]">{aviso}</p>}
         {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
 
         <div className="mt-6 flex justify-end gap-2">
