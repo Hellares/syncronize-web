@@ -15,7 +15,9 @@ export default function NuevoProductoPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    // 868 y no `max-w-3xl` (768): el formulario es de DOS columnas y con 768
+    // quedaban angostas. Son +50 px para cada una.
+    <div className="mx-auto max-w-[868px] space-y-4">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Nuevo Producto</h1>
         <p className="text-sm text-gray-500">Completa la información del producto</p>

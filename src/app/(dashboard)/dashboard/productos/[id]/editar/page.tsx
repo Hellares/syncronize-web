@@ -31,7 +31,9 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    // 868 y no `max-w-3xl` (768): el formulario es de DOS columnas y con 768
+    // quedaban angostas. Son +50 px para cada una.
+    <div className="mx-auto max-w-[868px] space-y-4">
       <div>
         <Link href={`/dashboard/productos/${id}`} className="text-sm text-gray-500 hover:text-[#437EFF]">&larr; Volver al producto</Link>
         <h1 className="mt-1 text-xl font-bold text-gray-900">Editar Producto</h1>
