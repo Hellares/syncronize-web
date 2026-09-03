@@ -12,6 +12,8 @@ import * as varianteService from '../services/variante-service';
 import * as configPrecioService from '../services/configuracion-precio-service';
 import ImageUploader from './ImageUploader';
 import CodigoProductoSunatSelector from './CodigoProductoSunatSelector';
+import PrecioNivelSection from './precios/PrecioNivelSection';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 interface Props {
   empresaId: string;
@@ -430,10 +432,11 @@ export default function ProductoForm({ empresaId, producto }: Props) {
         </Section>
 
         {/* Configuración de Precio por Volumen */}
-        {!form.tieneVariantes && !form.esCombo && configsPrecio.length > 0 && (
-          <Section title="Precio por Volumen" defaultOpen={!!form.configuracionPrecioId}>
+        {!form.tieneVariantes && !form.esCombo && (configsPrecio.length > 0 || (isEditing && !!producto)) && (
+          <Section title="Precio por Volumen" defaultOpen={!!form.configuracionPrecioId || isEditing}>
+            {configsPrecio.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Configuración de Precio</label>
+              <label className="mb-1 block text-[11px] font-medium text-gray-600">Configuración de Precio</label>
               <select
                 className={selectClass}
                 value={form.configuracionPrecioId}
@@ -444,8 +447,9 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                   <option key={c.id} value={c.id}>{c.nombre} ({c.niveles.length} niveles)</option>
                 ))}
               </select>
-              <p className="mt-1 text-[10px] text-gray-400">Al asignar una configuración, se crearán niveles de precio automáticamente.</p>
+              <p className="mt-1 text-[10px] text-gray-400">Una configuración es una PLANTILLA: al asignarla se crean los niveles de abajo.</p>
             </div>
+            )}
 
             {/* Preview de niveles */}
             {form.configuracionPrecioId && (() => {
@@ -471,6 +475,18 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                 </div>
               );
             })()}
+
+            {/* 🔴 Los niveles que el producto TIENE de verdad, con el mismo
+                componente del detalle. Sin esto el formulario decia "Sin
+                configuración" en un producto con niveles cargados a mano: son
+                dos cosas distintas --la configuración es la plantilla que los
+                crea, el nivel es el dato--. Se guardan solos, no con el botón
+                de guardar del formulario. */}
+            {isEditing && producto && (
+              <div className="rounded-lg bg-zinc-50 p-3 ring-1 ring-[#cfe0f5]">
+                <PrecioNivelSection productoId={producto.id} presentacion={presentacionPlana(producto)} />
+              </div>
+            )}
           </Section>
         )}
 
