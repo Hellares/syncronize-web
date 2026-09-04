@@ -35,6 +35,25 @@ export async function enviarMensaje(
 }
 
 /**
+ * Manda una imagen con su texto de pie al cliente.
+ *
+ * Mismo criterio que el documento: `base64` SIN el prefijo `data:` y no se
+ * guarda. El `mimetype` importa —la ficha de un producto sale en PNG— aunque el
+ * backend le ponga siempre `imagen.jpg` de nombre: WhatsApp muestra la imagen
+ * en el chat, no como archivo.
+ */
+export async function enviarImagen(
+  empresaId: string,
+  args: { numero: string; base64: string; caption?: string; mimetype?: string },
+): Promise<{ enviado: boolean }> {
+  const res = await apiClient.post(`/empresas/${empresaId}/whatsapp/enviar-imagen`, {
+    ...args,
+    mimetype: args.mimetype ?? 'image/png',
+  });
+  return res.data;
+}
+
+/**
  * Manda un PDF al cliente.
  *
  * 🔴 El documento NO se guarda: viaja en base64 y va directo al proveedor. Y

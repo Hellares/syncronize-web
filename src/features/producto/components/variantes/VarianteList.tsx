@@ -481,6 +481,8 @@ export default function VarianteList({
       <VarianteDetailDialog
         isOpen={!!detailVariante}
         variante={detailVariante}
+        sedeId={sedeId}
+        sedeNombre={sedesActivas.find((s) => s.id === sedeId)?.nombre}
         onClose={() => setDetailVariante(null)}
       />
 

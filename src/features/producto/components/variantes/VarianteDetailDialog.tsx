@@ -3,19 +3,24 @@
 import { useState } from 'react';
 import type { ProductoVariante } from '@/core/types/producto';
 import { nombreUnidad } from '@/core/types/producto';
+import CompartirFichaDialog from '../CompartirFichaDialog';
 
 interface Props {
   isOpen: boolean;
   variante: ProductoVariante | null;
   onClose: () => void;
+  /** La sede de la que salen el precio y el stock que se comparten. */
+  sedeId?: string;
+  sedeNombre?: string | null;
 }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function VarianteDetailDialog({ isOpen, variante, onClose }: Props) {
+export default function VarianteDetailDialog({ isOpen, variante, onClose, sedeId, sedeNombre }: Props) {
   const [imgIndex, setImgIndex] = useState(0);
+  const [compartir, setCompartir] = useState(false);
 
   if (!isOpen || !variante) return null;
 
@@ -133,14 +138,31 @@ export default function VarianteDetailDialog({ isOpen, variante, onClose }: Prop
             <span>Actualizado: {formatDate(variante.actualizadoEn)}</span>
           </div>
 
-          {/* Cerrar */}
-          <div className="flex justify-end">
+          {/* 🔴 Se comparte ESTA variante, no el producto padre: es la que tiene
+              el precio y los atributos que el cliente preguntó. Igual que el
+              app, donde el botón tampoco existe en el padre. */}
+          <div className="flex justify-end gap-2">
             <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
               Cerrar
+            </button>
+            <button
+              onClick={() => setCompartir(true)}
+              className="rounded-lg bg-[#25D366] px-4 py-2 text-sm font-bold text-white hover:bg-[#1da851]"
+            >
+              Compartir
             </button>
           </div>
         </div>
       </div>
+
+      {compartir && (
+        <CompartirFichaDialog
+          variante={variante}
+          sedeId={sedeId}
+          sedeNombre={sedeNombre}
+          onClose={() => setCompartir(false)}
+        />
+      )}
     </div>
   );
 }

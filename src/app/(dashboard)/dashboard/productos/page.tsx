@@ -10,6 +10,7 @@ import * as productoService from '@/features/producto/services/producto-service'
 import * as stockService from '@/features/stock/services/stock-service';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
 import AjustarStockDialog from '@/features/stock/components/AjustarStockDialog';
+import CompartirFichaDialog from '@/features/producto/components/CompartirFichaDialog';
 import ProductoImagenesDialog from '@/features/producto/components/ProductoImagenesDialog';
 import type { ProductoStock } from '@/core/types/stock';
 import type { Producto } from '@/core/types/producto';
@@ -54,6 +55,11 @@ export default function ProductosPage() {
   const [preciosError, setPreciosError] = useState<string | null>(null);
   const [imagenesTarget, setImagenesTarget] = useState<Producto | null>(null);
   const [stockAjuste, setStockAjuste] = useState<ProductoStock | null>(null);
+  /**
+   * La ficha compartible. NO exige `canManageProducts`: mandarle la ficha de un
+   * producto a un cliente lo hace quien atiende, que casi nunca puede editar.
+   */
+  const [compartirId, setCompartirId] = useState<string | null>(null);
 
   /**
    * Los precios son POR SEDE, y la lista de productos no siempre tiene una
@@ -157,6 +163,18 @@ export default function ProductosPage() {
           </>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {/* Armar un catálogo NO es administrar productos: lo usa quien
+              atiende, que muchas veces no puede editarlos. */}
+          <Link
+            href="/dashboard/productos/catalogo"
+            className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+            title="Armar un catálogo en PDF para compartir"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 5a2 2 0 012-2h6v18H6a2 2 0 01-2-2V5zM12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6V3z" />
+            </svg>
+            Catálogo
+          </Link>
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/papelera"
@@ -206,6 +224,7 @@ export default function ProductosPage() {
         onConfigurarPrecios={permissions.canManageProducts ? abrirPrecios : undefined}
         onAjustarStock={permissions.canManageProducts ? abrirAjusteStock : undefined}
         onGestionarImagenes={permissions.canManageProducts ? setImagenesTarget : undefined}
+        onCompartir={(p) => setCompartirId(p.id)}
         hayFiltros={hayFiltros}
         onLimpiarFiltros={resetFiltros}
         puedeCrear={permissions.canManageProducts}
@@ -227,6 +246,15 @@ export default function ProductosPage() {
           empresaId={empresa?.id}
           onClose={() => setImagenesTarget(null)}
           onChanged={reload}
+        />
+      )}
+
+      {compartirId && (
+        <CompartirFichaDialog
+          productoId={compartirId}
+          sedeId={sedeParaPrecios}
+          sedeNombre={sedes.find((s) => s.id === sedeParaPrecios)?.nombre}
+          onClose={() => setCompartirId(null)}
         />
       )}
 

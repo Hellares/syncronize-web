@@ -23,6 +23,8 @@ interface Props {
   onGestionarImagenes?: (producto: Producto) => void;
   /** Abre el diálogo de ajuste de stock de la sede activa. */
   onAjustarStock?: (producto: Producto) => void;
+  /** Abre la ficha compartible: la imagen que se le manda al cliente. */
+  onCompartir?: (producto: Producto) => void;
   /** Hay algo filtrado: cambia QUE dice el vacio. */
   hayFiltros?: boolean;
   onLimpiarFiltros?: () => void;
@@ -44,7 +46,7 @@ function getImageUrl(producto: Producto): string | null {
   return null;
 }
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, onAjustarStock, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, onAjustarStock, onCompartir, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
   const router = useRouter();
 
   if (isLoading) {
@@ -261,6 +263,25 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           Oculto en productos con VARIANTES --`ProductoStock` es
                           XOR: sus filas de stock son por variante-- y en COMBOS,
                           cuyo stock es el de sus componentes. Igual que el app. */}
+                      {/* Compartir: la ficha del producto como imagen, para
+                          mandarla por WhatsApp. Oculta en productos con
+                          VARIANTES --ahi el precio y los atributos son de cada
+                          variante, y compartir el padre miente--, igual que en
+                          el app. */}
+                      {onCompartir && !p.tieneVariantes && (
+                        <button
+                          onClick={() => onCompartir(p)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-green-50 hover:text-green-600"
+                          title="Compartir la ficha por WhatsApp"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="18" cy="5" r="3" />
+                            <circle cx="6" cy="12" r="3" />
+                            <circle cx="18" cy="19" r="3" />
+                            <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                          </svg>
+                        </button>
+                      )}
                       {onAjustarStock && !p.tieneVariantes && !p.esCombo && (
                         <button
                           onClick={() => onAjustarStock(p)}
