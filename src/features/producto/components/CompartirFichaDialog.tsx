@@ -45,6 +45,13 @@ export default function CompartirFichaDialog({
   const lienzo = useRef<HTMLCanvasElement>(null);
 
   const [datos, setDatos] = useState<DatosFicha | null>(null);
+  /**
+   * Todas las fotos del producto y cuál se manda.
+   *
+   * 🔴 Con varias, cada una suele ser un COLOR o un DIBUJO distinto del mismo
+   * artículo. Antes se mandaba la primera sin preguntar y el resto no existía.
+   */
+  const [fotos, setFotos] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [incluirPrecio, setIncluirPrecio] = useState(true);
@@ -76,11 +83,16 @@ export default function CompartirFichaDialog({
           | undefined;
         const precio = (st ? infoPrecioEfectivo(st) : 0) ?? 0;
         const lista = st?.precio;
-        const fotoPropia = p.archivos?.[0]?.url;
+        const todas = [
+          ...(p.archivos ?? []).map((a) => a.url),
+          ...('imagenes' in p ? (p.imagenes ?? []) : []),
+        ].filter(Boolean);
+        const sinRepetir = [...new Set(todas)];
+        setFotos(sinRepetir);
         setDatos({
           titulo: p.nombre,
           codigo: p.codigoEmpresa,
-          fotoUrl: fotoPropia || ('imagenes' in p ? p.imagenes?.[0] : null) || null,
+          fotoUrl: sinRepetir[0] ?? null,
           precio,
           // Solo si hay rebaja vigente: es lo que se tacha.
           precioAnterior: lista != null && lista > precio ? lista : null,
@@ -206,6 +218,32 @@ export default function CompartirFichaDialog({
               </label>
             ))}
           </div>
+
+          {fotos.length > 1 && (
+            <div className="mt-3">
+              <p className="mb-1 text-[11px] font-medium text-gray-600">
+                Cuál foto se manda
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {fotos.map((url) => (
+                  <button
+                    key={url}
+                    onClick={() => setDatos((d) => (d ? { ...d, fotoUrl: url } : d))}
+                    className={`h-12 w-12 overflow-hidden rounded ring-2 transition-all ${
+                      datos?.fotoUrl === url
+                        ? 'ring-[#004A94]'
+                        : 'opacity-50 ring-gray-200 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-gray-400">
+                Para mandar varios diseños de una, armá un catálogo: ahí sale una tarjeta por foto.
+              </p>
+            </div>
+          )}
 
           <div className="mt-3 flex justify-center rounded-[6px] bg-gray-100 p-3">
             {cargando ? (

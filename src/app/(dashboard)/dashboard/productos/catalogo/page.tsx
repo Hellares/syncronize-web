@@ -25,6 +25,7 @@ import { resolverMarca } from '@/features/configuracion-documentos/marca';
 import { cargarImagenParaPdf, cargarImagenesParaPdf } from '@/core/pdf/imagenes-pdf';
 import {
   construirCatalogoPdf,
+  tarjetasDe,
   type ItemCatalogo,
   type MarcaCatalogo,
 } from '@/features/producto/components/catalogo-pdf';
@@ -67,6 +68,12 @@ export default function CatalogoCompartirPage() {
   const [enviando, setEnviando] = useState(false);
 
   const elegidos = items.filter((i) => i.elegido);
+  /**
+   * Lo que de verdad va a salir: un ítem con varias fotos elegidas aporta una
+   * tarjeta por foto. Los topes y los avisos cuentan TARJETAS, que son las que
+   * ocupan hoja y pesan.
+   */
+  const tarjetas = tarjetasDe(items);
 
   // El buscador espera a que dejen de escribir: una llamada por tecla llena la
   // red de pedidos que ya no importan.
@@ -97,8 +104,29 @@ export default function CatalogoCompartirPage() {
     };
   }, [busqueda, sedeId]);
 
-  const fotoDe = (p: Producto): string | null =>
-    p.archivos?.[0]?.urlThumbnail || p.archivos?.[0]?.url || p.imagenes?.[0] || null;
+  /**
+   * TODAS las fotos del producto, sin repetir.
+   *
+   * 🔴 Cuando un producto tiene varias, cada una suele ser un COLOR o un DIBUJO
+   * distinto del mismo artículo, al mismo precio. Quedarse con la primera
+   * --lo que hacía antes-- dejaba el resto del surtido invisible.
+   */
+  const fotosDe = (p: { archivos?: { url: string; urlThumbnail?: string }[]; imagenes?: string[] }) => {
+    const urls = [
+      ...(p.archivos ?? []).map((a) => a.urlThumbnail || a.url),
+      ...(p.imagenes ?? []),
+    ].filter(Boolean);
+    return [...new Set(urls)];
+  };
+
+  /**
+   * Las fotos ya listas para el ítem. Entran TODAS tildadas: si el usuario
+   * subió cinco fotos del mismo producto es porque quiere mostrarlas.
+   */
+  const fotosItem = (urls: string[]) => urls.map((url) => ({ url, elegida: true }));
+
+  /** La primera foto, para la miniatura del buscador. */
+  const fotoDe = (p: Producto): string | null => fotosDe(p)[0] ?? null;
 
   /**
    * Trae la ficha COMPLETA y la convierte en renglones.
@@ -126,7 +154,7 @@ export default function CatalogoCompartirPage() {
               id: v.id,
               titulo: v.nombre,
               codigo: v.codigoEmpresa,
-              fotoUrl: v.archivos?.[0]?.urlThumbnail || v.archivos?.[0]?.url || fotoDe(p),
+              fotos: fotosItem(v.archivos?.length ? fotosDe(v) : fotosDe(p)),
               precio: (st ? infoPrecioEfectivo(st) : 0) ?? 0,
               stock: st?.cantidad ?? 0,
               caracteristicas: (v.atributosValores ?? [])
@@ -143,7 +171,7 @@ export default function CatalogoCompartirPage() {
             id: p.id,
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
-            fotoUrl: fotoDe(p),
+            fotos: fotosItem(fotosDe(p)),
             precio: (st ? infoPrecioEfectivo(st) : 0) ?? 0,
             stock: st?.cantidad ?? 0,
             caracteristicas: (p.atributosValores ?? [])
@@ -186,28 +214,28 @@ export default function CatalogoCompartirPage() {
     const marca = await marcaDelCatalogo();
     setProgreso('Descargando imágenes…');
     const imagenes = await cargarImagenesParaPdf(
-      elegidos.map((i) => i.fotoUrl ?? '').filter(Boolean) as string[],
+      tarjetasDe(items).map((t) => t.fotoUrl ?? '').filter(Boolean),
       { onProgreso: (listas, total) => setProgreso(`Imágenes ${listas} de ${total}…`) },
     );
     setProgreso('Armando el PDF…');
     return construirCatalogoPdf({
-      items: elegidos,
+      items,
       marca,
       imagenes,
       opciones: { incluirPrecio, incluirCaracteristicas, incluirCodigo },
     });
-  }, [elegidos, marcaDelCatalogo, incluirPrecio, incluirCaracteristicas, incluirCodigo]);
+  }, [items, marcaDelCatalogo, incluirPrecio, incluirCaracteristicas, incluirCodigo]);
 
   /** Con muchos ítems se avisa y se deja decidir, en vez de colgar la pantalla. */
   const confirmarSiEsGrande = () =>
-    elegidos.length < AVISAR_DESDE ||
+    tarjetas.length < AVISAR_DESDE ||
     window.confirm(
-      `Son ${elegidos.length} productos: unas ${Math.ceil(elegidos.length / 4)} páginas. ` +
+      `Son ${tarjetas.length} tarjetas: unas ${Math.ceil(tarjetas.length / 4)} páginas. ` +
         'Si cada uno tiene su propia foto puede tardar y pesar bastante.',
     );
 
   const descargar = async () => {
-    if (!elegidos.length || !confirmarSiEsGrande()) return;
+    if (!tarjetas.length || !confirmarSiEsGrande()) return;
     setTrabajando(true);
     setError(null);
     try {
@@ -222,7 +250,7 @@ export default function CatalogoCompartirPage() {
   };
 
   const abrirEnvio = () => {
-    if (!elegidos.length || !confirmarSiEsGrande()) return;
+    if (!tarjetas.length || !confirmarSiEsGrande()) return;
     setEnviando(true);
   };
 
@@ -299,6 +327,7 @@ export default function CatalogoCompartirPage() {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-medium text-gray-600">
               {elegidos.length} de {items.length} en el catálogo
+              {tarjetas.length !== elegidos.length && ` · ${tarjetas.length} tarjetas`}
             </span>
             <div className="ml-auto flex flex-wrap gap-2">
               {(
@@ -340,11 +369,13 @@ export default function CatalogoCompartirPage() {
             <div className="max-h-[420px] space-y-1 overflow-y-auto">
               {items.map((it) => {
                 const sinStock = it.stock <= 0;
+                const fotosElegidas = it.fotos.filter((f) => f.elegida).length;
                 return (
                   <div
                     key={it.id}
-                    className="flex items-center gap-2 rounded-[6px] p-1.5 ring-1 ring-gray-100"
+                    className="rounded-[6px] p-1.5 ring-1 ring-gray-100"
                   >
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={it.elegido}
@@ -387,6 +418,47 @@ export default function CatalogoCompartirPage() {
                       ✕
                     </button>
                   </div>
+
+                  {/* 🔴 Con VARIAS fotos, cada una es un color o un dibujo del
+                      mismo producto: sale una tarjeta por foto tildada, con los
+                      mismos datos. Acá se elige cuáles van. */}
+                  {it.fotos.length > 1 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-6">
+                      {it.fotos.map((f, i) => (
+                        <button
+                          key={f.url}
+                          onClick={() =>
+                            setItems((prev) =>
+                              prev.map((x) =>
+                                x.id === it.id
+                                  ? {
+                                      ...x,
+                                      fotos: x.fotos.map((y, j) =>
+                                        j === i ? { ...y, elegida: !y.elegida } : y,
+                                      ),
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                          title={f.elegida ? 'Sale en el catálogo' : 'No sale'}
+                          className={`h-11 w-11 overflow-hidden rounded ring-2 transition-all ${
+                            f.elegida
+                              ? 'ring-[#004A94] opacity-100'
+                              : 'ring-gray-200 opacity-40 grayscale'
+                          }`}
+                        >
+                          <img src={f.url} alt="" className="h-full w-full object-cover" />
+                        </button>
+                      ))}
+                      <span className="text-[10px] text-gray-400">
+                        {fotosElegidas > 1
+                          ? `${fotosElegidas} tarjetas, una por diseño`
+                          : 'una tarjeta'}
+                      </span>
+                    </div>
+                  )}
+                  </div>
                 );
               })}
             </div>
@@ -398,14 +470,14 @@ export default function CatalogoCompartirPage() {
           <div className="mt-3 flex justify-end gap-2">
             <button
               onClick={descargar}
-              disabled={trabajando || !elegidos.length}
+              disabled={trabajando || !tarjetas.length}
               className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-bold text-white hover:bg-[#003570] disabled:opacity-50"
             >
-              {trabajando ? 'Armando…' : `Descargar PDF (${elegidos.length})`}
+              {trabajando ? 'Armando…' : `Descargar PDF (${tarjetas.length})`}
             </button>
             <button
               onClick={abrirEnvio}
-              disabled={trabajando || !elegidos.length}
+              disabled={trabajando || !tarjetas.length}
               className="rounded-lg bg-[#25D366] px-4 py-2 text-sm font-bold text-white hover:bg-[#1da851] disabled:opacity-50"
             >
               Enviar por WhatsApp
@@ -421,7 +493,7 @@ export default function CatalogoCompartirPage() {
           ayudaNumero="El catálogo se manda a quien pregunta: no hace falta que sea un cliente registrado."
           adjunto={{
             nombre: 'catalogo.pdf',
-            detalle: `${elegidos.length} ${elegidos.length === 1 ? 'producto' : 'productos'}`,
+            detalle: `${tarjetas.length} ${tarjetas.length === 1 ? 'tarjeta' : 'tarjetas'}`,
             tipo: 'pdf',
             // Se arma al enviar: si cancelan, no se bajó una sola foto de más.
             construir: async () => (await armarPdf()).output('blob'),

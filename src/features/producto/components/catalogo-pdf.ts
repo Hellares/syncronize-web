@@ -14,17 +14,60 @@
 
 import { encajarEn, type ImagenPdf } from '@/core/pdf/imagenes-pdf';
 
+/**
+ * Una foto del ítem. Cuando un producto tiene varias, cada una suele ser un
+ * COLOR o un DIBUJO distinto del mismo artículo, al mismo precio.
+ */
+export interface FotoItem {
+  url: string;
+  elegida: boolean;
+}
+
 /** Un renglón del catálogo, ya resuelto por la pantalla: producto o variante. */
 export interface ItemCatalogo {
   id: string;
   titulo: string;
   codigo?: string | null;
-  fotoUrl?: string | null;
+  /**
+   * 🔴 TODAS sus fotos, no una. Con varias elegidas sale **una tarjeta por
+   * foto**, con los mismos datos: son el mismo producto en otro color, y una
+   * sola foto dejaba el resto del surtido invisible.
+   */
+  fotos: FotoItem[];
   precio: number;
   stock: number;
   /** `nombre: valor` ya aplanados y en orden. */
   caracteristicas: [string, string][];
   elegido: boolean;
+}
+
+/** Lo que termina siendo UNA tarjeta del PDF. */
+export interface TarjetaCatalogo {
+  item: ItemCatalogo;
+  fotoUrl?: string;
+  /** "Diseño 2 de 5", solo cuando el ítem aporta más de una tarjeta. */
+  etiqueta?: string;
+}
+
+/**
+ * Expande los ítems en tarjetas: una por foto elegida.
+ *
+ * 🔴 Las tarjetas se numeran ("Diseño 2 de 5") en cuanto hay más de una. Sin
+ * eso el catálogo muestra cinco tarjetas idénticas y el cliente solo puede
+ * pedir "la tercera foto", que del otro lado del WhatsApp no se sabe cuál es.
+ */
+export function tarjetasDe(items: ItemCatalogo[]): TarjetaCatalogo[] {
+  return items
+    .filter((i) => i.elegido)
+    .flatMap((item) => {
+      const fotos = item.fotos.filter((f) => f.elegida);
+      if (fotos.length <= 1) return [{ item, fotoUrl: fotos[0]?.url }];
+      return fotos.map((f, i) => ({
+        item,
+        fotoUrl: f.url,
+        etiqueta: `Diseño ${i + 1} de ${fotos.length}`,
+      }));
+    });
 }
 
 /** Con qué se presenta la empresa. Sale de la configuración de documentos. */
@@ -102,7 +145,7 @@ export async function construirCatalogoPdf(params: {
   const anchoHoja = doc.internal.pageSize.getWidth();
   const altoHoja = doc.internal.pageSize.getHeight();
 
-  const elegidos = items.filter((i) => i.elegido);
+  const tarjetas = tarjetasDe(items);
   const color = marca.color;
   const tinteSuave = tinte(color, 0.92);
   const tinteBorde = tinte(color, 0.78);
@@ -119,31 +162,33 @@ export async function construirCatalogoPdf(params: {
   const fecha = `${dosDigitos(hoy.getDate())}/${dosDigitos(hoy.getMonth() + 1)}/${hoy.getFullYear()}`;
 
   /** Las características que entran, ya recortadas. */
-  const rasgosDe = (it: ItemCatalogo) =>
-    incluirCaracteristicas ? it.caracteristicas.slice(0, maxCaracteristicas) : [];
+  const rasgosDe = (t: TarjetaCatalogo) =>
+    incluirCaracteristicas ? t.item.caracteristicas.slice(0, maxCaracteristicas) : [];
 
   /** El título ocupa una o dos líneas y eso cambia el alto de la tarjeta. */
-  const lineasTitulo = (it: ItemCatalogo): string[] => {
+  const lineasTitulo = (t: TarjetaCatalogo): string[] => {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    return (doc.splitTextToSize(it.titulo, anchoTarjeta - 2 * PADDING_TARJETA) as string[]).slice(
-      0,
-      2,
-    );
+    return (
+      doc.splitTextToSize(t.item.titulo, anchoTarjeta - 2 * PADDING_TARJETA) as string[]
+    ).slice(0, 2);
   };
 
-  const altoTarjeta = (it: ItemCatalogo): number => {
-    const rasgos = rasgosDe(it);
-    const hayMas = incluirCaracteristicas && it.caracteristicas.length > maxCaracteristicas;
+  const altoTarjeta = (t: TarjetaCatalogo): number => {
+    const rasgos = rasgosDe(t);
+    const hayMas =
+      incluirCaracteristicas && t.item.caracteristicas.length > maxCaracteristicas;
     let h = ALTO_FOTO + PADDING_TARJETA;
-    h += lineasTitulo(it).length * 3.4;
-    if (incluirCodigo && it.codigo) h += 3;
-    if (incluirPrecio || it.stock <= 0) h += 6;
+    h += lineasTitulo(t).length * 3.4;
+    if (t.etiqueta) h += 3;
+    if (incluirCodigo && t.item.codigo) h += 3;
+    if (incluirPrecio || t.item.stock <= 0) h += 6;
     if (rasgos.length) h += 2 + rasgos.length * 3.2 + (hayMas ? 3 : 0) + 3;
     return h + PADDING_TARJETA;
   };
 
-  function dibujarTarjeta(it: ItemCatalogo, x: number, y: number, alto: number) {
+  function dibujarTarjeta(tj: TarjetaCatalogo, x: number, y: number, alto: number) {
+    const it = tj.item;
     // El marco, con el borde en el tinte de la marca.
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(...tinteBorde);
@@ -158,7 +203,7 @@ export async function construirCatalogoPdf(params: {
     // redondeo en el medio de la tarjeta.
     doc.rect(x + 0.3, y + ALTO_FOTO - 2, anchoTarjeta - 0.6, 2.3, 'F');
 
-    const foto = it.fotoUrl ? imagenes.get(it.fotoUrl) : undefined;
+    const foto = tj.fotoUrl ? imagenes.get(tj.fotoUrl) : undefined;
     if (foto) {
       const caja = encajarEn(foto, {
         x: x + 1.5,
@@ -181,9 +226,18 @@ export async function construirCatalogoPdf(params: {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...GRIS_OSCURO);
-    for (const linea of lineasTitulo(it)) {
+    for (const linea of lineasTitulo(tj)) {
       doc.text(linea, izq, cursor);
       cursor += 3.4;
+    }
+
+    // "Diseño 2 de 5": lo unico que distingue dos tarjetas del mismo producto.
+    if (tj.etiqueta) {
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...color);
+      doc.text(tj.etiqueta, izq, cursor + 0.6);
+      cursor += 3;
     }
 
     if (incluirCodigo && it.codigo) {
@@ -217,7 +271,7 @@ export async function construirCatalogoPdf(params: {
       cursor += 2;
     }
 
-    const rasgos = rasgosDe(it);
+    const rasgos = rasgosDe(tj);
     if (rasgos.length) {
       const hayMas = it.caracteristicas.length > maxCaracteristicas;
       const altoBloque = rasgos.length * 3.2 + (hayMas ? 3 : 0) + 3;
@@ -274,7 +328,7 @@ export async function construirCatalogoPdf(params: {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRIS_OSCURO);
     doc.text(
-      elegidos.length === 1 ? '1 artículo' : `${elegidos.length} artículos`,
+      tarjetas.length === 1 ? '1 artículo' : `${tarjetas.length} artículos`,
       derecha - 3,
       y + 5,
       { align: 'right' },
@@ -360,8 +414,8 @@ export async function construirCatalogoPdf(params: {
   let y = membrete();
   const limiteY = altoHoja - MARGEN - 8;
 
-  for (let i = 0; i < elegidos.length; i += 2) {
-    const fila = elegidos.slice(i, i + 2);
+  for (let i = 0; i < tarjetas.length; i += 2) {
+    const fila = tarjetas.slice(i, i + 2);
     // 🔴 Las dos tarjetas de la fila terminan a la misma altura: si no, la que
     // tiene menos características queda corta y la grilla se ve dentada.
     const alto = Math.max(...fila.map(altoTarjeta));
@@ -371,9 +425,9 @@ export async function construirCatalogoPdf(params: {
       y = franja();
     }
 
-    fila.forEach((it, col) => {
+    fila.forEach((tj, col) => {
       const x = izquierdaGrilla + col * (anchoTarjeta + SEPARACION_COLUMNAS);
-      dibujarTarjeta(it, x, y, alto);
+      dibujarTarjeta(tj, x, y, alto);
     });
     y += alto + 5;
   }
