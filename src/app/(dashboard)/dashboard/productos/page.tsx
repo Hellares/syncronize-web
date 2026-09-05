@@ -167,7 +167,7 @@ export default function ProductosPage() {
               atiende, que muchas veces no puede editarlos. */}
           <Link
             href="/dashboard/productos/catalogo"
-            className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+            className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
             title="Armar un catálogo en PDF para compartir"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -178,7 +178,7 @@ export default function ProductosPage() {
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/papelera"
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
               title="Productos eliminados"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -285,7 +285,7 @@ export default function ProductosPage() {
       {toggleTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-medium text-gray-900">
               {toggleTarget.isActive ? 'Desactivar producto' : 'Activar producto'}
             </h3>
             <p className="mt-2 text-sm text-gray-600">
