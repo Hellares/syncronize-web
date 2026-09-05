@@ -331,7 +331,11 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                       {p.tieneVariantes && (
                         <Link
                           href={`/dashboard/productos/${p.id}/variantes`}
-                          className="rounded-lg border border-[#437EFF] px-2 py-1 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5"
+                          // Sin borde: al lado de los iconos de acciones --que
+                          // son todos texto sobre nada-- el recuadro azul
+                          // pesaba de mas. El subrayado al pasar por encima es
+                          // lo que dice que se puede tocar.
+                          className="rounded-lg px-1.5 py-1 text-[11px] font-bold text-[#437EFF] hover:bg-[#437EFF]/5 hover:underline"
                           title="Gestionar variantes"
                         >
                           Gestionar
