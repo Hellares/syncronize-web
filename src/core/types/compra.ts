@@ -14,7 +14,16 @@ export interface CompraListItem {
   moneda: string;
   estado: EstadoCompra;
   terminosPago?: string | null;
+  /**
+   * 🔴 NO es "debe plata". Significa que la compra entra al circuito de cuentas
+   * por pagar, y NO se apaga al saldarla: es lo que la deja en el historial de
+   * CxP. Para saber si esta pagada va `saldoPendiente`.
+   */
   pagoPendiente: boolean;
+  /** Suma de los pagos NO anulados. Lo calcula el backend en el listado. */
+  totalPagado?: number | string | null;
+  /** `total - totalPagado`. <= 0 es pagada. */
+  saldoPendiente?: number | string | null;
   fechaRecepcion: string;
   sede?: { id: string; nombre: string } | null;
   proveedor?: { id: string; nombre: string; codigo: string } | null;

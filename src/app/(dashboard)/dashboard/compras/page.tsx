@@ -32,6 +32,40 @@ const INPUT_STD =
   'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 
+/**
+ * Lo que se le debe al proveedor por esta compra.
+ *
+ * 🔴 NO se lee `pagoPendiente`: ese flag dice "la compra entra al circuito de
+ * cuentas por pagar" y NO se apaga al saldarla --queda prendido a proposito
+ * para que la compra siga en el historial de CxP--. Leyendolo como si fuera la
+ * deuda, una compra pagada por completo decia "pendiente" para siempre,
+ * mientras Cuentas por pagar --que si hace la cuenta-- la mostraba PAGADA.
+ *
+ * El saldo lo calcula el backend en el listado: `total - pagos no anulados`.
+ */
+function EstadoPago({ compra }: { compra: CompraListItem }) {
+  if (compra.estado !== 'CONFIRMADA') return null;
+
+  // Contado pagado al confirmar: nunca entro a CxP y no tiene pagos que sumar.
+  if (!compra.pagoPendiente) return <span className="text-green-600">pagada</span>;
+
+  const saldo = compra.saldoPendiente != null ? Number(compra.saldoPendiente) : null;
+  // Backend viejo (sin el campo): se dice lo unico que se sabe, que esta en CxP.
+  if (saldo == null || Number.isNaN(saldo)) return <span className="text-amber-600">en CxP</span>;
+
+  if (saldo <= 0) return <span className="text-green-600">pagada</span>;
+
+  const pagado = compra.totalPagado != null ? Number(compra.totalPagado) : 0;
+  if (pagado > 0) {
+    return (
+      <span className="text-amber-600" title={`Pagado ${sim(compra.moneda)} ${pagado.toFixed(2)} de ${sim(compra.moneda)} ${num(compra.total).toFixed(2)}`}>
+        parcial · falta {sim(compra.moneda)} {saldo.toFixed(2)}
+      </span>
+    );
+  }
+  return <span className="text-amber-600">pendiente</span>;
+}
+
 export default function ComprasPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -143,9 +177,7 @@ export default function ComprasPage() {
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ESTADO_STYLE[c.estado]}`}>{c.estado}</span>
                   </td>
                   <td className="px-3 py-2 text-center text-xs">
-                    {c.estado === 'CONFIRMADA' && c.pagoPendiente
-                      ? <span className="text-amber-600">pendiente</span>
-                      : c.estado === 'CONFIRMADA' ? <span className="text-green-600">—</span> : ''}
+                    <EstadoPago compra={c} />
                   </td>
                   <td className="px-3 py-2 text-right">
                     <span className="text-xs text-[#004A94] hover:underline">Ver</span>
