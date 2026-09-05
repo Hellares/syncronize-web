@@ -348,13 +348,18 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           aria-expanded={abierta}
                           aria-label={abierta ? 'Ocultar el detalle' : 'Ver el detalle'}
                           title={abierta ? 'Ocultar el detalle' : 'Ver stock por sede, códigos y precios'}
-                          className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-                            abierta ? 'text-[#004A94]' : 'text-gray-300 hover:bg-blue-50 hover:text-[#437EFF]'
+                          // Gris claro no se veia: en una tabla de 12 px la
+                          // flecha desaparecia y nadie descubria que la fila se
+                          // abre. Va con el fondo del acento, del mismo tamano.
+                          className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                            abierta
+                              ? 'bg-[#437EFF] text-white'
+                              : 'bg-blue-50 text-[#437EFF] hover:bg-blue-100'
                           }`}
                         >
                           <svg
                             className={`h-3.5 w-3.5 transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`}
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round"
                           >
                             <path d="M9 6l6 6-6 6" />
                           </svg>

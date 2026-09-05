@@ -12,13 +12,18 @@
  *    ve de cuál ni cuánto hay en las otras. Acá se listan todas las que trae
  *    el listado.
  *
- * No pide nada al backend: todo sale del `Producto` que ya está en memoria.
+ * Casi todo sale del `Producto` que ya está en memoria. La única llamada son
+ * los NIVELES DE PRECIO, que el listado no trae: se piden al desplegar, una vez
+ * por producto abierto. Por eso el componente se monta recién al abrir la fila
+ * --si estuviera montado y escondido, entrar a la pantalla dispararía 20
+ * requests que nadie pidió--.
  */
 
 import Link from 'next/link';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoLiquidacionActiva, infoOfertaActiva, simboloUnidad } from '@/core/types/producto';
 import { presentacionPlana } from '@/core/utils/unidad-presentacion';
+import { usePrecioNiveles } from '../hooks/use-precio-niveles';
 import type { AccionMenu } from '@/components/ui/MenuAcciones';
 
 interface Props {
@@ -68,9 +73,23 @@ export default function ProductoFilaDetalle({ producto: p, sedeId, acciones = []
   // --el mismo motivo por el que la columna Precio de la fila dice "—"--.
   const precioPorVariante = p.tieneVariantes;
 
+  /**
+   * Los niveles NO vienen en el listado: se piden acá, y solo cuando la fila se
+   * despliega --este componente se monta recién ahí--.
+   *
+   * En un producto con variantes se pasa `null` a propósito: sus niveles son de
+   * cada variante, y los del padre serían una lista vacía o, peor, la que se
+   * copió a las 91 variantes al generarlas. El hook con `null` no llama a nada.
+   */
+  const { niveles, isLoading: cargandoNiveles } = usePrecioNiveles(p.tieneVariantes ? null : p.id);
+  // Un nivel apagado no se cobra: mostrarlo haría creer que sí.
+  const nivelesActivos = niveles
+    .filter((n) => n.isActive)
+    .sort((a, b) => a.orden - b.orden || a.cantidadMinima - b.cantidadMinima);
+
   return (
     <div className="bg-[#f9fbff] px-4 pb-4 pt-1 sm:pl-12">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Grupo titulo="Ficha">
           <Dato etiqueta="Código" valor={p.codigoEmpresa} mono />
           {p.sku && <Dato etiqueta="SKU" valor={p.sku} mono />}
@@ -141,6 +160,48 @@ export default function ProductoFilaDetalle({ producto: p, sedeId, acciones = []
                 <p className="mt-1 text-[10px] text-amber-600">Esta sede todavía no tiene precio configurado.</p>
               )}
             </>
+          )}
+        </Grupo>
+
+        {/* 🔴 El nivel es GLOBAL: `PrecioNivel` no tiene `sedeId`, así que el
+            mayorista es el mismo en todas las sedes --por eso este bloque no
+            dice de qué sede es, a diferencia del de al lado--. */}
+        <Grupo titulo="Niveles de precio">
+          {precioPorVariante ? (
+            <p className="text-[11px] text-gray-500">
+              Los niveles son de cada variante.{' '}
+              <Link href={`/dashboard/productos/${p.id}/mayoreo`} className="font-medium text-[#437EFF] hover:underline">
+                Ver el mayoreo
+              </Link>
+            </p>
+          ) : cargandoNiveles ? (
+            <div className="flex items-center gap-2 py-1 text-[11px] text-gray-400">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-200 border-t-[#437EFF]" />
+              Cargando…
+            </div>
+          ) : nivelesActivos.length === 0 ? (
+            <p className="text-[11px] text-gray-400">Sin niveles: se vende siempre al precio de lista.</p>
+          ) : (
+            <div className="space-y-1">
+              {nivelesActivos.map((n) => (
+                <div key={n.id} className="flex items-baseline gap-2 text-[11px] leading-6">
+                  <span className="min-w-0 flex-1 truncate text-gray-700">{n.nombre}</span>
+                  {/* El rango se lee en la unidad de PRESENTACIÓN, igual que el
+                      stock: en un granel "desde 5" son 5 kg, no 5 gramos. */}
+                  <span className="shrink-0 whitespace-nowrap text-gray-400">
+                    {pres.cantidadTexto(n.cantidadMinima)}
+                    {n.cantidadMaxima ? `–${pres.cantidadTexto(n.cantidadMaxima)}` : '+'}
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap font-medium">
+                    {n.tipoPrecio === 'PRECIO_FIJO' ? (
+                      <span className="text-green-600">{pres.precioTexto(Number(n.precio))}</span>
+                    ) : (
+                      <span className="text-blue-600">{n.porcentajeDesc}% desc.</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </Grupo>
       </div>
