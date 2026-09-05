@@ -220,6 +220,7 @@ export default function ProductosPage() {
         isLoading={isLoading}
         sedeId={filtros.sedeId}
         canManage={permissions.canManageProducts}
+        puedeVerCosto={permissions.canEditarCostoProducto}
         onPageChange={setPage}
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}
