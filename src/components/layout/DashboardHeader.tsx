@@ -99,9 +99,9 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
           const activo = pathname === a.href || pathname.startsWith(a.href + '/');
           return (
             <Link key={a.href} href={a.href} title={a.label}
-              className={`flex h-[34px] items-center gap-2 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${activo
-                ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
-                : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
+              className={`flex h-[34px] items-center gap-2 rounded-lg border px-2.5 text-[12px] transition-colors ${activo
+                ? 'border-[#cfe0f5] bg-[#eaf2fd] font-bold text-[#004A94]'
+                : 'border-transparent font-medium text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
               <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                 <path d={ICONOS[a.icon]} />
               </svg>
@@ -138,7 +138,7 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
             )}
 
             <div className="hidden text-left sm:block">
-              <p className="text-xs font-semibold leading-tight text-gray-700">{user.nombres} {user.apellidos}</p>
+              <p className="text-xs font-medium leading-tight text-gray-700">{user.nombres} {user.apellidos}</p>
               <p className="text-[10px] leading-tight text-gray-400">{primaryRole}</p>
             </div>
 
@@ -150,7 +150,7 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
           {userMenuOpen && (
             <div className="absolute right-0 top-full mt-2 w-56 rounded-[10px] border border-gray-100 bg-white py-2 shadow-lg">
               <div className="border-b border-gray-100 px-4 pb-2 pt-1">
-                <p className="truncate text-sm font-semibold text-gray-900">{user.nombres} {user.apellidos}</p>
+                <p className="truncate text-sm font-medium text-gray-900">{user.nombres} {user.apellidos}</p>
                 <p className="truncate text-xs text-gray-400">{user.email}</p>
               </div>
 
