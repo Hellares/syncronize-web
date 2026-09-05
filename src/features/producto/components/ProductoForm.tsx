@@ -7,6 +7,7 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import type { Producto, AtributoPlantilla, PlantillaAtributo } from '@/core/types/producto';
 import type { ConfiguracionPrecio } from '@/core/types/precio';
 import type { CatalogoItem, UnidadMedida } from '@/features/catalogo/services/catalogo-service';
+import SelectBuscable from '@/components/ui/SelectBuscable';
 import * as catalogoService from '@/features/catalogo/services/catalogo-service';
 import * as varianteService from '../services/variante-service';
 import * as configPrecioService from '../services/configuracion-precio-service';
@@ -258,24 +259,41 @@ export default function ProductoForm({ empresaId, producto }: Props) {
 
         {/* Clasificación */}
         <Section title="Clasificación">
+          {/* 🔑 Los tres se ESCRIBEN, no solo se despliegan: con cien
+              categorías, un `<select>` obliga a scrollear hasta una que uno ya
+              sabe cómo se llama. El filtro es el mismo de la búsqueda de
+              productos (sin tildes, todas las palabras). */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Categoría">
-              <select className={selectClass} value={form.empresaCategoriaId} onChange={(e) => updateField('empresaCategoriaId', e.target.value)}>
-                <option value="">Sin categoría</option>
-                {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
+              <SelectBuscable
+                etiqueta="categoría"
+                value={form.empresaCategoriaId}
+                onChange={(id) => updateField('empresaCategoriaId', id)}
+                opciones={categorias}
+                placeholder="Sin categoría"
+                textoVacio="Sin categoría"
+              />
             </Field>
             <Field label="Marca">
-              <select className={selectClass} value={form.empresaMarcaId} onChange={(e) => updateField('empresaMarcaId', e.target.value)}>
-                <option value="">Sin marca</option>
-                {marcas.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-              </select>
+              <SelectBuscable
+                etiqueta="marca"
+                value={form.empresaMarcaId}
+                onChange={(id) => updateField('empresaMarcaId', id)}
+                opciones={marcas}
+                placeholder="Sin marca"
+                textoVacio="Sin marca"
+              />
             </Field>
             <Field label="Unidad de Medida">
-              <select className={selectClass} value={form.unidadMedidaId} onChange={(e) => updateField('unidadMedidaId', e.target.value)}>
-                <option value="">Seleccionar</option>
-                {unidades.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-              </select>
+              <SelectBuscable
+                etiqueta="unidad de medida"
+                value={form.unidadMedidaId}
+                onChange={(id) => updateField('unidadMedidaId', id)}
+                // La abreviatura a la derecha: "Kilogramo" y "kg" se buscan
+                // igual de seguido.
+                opciones={unidades.map((u) => ({ ...u, detalle: u.abreviatura }))}
+                placeholder="Seleccionar"
+              />
             </Field>
         </div>
         </Section>
