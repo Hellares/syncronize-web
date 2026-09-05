@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProductoVariante } from '@/core/types/producto';
-import { infoPrecioEfectivo } from '@/core/types/producto';
+import { fotosDe, infoPrecioEfectivo } from '@/core/types/producto';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import * as productoService from '@/features/producto/services/producto-service';
 import { resolverMarca } from '@/features/configuracion-documentos/marca';
@@ -83,11 +83,7 @@ export default function CompartirFichaDialog({
           | undefined;
         const precio = (st ? infoPrecioEfectivo(st) : 0) ?? 0;
         const lista = st?.precio;
-        const todas = [
-          ...(p.archivos ?? []).map((a) => a.url),
-          ...('imagenes' in p ? (p.imagenes ?? []) : []),
-        ].filter(Boolean);
-        const sinRepetir = [...new Set(todas)];
+        const sinRepetir = fotosDe(p);
         setFotos(sinRepetir);
         setDatos({
           titulo: p.nombre,

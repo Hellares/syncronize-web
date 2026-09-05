@@ -116,6 +116,33 @@ export function infoLiquidacionActiva(s: StockPorSedeInfo): boolean {
   return true;
 }
 
+/**
+ * TODAS las fotos de un producto o una variante, sin repetir.
+ *
+ * 🔴 `imagenes` y `archivos` son LA MISMA foto por dos caminos: `archivos` trae
+ * `url` + `urlThumbnail` --que apunta a `/thumbnails/…-thumb.webp`-- y
+ * `imagenes` la url plana. **Mezclar las dos listas duplica cada foto**: un
+ * producto con una salía con dos, y con dos ofrecía cuatro. Un `Set` no lo
+ * arregla porque las cadenas son distintas. Con `archivos` cargados mandan los
+ * archivos; `imagenes` es el respaldo de lo viejo, que no tiene fila de archivo.
+ *
+ * `miniatura` devuelve los thumbnails, que es lo que quiere una grilla o un
+ * PDF; sin eso van las de tamaño completo, que es lo que quiere una ficha.
+ */
+export function fotosDe(
+  p: {
+    archivos?: { url: string; urlThumbnail?: string }[];
+    imagenes?: string[];
+  },
+  opciones: { miniatura?: boolean } = {},
+): string[] {
+  const desdeArchivos = (p.archivos ?? [])
+    .map((a) => (opciones.miniatura ? a.urlThumbnail || a.url : a.url))
+    .filter(Boolean);
+  if (desdeArchivos.length) return [...new Set(desdeArchivos)];
+  return [...new Set((p.imagenes ?? []).filter(Boolean))];
+}
+
 // Prioridad: liquidación > oferta > base
 export function infoPrecioEfectivo(s: StockPorSedeInfo): number | undefined {
   if (infoLiquidacionActiva(s)) return s.precioLiquidacion;

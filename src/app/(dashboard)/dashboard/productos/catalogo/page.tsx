@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Producto } from '@/core/types/producto';
-import { infoPrecioEfectivo } from '@/core/types/producto';
+import { fotosDe, infoPrecioEfectivo } from '@/core/types/producto';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import * as productoService from '@/features/producto/services/producto-service';
 import { resolverMarca } from '@/features/configuracion-documentos/marca';
@@ -105,28 +105,18 @@ export default function CatalogoCompartirPage() {
   }, [busqueda, sedeId]);
 
   /**
-   * TODAS las fotos del producto, sin repetir.
-   *
-   * 🔴 Cuando un producto tiene varias, cada una suele ser un COLOR o un DIBUJO
-   * distinto del mismo artículo, al mismo precio. Quedarse con la primera
-   * --lo que hacía antes-- dejaba el resto del surtido invisible.
-   */
-  const fotosDe = (p: { archivos?: { url: string; urlThumbnail?: string }[]; imagenes?: string[] }) => {
-    const urls = [
-      ...(p.archivos ?? []).map((a) => a.urlThumbnail || a.url),
-      ...(p.imagenes ?? []),
-    ].filter(Boolean);
-    return [...new Set(urls)];
-  };
-
-  /**
    * Las fotos ya listas para el ítem. Entran TODAS tildadas: si el usuario
    * subió cinco fotos del mismo producto es porque quiere mostrarlas.
+   *
+   * 🔴 Van las MINIATURAS: el catálogo las mete en 4 cm y las de tamaño
+   * completo solo engordan el PDF.
    */
-  const fotosItem = (urls: string[]) => urls.map((url) => ({ url, elegida: true }));
+  const fotosItem = (p: Parameters<typeof fotosDe>[0]) =>
+    fotosDe(p, { miniatura: true }).map((url) => ({ url, elegida: true }));
 
   /** La primera foto, para la miniatura del buscador. */
-  const fotoDe = (p: Producto): string | null => fotosDe(p)[0] ?? null;
+  const fotoDe = (p: Producto): string | null =>
+    fotosDe(p, { miniatura: true })[0] ?? null;
 
   /**
    * Trae la ficha COMPLETA y la convierte en renglones.
@@ -154,7 +144,8 @@ export default function CatalogoCompartirPage() {
               id: v.id,
               titulo: v.nombre,
               codigo: v.codigoEmpresa,
-              fotos: fotosItem(v.archivos?.length ? fotosDe(v) : fotosDe(p)),
+              // Sin fotos propias hereda las del padre, como en la lista.
+              fotos: fotosItem(v.archivos?.length ? v : p),
               precio: (st ? infoPrecioEfectivo(st) : 0) ?? 0,
               stock: st?.cantidad ?? 0,
               caracteristicas: (v.atributosValores ?? [])
@@ -171,7 +162,7 @@ export default function CatalogoCompartirPage() {
             id: p.id,
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
-            fotos: fotosItem(fotosDe(p)),
+            fotos: fotosItem(p),
             precio: (st ? infoPrecioEfectivo(st) : 0) ?? 0,
             stock: st?.cantidad ?? 0,
             caracteristicas: (p.atributosValores ?? [])
