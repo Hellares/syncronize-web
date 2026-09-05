@@ -110,7 +110,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
           tabla se pierde. Es el mismo motivo por el que `ui/Card.tsx` usa
           ring. */}
       <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-blue-400/40 shadow-sm">
-        <table className="w-full text-left text-[13px]">
+        <table className="w-full text-left text-[12px]">
           <thead className="border-b border-[#cfe0f5] bg-[#eaf2fd]">
             <tr>
               {/* 🔴 `w-full` en Producto y `w-px` en las angostas: con `table-auto`
@@ -119,10 +119,10 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   nombre. Con esto, Estado ocupa lo suyo y el sobrante se lo
                   queda Producto --que es la que trunca--. */}
               <th className="w-full px-4 py-3 font-medium text-[#004A94]">Producto</th>
-              <th className="hidden px-4 py-3 font-medium text-[#004A94] md:table-cell">Código</th>
+              <th className="hidden w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] md:table-cell">Código</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Categoría</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Marca</th>
-              <th className="px-4 py-3 font-medium text-[#004A94] text-right">Precio</th>
+              <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-right">Precio</th>
               <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-center">Stock</th>
               <th className="w-px whitespace-nowrap px-2 py-3 font-medium text-[#004A94] text-center">Estado</th>
               <th className="px-4 py-3 font-medium text-[#004A94] text-right">Acciones</th>
@@ -188,7 +188,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Código */}
-                  <td className="hidden px-4 py-2 md:table-cell">
+                  <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
                     <span className="font-mono text-xs text-gray-500">{p.codigoEmpresa}</span>
                   </td>
 
@@ -203,7 +203,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
-                  <td className="px-4 py-2 text-right">
+                  <td className="w-px whitespace-nowrap px-3 py-2 text-right">
                     {/* 🔴 Un producto CON variantes no tiene precio propio: el
                         precio vive en cada variante y el de la fila padre salia
                         de la primera que tuviera uno, o sea un numero que no
