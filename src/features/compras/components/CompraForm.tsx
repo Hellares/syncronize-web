@@ -840,7 +840,13 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         </div>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[450px_minmax(0,1fr)]">
+      {/* La lista de la compra se lleva 200 px mas desde `xl`: el detalle de la
+          derecha sobraba de ancho y a la lista le faltaba --el nombre del
+          producto se truncaba a la mitad--.
+          🔴 El ensanche NO baja a `lg`: a 1024 px dejaria el detalle en ~358 px
+          y sus tres tarjetas (costo / margen / precio de venta) ya pasan a tres
+          columnas justo en ese breakpoint, o sea 110 px cada una. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[450px_minmax(0,1fr)] xl:grid-cols-[650px_minmax(0,1fr)]">
 
         {/* MAESTRO */}
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white">
