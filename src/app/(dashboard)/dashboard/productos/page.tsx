@@ -167,7 +167,7 @@ export default function ProductosPage() {
               atiende, que muchas veces no puede editarlos. */}
           <Link
             href="/dashboard/productos/catalogo"
-            className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-[10px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
             title="Armar un catálogo en PDF para compartir"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -178,7 +178,7 @@ export default function ProductosPage() {
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/papelera"
-              className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-[10px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
+              className="inline-flex h-[30px] items-center gap-1.5 rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
               title="Productos eliminados"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -192,7 +192,7 @@ export default function ProductosPage() {
               href="/dashboard/productos/nuevo"
               // 30 px de alto y `px-3`: -4 de alto y -4 de ancho. Los 30 son,
               // ademas, la altura del input estandar de la web.
-              className="inline-flex h-[30px] items-center gap-1.5 rounded-lg bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
+              className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
