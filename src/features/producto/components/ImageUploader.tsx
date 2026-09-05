@@ -35,17 +35,33 @@ interface Props {
   initialImages?: InitialImage[];
   maxImages?: number;
   onChange?: (images: ArchivoResponse[]) => void;
+  /**
+   * Los ids que hay subidos, cada vez que cambian.
+   *
+   * 🔴 Existe para CREAR un producto: ahí todavía no hay `productoId`, así que
+   * el archivo se sube SUELTO --sin `entidadId`-- y queda huérfano hasta que
+   * alguien lo asocie. Quien crea el producto junta estos ids y los manda en
+   * `imagenesIds`, que es lo que el backend usa para estamparles el producto.
+   *
+   * Se llama FUERA de los updaters de estado, no adentro: llamar al setState
+   * del padre dentro del `setImages(prev => …)` es actualizar un componente
+   * mientras se renderiza otro, y React lo avisa por consola.
+   */
+  onIdsChange?: (ids: string[]) => void;
 }
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-export default function ImageUploader({ empresaId, productoId, varianteId, nombreProducto, initialImages = [], maxImages = 10, onChange }: Props) {
+export default function ImageUploader({ empresaId, productoId, varianteId, nombreProducto, initialImages = [], maxImages = 10, onChange, onIdsChange }: Props) {
   const [images, setImages] = useState<ImageItem[]>(
     initialImages.map((img) => ({ id: img.id, url: img.url, urlThumbnail: img.urlThumbnail }))
   );
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /// Los ids ya subidos en ESTA sesión del formulario. En un `ref` y no en
+  /// estado: solo hay que informarlos, no dibujarlos.
+  const idsSubidos = useRef<string[]>(initialImages.map((i) => i.id));
 
   const updateImage = useCallback((id: string, updates: Partial<ImageItem>) => {
     setImages((prev) => prev.map((img) => img.id === id ? { ...img, ...updates } : img));
@@ -83,6 +99,8 @@ export default function ImageUploader({ empresaId, productoId, varianteId, nombr
       });
 
       URL.revokeObjectURL(localUrl);
+      idsSubidos.current = [...idsSubidos.current, result.id];
+      onIdsChange?.(idsSubidos.current);
       setImages((prev) => {
         const updated = prev.map((img) =>
           img.id === tempId
@@ -98,7 +116,7 @@ export default function ImageUploader({ empresaId, productoId, varianteId, nombr
     } catch {
       updateImage(tempId, { isUploading: false, error: 'Error al subir imagen' });
     }
-  }, [empresaId, productoId, varianteId, updateImage, onChange]);
+  }, [empresaId, productoId, varianteId, updateImage, onChange, onIdsChange]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -143,6 +161,8 @@ export default function ImageUploader({ empresaId, productoId, varianteId, nombr
 
     try {
       await storageService.deleteFile(imageId, empresaId);
+      idsSubidos.current = idsSubidos.current.filter((id) => id !== imageId);
+      onIdsChange?.(idsSubidos.current);
       setImages((prev) => {
         const updated = prev.filter((i) => i.id !== imageId);
         onChange?.(updated.filter((i) => !i.isLocal).map((i) => ({
@@ -154,7 +174,7 @@ export default function ImageUploader({ empresaId, productoId, varianteId, nombr
     } catch {
       setError('Error al eliminar imagen');
     }
-  }, [images, empresaId, onChange]);
+  }, [images, empresaId, onChange, onIdsChange]);
 
   const handleRetry = useCallback((imageId: string) => {
     const image = images.find((i) => i.id === imageId);

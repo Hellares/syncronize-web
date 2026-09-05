@@ -63,7 +63,7 @@ const textareaClass = "w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-
 const selectClass = inputClass;
 
 export default function ProductoForm({ empresaId, producto }: Props) {
-  const { form, updateField, isSubmitting, error, errors, handleSubmit, isEditing } = useProductoForm(empresaId, producto);
+  const { form, updateField, isSubmitting, error, errors, handleSubmit, setImagenesIds, isEditing } = useProductoForm(empresaId, producto);
   const { sedes } = useEmpresa();
 
   const [categorias, setCategorias] = useState<CatalogoItem[]>([]);
@@ -496,10 +496,16 @@ export default function ProductoForm({ empresaId, producto }: Props) {
 
         {/* Imágenes */}
         <Section title="Imágenes" defaultOpen={isEditing}>
+          {/* 🔴 `onIdsChange` es lo que hace que una imagen puesta MIENTRAS se
+              crea el producto no se pierda: ahí todavía no hay `productoId`, el
+              archivo se sube suelto y hay que mandar sus ids en `imagenesIds`
+              al guardar. */}
           <ImageUploader
             empresaId={empresaId}
             productoId={producto?.id}
+            nombreProducto={form.nombre}
             initialImages={producto?.archivos || []}
+            onIdsChange={setImagenesIds}
           />
         </Section>
 

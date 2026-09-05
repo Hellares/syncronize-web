@@ -129,6 +129,16 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
+  /**
+   * Las imágenes subidas mientras se CREA el producto.
+   *
+   * 🔴 Al crear no hay `productoId`, así que el archivo se sube suelto y queda
+   * huérfano: sin mandar estos ids en `imagenesIds`, el producto se guardaba
+   * bien y la imagen no aparecía nunca. El backend los usa para estamparles el
+   * producto (`asociarImagenes`).
+   */
+  const [imagenesIds, setImagenesIds] = useState<string[]>([]);
+
   const buildDto = useCallback((): CreateProductoDto | UpdateProductoDto => {
     const dto: CreateProductoDto = {
       empresaId,
@@ -176,10 +186,17 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
     try {
       const dto = buildDto();
       if (producto) {
+        // 🔴 `imagenesIds` NO va en el update: allá REEMPLAZA la lista entera
+        // --`actualizarImagenes` desasocia las anteriores-- y editando un
+        // producto se llevaría puestas las fotos que ya tenía. Al editar, cada
+        // imagen ya se sube con su `entidadId` y no hace falta.
         const { empresaId: _, sedesIds: __, ...updateDto } = dto as CreateProductoDto;
         await productoService.updateProducto(producto.id, updateDto);
       } else {
-        await productoService.createProducto(dto as CreateProductoDto);
+        await productoService.createProducto({
+          ...(dto as CreateProductoDto),
+          imagenesIds: imagenesIds.length ? imagenesIds : undefined,
+        });
       }
       router.push('/dashboard/productos');
     } catch (err) {
@@ -188,7 +205,7 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [validate, buildDto, producto, router]);
+  }, [validate, buildDto, producto, router, imagenesIds]);
 
   return {
     form,
@@ -197,6 +214,7 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
     error,
     errors,
     handleSubmit,
+    setImagenesIds,
     isEditing: !!producto,
   };
 }
