@@ -190,7 +190,9 @@ export default function ProductosPage() {
           {permissions.canManageProducts && (
             <Link
               href="/dashboard/productos/nuevo"
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-[#004A94] px-3.5 text-xs font-medium text-white transition-colors hover:bg-[#003570]"
+              // 30 px de alto y `px-3`: -4 de alto y -4 de ancho. Los 30 son,
+              // ademas, la altura del input estandar de la web.
+              className="inline-flex h-[30px] items-center gap-1.5 rounded-lg bg-[#004A94] px-3 text-xs font-medium text-white transition-colors hover:bg-[#003570]"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
