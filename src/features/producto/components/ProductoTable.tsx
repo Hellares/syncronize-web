@@ -113,13 +113,18 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
         <table className="w-full text-left text-[13px]">
           <thead className="border-b border-[#cfe0f5] bg-[#eaf2fd]">
             <tr>
-              <th className="px-4 py-3 font-medium text-[#004A94]">Producto</th>
+              {/* 🔴 `w-full` en Producto y `w-px` en las angostas: con `table-auto`
+                  el ancho lo pone el contenido, así que "Inactivo" mas dos
+                  padding de 16 px se comían espacio que le hace falta al
+                  nombre. Con esto, Estado ocupa lo suyo y el sobrante se lo
+                  queda Producto --que es la que trunca--. */}
+              <th className="w-full px-4 py-3 font-medium text-[#004A94]">Producto</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] md:table-cell">Código</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Categoría</th>
               <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Marca</th>
               <th className="px-4 py-3 font-medium text-[#004A94] text-right">Precio</th>
-              <th className="px-4 py-3 font-medium text-[#004A94] text-center">Stock</th>
-              <th className="px-4 py-3 font-medium text-[#004A94] text-center">Estado</th>
+              <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-center">Stock</th>
+              <th className="w-px whitespace-nowrap px-2 py-3 font-medium text-[#004A94] text-center">Estado</th>
               <th className="px-4 py-3 font-medium text-[#004A94] text-right">Acciones</th>
             </tr>
           </thead>
@@ -142,7 +147,11 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   className="cursor-pointer transition-colors hover:bg-gray-50/50"
                 >
                   {/* Producto (imagen + nombre + badges) */}
-                  <td className="px-4 py-2">
+                  {/* 🔴 `max-w-0` con el `w-full` del encabezado: sin eso la
+                      celda se agranda con el texto --el nombre largo empujaba
+                      la tabla y aparecía scroll horizontal-- y el `truncate` de
+                      adentro no llegaba a activarse nunca. */}
+                  <td className="max-w-0 px-4 py-2">
                     <div className="flex items-center gap-3">
                       {img ? (
                         <img src={img} alt={p.nombre} className="h-10 w-10 rounded-lg object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -222,7 +231,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Stock */}
-                  <td className="px-4 py-2 text-center">
+                  <td className="w-px whitespace-nowrap px-3 py-2 text-center">
                     {/* 🔴 Un par SACO→GRANEL tiene variantes en unidades
                         DISTINTAS: sumarlas da "31290 g", que no son ni gramos
                         ni sacos. Se muestran por separado, como el app. */}
@@ -234,7 +243,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                   </td>
 
                   {/* Estado (clickeable si puede gestionar) */}
-                  <td className="px-4 py-2 text-center">
+                  <td className="w-px whitespace-nowrap px-2 py-2 text-center">
                     <button
                       onClick={e => { e.stopPropagation(); if (canManage) onToggleActive?.(p); }}
                       disabled={!canManage || !onToggleActive}
