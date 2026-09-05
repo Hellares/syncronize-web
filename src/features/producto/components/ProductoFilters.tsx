@@ -115,7 +115,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
             <button
               key={tab.key}
               onClick={() => handleTab(tab.key)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+              className={`rounded-md px-3 py-1.5 text-[10px] font-medium transition-all ${
                 activeTab === tab.key
                   ? 'bg-white text-[#004A94] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -135,7 +135,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
             <button
               key={chip.label}
               onClick={() => onUpdate({ isActive: chip.value })}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${
                 filtros.isActive === chip.value
                   ? 'bg-white text-[#004A94] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -202,7 +202,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
             <button
               key={t.key}
               onClick={() => onUpdate({ [t.key]: active ? undefined : true })}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-lg border px-3 py-1.5 text-[10px] font-medium transition-colors ${
                 active
                   ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
                   : 'border-gray-200 text-gray-500 hover:bg-gray-50'
@@ -215,7 +215,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
 
         <button
           onClick={onReset}
-          className="h-[30px] rounded-lg px-2 text-xs text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+          className="h-[26px] rounded-lg px-2 text-[10px] text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
         >
           Limpiar filtros
         </button>
