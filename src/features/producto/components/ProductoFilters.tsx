@@ -26,6 +26,17 @@ const ESTADO_CHIPS = [
 const INPUT_STD =
   'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
+/**
+ * Los cuatro desplegables de filtro, un escalón por debajo del estándar: 26 px
+ * de alto y 10 px de fuente.
+ *
+ * Van más chicos que el buscador a propósito: el buscador es donde se escribe y
+ * los filtros son de apoyo, así que la barra se lee mejor si no compiten. El
+ * buscador se queda con el `INPUT_STD` de siempre.
+ */
+const SELECT_FILTRO =
+  'bg-zinc-100 text-[#004A94] font-sans text-[10px] ring-1 ring-blue-400 outline-none transition-all duration-300 rounded-[6px] h-[26px] px-2.5 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 const ORDEN_OPTIONS: { label: string; value: OrdenProducto }[] = [
   { label: 'Nombre A-Z', value: 'nombre_asc' },
   { label: 'Nombre Z-A', value: 'nombre_desc' },
@@ -138,7 +149,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.empresaCategoriaId || ''}
           onChange={(e) => onUpdate({ empresaCategoriaId: e.target.value || undefined })}
-          className={INPUT_STD}
+          className={SELECT_FILTRO}
         >
           <option value="">Todas las categorías</option>
           {categorias.map((c) => (
@@ -149,7 +160,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.empresaMarcaId || ''}
           onChange={(e) => onUpdate({ empresaMarcaId: e.target.value || undefined })}
-          className={INPUT_STD}
+          className={SELECT_FILTRO}
         >
           <option value="">Todas las marcas</option>
           {marcas.map((m) => (
@@ -160,7 +171,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.sedeId || ''}
           onChange={(e) => onUpdate({ sedeId: e.target.value || undefined })}
-          className={INPUT_STD}
+          className={SELECT_FILTRO}
         >
           <option value="">Todas las sedes</option>
           {sedes.filter((s) => s.isActive).map((s) => (
@@ -171,7 +182,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         <select
           value={filtros.orden || ''}
           onChange={(e) => onUpdate({ orden: (e.target.value || undefined) as OrdenProducto | undefined })}
-          className={INPUT_STD}
+          className={SELECT_FILTRO}
         >
           <option value="">Ordenar por...</option>
           {ORDEN_OPTIONS.map((o) => (
