@@ -29,6 +29,11 @@ export interface ItemCatalogo {
   titulo: string;
   codigo?: string | null;
   /**
+   * La descripción del producto. Vacía o ausente = no se dibuja nada, ni el
+   * espacio: una tarjeta con un hueco donde iría un texto se ve rota.
+   */
+  descripcion?: string | null;
+  /**
    * 🔴 TODAS sus fotos, no una. Con varias elegidas sale **una tarjeta por
    * foto**, con los mismos datos: son el mismo producto en otro color, y una
    * sola foto dejaba el resto del surtido invisible.
@@ -165,6 +170,17 @@ export async function construirCatalogoPdf(params: {
   const rasgosDe = (t: TarjetaCatalogo) =>
     incluirCaracteristicas ? t.item.caracteristicas.slice(0, maxCaracteristicas) : [];
 
+  /** Las líneas de la descripción, que también mueven el alto. */
+  const lineasDescripcion = (t: TarjetaCatalogo): string[] => {
+    const texto = (t.item.descripcion ?? '').trim();
+    if (!texto) return [];
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    return (
+      doc.splitTextToSize(texto, anchoTarjeta - 2 * PADDING_TARJETA) as string[]
+    ).slice(0, 3);
+  };
+
   /** El título ocupa una o dos líneas y eso cambia el alto de la tarjeta. */
   const lineasTitulo = (t: TarjetaCatalogo): string[] => {
     doc.setFontSize(9);
@@ -183,6 +199,7 @@ export async function construirCatalogoPdf(params: {
     if (t.etiqueta) h += 3;
     if (incluirCodigo && t.item.codigo) h += 3;
     if (incluirPrecio || t.item.stock <= 0) h += 6;
+    h += lineasDescripcion(t).length * 2.8;
     if (rasgos.length) h += 2 + rasgos.length * 3.2 + (hayMas ? 3 : 0) + 3;
     return h + PADDING_TARJETA;
   };
@@ -269,6 +286,21 @@ export async function construirCatalogoPdf(params: {
         });
       }
       cursor += 2;
+    }
+
+    // Después del precio y antes de las características, que es el orden en el
+    // que se lee una ficha: qué es, cuánto sale, de qué se trata, y el detalle.
+    const descripcion = lineasDescripcion(tj);
+    if (descripcion.length) {
+      cursor += 2.4;
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRIS_OSCURO);
+      for (const linea of descripcion) {
+        doc.text(linea, izq, cursor);
+        cursor += 2.8;
+      }
+      cursor -= 0.4;
     }
 
     const rasgos = rasgosDe(tj);

@@ -28,6 +28,8 @@ export interface MarcaFicha {
 export interface DatosFicha {
   titulo: string;
   codigo?: string | null;
+  /** La descripción del producto. Vacía o ausente = no se dibuja nada. */
+  descripcion?: string | null;
   fotoUrl?: string | null;
   precio: number;
   /** El de lista, solo si hay rebaja vigente: sirve para tacharlo. */
@@ -156,10 +158,17 @@ export async function dibujarFicha(
   ctx.font = `700 17px ${FUENTE}`;
   const lineasTitulo = envolver(ctx, datos.titulo, anchoTexto, 3);
 
+  const textoDescripcion = (datos.descripcion ?? '').trim();
+  ctx.font = `400 11.5px ${FUENTE}`;
+  const lineasDescripcion = textoDescripcion
+    ? envolver(ctx, textoDescripcion, anchoTexto, 5)
+    : [];
+
   let alto = ALTO_CABECERA + ALTO_FOTO + 12;
   alto += lineasTitulo.length * 21;
   if (incluirCodigo && datos.codigo) alto += 22;
   if (incluirPrecio) alto += 40;
+  if (lineasDescripcion.length) alto += 12 + lineasDescripcion.length * 16;
   if (rasgos.length) alto += 26 + rasgos.length * 22;
   alto += 14 + ALTO_PIE;
 
@@ -278,6 +287,18 @@ export async function dibujarFicha(
       }
     }
     y += 20;
+  }
+
+  // Después del precio y antes de las características.
+  if (lineasDescripcion.length) {
+    y += 12;
+    ctx.font = `400 11.5px ${FUENTE}`;
+    ctx.fillStyle = '#374151';
+    for (const linea of lineasDescripcion) {
+      ctx.fillText(linea, PAD, y);
+      y += 16;
+    }
+    y -= 4;
   }
 
   if (rasgos.length) {

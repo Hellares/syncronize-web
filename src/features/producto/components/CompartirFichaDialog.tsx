@@ -28,6 +28,11 @@ interface Props {
    * La lista ya la trae entera, así que acá no se pide nada.
    */
   variante?: ProductoVariante | null;
+  /**
+   * La del PRODUCTO: una variante no tiene descripción propia. Solo hace falta
+   * pasarla cuando se comparte una variante; con `productoId` sale sola.
+   */
+  descripcionProducto?: string | null;
   /** Los precios y el stock son DE UNA SEDE. */
   sedeId?: string;
   sedeNombre?: string | null;
@@ -37,6 +42,7 @@ interface Props {
 export default function CompartirFichaDialog({
   productoId,
   variante,
+  descripcionProducto,
   sedeId,
   sedeNombre,
   onClose,
@@ -88,6 +94,7 @@ export default function CompartirFichaDialog({
         setDatos({
           titulo: p.nombre,
           codigo: p.codigoEmpresa,
+          descripcion: ('descripcion' in p ? p.descripcion : null) ?? descripcionProducto,
           fotoUrl: sinRepetir[0] ?? null,
           precio,
           // Solo si hay rebaja vigente: es lo que se tacha.
@@ -112,7 +119,7 @@ export default function CompartirFichaDialog({
     return () => {
       cancelado = true;
     };
-  }, [productoId, variante, sedeId, sedeNombre, empresa]);
+  }, [productoId, variante, descripcionProducto, sedeId, sedeNombre, empresa]);
 
   // Se redibuja con cada interruptor: la vista previa y el archivo son lo mismo.
   useEffect(() => {

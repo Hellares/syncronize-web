@@ -84,6 +84,7 @@ export default function ProductoVariantesPage({ params }: { params: Promise<{ id
             productoIsActive={producto.isActive}
             onVariantesCargadas={recibirVariantes}
             presentacionProducto={producto}
+            descripcionProducto={producto.descripcion}
           />
         </div>
       )}

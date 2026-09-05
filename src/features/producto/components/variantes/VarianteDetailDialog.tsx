@@ -12,13 +12,15 @@ interface Props {
   /** La sede de la que salen el precio y el stock que se comparten. */
   sedeId?: string;
   sedeNombre?: string | null;
+  /** La del PRODUCTO: la variante no tiene descripción propia. */
+  descripcionProducto?: string | null;
 }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function VarianteDetailDialog({ isOpen, variante, onClose, sedeId, sedeNombre }: Props) {
+export default function VarianteDetailDialog({ isOpen, variante, onClose, sedeId, sedeNombre, descripcionProducto }: Props) {
   const [imgIndex, setImgIndex] = useState(0);
   const [compartir, setCompartir] = useState(false);
 
@@ -158,6 +160,7 @@ export default function VarianteDetailDialog({ isOpen, variante, onClose, sedeId
       {compartir && (
         <CompartirFichaDialog
           variante={variante}
+          descripcionProducto={descripcionProducto}
           sedeId={sedeId}
           sedeNombre={sedeNombre}
           onClose={() => setCompartir(false)}

@@ -33,6 +33,8 @@ interface Props {
    * precio de un granel volveria a pedir el precio por gramo.
    */
   presentacionProducto?: PresentacionPlana | null;
+  /** La del producto, para la ficha compartible de cada variante. */
+  descripcionProducto?: string | null;
 }
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus).
@@ -46,7 +48,7 @@ type Rapido = 'todas' | 'activas' | 'problemas';
 
 export default function VarianteList({
   productoId, productoNombre, productoIsActive, seleccionadaId, onSeleccionar,
-  onVariantesCargadas, presentacionProducto,
+  onVariantesCargadas, presentacionProducto, descripcionProducto,
 }: Props) {
   const {
     variantes, atributosDisponibles, isLoading, isSubmitting,
@@ -483,6 +485,7 @@ export default function VarianteList({
         variante={detailVariante}
         sedeId={sedeId}
         sedeNombre={sedesActivas.find((s) => s.id === sedeId)?.nombre}
+        descripcionProducto={descripcionProducto}
         onClose={() => setDetailVariante(null)}
       />
 
