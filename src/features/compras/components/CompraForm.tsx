@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import type { Proveedor } from '@/core/types/proveedor';
 import type { CompraDetalle, CrearCompraLinea } from '@/core/types/compra';
 import { TIPOS_DOC_PROVEEDOR } from '@/core/types/compra';
@@ -15,6 +15,10 @@ import type { Producto, ProductoVariante } from '@/core/types/producto';
 import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
 import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
+import ProductGrid from '@/features/producto/components/ProductGrid';
+import CrearProductoRapidoDialog from '@/features/producto/components/CrearProductoRapidoDialog';
+import LineaManualAsistente from '@/features/compras/components/LineaManualAsistente';
+import { FILTROS_COMPRA } from '@/features/compras/components/filtros-compra';
 import { gastoDesdeGuardado, lineaDesdeDetalleGuardado } from '@/features/compras/utils/linea-guardada';
 import type { GastoForm, LineaForm } from '@/features/compras/utils/linea-guardada';
 
@@ -40,7 +44,12 @@ const TERMINOS = ['CONTADO', 'CREDITO_7', 'CREDITO_15', 'CREDITO_30', 'CREDITO_4
 export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const router = useRouter();
   const editando = !!compra;
-  const { sedes } = useEmpresa();
+  const { sedes, empresa } = useEmpresa();
+  const permissions = usePermissions();
+  // Catalogo en tarjetas y alta rapida de producto: las dos puertas para que
+  // una compra no termine con lineas sin producto, que no entran al inventario.
+  const [grillaAbierta, setGrillaAbierta] = useState(false);
+  const [crearDesde, setCrearDesde] = useState<number | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedorId, setProveedorId] = useState('');
   const [sedeId, setSedeId] = useState('');
@@ -114,36 +123,25 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     debounce.current = setTimeout(async () => {
       setBuscando(true);
       try {
-        const res = await getProductos({ page: 1, limit: 12, search: texto.trim(), isActive: true } as never);
+        // Los mismos filtros que la grilla: sin esto aparecian COMBOS --que no
+        // se compran, se arman-- y faltaban los insumos, que si se compran.
+        const res = await getProductos({ page: 1, limit: 12, search: texto.trim(), ...FILTROS_COMPRA } as never);
         setResultados(res.data ?? []);
       } catch { setResultados([]); }
       finally { setBuscando(false); }
     }, 300);
   }, []);
 
-  const agregarProducto = async (p: Producto) => {
-    // Con variantes NO se compra el padre: hay que elegir cual. Se abre el
-    // selector y el buscador se limpia, como hace la grilla del app.
-    if (p.tieneVariantes && (p.variantes?.length ?? 0) > 0) {
-      setProductoVariantes(p);
-      setQ(''); setResultados([]);
-      return;
-    }
-    // 🔴 Ya cargado: se SELECCIONA la linea que existe en vez de duplicarla.
-    // Dos lineas del mismo producto entran al stock dos veces y el promedio
-    // ponderado se calcula sobre cada una por separado, asi que ninguna de las
-    // dos muestra el costo real que va a quedar.
-    const yaCargado = lineas.findIndex((x) => x.productoId === p.id && !x.varianteId);
-    if (yaCargado >= 0) {
-      setSeleccionada(yaCargado);
-      setQ(''); setResultados([]);
-      return;
-    }
+  /**
+   * La linea que le corresponde a un producto, sin nada asincrono.
+   *
+   * Separada de `agregarProducto` porque la usan DOS caminos: agregar al final
+   * de la compra, y canjear una linea manual por el producto del catalogo.
+   */
+  const lineaDeProducto = (p: Producto): LineaForm => {
     const factor = p.factorCompra != null ? Number(p.factorCompra) : undefined;
     const conEmpaque = !!(p.unidadCompra && factor && factor > 0);
-    const idx = lineas.length;
-    setSeleccionada(idx);
-    setLineas((l) => [...l, {
+    return {
       productoId: p.id,
       descripcion: p.nombre,
       cantidad: '1',
@@ -164,10 +162,17 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         factorPres: Number(p.factorPresentacion),
         simboloPres: p.unidadPresentacionSimbolo ?? undefined,
       } : {}),
-    }]);
-    setQ(''); setResultados([]);
+    };
+  };
 
-    // Contexto asíncrono: costo actual en sede (precio default, paridad Flutter) + última compra
+  /**
+   * Costo actual en la sede, precio de venta e historial de compras.
+   *
+   * Va aparte y despues: la linea tiene que aparecer YA en la lista, y estos
+   * dos GET tardan. El `productoId` se vuelve a chequear dentro porque entre
+   * el pedido y la respuesta la linea pudo moverse o borrarse.
+   */
+  const enriquecerLinea = (idx: number, p: Producto) => {
     if (sedeId) {
       getStockByProductoSede(p.id, sedeId)
         .then(stock => {
@@ -196,6 +201,75 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       })
       .catch(() => {});
   };
+
+  const agregarProducto = async (p: Producto) => {
+    // Con variantes NO se compra el padre: hay que elegir cual. Se abre el
+    // selector y el buscador se limpia, como hace la grilla del app.
+    if (p.tieneVariantes && (p.variantes?.length ?? 0) > 0) {
+      setProductoVariantes(p);
+      setGrillaAbierta(false);
+      setQ(''); setResultados([]);
+      return;
+    }
+    // 🔴 Ya cargado: se SELECCIONA la linea que existe en vez de duplicarla.
+    // Dos lineas del mismo producto entran al stock dos veces y el promedio
+    // ponderado se calcula sobre cada una por separado, asi que ninguna de las
+    // dos muestra el costo real que va a quedar.
+    const yaCargado = lineas.findIndex((x) => x.productoId === p.id && !x.varianteId);
+    if (yaCargado >= 0) {
+      setSeleccionada(yaCargado);
+      setQ(''); setResultados([]);
+      return;
+    }
+    const idx = lineas.length;
+    setSeleccionada(idx);
+    setLineas((l) => [...l, lineaDeProducto(p)]);
+    setQ(''); setResultados([]);
+    enriquecerLinea(idx, p);
+  };
+
+  /**
+   * La linea manual se convierte en la del producto elegido, conservando la
+   * cantidad y el costo que ya se habian tecleado.
+   *
+   * Es el canje que faltaba: una linea sin producto NO entra al inventario
+   * (`compra.service.ts` la saltea al confirmar), asi que engancharla al
+   * catalogo es la diferencia entre que la mercaderia exista o no.
+   */
+  const canjearManual = (i: number, p: Producto) => {
+    // Con variantes no hay canje directo: hay que decir CUAL se compro. Se
+    // abre el selector y la linea manual se va --su descripcion ya no aporta
+    // nada, el producto existe— para no dejar una linea inerte de recuerdo.
+    if (p.tieneVariantes && (p.variantes?.length ?? 0) > 0) {
+      quitar(i);
+      setProductoVariantes(p);
+      return;
+    }
+
+    const manual = lineas[i];
+    const existente = lineas.findIndex((x, idx) => idx !== i && x.productoId === p.id && !x.varianteId);
+
+    // 🔴 Si ya estaba en la compra se SUMA la cantidad, no se pisa: con el
+    // producto cargado ×2 y una linea manual de 3, lo que entra son 5. Pisarlo
+    // fue un bug real del mismo canje en la cotizacion.
+    if (existente >= 0) {
+      const suma = (numVal(lineas[existente].cantidad) || 0) + (numVal(manual.cantidad) || 0);
+      const destino = existente < i ? existente : existente - 1;
+      setLineas(ls => ls
+        .filter((_, idx) => idx !== i)
+        .map((x, idx) => (idx === destino ? { ...x, cantidad: String(suma) } : x)));
+      setSeleccionada(destino);
+      return;
+    }
+
+    setLineas(ls => ls.map((x, idx) => (idx === i ? {
+      ...lineaDeProducto(p),
+      cantidad: manual.cantidad || '1',
+      precioUnitario: manual.precioUnitario || '',
+    } : x)));
+    enriquecerLinea(i, p);
+  };
+
   /**
    * Alta de una linea a partir de una VARIANTE elegida en el selector.
    *
@@ -771,12 +845,31 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         {/* MAESTRO */}
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white">
           <div className="relative border-b border-gray-100 p-3">
-            <input
-              className={INPUT_STD}
-              placeholder="Buscar producto para agregar…"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); buscarProductos(e.target.value); }}
-            />
+            {/* Dos puertas al mismo catalogo: escribir el nombre --rapido para
+                el que sabe que busca-- y las tarjetas, para el que reconoce el
+                producto por la foto. La grilla es la misma de Cotizaciones. */}
+            <div className="flex items-center gap-2">
+              <input
+                className={INPUT_STD}
+                placeholder="Buscar producto para agregar…"
+                value={q}
+                onChange={(e) => { setQ(e.target.value); buscarProductos(e.target.value); }}
+              />
+              <button
+                type="button"
+                onClick={() => setGrillaAbierta(true)}
+                title="Ver el catálogo en tarjetas"
+                className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-[6px] bg-zinc-100 px-2.5 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                </svg>
+                Catálogo
+              </button>
+            </div>
             {(buscando || resultados.length > 0) && q.trim().length >= 2 && (
               <div className="absolute left-3 right-3 z-10 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
                 {buscando && <div className="px-3 py-2 text-xs text-gray-400">Buscando…</div>}
@@ -921,6 +1014,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                       <p className="mt-1.5">
                         <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-[#004A94]">VARIANTE</span>
                       </p>
+                    )}
+                    {!l.productoId && (
+                      <LineaManualAsistente
+                        descripcion={l.descripcion}
+                        puedeCrear={permissions.canManageProducts}
+                        yaEnLaCompra={(prod) => lineas.some((x, idx) => idx !== i && x.productoId === prod.id && !x.varianteId)}
+                        onUsar={(prod) => canjearManual(i, prod)}
+                        onCrear={() => setCrearDesde(i)}
+                      />
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -1380,6 +1482,66 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           );
         })()}
       </div>
+
+      {/* El catalogo en tarjetas. Queda ABIERTO al elegir: una compra trae
+          varios productos y cerrarlo en cada uno obliga a volver a abrirlo.
+          Se cierra solo con las variantes, que abren su propio selector. */}
+      {grillaAbierta && (
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4"
+          onClick={() => setGrillaAbierta(false)}
+        >
+          <div
+            className="mt-8 w-full max-w-5xl rounded-xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Agregar productos a la compra</h3>
+                <p className="text-[11px] text-gray-500">
+                  Tocá los que estás recibiendo. {lineas.length > 0 && `${lineas.length} en la compra.`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGrillaAbierta(false)}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-50"
+              >
+                Listo
+              </button>
+            </div>
+
+            <ProductGrid
+              sedeId={sedeId}
+              onSelect={agregarProducto}
+              filtros={FILTROS_COMPRA}
+              accent="#004A94"
+              colsClass="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+              maxHeightClass="max-h-[calc(100vh-20rem)]"
+            />
+
+            <p className="mt-3 text-[11px] text-gray-400">
+              ¿No está en el catálogo? Cerrá, agregá una línea manual y creá el producto desde ahí.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Alta rapida desde una linea manual. En modo compra crea SOLO el
+          producto: el stock y el costo entran al confirmar. */}
+      {crearDesde != null && empresa && sedeId && (
+        <CrearProductoRapidoDialog
+          empresaId={empresa.id}
+          sedeId={sedeId}
+          nombreInicial={lineas[crearDesde]?.descripcion ?? ''}
+          modo="compra"
+          onClose={() => setCrearDesde(null)}
+          onCreado={(prod) => {
+            canjearManual(crearDesde, prod);
+            setCrearDesde(null);
+          }}
+        />
+      )}
 
       {productoVariantes && (
         <SelectorVariantesCompra

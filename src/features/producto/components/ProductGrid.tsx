@@ -5,7 +5,7 @@
 // El padre decide qué hacer (agregar al carrito / a la cotización / abrir variantes).
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Producto } from '@/core/types/producto';
+import type { Producto, ProductoFiltros } from '@/core/types/producto';
 import * as productoService from '@/features/producto/services/producto-service';
 import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
 
@@ -30,9 +30,17 @@ interface Props {
   colsClass?: string;
   /** Color de acento de las cards (price tag). */
   accent?: string;
+  /**
+   * Filtros que se superponen a los de VENDER, que son los de siempre acá.
+   * Comprar no es lo mismo: entran los insumos, quedan fuera los combos --un
+   * combo se arma, no se le compra a nadie-- y hacen falta los productos que
+   * todavía no tienen stock en la sede, que son justamente los que se están
+   * por recibir por primera vez.
+   */
+  filtros?: Partial<ProductoFiltros>;
 }
 
-export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-[28rem]', colsClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5', accent = '#004A94' }: Props) {
+export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-[28rem]', colsClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5', accent = '#004A94', filtros }: Props) {
   const [query, setQuery] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
@@ -67,11 +75,15 @@ export default function ProductGrid({ sedeId, onSelect, maxHeightClass = 'max-h-
       try {
         const res = await productoService.getProductos({
           page: 1, limit: 30, search: q || undefined, sedeId: sedeId || undefined, isActive: true, esInsumo: false,
+          ...filtros,
         });
         setProductos(res.data);
       } catch { /* ignore */ } finally { setSearching(false); }
     }, 350);
-  }, [sedeId]);
+    // `filtros` se serializa a proposito: es un objeto literal en el padre y
+    // como dependencia cruda volveria a buscar en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedeId, JSON.stringify(filtros ?? {})]);
 
   // Carga inicial / al cambiar de sede (search está memoizado en [sedeId])
   useEffect(() => { search(''); }, [search]);

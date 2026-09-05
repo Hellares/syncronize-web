@@ -284,6 +284,13 @@ export interface ProductoFiltros {
   stockBajo?: boolean;
   soloProductos?: boolean;
   soloCombos?: boolean;
+  /**
+   * Trae tambien los productos SIN stock en la sede filtrada. Solo tiene
+   * efecto junto con `sedeId`, que es lo que activa ese filtro en el backend.
+   * Lo necesita COMPRAR: recibir mercaderia es la forma en que un producto
+   * entra por primera vez a una sede, y sin esto no aparece para elegirlo.
+   */
+  mostrarTodos?: boolean;
   /** true=solo insumos, false=solo no-insumos, undefined=todos */
   esInsumo?: boolean;
   /** Solo productos con liquidación activa */
