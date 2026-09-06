@@ -106,10 +106,10 @@ export default function ComprasPage() {
   return (
     <div className="p-4 md:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-[#004A94]">Compras</h1>
-          <p className="text-xs text-gray-500">Recepciones de compra. Al confirmar generan stock y, según el pago, van a Cuentas por Pagar.</p>
-        </div>
+        {/* Sin <h1>: la cabecera del dashboard ya dice "Recepcion/Compras".
+            La linea que queda explica que HACE confirmar una compra, que es lo
+            que nadie tiene claro la primera vez. */}
+        <p className="text-xs text-gray-500">Recepciones de compra. Al confirmar generan stock y, según el pago, van a Cuentas por Pagar.</p>
         <button
           onClick={() => router.push('/dashboard/compras/nueva')}
           className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"

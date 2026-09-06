@@ -112,13 +112,12 @@ export default function CotizacionesPage() {
     <div className="space-y-4">
       {/* ========== Header ========== */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Cotizaciones</h1>
-          <p className="text-sm text-gray-500">
-            {isLoading ? 'Cargando...'
-              : `${cotizaciones.length} ${cotizaciones.length === 1 ? 'cotización' : 'cotizaciones'}${hasMore ? ' (hay más)' : ''}`}
-          </p>
-        </div>
+        {/* Sin <h1>: la cabecera del dashboard ya dice el nombre de la
+            pantalla. Lo que aporta esta linea es el CONTEO. */}
+        <p className="text-sm text-gray-500">
+          {isLoading ? 'Cargando...'
+            : `${cotizaciones.length} ${cotizaciones.length === 1 ? 'cotización' : 'cotizaciones'}${hasMore ? ' (hay más)' : ''}`}
+        </p>
         {permissions.canManageCotizaciones && (
           <Link
             href="/dashboard/cotizaciones/nuevo"

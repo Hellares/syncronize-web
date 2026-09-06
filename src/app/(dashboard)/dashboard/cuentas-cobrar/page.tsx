@@ -116,10 +116,9 @@ export default function CuentasCobrarPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Cuentas por Cobrar</h1>
-          <p className="text-sm text-gray-500">{isLoading ? 'Cargando...' : `${cuentas.length} cuentas`}</p>
-        </div>
+        {/* Sin <h1>: la cabecera del dashboard ya dice el nombre de la
+            pantalla. Lo que aporta esta linea es el CONTEO. */}
+        <p className="text-sm text-gray-500">{isLoading ? 'Cargando...' : `${cuentas.length} cuentas`}</p>
         {puedeGestionar && (
           <button onClick={() => setMoraOpen(true)}
             className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
