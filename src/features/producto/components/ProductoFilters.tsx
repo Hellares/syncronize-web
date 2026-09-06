@@ -84,27 +84,11 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
     <div className="space-y-4">
       {/* Tabs y chips. El BUSCADOR ya no vive acá: se dibuja pegado a los
           controles de la tabla, que es donde se mira mientras se busca. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => handleTab(tab.key)}
-              className={`rounded-md px-3 py-1.5 text-[10px] font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-white text-[#004A94] shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Dropdowns row */}
-      <div className="flex flex-wrap gap-2 items-center">
+      {/* TODO en una sola fila: los chips de estado y los desplegables a la
+          izquierda, y los tabs --Todos, Productos, Combos, Liquidacion,
+          Insumos-- pegados a la derecha. Son el filtro mas grueso, el que dice
+          QUE se esta mirando, asi que se leen como un grupo aparte. */}
+      <div className="flex flex-wrap items-center gap-2">
         {/* Chips de estado */}
         <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
           {ESTADO_CHIPS.map((chip) => (
@@ -173,6 +157,22 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         >
           Limpiar filtros
         </button>
+
+        <div className="ml-auto flex gap-1 rounded-lg bg-gray-100 p-0.5">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTab(tab.key)}
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${
+                activeTab === tab.key
+                  ? 'bg-white text-[#004A94] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
