@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useProductos } from '@/features/producto/hooks/use-productos';
 import ProductoTable from '@/features/producto/components/ProductoTable';
-import ProductoFilters, { TogglesRapidos } from '@/features/producto/components/ProductoFilters';
+import ProductoFilters, { BuscadorProductos, TogglesRapidos } from '@/features/producto/components/ProductoFilters';
 import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as stockService from '@/features/stock/services/stock-service';
@@ -227,6 +227,7 @@ export default function ProductosPage() {
         sedeId={filtros.sedeId}
         canManage={permissions.canManageProducts}
         puedeVerCosto={permissions.canEditarCostoProducto}
+        encabezadoIzquierda={<BuscadorProductos filtros={filtros} onUpdate={updateFiltros} />}
         onPageChange={setPage}
         onDelete={setDeleteTarget}
         onToggleActive={setToggleTarget}

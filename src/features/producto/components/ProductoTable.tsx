@@ -40,6 +40,12 @@ interface Props {
   onAjustarStock?: (producto: Producto) => void;
   /** Abre la ficha compartible: la imagen que se le manda al cliente. */
   onCompartir?: (producto: Producto) => void;
+  /**
+   * Lo que se dibuja a la IZQUIERDA de los controles de la tabla (vista,
+   * densidad, columnas). La página mete ahí el buscador: se mira mientras se
+   * escribe, y en la barra de filtros quedaba lejos de la lista.
+   */
+  encabezadoIzquierda?: React.ReactNode;
   /** Hay algo filtrado: cambia QUE dice el vacio. */
   hayFiltros?: boolean;
   onLimpiarFiltros?: () => void;
@@ -119,7 +125,7 @@ const ICONOS = {
 /** Una acción de fila; `hover` solo lo usan las que salen como icono suelto. */
 type Accion = AccionMenu & { hover?: string };
 
-export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, puedeVerCosto = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, onAjustarStock, onCompartir, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
+export default function ProductoTable({ productos, meta, isLoading, sedeId, canManage = false, puedeVerCosto = false, onPageChange, onDelete, onToggleActive, onConfigurarPrecios, onGestionarImagenes, onAjustarStock, onCompartir, encabezadoIzquierda, hayFiltros = false, onLimpiarFiltros, puedeCrear = false }: Props) {
   const router = useRouter();
 
   const prefs = useSyncExternalStore(suscribirPreferencias, preferenciasActuales, preferenciasDelServer);
@@ -257,7 +263,9 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-end">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        {encabezadoIzquierda}
+        <div className="ml-auto">
         <ProductoTablaControles
           vista={vista}
           onVista={(v) => guardar({ vista: v })}
@@ -266,6 +274,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
           columnas={columnas}
           onColumnas={(c) => guardar({ columnas: c })}
         />
+        </div>
       </div>
 
       {vista === 'tarjetas' ? (

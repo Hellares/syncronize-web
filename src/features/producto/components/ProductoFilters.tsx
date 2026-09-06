@@ -58,8 +58,6 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
   const { sedes } = useEmpresa();
   const [categorias, setCategorias] = useState<CatalogoItem[]>([]);
   const [marcas, setMarcas] = useState<CatalogoItem[]>([]);
-  const [searchLocal, setSearchLocal] = useState(filtros.search || '');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeTab = filtros.esInsumo === true ? 'insumos'
     : filtros.enLiquidacion ? 'liquidacion'
@@ -70,18 +68,7 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
   useEffect(() => {
     catalogoService.getCategorias().then(setCategorias).catch(() => {});
     catalogoService.getMarcas().then(setMarcas).catch(() => {});
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
   }, []);
-
-  const handleSearch = (value: string) => {
-    setSearchLocal(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      onUpdate({ search: value || undefined });
-    }, 400);
-  };
 
   const handleTab = (tab: string) => {
     // Semántica idéntica a Flutter (productos_page.dart): todos los tabs envían esInsumo=false salvo INSUMOS
@@ -95,20 +82,9 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Search + Tabs */}
+      {/* Tabs y chips. El BUSCADOR ya no vive acá: se dibuja pegado a los
+          controles de la tabla, que es donde se mira mientras se busca. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={searchLocal}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Buscar por nombre, código o SKU..."
-            className={`${INPUT_STD} w-full pl-9`}
-          />
-        </div>
 
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {TABS.map((tab) => (
@@ -242,5 +218,47 @@ export function TogglesRapidos({
         );
       })}
     </>
+  );
+}
+
+/**
+ * El buscador del catálogo, con su rebote de 400 ms.
+ *
+ * Vive en este archivo --y no suelto en la página-- porque el rebote y la
+ * clave `search` son de `ProductoFiltros`: si cambian, cambian acá. Se dibuja
+ * en la barra de la tabla, al lado de vista, densidad y columnas: es donde se
+ * mira mientras se escribe.
+ */
+export function BuscadorProductos({
+  filtros,
+  onUpdate,
+}: {
+  filtros: ProductoFiltros;
+  onUpdate: (partial: Partial<ProductoFiltros>) => void;
+}) {
+  const [local, setLocal] = useState(filtros.search || '');
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
+
+  const escribir = (valor: string) => {
+    setLocal(valor);
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => onUpdate({ search: valor || undefined }), 400);
+  };
+
+  return (
+    <div className="relative w-full max-w-md">
+      <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        type="text"
+        value={local}
+        onChange={(e) => escribir(e.target.value)}
+        placeholder="Buscar por nombre, código o SKU…"
+        className={`${INPUT_STD} w-full pl-9`}
+      />
+    </div>
   );
 }
