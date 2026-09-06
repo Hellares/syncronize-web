@@ -257,7 +257,11 @@ export default function CuentasCobrarPage() {
       <div className="flex flex-wrap gap-1.5">
         {ESTADOS.map(e => (
           <button key={e.value} onClick={() => setEstado(e.value)}
-            className={`rounded-full border px-3 py-1 text-xs ${estado === e.value ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-semibold' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+            // 🔴 El peso de la fuente NO cambia con la seleccion: al pasar a
+            // semibold el texto se ensancha, el chip salta de ancho y se lee
+            // como si estuviera roto. Lo que dice cual esta elegido es el
+            // color, no el grosor.
+            className={`rounded-full border px-3 py-1 text-[10px] font-medium ${estado === e.value ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
             {e.label}
           </button>
         ))}
