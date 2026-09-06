@@ -93,10 +93,15 @@ const TONOS = {
 
 /**
  * Los bloques grandes (Este mes, Ventas por día, Necesita atención, Lo más
- * vendido, Cómo te pagaron hoy) llevan el mismo tratamiento que la tarjeta de
- * Ventas de hoy: su degradado azul y su elevación, en vez del borde gris.
+ * vendido, Cómo te pagaron hoy) van en blanco con borde gris.
+ *
+ * 🔴 Se probó darles el degradado azul de las tarjetas de cifras (06-09) y no
+ * funciona: son mucho más altos, así que el degradado se estira sobre mucha
+ * más superficie y la esquina inferior derecha llega saturada justo donde hay
+ * listas y texto. El degradado sirve para una tarjeta de ~120px, no para un
+ * bloque de 300.
  */
-const BLOQUE_STD = `rounded-xl bg-gradient-to-br shadow-lg transition-shadow hover:shadow-xl ${TONOS.azul.fondo}`;
+const BLOQUE_STD = 'rounded-xl border border-[#e8ecf1] bg-white';
 
 /**
  * Título de bloque. 🔴 `font-medium` (500) y no `font-semibold`: Amazon Ember
