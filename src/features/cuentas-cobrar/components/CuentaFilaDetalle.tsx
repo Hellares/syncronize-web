@@ -13,10 +13,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { CuentaPorCobrar, EstadoCuenta } from '@/core/types/cuentas-cobrar';
+import type { CuentaPorCobrar } from '@/core/types/cuentas-cobrar';
 import type { VentaDetalle } from '@/core/types/venta';
-import { esLineaGratuita } from '@/core/types/venta';
 import { getVenta } from '@/features/venta/services/venta-service';
+import VentaProductosTabla from '@/features/venta/components/VentaProductosTabla';
+import { tonoDe, type TonoEstado } from './tono-estado';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -27,27 +28,13 @@ function fmtFecha(iso?: string | null): string {
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-/**
- * El tono de los bloques sale del ESTADO de la cuenta, igual que las tarjetas
- * de resumen de la pantalla: desplegar una vencida se tiene que sentir
- * distinto de desplegar una pagada, sin tener que volver a leer la pill.
- *
- * 🔴 Ring de color y no `border-gray-200`: el gris no se ve sobre el fondo del
- * dashboard --el mismo motivo por el que la tabla usa ring azul--.
- */
-const TONO: Record<EstadoCuenta, { ring: string; fondo: string; titulo: string }> = {
-  PENDIENTE: { ring: 'ring-amber-400', fondo: 'from-white to-amber-100', titulo: 'text-amber-700' },
-  VENCIDA: { ring: 'ring-red-400', fondo: 'from-white to-red-100', titulo: 'text-red-700' },
-  PAGADA: { ring: 'ring-green-400', fondo: 'from-white to-green-100', titulo: 'text-green-700' },
-};
-
 function Bloque({
   titulo,
   tono,
   children,
 }: {
   titulo: string;
-  tono: { ring: string; fondo: string; titulo: string };
+  tono: TonoEstado;
   children: React.ReactNode;
 }) {
   return (
@@ -87,7 +74,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
     return () => { cancelado = true; };
   }, [c.ventaId]);
 
-  const tono = TONO[c.estado] ?? TONO.PENDIENTE;
+  const tono = tonoDe(c.estado);
   const cuotas = c.cuotas ?? [];
   const pagos = c.pagos ?? [];
   const totalConMora = c.saldoPendiente + (c.totalMora ?? 0);
@@ -96,57 +83,10 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
     <div className="space-y-3 bg-[#f9fbff] px-4 pb-4 pt-3 sm:pl-12">
       {/* Lo que se vendió: es lo primero que se pregunta cuando el cliente
           discute la deuda por teléfono. */}
+      {/* Lo que se vendió: es lo primero que se pregunta cuando el cliente
+          discute la deuda por teléfono. */}
       <Bloque titulo="Productos de la venta" tono={tono}>
-        {errorVenta ? (
-          <p className="text-[11px] text-gray-400">No se pudo cargar el detalle de la venta.</p>
-        ) : lineas == null ? (
-          <div className="flex items-center gap-2 py-1 text-[11px] text-gray-400">
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-200 border-t-[#437EFF]" />
-            Cargando…
-          </div>
-        ) : lineas.length === 0 ? (
-          <p className="text-[11px] text-gray-400">La venta no tiene líneas.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[11px]">
-              <thead>
-                <tr className="border-b border-gray-100 text-[9px] font-semibold uppercase tracking-wide text-gray-400">
-                  <th className="py-1 pr-2 font-semibold">Producto</th>
-                  <th className="w-px whitespace-nowrap px-2 py-1 text-right font-semibold">Cant.</th>
-                  <th className="w-px whitespace-nowrap px-2 py-1 text-right font-semibold">P. unit.</th>
-                  <th className="w-px whitespace-nowrap py-1 pl-2 text-right font-semibold">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineas.map(d => {
-                  const gratis = esLineaGratuita(d);
-                  return (
-                    <tr key={d.id} className="border-b border-gray-50 last:border-0">
-                      <td className="py-1.5 pr-2 text-gray-700">
-                        {d.descripcion}
-                        {gratis && (
-                          <span className="ml-1.5 rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">REGALO</span>
-                        )}
-                        {/* Una línea que vino de un combo: sin esto no se
-                            entiende por qué hay tres productos sueltos. */}
-                        {d.origenComboNombre && (
-                          <span className="ml-1.5 rounded bg-purple-100 px-1.5 py-0.5 text-[9px] font-medium text-purple-700">
-                            {d.origenComboNombre}
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-medium text-gray-700">{Number(d.cantidad)}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right text-gray-500">{fmt(d.precioUnitario)}</td>
-                      <td className="whitespace-nowrap py-1.5 pl-2 text-right font-semibold text-gray-800">
-                        {fmt(d.total ?? Number(d.cantidad) * Number(d.precioUnitario))}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <VentaProductosTabla lineas={lineas} error={errorVenta} />
       </Bloque>
 
       <div className="grid gap-3 lg:grid-cols-3">

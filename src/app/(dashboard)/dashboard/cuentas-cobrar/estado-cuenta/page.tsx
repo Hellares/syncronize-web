@@ -3,17 +3,21 @@
 // Estado de cuenta del cliente: resumen + ventas a crédito + abonos + PDF
 // (paridad estado_cuenta_cliente_page.dart). Acepta ?clienteId= o ?clienteEmpresaId=.
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { EstadoCuentaCliente, VentaCreditoEC } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
 import { getEstadoCuentaCliente } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import { descargarEstadoCuentaCliente } from '@/features/cuentas-cobrar/components/estado-cuenta-cliente-pdf';
+import VentaEstadoCuentaDetalle from '@/features/cuentas-cobrar/components/VentaEstadoCuentaDetalle';
+import Plegable from '@/components/ui/Plegable';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
 const fmt = (n: number | undefined | null) =>
   `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
+const fmtFecha = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
 const fuenteLabel = (f?: string | null) =>
   f === 'TESORERIA' ? 'Tesorería' : f === 'CAJA' ? 'Caja' : f === 'BANCO' ? 'Banco' : f ?? '';
 
@@ -27,6 +31,10 @@ function EstadoCuentaClienteContent() {
   const [data, setData] = useState<EstadoCuentaCliente | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Una sola venta desplegada a la vez, como en cuentas por cobrar. */
+  const [desplegada, setDesplegada] = useState<string | null>(null);
+  const [verHistorial, setVerHistorial] = useState(false);
+  const [verAbonos, setVerAbonos] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!clienteId && !clienteEmpresaId) {
@@ -62,13 +70,27 @@ function EstadoCuentaClienteContent() {
   const historial = ventas.filter(v => v.saldoPendiente <= 0.01);
   const conSaldo = resumen.saldoPendiente > 0.005;
 
+  const alternar = (ventaId: string) => setDesplegada(d => (d === ventaId ? null : ventaId));
+
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       {/* Header cliente */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#437EFF]/10 text-lg">
-            {cliente.tipo === 'EMPRESA' ? '🏢' : '👤'}
+          {/* Icono dibujado y no emoji: es el unico de la pantalla y el resto de
+              la web usa SVG en todos lados. */}
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#437EFF]/10 text-[#004A94]">
+            {cliente.tipo === 'EMPRESA' ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M5 21V5a1 1 0 011-1h7a1 1 0 011 1v16M14 21V9h4a1 1 0 011 1v11" />
+                <path d="M8 8h2M8 12h2M8 16h2" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M4.5 20a7.5 7.5 0 0115 0" />
+              </svg>
+            )}
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900">{cliente.nombre ?? nombreFallback ?? 'Cliente'}</h1>
@@ -79,104 +101,228 @@ function EstadoCuentaClienteContent() {
         </div>
         <button
           onClick={() => descargarEstadoCuentaCliente(data, empresa?.razonSocial ?? empresa?.nombre ?? 'Mi empresa', empresa?.ruc ?? undefined)}
-          className="rounded-lg border border-[#004A94] px-4 py-2 text-sm font-medium text-[#004A94] hover:bg-blue-50">
+          className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-zinc-100 px-3 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4v11M8 11l4 4 4-4M4 19h16" />
+          </svg>
           Descargar PDF
         </button>
       </div>
 
-      {/* Resumen */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      {/* Resumen: el saldo manda, y su color dice si hay que llamar al cliente
+          o no. Mismo tratamiento que las tarjetas de cuentas por cobrar --ring
+          del color propio y degradado--, porque el borde gris no se ve sobre el
+          fondo del dashboard. */}
+      <div
+        className={`rounded-xl bg-gradient-to-br p-4 shadow-sm ring-1 ${
+          conSaldo ? 'from-white to-red-100 ring-red-400' : 'from-white to-green-100 ring-green-400'
+        }`}
+      >
         <p className="text-xs text-gray-500">Saldo pendiente</p>
         <p className={`text-2xl font-extrabold ${conSaldo ? 'text-red-600' : 'text-green-600'}`}>{fmt(resumen.saldoPendiente)}</p>
-        {resumen.totalMora > 0 && <p className="text-[11px] text-orange-700">incl. mora {fmt(resumen.totalMora)}</p>}
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3">
+        {resumen.totalMora > 0 && <p className="text-[11px] font-semibold text-orange-700">incl. mora {fmt(resumen.totalMora)}</p>}
+
+        <div className="mt-3 grid grid-cols-1 gap-2 border-t border-white/60 pt-3 sm:grid-cols-3">
           {[
-            { label: 'Vendido', val: fmt(resumen.totalVendido) },
-            { label: 'Abonado', val: fmt(resumen.totalAbonado) },
-            { label: 'Ventas', val: `${resumen.cantidadVentas}${resumen.ventasConSaldo > 0 ? ` (${resumen.ventasConSaldo} con saldo)` : ''}` },
+            { label: 'Vendido', val: fmt(resumen.totalVendido), color: 'text-[#004A94]', ring: 'ring-[#004A94]/50', fondo: 'from-white to-blue-100' },
+            { label: 'Abonado', val: fmt(resumen.totalAbonado), color: 'text-green-700', ring: 'ring-green-400', fondo: 'from-white to-green-100' },
+            {
+              label: 'Ventas',
+              val: `${resumen.cantidadVentas}${resumen.ventasConSaldo > 0 ? ` · ${resumen.ventasConSaldo} con saldo` : ''}`,
+              color: 'text-gray-800',
+              ring: 'ring-gray-300',
+              fondo: 'from-white to-gray-100',
+            },
           ].map(s => (
-            <div key={s.label}>
+            <div key={s.label} className={`rounded-lg bg-gradient-to-br p-2.5 ring-1 ${s.fondo} ${s.ring}`}>
               <p className="text-[10px] text-gray-500">{s.label}</p>
-              <p className="text-sm font-bold text-gray-900">{s.val}</p>
+              <p className={`text-sm font-bold ${s.color}`}>{s.val}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Ventas pendientes */}
-      <Seccion titulo="Ventas pendientes" contador={pendientes.length}>
-        {pendientes.length === 0
-          ? <Vacio texto="Sin ventas pendientes" />
-          : pendientes.map(v => <VentaRow key={v.ventaId} v={v} />)}
-      </Seccion>
-
-      {/* Abonos */}
-      <Seccion titulo="Abonos" contador={abonos.length}>
-        {abonos.length === 0
-          ? <Vacio texto="Sin abonos registrados" />
-          : abonos.map(a => (
-            <div key={a.id} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <div>
-                <p className="text-xs font-semibold text-gray-800">
-                  {a.metodoPago}{a.fuente ? ` · ${fuenteLabel(a.fuente)}` : ''}
-                </p>
-                <p className="text-[10px] text-gray-500">{fmtFecha(a.fechaPago)}{a.ventaCodigo ? ` · ${a.ventaCodigo}` : ''}</p>
-              </div>
-              <p className="text-sm font-extrabold text-green-700">+ {fmt(a.monto)}</p>
-            </div>
-          ))}
-      </Seccion>
-
-      {/* Historial pagadas */}
-      {historial.length > 0 && (
-        <Seccion titulo="Historial (pagadas)" contador={historial.length}>
-          {historial.map(v => <VentaRow key={v.ventaId} v={v} />)}
-        </Seccion>
-      )}
-    </div>
-  );
-}
-
-function Seccion({ titulo, contador, children }: { titulo: string; contador: number; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center gap-2">
-        <h2 className="text-sm font-bold text-gray-900">{titulo}</h2>
-        <span className="rounded-full bg-[#437EFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#437EFF]">{contador}</span>
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function VentaRow({ v }: { v: VentaCreditoEC }) {
-  const cfg = ESTADO_CUENTA_CONFIG[v.estado];
-  const saldado = v.saldoPendiente <= 0.01;
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
       <div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-gray-900">{v.codigo}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
-          {(v.numeroCuotas ?? 0) > 0 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500">{v.numeroCuotas} cuotas</span>}
+        <div className="mb-1.5 flex items-center gap-2">
+          <h2 className="text-sm font-bold text-gray-900">Ventas pendientes</h2>
+          <span className="rounded-full bg-[#437EFF]/10 px-2 py-0.5 text-[10px] font-bold text-[#437EFF]">{pendientes.length}</span>
         </div>
-        <p className="text-[10px] text-gray-500">
-          {fmtFecha(v.fechaVenta)} · Vence {fmtFecha(v.fechaVencimiento)}
-          {(v.totalMora ?? 0) > 0 && <span className="text-red-500"> · mora {fmt(v.totalMora)}</span>}
-        </p>
+        {pendientes.length === 0 ? (
+          <p className="rounded-xl bg-white py-6 text-center text-xs text-gray-400 ring-1 ring-blue-400/40">
+            Sin ventas pendientes 🎉
+          </p>
+        ) : (
+          <TablaVentas ventas={pendientes} desplegada={desplegada} onAlternar={alternar} />
+        )}
       </div>
-      <div className="text-right">
-        <p className={`text-sm font-extrabold ${saldado ? 'text-green-700' : v.estado === 'VENCIDA' ? 'text-red-600' : 'text-blue-700'}`}>
-          {fmt(v.saldoPendiente)}
-        </p>
-        <p className="text-[9px] text-gray-400">de {fmt(v.total)}</p>
-      </div>
+
+      {/* Historial: es consulta, va plegado. */}
+      {historial.length > 0 && (
+        <Plegable
+          titulo="Historial (pagadas)"
+          resumen={`${historial.length} · ${fmt(historial.reduce((t, v) => t + v.total, 0))}`}
+          abierto={verHistorial}
+          onToggle={() => setVerHistorial(v => !v)}
+        >
+          <TablaVentas ventas={historial} desplegada={desplegada} onAlternar={alternar} />
+        </Plegable>
+      )}
+
+      {/* Abonos: el detalle de cada uno ya vive dentro de su venta, acá va la
+          película completa en orden. */}
+      <Plegable
+        titulo="Abonos"
+        resumen={`${abonos.length} · ${fmt(abonos.reduce((t, a) => t + a.monto, 0))}`}
+        abierto={verAbonos}
+        onToggle={() => setVerAbonos(v => !v)}
+      >
+        {abonos.length === 0 ? (
+          <p className="py-3 text-center text-xs text-gray-400">Sin abonos registrados</p>
+        ) : (
+          <table className="w-full text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-gray-200 text-[10px] uppercase tracking-wide text-gray-400">
+                <th className="w-px whitespace-nowrap py-1.5 pr-3 font-medium">Fecha</th>
+                <th className="w-px whitespace-nowrap px-3 py-1.5 font-medium">Venta</th>
+                <th className="py-1.5 pr-3 font-medium">Método</th>
+                <th className="hidden w-px whitespace-nowrap px-3 py-1.5 font-medium sm:table-cell">Entró a</th>
+                <th className="w-px whitespace-nowrap py-1.5 pl-3 text-right font-medium">Monto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {abonos.map(a => (
+                <tr key={a.id} className="transition-colors hover:bg-gray-50/60">
+                  <td className="whitespace-nowrap py-1.5 pr-3 text-gray-600">{fmtFecha(a.fechaPago)}</td>
+                  <td className="whitespace-nowrap px-3 py-1.5 font-mono text-[11px] tracking-tight text-gray-500">{a.ventaCodigo ?? '—'}</td>
+                  <td className="py-1.5 pr-3 text-gray-700">{a.metodoPago}</td>
+                  <td className="hidden whitespace-nowrap px-3 py-1.5 text-gray-500 sm:table-cell">{fuenteLabel(a.fuente) || '—'}</td>
+                  <td className="whitespace-nowrap bg-green-100 py-1.5 pl-3 pr-2 text-right font-semibold text-green-800">+ {fmt(a.monto)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Plegable>
     </div>
   );
 }
 
-function Vacio({ texto }: { texto: string }) {
-  return <p className="py-4 text-center text-xs text-gray-400">{texto}</p>;
+/**
+ * Las ventas a crédito del cliente, con la misma cara que la tabla de cuentas
+ * por cobrar: bandas de color en las columnas de plata y la fila que despliega
+ * lo que se vendió.
+ */
+function TablaVentas({
+  ventas,
+  desplegada,
+  onAlternar,
+}: {
+  ventas: VentaCreditoEC[];
+  desplegada: string | null;
+  onAlternar: (ventaId: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+      <table className="w-full text-left text-[12px]">
+        <thead className="border-b border-[#cfe0f5] bg-[#eaf2fd]">
+          <tr>
+            <th className="w-px px-2 py-3" />
+            <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
+            <th className="w-full px-3 py-3 font-medium text-[#004A94]">Documento</th>
+            <th className="hidden w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] md:table-cell">Vence</th>
+            <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
+            <th className="hidden w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94] lg:table-cell">Pagado</th>
+            <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Saldo</th>
+            <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Estado</th>
+            <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Acción</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {ventas.map(v => {
+            const cfg = ESTADO_CUENTA_CONFIG[v.estado];
+            const abierta = desplegada === v.ventaId;
+            const vencido = (v.diasVencimiento ?? 0) < 0;
+            return (
+              <Fragment key={v.ventaId}>
+                <tr
+                  onClick={() => onAlternar(v.ventaId)}
+                  className={`cursor-pointer transition-colors ${abierta ? 'bg-[#f9fbff]' : 'hover:bg-gray-50/50'}`}
+                >
+                  <td className="w-px py-2 pl-3 pr-0">
+                    <span
+                      aria-hidden
+                      className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                        abierta ? 'bg-[#437EFF] text-white' : 'bg-blue-50 text-[#437EFF]'
+                      }`}
+                    >
+                      <svg className={`h-3.5 w-3.5 transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </span>
+                  </td>
+
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFecha(v.fechaVenta)}</td>
+
+                  <td className="px-3 py-2">
+                    <span className="font-mono text-[11px] tracking-tight text-gray-500">{v.codigo}</span>
+                    {(v.numeroCuotas ?? 0) > 0 && (
+                      <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-500">
+                        {v.numeroCuotas} cuotas
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
+                    <span className="text-xs text-gray-600">{fmtFecha(v.fechaVencimiento)}</span>
+                    {v.diasVencimiento != null && (
+                      <span className={`block text-[10px] ${vencido ? 'font-semibold text-red-600' : 'text-gray-400'}`}>
+                        {vencido ? `vencido ${Math.abs(v.diasVencimiento)}d` : `en ${v.diasVencimiento}d`}
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="whitespace-nowrap bg-sky-100 px-3 py-2 text-right text-gray-700">{fmt(v.total)}</td>
+
+                  <td className="hidden whitespace-nowrap bg-green-100 px-3 py-2 text-right text-green-800 lg:table-cell">
+                    {v.totalPagado > 0.005 ? fmt(v.totalPagado) : <span className="text-gray-400">—</span>}
+                  </td>
+
+                  <td className="whitespace-nowrap bg-orange-100 px-3 py-2 text-right">
+                    <span className="font-bold text-gray-900">{fmt(v.saldoPendiente)}</span>
+                    {(v.totalMora ?? 0) > 0 && (
+                      <span className="block text-[10px] font-semibold text-red-600">+ {fmt(v.totalMora)} mora</span>
+                    )}
+                  </td>
+
+                  <td className="whitespace-nowrap px-2 py-2 text-center">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.text} ${cfg.bg}`}>
+                      {cfg.label}
+                    </span>
+                  </td>
+
+                  <td className="whitespace-nowrap px-3 py-2 text-right" onClick={e => e.stopPropagation()}>
+                    <Link href={`/dashboard/ventas/${v.ventaId}`} className="text-[11px] font-medium text-[#437EFF] hover:underline">
+                      Ver la venta
+                    </Link>
+                  </td>
+                </tr>
+
+                {abierta && (
+                  <tr className="bg-[#f9fbff]">
+                    <td colSpan={9} className="p-0">
+                      <VentaEstadoCuentaDetalle venta={v} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function EstadoCuentaClientePage() {
