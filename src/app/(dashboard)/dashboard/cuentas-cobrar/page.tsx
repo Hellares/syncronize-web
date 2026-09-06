@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { AxiosError } from 'axios';
 import type { CuentaPorCobrar, ResumenCuentasCobrar, EstadoCuenta, ConfiguracionMora } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
@@ -42,6 +43,9 @@ export default function CuentasCobrarPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [expandido, setExpandido] = useState<string | null>(null);
+  // Arrancan cerrados: se abren cuando alguien se pregunta a quien cobrar.
+  const [verDeudores, setVerDeudores] = useState(false);
+  const [verProximas, setVerProximas] = useState(false);
   const [abonoTarget, setAbonoTarget] = useState<CuentaPorCobrar | null>(null);
   const [moraOpen, setMoraOpen] = useState(false);
 
@@ -137,37 +141,90 @@ export default function CuentasCobrarPage() {
         </div>
       )}
 
-      {/* Top deudores + próximas a vencer */}
+      {/* Top deudores y próximas a vencer: PLEGADOS.
+          Son datos de consulta, no de trabajo --se miran cuando uno se pregunta
+          "¿a quién le cobro primero?"--, y como tarjetas abiertas se comían la
+          altura que necesita la lista, que es lo que se usa todos los días.
+          Cerrados dicen lo esencial en una línea. */}
       {resumen && (resumen.topDeudores.length > 0 || resumen.proximasVencer.length > 0) && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
           {resumen.topDeudores.length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Top deudores</p>
-              <div className="space-y-1">
-                {resumen.topDeudores.map((d, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="truncate text-gray-700">{d.nombre} <span className="text-gray-400">({d.cantidad})</span></span>
-                    <strong className="text-gray-900">{fmt(d.total)}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Plegable
+              titulo="Top deudores"
+              resumen={`${resumen.topDeudores.length} ${resumen.topDeudores.length === 1 ? 'cliente' : 'clientes'} · ${fmt(resumen.topDeudores.reduce((t, d) => t + d.total, 0))}`}
+              abierto={verDeudores}
+              onToggle={() => setVerDeudores(v => !v)}
+            >
+              <table className="w-full text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-gray-200 text-[10px] uppercase tracking-wide text-gray-400">
+                    <th className="w-6 py-1.5 pr-2 text-right font-medium">#</th>
+                    <th className="py-1.5 pr-3 font-medium">Cliente</th>
+                    <th className="w-px whitespace-nowrap px-3 py-1.5 text-right font-medium">Ventas</th>
+                    <th className="w-px whitespace-nowrap px-3 py-1.5 text-right font-medium">Deuda</th>
+                    <th className="w-px whitespace-nowrap py-1.5 pl-3 text-right font-medium">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {resumen.topDeudores.map((d, i) => {
+                    // Sin id no hay estado de cuenta que abrir: son las ventas
+                    // a público general, que no se le acumulan a nadie.
+                    const id = d.clienteEmpresaId ?? d.clienteId ?? null;
+                    const q = new URLSearchParams(
+                      d.clienteEmpresaId
+                        ? { clienteEmpresaId: d.clienteEmpresaId }
+                        : d.clienteId
+                          ? { clienteId: d.clienteId }
+                          : {},
+                    );
+                    if (d.nombre) q.set('nombre', d.nombre);
+                    return (
+                      <tr key={id ?? d.nombre} className="transition-colors hover:bg-gray-50/60">
+                        <td className="py-1.5 pr-2 text-right text-[10px] text-gray-300">{i + 1}</td>
+                        <td className="max-w-0 truncate py-1.5 pr-3 text-gray-700">{d.nombre}</td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right text-gray-500">{d.cantidad}</td>
+                        <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold text-gray-900">{fmt(d.total)}</td>
+                        <td className="whitespace-nowrap py-1.5 pl-3 text-right">
+                          {id ? (
+                            <Link
+                              href={`/dashboard/cuentas-cobrar/estado-cuenta?${q.toString()}`}
+                              className="text-[11px] font-medium text-[#437EFF] hover:underline"
+                            >
+                              Estado de cuenta
+                            </Link>
+                          ) : (
+                            <span className="text-[11px] text-gray-300">público general</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </Plegable>
           )}
+
           {resumen.proximasVencer.length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="mb-2 text-xs font-semibold uppercase text-gray-400">Próximas a vencer (7 días)</p>
+            <Plegable
+              titulo="Próximas a vencer (7 días)"
+              resumen={`${resumen.proximasVencer.length} · ${fmt(resumen.proximasVencer.reduce((t, c) => t + c.saldoPendiente, 0))}`}
+              abierto={verProximas}
+              onToggle={() => setVerProximas(v => !v)}
+            >
               <div className="space-y-1">
                 {resumen.proximasVencer.map(c => (
                   <div key={c.ventaId} className="flex items-center justify-between text-xs">
-                    <span className="truncate text-gray-700">{c.codigo} · {c.nombreCliente}</span>
-                    <span className="flex items-center gap-1">
+                    <span className="truncate text-gray-700">
+                      <span className="font-mono text-[11px] tracking-tight text-gray-400">{c.codigo}</span> · {c.nombreCliente}
+                    </span>
+                    <span className="flex items-center gap-1.5">
                       <strong className="text-gray-900">{fmt(c.saldoPendiente)}</strong>
                       <span className="text-amber-600">{c.diasVencimiento}d</span>
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Plegable>
           )}
         </div>
       )}
@@ -474,6 +531,48 @@ function MoraConfigDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Una tira que ocupa UNA línea cerrada y despliega su contenido al tocarla.
+ *
+ * Cerrada no es inútil: al lado del título va el resumen --cuántos y cuánto--,
+ * que es lo que se mira el 90% de las veces sin necesidad de abrir.
+ */
+function Plegable({
+  titulo,
+  resumen,
+  abierto,
+  onToggle,
+  children,
+}: {
+  titulo: string;
+  resumen: string;
+  abierto: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl bg-white ring-1 ring-blue-400/40">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={abierto}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50/60"
+      >
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[#437EFF] transition-transform ${abierto ? 'rotate-90' : ''}`}
+        >
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
+        <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{titulo}</span>
+        <span className="ml-auto truncate text-[11px] text-gray-400">{resumen}</span>
+      </button>
+      {abierto && <div className="border-t border-gray-100 px-3 pb-3 pt-2">{children}</div>}
     </div>
   );
 }

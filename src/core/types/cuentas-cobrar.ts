@@ -125,8 +125,13 @@ export interface AbonoEC {
 
 export interface TopDeudor {
   nombre: string;
+  /** Suma de los saldos pendientes, no el total facturado. */
   total: number;
+  /** Cuántas ventas a crédito sin saldar tiene. */
   cantidad: number;
+  /** Para abrir su estado de cuenta. Nulo en ventas a público general. */
+  clienteId?: string | null;
+  clienteEmpresaId?: string | null;
 }
 
 export interface ResumenCuentasCobrar {
