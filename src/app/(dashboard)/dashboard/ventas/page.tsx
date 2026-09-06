@@ -58,7 +58,12 @@ function fmtFecha(iso?: string): string {
 /** Atajos de fecha (paridad Flutter: Hoy/Ayer/Semana/Mes) */
 function rangoAtajo(atajo: string): { desde: string; hasta: string } {
   const hoy = new Date();
-  const d = (x: Date) => x.toISOString().slice(0, 10);
+  // 🔴 Partes LOCALES, no `toISOString()`: eso da UTC, y en Lima (UTC-5) a
+  // partir de las 7 de la tarde "hoy" devolvia el dia siguiente. Con el filtro
+  // vacio por defecto no se notaba; ahora que la pantalla arranca en HOY, la
+  // lista habria salido vacia todas las noches.
+  const d = (x: Date) =>
+    `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
   switch (atajo) {
     case 'hoy': return { desde: d(hoy), hasta: d(hoy) };
     case 'ayer': { const a = new Date(hoy); a.setDate(a.getDate() - 1); return { desde: d(a), hasta: d(a) }; }
@@ -95,9 +100,12 @@ export default function VentasPage() {
   const [entregaBusqueda, setEntregaBusqueda] = useState('');
   const [rucEmisor, setRucEmisor] = useState('');
   const [emisores, setEmisores] = useState<Emisor[]>([]);
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
-  const [atajo, setAtajo] = useState('');
+  // Arranca en HOY, como el app: la lista de ventas se abre decenas de veces
+  // al dia para ver lo que se vendio recien, y traer el historial completo es
+  // lento y no es lo que se busca. "Limpiar fechas" muestra todo.
+  const [fechaDesde, setFechaDesde] = useState(() => rangoAtajo('hoy').desde);
+  const [fechaHasta, setFechaHasta] = useState(() => rangoAtajo('hoy').hasta);
+  const [atajo, setAtajo] = useState('hoy');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entregaDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
