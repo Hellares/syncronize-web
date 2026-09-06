@@ -68,6 +68,7 @@ export const COMBO_ENDPOINTS = {
 export const STOCK_ENDPOINTS = {
   CREATE: '/producto-stock',
   LIST_BY_SEDE: (sedeId: string) => `/producto-stock/sede/${sedeId}`,
+  BULK_EDITAR: (sedeId: string) => `/producto-stock/sede/${sedeId}/bulk-editar`,
   BY_PRODUCTO_SEDE: (productoId: string, sedeId: string) => `/producto-stock/producto/${productoId}/sede/${sedeId}`,
   BY_VARIANTE_SEDE: (varianteId: string, sedeId: string) => `/producto-stock/variante/${varianteId}/sede/${sedeId}`,
   TODAS_SEDES: (productoId: string) => `/producto-stock/producto/${productoId}/todas-sedes`,

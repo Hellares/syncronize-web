@@ -55,15 +55,29 @@ export default function ProductoVariantesPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
-        {/* Las otras dos acciones del app —análisis de variantes y edición
-            masiva— todavía no tienen pantalla en la web: se agregan acá cuando
-            existan, en vez de dejar botones que no llevan a ningún lado. */}
-        <Link
-          href={`/dashboard/productos/${producto.id}/mayoreo`}
-          className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5"
-        >
-          Grupos de mayoreo
-        </Link>
+        {/* Falta portar el ANALISIS de variantes del app; se agrega acá
+            cuando exista, en vez de dejar un boton que no lleva a nada. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/dashboard/productos/${producto.id}/mayoreo`}
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            Grupos de mayoreo
+          </Link>
+          {producto.tieneVariantes && (
+            <Link
+              href={`/dashboard/productos/${producto.id}/variantes/edicion-masiva`}
+              title="Cargar stock, precios y mayoreo de todas las variantes de una vez"
+              className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <path d="M3 10h18M9 4v16" />
+              </svg>
+              Edición masiva
+            </Link>
+          )}
+        </div>
       </div>
 
       {!producto.tieneVariantes ? (

@@ -7,6 +7,7 @@ import type {
   AjustarStockDto,
   UpdatePreciosStockDto,
   StockMinMaxBulkItem,
+  BulkEditarStockPreciosDto,
   StockFiltros,
   MovimientoFiltros,
   ReporteFiltros,
@@ -266,5 +267,19 @@ export async function getReporteSugerencias(filtros: ReporteFiltros): Promise<Su
 export async function getReporteRotacion(filtros: ReporteFiltros): Promise<ReporteRotacion> {
   const query = buildReporteParams(filtros);
   const res = await apiClient.get<ReporteRotacion>(`${STOCK_ENDPOINTS.REPORTE_ROTACION}?${query}`);
+  return res.data;
+}
+
+/**
+ * Stock, precios y mayoreo de varias variantes de una sola vez.
+ *
+ * Todo pasa en UNA transaccion del lado del backend, incluido el upsert del
+ * nivel por mayor y el guard de bajo costo. Tope: 500 items.
+ */
+export async function bulkEditarStockPrecios(
+  sedeId: string,
+  data: BulkEditarStockPreciosDto,
+): Promise<{ actualizados: number } & Record<string, unknown>> {
+  const res = await apiClient.patch(STOCK_ENDPOINTS.BULK_EDITAR(sedeId), data);
   return res.data;
 }

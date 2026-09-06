@@ -647,3 +647,29 @@ export interface ReporteFiltros {
   fechaHasta?: string;
   dias?: number;
 }
+
+/**
+ * Una fila de la edicion masiva de stock y precios.
+ *
+ * 🔴 `agregarStock` es un DELTA, no el stock final: genera movimiento de kardex.
+ * 🔴 El mayoreo (`mayorCantidadMinima` + `mayorPrecio`) es GLOBAL a la variante:
+ * `PrecioNivel` no tiene `sedeId`, asi que se aplica en todas las sedes aunque
+ * el resto de la fila sea de la sede elegida.
+ */
+export interface BulkEditarItem {
+  varianteId?: string;
+  productoId?: string;
+  agregarStock?: number;
+  precio?: number;
+  precioCosto?: number;
+  mayorCantidadMinima?: number;
+  mayorPrecio?: number;
+  /** Borra el nivel por mayor de esa variante. */
+  mayorEliminar?: boolean;
+}
+
+export interface BulkEditarStockPreciosDto {
+  items: BulkEditarItem[];
+  /** Queda en el kardex y en el historial de precios. */
+  motivo?: string;
+}
