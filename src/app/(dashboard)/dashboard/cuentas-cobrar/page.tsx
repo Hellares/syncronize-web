@@ -402,7 +402,10 @@ export default function CuentasCobrarPage() {
                             <button
                               type="button"
                               onClick={() => setAbonoTarget(c)}
-                              className="hidden rounded-lg bg-green-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-green-700 sm:inline-flex"
+                              // 24 px de alto (4 menos) y el mismo peso de fuente que las
+                              // pills de estado: en negrita y 28 px era lo mas
+                              // pesado de la fila, y la fila no es un formulario.
+                              className="hidden h-6 items-center rounded-lg bg-green-600 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-green-700 sm:inline-flex"
                             >
                               Abonar
                             </button>
