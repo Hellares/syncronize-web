@@ -2,6 +2,7 @@
 // jsPDF + autotable, mismo patrón que estado-cuenta-tercero-pdf.ts.
 
 import type { EstadoCuentaCliente, VentaCreditoEC, AbonoEC } from '@/core/types/cuentas-cobrar';
+import type { RowInput } from 'jspdf-autotable';
 import type { VentaDetalle } from '@/core/types/venta';
 
 /** Las líneas de cada venta, por `ventaId`. El estado de cuenta no las trae:
@@ -88,15 +89,20 @@ export async function construirEstadoCuentaClientePdf(
   };
 
   /**
-   * Las líneas de una venta, colgando de su fila con una flecha.
+   * Las líneas de una venta, colgando de su fila.
    *
    * Van como filas de la MISMA tabla y no como una tabla aparte: así el corte
    * de página las mantiene pegadas a su venta y las columnas siguen alineadas.
    * Los `colSpan` suman 7, que son las columnas de la tabla de ventas.
    *
-   * 🔴 La flecha es ASCII (`|_>`) a propósito: las fuentes estándar de jsPDF
-   * son WinAnsi y un `└─>` sale como basura.
+   * 🔴 La flecha `└─>` NO se escribe, se DIBUJA con líneas en `didDrawCell`:
+   * las fuentes estándar de jsPDF son WinAnsi y no tienen los caracteres de
+   * dibujo de caja --saldrían como basura--. Escribirla en ASCII (`|_>`) se ve
+   * feo, así que se reserva el margen izquierdo de la celda y ahí se trazan
+   * los dos segmentos y la punta.
    */
+  const SANGRIA_FLECHA = 7;
+
   const filasDetalle = (v: VentaCreditoEC) => {
     const lineas = detallesPorVenta[v.ventaId];
     if (!lineas?.length) return [];
@@ -105,11 +111,28 @@ export async function construirEstadoCuentaClientePdf(
       const cant = Number(d.cantidad ?? 0);
       const pu = Number(d.precioUnitario ?? 0);
       return [
-        { content: `   |_>  ${d.descripcion}`, colSpan: 3, styles: tenue },
+        {
+          content: d.descripcion,
+          colSpan: 3,
+          styles: { ...tenue, cellPadding: { top: 1.8, right: 1.8, bottom: 1.8, left: SANGRIA_FLECHA } },
+        },
         { content: `${cant} x ${money(pu)}`, colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
         { content: money(d.total ?? cant * pu), colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
       ];
     });
+  };
+
+  /** Traza `└─>` dentro de la sangría que dejó la celda del detalle. */
+  const dibujarFlecha = (x: number, yCelda: number) => {
+    const izq = x + 2.2;      // donde baja el trazo vertical
+    const alto = 3.2;         // hasta la mitad de la primera linea de texto
+    const largo = 2.6;        // el tramo horizontal
+    doc.setDrawColor(160, 160, 160).setLineWidth(0.25);
+    doc.line(izq, yCelda, izq, yCelda + alto);
+    doc.line(izq, yCelda + alto, izq + largo, yCelda + alto);
+    // La punta, dos trazos cortos.
+    doc.line(izq + largo, yCelda + alto, izq + largo - 0.9, yCelda + alto - 0.7);
+    doc.line(izq + largo, yCelda + alto, izq + largo - 0.9, yCelda + alto + 0.7);
   };
 
   const tablaVentas = (titulo: string, ventas: VentaCreditoEC[], emptyMsg?: string) => {
@@ -118,26 +141,40 @@ export async function construirEstadoCuentaClientePdf(
       if (emptyMsg) { doc.setFontSize(9).setFont('helvetica', 'normal').text(emptyMsg, margin, y + 3); y += 9; }
       return;
     }
+    // Se arma antes para poder anotar QUE filas son de detalle: `didDrawCell`
+    // solo recibe el indice, no sabe de donde salio la fila.
+    const cuerpo: RowInput[] = [];
+    const conFlecha = new Set<number>();
+    for (const v of ventas) {
+      cuerpo.push([
+        v.codigo,
+        fmtFecha(v.fechaVenta),
+        fmtFecha(v.fechaVencimiento),
+        money(v.total),
+        money(v.totalPagado),
+        money(v.saldoPendiente),
+        v.estado,
+      ]);
+      for (const fila of filasDetalle(v)) {
+        conFlecha.add(cuerpo.length);
+        cuerpo.push(fila);
+      }
+    }
+
     autoTable(doc, {
       startY: y,
       head: [['Código', 'Fecha', 'Vence', 'Total', 'Abonado', 'Saldo', 'Estado']],
-      body: ventas.flatMap((v) => [
-        [
-          v.codigo,
-          fmtFecha(v.fechaVenta),
-          fmtFecha(v.fechaVencimiento),
-          money(v.total),
-          money(v.totalPagado),
-          money(v.saldoPendiente),
-          v.estado,
-        ],
-        ...filasDetalle(v),
-      ]),
+      body: cuerpo,
       styles: { fontSize: 7.5, cellPadding: 1.8 },
       headStyles: { fillColor: [0, 74, 148], fontSize: 8 },
       columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'center' } },
       margin: { left: margin, right: margin },
       theme: 'grid',
+      didDrawCell: (d) => {
+        if (d.section !== 'body' || d.column.index !== 0) return;
+        if (!conFlecha.has(d.row.index)) return;
+        dibujarFlecha(d.cell.x, d.cell.y);
+      },
     });
     // @ts-expect-error lastAutoTable lo agrega el plugin
     y = doc.lastAutoTable.finalY + 6;
