@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Nueva orden de servicio", "x": 0, "y": 0, "w": 1440, "h": 1180 }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -210,
+      "w": 640,
+      "text": "Rediseño de /dashboard/servicios/nueva — dirección elegida.\n\nMisma funcionalidad y mismos campos que hoy. Lo que cambia es la organización:\n\n· Fuera las 6 tarjetas numeradas — todas pesaban igual, y el número se corría cuando aparecía la sección de plantilla.\n· Cliente y equipo pasan a un solo bloque (RECEPCIÓN): en el mostrador se llenan juntos.\n· El cliente elegido deja el verde y habla el azul del sistema.\n· El resumen invierte su jerarquía: primero la plata, después el detalle.\n· Las notas quedan plegadas: casi siempre van vacías.\n\nDatos de ejemplo. El chip de arriba alterna el cliente entre elegido y vacío."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

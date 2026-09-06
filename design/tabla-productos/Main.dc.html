@@ -1,0 +1,658 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+/*@FONTS@*/
+:root {
+  --sans: 'Amazon Ember', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'Amazon Ember Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --azul: #004A94;
+  --azulVivo: #437EFF;
+  --ring: rgba(96, 165, 250, 0.4);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #f5f7fa; font-family: var(--sans); color: #111827; }
+a { color: var(--azulVivo); text-decoration: none; }
+a:hover { color: var(--azul); }
+button { font-family: var(--sans); cursor: pointer; border: 0; background: none; }
+
+.pagina { padding: 24px 28px 32px; }
+
+/* ---------- Barra de herramientas ---------- */
+.barra { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 12px; }
+.titulo { font-size: 18px; font-weight: 700; color: #111827; line-height: 1.1; }
+.subtitulo { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.herramientas { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* Control segmentado: mismo lenguaje que los filtros (zinc-100 + ring azul,
+   30 px de alto, radio 6). */
+.segmentado {
+  display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px;
+  background: #f4f4f5; border-radius: 6px; box-shadow: 0 0 0 1px #60a5fa, 0 4px 6px -1px rgba(0,0,0,.1);
+}
+.seg {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+  border-radius: 4px; font-size: 10px; font-weight: 500; color: var(--azul);
+  transition: background-color .15s, color .15s;
+}
+.seg:hover { background: rgba(67,126,255,.08); }
+.seg.act { background: var(--azul); color: #fff; }
+.seg.act:hover { background: #003570; }
+.seg svg { width: 13px; height: 13px; }
+
+.envPanel { position: relative; }
+.btnSec {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  background: #f4f4f5; border-radius: 6px; font-size: 10px; font-weight: 500; color: var(--azul);
+  box-shadow: 0 0 0 1px #60a5fa, 0 4px 6px -1px rgba(0,0,0,.1);
+}
+.btnSec:hover { box-shadow: 0 0 0 1px var(--azulVivo), 0 10px 15px -3px rgba(191,219,254,.9); }
+.btnSec svg { width: 13px; height: 13px; }
+
+.panelCols {
+  position: absolute; right: 0; top: 36px; z-index: 30; width: 190px; padding: 6px;
+  background: #fff; border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--ring), 0 10px 25px -5px rgba(15,23,42,.18);
+}
+.panelTit { padding: 6px 8px 4px; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; }
+.chk { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 11px; color: #374151; text-align: left; }
+.chk:hover { background: #f8fafc; }
+.caja { display: flex; width: 14px; height: 14px; align-items: center; justify-content: center; border-radius: 3px; box-shadow: inset 0 0 0 1px #cbd5e1; color: transparent; }
+.chk.on .caja { background: var(--azul); box-shadow: none; color: #fff; }
+.caja svg { width: 10px; height: 10px; }
+.fijo { color: #cbd5e1; font-size: 9px; margin-left: auto; }
+
+/* ---------- Tarjeta contenedora: ring azul, nunca borde gris ---------- */
+.tarjeta {
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0,0,0,.05);
+  overflow: hidden;
+}
+.scroll { max-height: 566px; overflow-y: auto; overflow-x: hidden; }
+
+/* ---------- Filas: flex con anchos fijos, no <table> ---------- */
+.fila { display: flex; align-items: center; width: 100%; text-align: left; }
+.cabecera {
+  position: sticky; top: 0; z-index: 10;
+  background: #eaf2fd; border-bottom: 1px solid #cfe0f5;
+  font-size: 12px; font-weight: 500; color: var(--azul);
+}
+.cabecera .celda { padding-top: 11px; padding-bottom: 11px; }
+.orden { display: inline-flex; align-items: center; gap: 3px; color: var(--azul); font-weight: 500; font-size: 12px; }
+.orden svg { width: 11px; height: 11px; opacity: .45; }
+.orden:hover svg { opacity: 1; }
+
+.celda { padding: 8px 16px; font-size: 12px; min-width: 0; }
+.c-chev { width: 30px; padding-left: 10px; padding-right: 0; }
+.c-prod { flex: 1 1 auto; }
+.c-cod { width: 116px; }
+.c-cat { width: 132px; }
+.c-marca { width: 116px; }
+.c-precio { width: 104px; text-align: right; padding-left: 10px; padding-right: 10px; }
+.c-stock { width: 92px; text-align: center; padding-left: 8px; padding-right: 8px; }
+.c-estado { width: 84px; text-align: center; padding-left: 6px; padding-right: 6px; }
+.c-acc { width: 132px; text-align: right; padding-left: 6px; }
+
+.env { border-bottom: 1px solid #e5e7eb; position: relative; }
+.env:last-child { border-bottom: 0; }
+.env .fila { transition: background-color .15s; }
+.env:hover .fila { background: rgba(249,250,251,.6); }
+.env.abierta { background: #f9fbff; }
+.env.abierta .fila { background: #f9fbff; }
+
+.chev { display: flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 4px; color: #b6c2d2; transition: transform .18s, color .15s; }
+.chev:hover { color: var(--azul); background: rgba(67,126,255,.08); }
+.chev svg { width: 13px; height: 13px; }
+.chev.abierto { transform: rotate(90deg); color: var(--azul); }
+
+/* Producto: miniatura + nombre + badges */
+.prod { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mini { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #f3f4f6; color: #9ca3af; }
+.mini svg { width: 46%; height: 46%; }
+.nombre { display: block; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env:hover .nombre { color: var(--azulVivo); }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.badge { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.b-var { background: #dbeafe; color: #1d4ed8; }
+.b-combo { background: #f3e8ff; color: #7e22ce; }
+.b-insumo { background: #e5e7eb; color: #4b5563; }
+.b-liq { background: #fee2e2; color: #b91c1c; }
+.b-dest { background: #fef3c7; color: #b45309; }
+
+.tenue { color: #6b7280; font-size: 12px; }
+.codigo { font-family: var(--mono); font-size: 12px; color: #6b7280; }
+.vacio { color: #d1d5db; }
+
+.precioBase { font-weight: 500; color: #111827; }
+.tachado { display: block; font-size: 11px; color: #9ca3af; text-decoration: line-through; line-height: 1.2; }
+.precioLiq { font-weight: 700; color: #dc2626; }
+.precioOf { font-weight: 700; color: #16a34a; }
+
+.pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
+.s-ok { background: #dcfce7; color: #15803d; }
+.s-bajo { background: #fef3c7; color: #b45309; }
+.s-cero { background: #fee2e2; color: #b91c1c; }
+.e-on { background: #dcfce7; color: #15803d; }
+.e-off { background: #f3f4f6; color: #6b7280; }
+.estadoBtn { transition: box-shadow .15s; }
+.estadoBtn:hover { box-shadow: 0 0 0 1px #cbd5e1; }
+
+/* Acciones: tres directas + resto en el menú */
+.acciones { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+.ico { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 8px; color: #9ca3af; transition: background-color .15s, color .15s; }
+.ico svg { width: 16px; height: 16px; }
+.ico:hover { background: #eff6ff; color: var(--azulVivo); }
+.ico.wa:hover { background: #f0fdf4; color: #16a34a; }
+.ico.stk:hover { background: #eff6ff; color: var(--azulVivo); }
+.gestionar { padding: 0 6px; height: 28px; border-radius: 8px; font-size: 11px; font-weight: 700; color: var(--azulVivo); }
+.gestionar:hover { background: rgba(67,126,255,.06); text-decoration: underline; }
+
+.menu {
+  position: absolute; right: 14px; top: 46px; z-index: 25; width: 196px; padding: 5px;
+  background: #fff; border-radius: 8px; text-align: left;
+  box-shadow: 0 0 0 1px var(--ring), 0 12px 28px -8px rgba(15,23,42,.28);
+}
+.menu.menu-arriba { top: auto; bottom: 46px; }
+.mItem { display: flex; width: 100%; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 6px; font-size: 11px; color: #374151; text-align: left; }
+.mItem svg { width: 14px; height: 14px; color: #9ca3af; }
+.mItem:hover { background: #f8fafc; }
+.mItem.peligro { color: #b91c1c; }
+.mItem.peligro svg { color: #ef4444; }
+.mItem.peligro:hover { background: #fef2f2; }
+.mSep { height: 1px; margin: 4px 6px; background: #eef2f7; }
+
+/* ---------- Fila desplegada: lo que no entra en columnas ---------- */
+.detalle { padding: 2px 16px 16px 46px; }
+.grupos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.grupo { background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 0 1px #e6edf7; }
+.gTit { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; margin-bottom: 7px; }
+.dato { display: flex; align-items: baseline; gap: 8px; font-size: 11px; line-height: 1.7; }
+.dLabel { color: #9ca3af; width: 88px; flex: 0 0 auto; }
+.dValor { color: #374151; font-weight: 500; }
+.sedes { display: flex; flex-wrap: wrap; gap: 6px; }
+.sede { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; background: #f8fafc; padding: 4px 8px; font-size: 11px; color: #475569; }
+.sedeN { font-weight: 700; color: #0f172a; }
+.accionesTexto { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.btnTexto { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; background: #fff; font-size: 11px; font-weight: 500; color: #374151; box-shadow: 0 0 0 1px #dbe4f0; }
+.btnTexto svg { width: 13px; height: 13px; color: #9ca3af; }
+.btnTexto:hover { box-shadow: 0 0 0 1px var(--azulVivo); color: var(--azul); }
+.btnTexto.peligro { color: #b91c1c; }
+.btnTexto.peligro svg { color: #ef4444; }
+.btnTexto.peligro:hover { box-shadow: 0 0 0 1px #fca5a5; }
+
+/* ---------- Densidad ---------- */
+.dens-compacta .celda { padding-top: 4px; padding-bottom: 4px; }
+.dens-compacta .mini { width: 26px; height: 26px; }
+.dens-compacta .badges { display: none; }
+.dens-compacta .nombre { font-size: 12px; }
+.dens-media .celda { padding-top: 8px; padding-bottom: 8px; }
+.dens-media .mini { width: 40px; height: 40px; }
+.dens-comoda .celda { padding-top: 14px; padding-bottom: 14px; }
+.dens-comoda .mini { width: 52px; height: 52px; }
+.dens-comoda .nombre { font-size: 13px; }
+
+/* ---------- Columnas apagadas ---------- */
+.sin-codigo .c-cod, .sin-categoria .c-cat, .sin-marca .c-marca { display: none; }
+
+/* ---------- Vista tarjetas ---------- */
+.grilla { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 16px; }
+.card { position: relative; display: flex; flex-direction: column; border-radius: 12px; background: #fff; padding: 4px; box-shadow: 0 0 0 1px #e6edf7, 0 12px 20px -14px rgba(100,100,111,.5); transition: transform .3s, box-shadow .3s; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--ring), 0 18px 26px -16px rgba(100,100,111,.55); }
+.foto { position: relative; height: 104px; border-radius: 8px; border-top-right-radius: 26px; background: linear-gradient(to bottom right, #f9fafb, #f3f4f6); display: flex; align-items: center; justify-content: center; color: #d1d5db; }
+.foto svg { width: 30px; height: 30px; }
+.tagPrecio { position: absolute; right: 8px; bottom: -12px; border-radius: 8px; background: #fff; padding: 4px 9px; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 1px #e6edf7, 0 6px 12px -6px rgba(15,23,42,.35); }
+.fotoBadges { position: absolute; left: 6px; top: 6px; display: flex; gap: 4px; }
+.badgeFoto { border-radius: 6px; padding: 2px 6px; font-size: 8px; font-weight: 700; color: #fff; }
+.cardCuerpo { padding: 16px 8px 8px; }
+.cardMarca { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; }
+.cardNombre { margin-top: 2px; font-size: 12px; font-weight: 500; color: #111827; line-height: 1.35; height: 32px; overflow: hidden; }
+.cardPie { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+
+/* ---------- Pie ---------- */
+.pie { display: flex; align-items: center; gap: 12px; border-top: 1px solid #eef2f7; background: #fff; padding: 10px 16px; }
+.pieTexto { font-size: 11px; color: #6b7280; }
+.pag { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.pagBtn { display: flex; height: 28px; align-items: center; border-radius: 6px; padding: 0 10px; font-size: 11px; font-weight: 500; color: #4b5563; box-shadow: 0 0 0 1px #e5e7eb; }
+.pagBtn:hover { background: #f8fafc; }
+.pagBtn.off { opacity: .4; }
+.pagNum { font-size: 11px; color: #4b5563; padding: 0 4px; }
+  </style>
+</helmet>
+
+<div class="pagina {{clases}}">
+
+  <div class="barra">
+    <div>
+      <div class="titulo">Productos</div>
+      <div class="subtitulo">Precio y stock de <strong style="color:#6b7280">Sede Centro</strong></div>
+    </div>
+
+    <div class="herramientas">
+      <div class="segmentado">
+        <button class="{{segTabla}}" onClick="{{verTabla}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
+          Tabla
+        </button>
+        <button class="{{segTarjetas}}" onClick="{{verTarjetas}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          Tarjetas
+        </button>
+      </div>
+
+      <div class="segmentado">
+        <button class="{{segComp}}" onClick="{{densCompacta}}">Compacta</button>
+        <button class="{{segMedia}}" onClick="{{densMedia}}">Media</button>
+        <button class="{{segComoda}}" onClick="{{densComoda}}">Cómoda</button>
+      </div>
+
+      <div class="envPanel">
+        <button class="btnSec" onClick="{{togglePanel}}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"></path><path d="M10 4v16M16 4v16"></path></svg>
+          Columnas
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+
+        <sc-if value="{{panelCols}}" hint-placeholder-val="{{ true }}">
+          <div class="panelCols">
+            <div class="panelTit">Columnas visibles</div>
+            <button class="{{chkCodigo}}" onClick="{{togCodigo}}">
+              <span class="caja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+              Código
+            </button>
+            <button class="{{chkCategoria}}" onClick="{{togCategoria}}">
+              <span class="caja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+              Categoría
+            </button>
+            <button class="{{chkMarca}}" onClick="{{togMarca}}">
+              <span class="caja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+              Marca
+            </button>
+            <div class="mSep"></div>
+            <div class="chk">
+              <span class="caja" style="background:#e5e7eb; box-shadow:none; color:#9ca3af"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+              Precio, Stock y Estado
+              <span class="fijo">fijas</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+
+    <sc-if value="{{esTabla}}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div class="fila cabecera">
+          <div class="celda c-chev"></div>
+          <div class="celda c-prod"><button class="orden">Producto <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"></path></svg></button></div>
+          <div class="celda c-cod">Código</div>
+          <div class="celda c-cat">Categoría</div>
+          <div class="celda c-marca">Marca</div>
+          <div class="celda c-precio"><button class="orden">Precio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"></path></svg></button></div>
+          <div class="celda c-stock"><button class="orden">Stock <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"></path></svg></button></div>
+          <div class="celda c-estado">Estado</div>
+          <div class="celda c-acc">Acciones</div>
+        </div>
+
+        <div class="scroll">
+          <sc-for list="{{filas}}" as="p" hint-placeholder-count="6">
+            <div class="{{p.claseEnv}}">
+
+              <div class="fila">
+                <div class="celda c-chev">
+                  <button class="{{p.claseChev}}" onClick="{{p.toggle}}" title="Ver el detalle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                  </button>
+                </div>
+
+                <div class="celda c-prod">
+                  <div class="prod">
+                    <div class="mini">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z"></path></svg>
+                    </div>
+                    <div style="min-width: 0">
+                      <span class="nombre">{{p.nombre}}</span>
+                      <div class="badges">
+                        <sc-if value="{{p.esVariantes}}" hint-placeholder-val="{{ true }}"><span class="badge b-var">Variantes</span></sc-if>
+                        <sc-if value="{{p.esCombo}}" hint-placeholder-val="{{ false }}"><span class="badge b-combo">Combo</span></sc-if>
+                        <sc-if value="{{p.esInsumo}}" hint-placeholder-val="{{ false }}"><span class="badge b-insumo">Insumo</span></sc-if>
+                        <sc-if value="{{p.enLiquidacion}}" hint-placeholder-val="{{ false }}"><span class="badge b-liq">Liquidación</span></sc-if>
+                        <sc-if value="{{p.destacado}}" hint-placeholder-val="{{ false }}"><span class="badge b-dest">Destacado</span></sc-if>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="celda c-cod"><span class="codigo">{{p.codigo}}</span></div>
+                <div class="celda c-cat"><span class="tenue">{{p.categoria}}</span></div>
+                <div class="celda c-marca"><span class="tenue">{{p.marca}}</span></div>
+
+                <div class="celda c-precio">
+                  <sc-if value="{{p.sinPrecio}}" hint-placeholder-val="{{ false }}"><span class="vacio">—</span></sc-if>
+                  <sc-if value="{{p.conRebaja}}" hint-placeholder-val="{{ false }}">
+                    <span class="tachado">{{p.precioAntes}}</span>
+                    <span class="{{p.clasePrecio}}">{{p.precio}}</span>
+                  </sc-if>
+                  <sc-if value="{{p.precioPlano}}" hint-placeholder-val="{{ true }}">
+                    <span class="precioBase">{{p.precio}}</span>
+                  </sc-if>
+                </div>
+
+                <div class="celda c-stock"><span class="{{p.claseStock}}">{{p.stock}}</span></div>
+
+                <div class="celda c-estado">
+                  <button class="pill estadoBtn {{p.claseEstado}}">{{p.estado}}</button>
+                </div>
+
+                <div class="celda c-acc">
+                  <div class="acciones">
+                    <sc-if value="{{p.puedeCompartir}}" hint-placeholder-val="{{ true }}">
+                      <button class="ico wa" title="Compartir la ficha por WhatsApp">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{p.puedeStock}}" hint-placeholder-val="{{ true }}">
+                      <button class="ico stk" title="Agregar o ajustar stock en esta sede">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{p.esVariantes}}" hint-placeholder-val="{{ false }}">
+                      <button class="gestionar" title="Gestionar variantes">Gestionar</button>
+                    </sc-if>
+                    <button class="ico" title="Más acciones" onClick="{{p.abrirMenu}}">
+                      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <sc-if value="{{p.menuAbierto}}" hint-placeholder-val="{{ false }}">
+                <div class="{{p.claseMenu}}">
+                  <button class="mItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"></path><circle cx="12" cy="12" r="9"></circle></svg>Configurar precios</button>
+                  <button class="mItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="M21 16l-5-5-6 6"></path></svg>Imágenes</button>
+                  <button class="mItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Receta / Componentes</button>
+                  <button class="mItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>Editar</button>
+                  <div class="mSep"></div>
+                  <button class="mItem peligro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>Eliminar</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{p.abierta}}" hint-placeholder-val="{{ false }}">
+                <div class="detalle">
+                  <div class="grupos">
+                    <div class="grupo">
+                      <div class="gTit">Ficha</div>
+                      <div class="dato"><span class="dLabel">Código</span><span class="dValor codigo">{{p.codigo}}</span></div>
+                      <div class="dato"><span class="dLabel">Categoría</span><span class="dValor">{{p.categoria}}</span></div>
+                      <div class="dato"><span class="dLabel">Marca</span><span class="dValor">{{p.marca}}</span></div>
+                      <div class="dato"><span class="dLabel">Presentación</span><span class="dValor">{{p.presentacion}}</span></div>
+                    </div>
+                    <div class="grupo">
+                      <div class="gTit">Stock por sede</div>
+                      <div class="sedes">
+                        <span class="sede">Centro <span class="sedeN">{{p.sedeCentro}}</span></span>
+                        <span class="sede">Norte <span class="sedeN">{{p.sedeNorte}}</span></span>
+                        <span class="sede">Almacén <span class="sedeN">{{p.sedeAlmacen}}</span></span>
+                      </div>
+                      <div class="dato" style="margin-top:8px"><span class="dLabel">Mínimo</span><span class="dValor">{{p.minimo}}</span></div>
+                    </div>
+                    <div class="grupo">
+                      <div class="gTit">Precios de esta sede</div>
+                      <div class="dato"><span class="dLabel">Venta</span><span class="dValor">{{p.precioDetalle}}</span></div>
+                      <div class="dato"><span class="dLabel">Por mayor</span><span class="dValor">{{p.precioMayor}}</span></div>
+                      <div class="dato"><span class="dLabel">Costo</span><span class="dValor">{{p.costo}}</span></div>
+                    </div>
+                  </div>
+
+                  <div class="accionesTexto">
+                    <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>Editar</button>
+                    <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Ajustar stock</button>
+                    <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M9.5 9.5h5M9.5 14.5h5"></path></svg>Precios</button>
+                    <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="M21 16l-5-5-6 6"></path></svg>Imágenes</button>
+                    <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>Compartir</button>
+                    <button class="btnTexto peligro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>Eliminar</button>
+                  </div>
+                </div>
+              </sc-if>
+
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{esTarjetas}}" hint-placeholder-val="{{ false }}">
+      <div class="grilla">
+        <sc-for list="{{filas}}" as="p" hint-placeholder-count="4">
+          <div class="card">
+            <div class="foto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z"></path></svg>
+              <div class="fotoBadges">
+                <sc-if value="{{p.esCombo}}" hint-placeholder-val="{{ false }}"><span class="badgeFoto" style="background:rgba(147,51,234,.9)">COMBO</span></sc-if>
+                <sc-if value="{{p.enLiquidacion}}" hint-placeholder-val="{{ false }}"><span class="badgeFoto" style="background:rgba(220,38,38,.9)">LIQ</span></sc-if>
+              </div>
+              <span class="tagPrecio" style="color: {{acento}}">{{p.precio}}</span>
+            </div>
+            <div class="cardCuerpo">
+              <div class="cardMarca">{{p.marca}}</div>
+              <div class="cardNombre">{{p.nombre}}</div>
+              <div class="cardPie">
+                <span class="{{p.claseStock}}">{{p.stock}}</span>
+                <span class="codigo" style="font-size:10px">{{p.codigo}}</span>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div class="pie">
+      <span class="pieTexto">Mostrando 1-{{cantidad}} de 137</span>
+      <div class="pag">
+        <button class="pagBtn off">Anterior</button>
+        <span class="pagNum">1 / 18</span>
+        <button class="pagBtn">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"acento":{"editor":"color","default":"#004A94","options":["#004A94","#437EFF","#0F766E","#B45309"]},"filas":{"editor":"int","default":8,"min":3,"max":8,"section":"Datos"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      vista: 'tabla',
+      densidad: 'media',
+      codigo: true,
+      categoria: true,
+      marca: true,
+      panelCols: false,
+      abierta: 'p3',
+      menu: null,
+    };
+  }
+
+  catalogo() {
+    return [
+      {
+        id: 'p1', nombre: 'EDREDÓN CARNERITO 1.5 PLAZAS', codigo: 'EDR-0142',
+        categoria: 'Edredones', marca: 'JAYLI', presentacion: 'Unidad',
+        precio: 'S/ 89.90', precioAntes: '', estilo: 'plano',
+        stock: '24 und', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false,
+        sedeCentro: '24', sedeNorte: '11', sedeAlmacen: '60', minimo: '10 und',
+        precioDetalle: 'S/ 89.90', precioMayor: 'S/ 79.00 (desde 6)', costo: 'S/ 52.40',
+      },
+      {
+        id: 'p2', nombre: 'EDREDÓN KITTY 2 PLAZAS', codigo: 'EDR-0155',
+        categoria: 'Edredones', marca: 'JAYLI', presentacion: 'Unidad',
+        precio: '', precioAntes: '', estilo: 'ninguno',
+        stock: '91 en 12 var.', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: true, combo: false, insumo: false, liquidacion: false, destacado: false,
+        sedeCentro: '38', sedeNorte: '19', sedeAlmacen: '34', minimo: 'por variante',
+        precioDetalle: 'por variante', precioMayor: 'por variante', costo: 'por variante',
+      },
+      {
+        id: 'p3', nombre: 'JUEGO DE SÁBANAS LISO 2 PLAZAS', codigo: 'SAB-0031',
+        categoria: 'Sábanas', marca: 'TEXTIL SUR', presentacion: 'Juego',
+        precio: 'S/ 99.00', precioAntes: 'S/ 129.00', estilo: 'liquidacion',
+        stock: '6 jgo', nivel: 'bajo', estado: 'Activo', activo: true,
+        variantes: false, combo: false, insumo: false, liquidacion: true, destacado: false,
+        sedeCentro: '6', sedeNorte: '0', sedeAlmacen: '14', minimo: '8 jgo',
+        precioDetalle: 'S/ 99.00 en liquidación', precioMayor: 'S/ 92.00 (desde 4)', costo: 'S/ 71.00',
+      },
+      {
+        id: 'p4', nombre: 'ALGODÓN SILICONADO GRANEL', codigo: 'GRA-0007',
+        categoria: 'Insumos', marca: '—', presentacion: 'Granel · kg',
+        precio: 'S/ 8.00/kg', precioAntes: '', estilo: 'plano',
+        stock: '28 kg', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: false, combo: false, insumo: true, liquidacion: false, destacado: false,
+        sedeCentro: '28 kg', sedeNorte: '4 kg', sedeAlmacen: '190 kg', minimo: 'sin definir',
+        precioDetalle: 'S/ 8.00 por kg', precioMayor: '—', costo: 'S/ 5.90 por kg',
+      },
+      {
+        id: 'p5', nombre: 'COMBO EDREDÓN + 2 ALMOHADAS', codigo: 'CMB-0009',
+        categoria: 'Combos', marca: 'JAYLI', presentacion: 'Combo de 3',
+        precio: 'S/ 149.00', precioAntes: '', estilo: 'plano',
+        stock: 'según componentes', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: false, combo: true, insumo: false, liquidacion: false, destacado: false,
+        sedeCentro: '12 armables', sedeNorte: '5 armables', sedeAlmacen: '30 armables', minimo: '—',
+        precioDetalle: 'S/ 149.00', precioMayor: 'S/ 139.00 (desde 3)', costo: 'S/ 96.80',
+      },
+      {
+        id: 'p6', nombre: 'ALMOHADA VISCO 50x70', codigo: 'ALM-0021',
+        categoria: 'Almohadas', marca: 'DORMIFLEX', presentacion: 'Unidad',
+        precio: 'S/ 39.00', precioAntes: 'S/ 45.00', estilo: 'oferta',
+        stock: '0 und', nivel: 'cero', estado: 'Inactivo', activo: false,
+        variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false,
+        sedeCentro: '0', sedeNorte: '0', sedeAlmacen: '0', minimo: '6 und',
+        precioDetalle: 'S/ 39.00 en oferta', precioMayor: 'S/ 36.00 (desde 12)', costo: 'S/ 24.10',
+      },
+      {
+        id: 'p7', nombre: 'FRAZADA POLAR CARNERITO', codigo: 'FRZ-0088',
+        categoria: 'Frazadas', marca: 'JAYLI', presentacion: 'Unidad',
+        precio: 'S/ 59.90', precioAntes: '', estilo: 'plano',
+        stock: '112 und', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: false, combo: false, insumo: false, liquidacion: false, destacado: true,
+        sedeCentro: '112', sedeNorte: '46', sedeAlmacen: '210', minimo: '20 und',
+        precioDetalle: 'S/ 59.90', precioMayor: 'S/ 52.00 (desde 12)', costo: 'S/ 34.00',
+      },
+      {
+        id: 'p8', nombre: 'SÁBANA KITTY 1.5 PLAZAS', codigo: 'SAB-0044',
+        categoria: 'Sábanas', marca: 'JAYLI', presentacion: 'Juego',
+        precio: 'S/ 79.00', precioAntes: '', estilo: 'plano',
+        stock: '18 jgo', nivel: 'ok', estado: 'Activo', activo: true,
+        variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false,
+        sedeCentro: '18', sedeNorte: '7', sedeAlmacen: '52', minimo: '8 jgo',
+        precioDetalle: 'S/ 79.00', precioMayor: 'S/ 71.00 (desde 6)', costo: 'S/ 48.30',
+      },
+    ];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const acento = this.props.acento ?? '#004A94';
+    const cuantas = this.props.filas ?? 8;
+
+    const clases = [
+      'dens-' + s.densidad,
+      s.codigo ? '' : 'sin-codigo',
+      s.categoria ? '' : 'sin-categoria',
+      s.marca ? '' : 'sin-marca',
+    ].filter(Boolean).join(' ');
+
+    const nivelClase = { ok: 'pill s-ok', bajo: 'pill s-bajo', cero: 'pill s-cero' };
+    const lista = this.catalogo().slice(0, cuantas);
+    const ultimos = lista.length - 2;
+
+    const filas = lista.map((p, i) => ({
+      nombre: p.nombre,
+      codigo: p.codigo,
+      categoria: p.categoria,
+      marca: p.marca,
+      presentacion: p.presentacion,
+      precio: p.precio,
+      precioAntes: p.precioAntes,
+      stock: p.stock,
+      estado: p.estado,
+      minimo: p.minimo,
+      sedeCentro: p.sedeCentro,
+      sedeNorte: p.sedeNorte,
+      sedeAlmacen: p.sedeAlmacen,
+      precioDetalle: p.precioDetalle,
+      precioMayor: p.precioMayor,
+      costo: p.costo,
+
+      esVariantes: p.variantes,
+      esCombo: p.combo,
+      esInsumo: p.insumo,
+      enLiquidacion: p.liquidacion,
+      destacado: p.destacado,
+
+      sinPrecio: p.estilo === 'ninguno',
+      conRebaja: p.estilo === 'liquidacion' || p.estilo === 'oferta',
+      precioPlano: p.estilo === 'plano',
+      clasePrecio: p.estilo === 'liquidacion' ? 'precioLiq' : 'precioOf',
+
+      claseStock: nivelClase[p.nivel] || 'pill s-ok',
+      claseEstado: p.activo ? 'e-on' : 'e-off',
+
+      puedeCompartir: !p.variantes,
+      puedeStock: !p.variantes && !p.combo,
+
+      abierta: s.abierta === p.id,
+      claseEnv: s.abierta === p.id ? 'env abierta' : 'env',
+      claseChev: s.abierta === p.id ? 'chev abierto' : 'chev',
+      menuAbierto: s.menu === p.id,
+      claseMenu: i >= ultimos ? 'menu menu-arriba' : 'menu',
+
+      toggle: () => this.setState({ abierta: s.abierta === p.id ? null : p.id, menu: null }),
+      abrirMenu: (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        this.setState({ menu: s.menu === p.id ? null : p.id });
+      },
+    }));
+
+    return {
+      acento,
+      clases,
+      filas,
+      cantidad: lista.length,
+
+      esTabla: s.vista === 'tabla',
+      esTarjetas: s.vista === 'tarjetas',
+      segTabla: s.vista === 'tabla' ? 'seg act' : 'seg',
+      segTarjetas: s.vista === 'tarjetas' ? 'seg act' : 'seg',
+      verTabla: () => this.setState({ vista: 'tabla' }),
+      verTarjetas: () => this.setState({ vista: 'tarjetas', menu: null }),
+
+      segComp: s.densidad === 'compacta' ? 'seg act' : 'seg',
+      segMedia: s.densidad === 'media' ? 'seg act' : 'seg',
+      segComoda: s.densidad === 'comoda' ? 'seg act' : 'seg',
+      densCompacta: () => this.setState({ densidad: 'compacta' }),
+      densMedia: () => this.setState({ densidad: 'media' }),
+      densComoda: () => this.setState({ densidad: 'comoda' }),
+
+      panelCols: s.panelCols,
+      togglePanel: () => this.setState({ panelCols: !s.panelCols }),
+      chkCodigo: s.codigo ? 'chk on' : 'chk',
+      chkCategoria: s.categoria ? 'chk on' : 'chk',
+      chkMarca: s.marca ? 'chk on' : 'chk',
+      togCodigo: () => this.setState({ codigo: !s.codigo }),
+      togCategoria: () => this.setState({ categoria: !s.categoria }),
+      togMarca: () => this.setState({ marca: !s.marca }),
+    };
+  }
+}
+</script>
+</body>
+</html>

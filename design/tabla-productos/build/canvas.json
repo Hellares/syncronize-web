@@ -1,0 +1,39 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Escritorio 1440 · tabla con modos", "x": 0, "y": 0, "w": 1440, "h": 900 },
+    { "file": "Tablet.dc.html", "title": "Tablet 1024 · prioridad de columnas", "x": 0, "y": 1080, "w": 1024, "h": 768 },
+    { "file": "MovilTarjetas.dc.html", "title": "Celular · opción A: tarjetas", "x": 1120, "y": 1080, "w": 390, "h": 844 },
+    { "file": "MovilLista.dc.html", "title": "Celular · opción B: lista desplegable", "x": 1590, "y": 1080, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "que-cambia",
+      "x": 0,
+      "y": -210,
+      "w": 620,
+      "text": "Lo que se agrega a la tabla de hoy:\n1. Flecha por fila → despliega lo que no entra en columnas (stock por sede, costo, mayorista).\n2. Densidad compacta / media / cómoda.\n3. Elegir qué columnas se ven.\n4. Las 7 acciones pasan a 3 + menú.\n5. Encabezado fijo al hacer scroll.\n\nAndan de verdad: probá los botones."
+    },
+    {
+      "id": "que-no-cambia",
+      "x": 700,
+      "y": -210,
+      "w": 460,
+      "text": "Lo que NO se toca: #004A94 en la cabecera, ring azul en vez de borde gris, 12 px de texto, badges y colores de stock tal cual, Amazon Ember.\n\nLos datos son de ejemplo, con la forma de tu catálogo real (variantes, combo, granel en kg, liquidación)."
+    },
+    {
+      "id": "nota-tablet",
+      "x": 0,
+      "y": 950,
+      "w": 560,
+      "text": "Tablet 1024: Categoría y Marca salen de la tabla y viven en el desplegable — hoy simplemente desaparecen. Acciones: Editar + menú."
+    },
+    {
+      "id": "nota-movil",
+      "x": 1120,
+      "y": 950,
+      "w": 860,
+      "text": "Celular: dos caminos para lo mismo, elegí uno. A (tarjetas) se lee de lejos y luce la foto; B (lista) entra el triple de productos por pantalla y despliega el detalle sin salir. El segmentado de arriba cambia de una a la otra en las dos."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

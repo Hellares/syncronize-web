@@ -1,0 +1,334 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+/*@FONTS@*/
+:root {
+  --sans: 'Amazon Ember', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'Amazon Ember Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --azul: #004A94;
+  --azulVivo: #437EFF;
+  --ring: rgba(96, 165, 250, 0.4);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #f5f7fa; font-family: var(--sans); color: #111827; }
+a { color: var(--azulVivo); text-decoration: none; }
+a:hover { color: var(--azul); }
+button { font-family: var(--sans); cursor: pointer; border: 0; background: none; }
+
+.pantalla { padding: 12px 12px 20px; }
+.encabezado { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 10px; }
+.titulo { font-size: 17px; font-weight: 700; line-height: 1.1; }
+.subtitulo { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.cuenta { margin-left: auto; font-size: 11px; color: #9ca3af; }
+
+/* Buscador: el mismo input estándar de la web (zinc-100, ring azul, radio 6) */
+.buscador { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; margin-bottom: 8px; background: #f4f4f5; border-radius: 6px; box-shadow: 0 0 0 1px #60a5fa, 0 4px 6px -1px rgba(0,0,0,.1); }
+.buscador svg { width: 15px; height: 15px; color: #a1a1aa; flex: 0 0 auto; }
+.buscador span { font-size: 12px; color: rgba(113,113,122,.6); }
+
+.segmentado { display: flex; gap: 3px; padding: 3px; margin-bottom: 12px; background: #f4f4f5; border-radius: 6px; box-shadow: 0 0 0 1px #60a5fa, 0 4px 6px -1px rgba(0,0,0,.1); }
+.seg { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; border-radius: 4px; font-size: 11px; font-weight: 500; color: var(--azul); }
+.seg.act { background: var(--azul); color: #fff; }
+.seg svg { width: 14px; height: 14px; }
+
+/* ---------- Vista tarjetas ---------- */
+.tarjetas { display: flex; flex-direction: column; gap: 8px; }
+.card { display: flex; align-items: stretch; gap: 10px; padding: 8px; background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px #e6edf7, 0 1px 2px 0 rgba(0,0,0,.05); }
+.card.inactiva { background: #fafafa; }
+.foto { position: relative; flex: 0 0 auto; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border-top-right-radius: 18px; background: linear-gradient(to bottom right, #f9fafb, #f3f4f6); color: #d1d5db; }
+.foto svg { width: 24px; height: 24px; }
+.cuerpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.nombre { font-size: 12px; font-weight: 500; color: #111827; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.marcaLinea { font-size: 10px; color: #9ca3af; margin-top: 1px; }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.badge { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.b-var { background: #dbeafe; color: #1d4ed8; }
+.b-combo { background: #f3e8ff; color: #7e22ce; }
+.b-insumo { background: #e5e7eb; color: #4b5563; }
+.b-liq { background: #fee2e2; color: #b91c1c; }
+.b-dest { background: #fef3c7; color: #b45309; }
+.b-off { background: #f3f4f6; color: #6b7280; }
+.pieCard { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.precioBase { font-size: 14px; font-weight: 700; color: #111827; }
+.precioLiq { font-size: 14px; font-weight: 700; color: #dc2626; }
+.precioOf { font-size: 14px; font-weight: 700; color: #16a34a; }
+.tachado { font-size: 11px; color: #9ca3af; text-decoration: line-through; }
+.vacio { font-size: 12px; color: #9ca3af; }
+.pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 500; }
+.s-ok { background: #dcfce7; color: #15803d; }
+.s-bajo { background: #fef3c7; color: #b45309; }
+.s-cero { background: #fee2e2; color: #b91c1c; }
+.alaDerecha { margin-left: auto; }
+.kebab { flex: 0 0 auto; width: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #9ca3af; align-self: stretch; }
+.kebab svg { width: 18px; height: 18px; }
+.kebab:hover { background: #f8fafc; color: var(--azul); }
+
+/* ---------- Vista lista ---------- */
+.lista { background: #fff; border-radius: 12px; box-shadow: 0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0,0,0,.05); overflow: hidden; }
+.env { border-bottom: 1px solid #eef2f7; }
+.env:last-child { border-bottom: 0; }
+.env.abierta { background: #f9fbff; }
+.renglon { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 52px; padding: 6px 10px 6px 4px; text-align: left; }
+.chev { flex: 0 0 auto; width: 30px; height: 44px; display: flex; align-items: center; justify-content: center; color: #b6c2d2; transition: transform .18s, color .15s; }
+.chev svg { width: 14px; height: 14px; }
+.chev.abierto { transform: rotate(90deg); color: var(--azul); }
+.miniLista { flex: 0 0 auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #f3f4f6; color: #9ca3af; }
+.miniLista svg { width: 16px; height: 16px; }
+.textoLista { flex: 1 1 auto; min-width: 0; }
+.nombreLista { font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metaLista { font-size: 10px; color: #9ca3af; margin-top: 1px; font-family: var(--mono); }
+.derechaLista { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; padding-right: 4px; }
+.precioLista { font-size: 12px; font-weight: 700; color: #111827; }
+.precioLista.liq { color: #dc2626; }
+.precioLista.of { color: #16a34a; }
+
+.detalle { padding: 0 12px 12px 44px; }
+.grupo { background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 0 1px #e6edf7; }
+.gTit { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; }
+.dato { display: flex; align-items: baseline; gap: 8px; font-size: 11px; line-height: 1.8; }
+.dLabel { color: #9ca3af; width: 78px; flex: 0 0 auto; }
+.dValor { color: #374151; font-weight: 500; min-width: 0; }
+.sedes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sede { display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; background: #f8fafc; padding: 4px 8px; font-size: 11px; color: #475569; }
+.sedeN { font-weight: 700; color: #0f172a; }
+.accionesTexto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.btnTexto { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border-radius: 6px; background: #fff; font-size: 11px; font-weight: 500; color: #374151; box-shadow: 0 0 0 1px #dbe4f0; }
+.btnTexto svg { width: 14px; height: 14px; color: #9ca3af; }
+.btnTexto.peligro { color: #b91c1c; }
+.btnTexto.peligro svg { color: #ef4444; }
+
+/* ---------- Hoja de acciones ---------- */
+.velo { position: absolute; inset: 0; z-index: 40; background: rgba(15,23,42,.32); display: flex; align-items: flex-end; }
+.hoja { width: 100%; background: #fff; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 8px 8px 16px; box-shadow: 0 -12px 32px -12px rgba(15,23,42,.4); }
+.agarre { width: 40px; height: 4px; border-radius: 999px; background: #e5e7eb; margin: 4px auto 8px; }
+.hojaTit { padding: 4px 12px 8px; font-size: 12px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hItem { display: flex; width: 100%; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: 8px; font-size: 13px; color: #374151; text-align: left; }
+.hItem svg { width: 18px; height: 18px; color: #9ca3af; flex: 0 0 auto; }
+.hItem:hover { background: #f8fafc; }
+.hItem.peligro { color: #b91c1c; }
+.hItem.peligro svg { color: #ef4444; }
+.hSep { height: 1px; margin: 6px 10px; background: #eef2f7; }
+
+.pie { display: flex; justify-content: center; padding: 14px 0 4px; }
+.cargar { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 18px; border-radius: 6px; background: #fff; font-size: 12px; font-weight: 500; color: var(--azul); box-shadow: 0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0,0,0,.05); }
+.cargar svg { width: 14px; height: 14px; }
+.pieTexto { text-align: center; font-size: 10px; color: #9ca3af; margin-top: 8px; }
+  </style>
+</helmet>
+
+<div class="pantalla" style="position: relative">
+
+  <div class="encabezado">
+    <div>
+      <div class="titulo">Productos</div>
+      <div class="subtitulo">Sede Centro</div>
+    </div>
+    <span class="cuenta">137</span>
+  </div>
+
+  <div class="buscador">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+    <span>Buscar por nombre, código o diseño</span>
+  </div>
+
+  <div class="segmentado">
+    <button class="{{segTarjetas}}" onClick="{{verTarjetas}}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"></rect><rect x="3" y="14" width="18" height="7" rx="1.5"></rect></svg>
+      Tarjetas
+    </button>
+    <button class="{{segLista}}" onClick="{{verLista}}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      Lista
+    </button>
+  </div>
+
+  <sc-if value="{{esTarjetas}}" hint-placeholder-val="{{ true }}">
+    <div class="tarjetas">
+      <sc-for list="{{filas}}" as="p" hint-placeholder-count="5">
+        <div class="{{p.claseCard}}">
+          <div class="foto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z"></path></svg>
+          </div>
+
+          <div class="cuerpo">
+            <div class="nombre">{{p.nombre}}</div>
+            <div class="marcaLinea">{{p.marca}} · {{p.codigo}}</div>
+            <div class="badges">
+              <sc-if value="{{p.esVariantes}}" hint-placeholder-val="{{ true }}"><span class="badge b-var">Variantes</span></sc-if>
+              <sc-if value="{{p.esCombo}}" hint-placeholder-val="{{ false }}"><span class="badge b-combo">Combo</span></sc-if>
+              <sc-if value="{{p.esInsumo}}" hint-placeholder-val="{{ false }}"><span class="badge b-insumo">Insumo</span></sc-if>
+              <sc-if value="{{p.enLiquidacion}}" hint-placeholder-val="{{ false }}"><span class="badge b-liq">Liquidación</span></sc-if>
+              <sc-if value="{{p.destacado}}" hint-placeholder-val="{{ false }}"><span class="badge b-dest">Destacado</span></sc-if>
+              <sc-if value="{{p.inactivo}}" hint-placeholder-val="{{ false }}"><span class="badge b-off">Inactivo</span></sc-if>
+            </div>
+            <div class="pieCard">
+              <sc-if value="{{p.sinPrecio}}" hint-placeholder-val="{{ false }}"><span class="vacio">Precio por variante</span></sc-if>
+              <sc-if value="{{p.conRebaja}}" hint-placeholder-val="{{ false }}">
+                <span class="tachado">{{p.precioAntes}}</span>
+                <span class="{{p.clasePrecio}}">{{p.precio}}</span>
+              </sc-if>
+              <sc-if value="{{p.precioPlano}}" hint-placeholder-val="{{ true }}"><span class="precioBase">{{p.precio}}</span></sc-if>
+              <span class="alaDerecha {{p.claseStock}}">{{p.stock}}</span>
+            </div>
+          </div>
+
+          <button class="kebab" onClick="{{p.abrirHoja}}" title="Acciones">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg>
+          </button>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{esLista}}" hint-placeholder-val="{{ false }}">
+    <div class="lista">
+      <sc-for list="{{filas}}" as="p" hint-placeholder-count="7">
+        <div class="{{p.claseEnv}}">
+          <button class="renglon" onClick="{{p.toggle}}">
+            <span class="{{p.claseChev}}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+            </span>
+            <span class="miniLista">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v13.5a1.5 1.5 0 001.5 1.5z"></path></svg>
+            </span>
+            <span class="textoLista">
+              <span class="nombreLista">{{p.nombre}}</span>
+              <span class="metaLista">{{p.codigo}}</span>
+            </span>
+            <span class="derechaLista">
+              <span class="{{p.clasePrecioLista}}">{{p.precioCorto}}</span>
+              <span class="{{p.claseStock}}">{{p.stock}}</span>
+            </span>
+          </button>
+
+          <sc-if value="{{p.abierta}}" hint-placeholder-val="{{ false }}">
+            <div class="detalle">
+              <div class="grupo">
+                <div class="gTit">Lo que no entra en la fila</div>
+                <div class="dato"><span class="dLabel">Categoría</span><span class="dValor">{{p.categoria}}</span></div>
+                <div class="dato"><span class="dLabel">Marca</span><span class="dValor">{{p.marca}}</span></div>
+                <div class="dato"><span class="dLabel">Presentación</span><span class="dValor">{{p.presentacion}}</span></div>
+                <div class="dato"><span class="dLabel">Por mayor</span><span class="dValor">{{p.precioMayor}}</span></div>
+                <div class="dato"><span class="dLabel">Estado</span><span class="dValor">{{p.estado}}</span></div>
+                <div class="sedes">
+                  <span class="sede">Centro <span class="sedeN">{{p.sedeCentro}}</span></span>
+                  <span class="sede">Norte <span class="sedeN">{{p.sedeNorte}}</span></span>
+                  <span class="sede">Almacén <span class="sedeN">{{p.sedeAlmacen}}</span></span>
+                </div>
+              </div>
+              <div class="accionesTexto">
+                <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>Editar</button>
+                <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Ajustar stock</button>
+                <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>Compartir</button>
+                <button class="btnTexto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M9.5 9.5h5M9.5 14.5h5"></path></svg>Precios</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <div class="pie">
+    <button class="cargar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+      Cargar 20 más
+    </button>
+  </div>
+  <div class="pieTexto">Mostrando 6 de 137</div>
+
+  <sc-if value="{{hojaAbierta}}" hint-placeholder-val="{{ false }}">
+    <div class="velo" onClick="{{cerrarHoja}}">
+      <div class="hoja">
+        <div class="agarre"></div>
+        <div class="hojaTit">{{nombreHoja}}</div>
+        <button class="hItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>Editar</button>
+        <button class="hItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Ajustar stock</button>
+        <button class="hItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M9.5 9.5h5M9.5 14.5h5"></path></svg>Configurar precios</button>
+        <button class="hItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9.5" r="1.5"></circle><path d="M21 16l-5-5-6 6"></path></svg>Imágenes</button>
+        <button class="hItem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"></path></svg>Compartir por WhatsApp</button>
+        <div class="hSep"></div>
+        <button class="hItem peligro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg>Eliminar</button>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"acento":{"editor":"color","default":"#004A94","options":["#004A94","#437EFF","#0F766E","#B45309"]}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { vista: 'tarjetas', abierta: 'p3', hoja: null };
+  }
+
+  catalogo() {
+    return [
+      { id: 'p1', nombre: 'EDREDÓN CARNERITO 1.5 PLAZAS', codigo: 'EDR-0142', categoria: 'Edredones', marca: 'JAYLI', presentacion: 'Unidad', precio: 'S/ 89.90', precioAntes: '', estilo: 'plano', stock: '24 und', nivel: 'ok', estado: 'Activo', activo: true, variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false, sedeCentro: '24', sedeNorte: '11', sedeAlmacen: '60', precioMayor: 'S/ 79.00 (desde 6)' },
+      { id: 'p2', nombre: 'EDREDÓN KITTY 2 PLAZAS', codigo: 'EDR-0155', categoria: 'Edredones', marca: 'JAYLI', presentacion: 'Unidad', precio: '', precioAntes: '', estilo: 'ninguno', stock: '91 en 12 var.', nivel: 'ok', estado: 'Activo', activo: true, variantes: true, combo: false, insumo: false, liquidacion: false, destacado: false, sedeCentro: '38', sedeNorte: '19', sedeAlmacen: '34', precioMayor: 'por variante' },
+      { id: 'p3', nombre: 'JUEGO DE SÁBANAS LISO 2 PLAZAS', codigo: 'SAB-0031', categoria: 'Sábanas', marca: 'TEXTIL SUR', presentacion: 'Juego', precio: 'S/ 99.00', precioAntes: 'S/ 129.00', estilo: 'liquidacion', stock: '6 jgo', nivel: 'bajo', estado: 'Activo', activo: true, variantes: false, combo: false, insumo: false, liquidacion: true, destacado: false, sedeCentro: '6', sedeNorte: '0', sedeAlmacen: '14', precioMayor: 'S/ 92.00 (desde 4)' },
+      { id: 'p4', nombre: 'ALGODÓN SILICONADO GRANEL', codigo: 'GRA-0007', categoria: 'Insumos', marca: 'Sin marca', presentacion: 'Granel · kg', precio: 'S/ 8.00/kg', precioAntes: '', estilo: 'plano', stock: '28 kg', nivel: 'ok', estado: 'Activo', activo: true, variantes: false, combo: false, insumo: true, liquidacion: false, destacado: false, sedeCentro: '28 kg', sedeNorte: '4 kg', sedeAlmacen: '190 kg', precioMayor: '—' },
+      { id: 'p5', nombre: 'COMBO EDREDÓN + 2 ALMOHADAS', codigo: 'CMB-0009', categoria: 'Combos', marca: 'JAYLI', presentacion: 'Combo de 3', precio: 'S/ 149.00', precioAntes: '', estilo: 'plano', stock: '12 armables', nivel: 'ok', estado: 'Activo', activo: true, variantes: false, combo: true, insumo: false, liquidacion: false, destacado: false, sedeCentro: '12', sedeNorte: '5', sedeAlmacen: '30', precioMayor: 'S/ 139.00 (desde 3)' },
+      { id: 'p6', nombre: 'ALMOHADA VISCO 50x70', codigo: 'ALM-0021', categoria: 'Almohadas', marca: 'DORMIFLEX', presentacion: 'Unidad', precio: 'S/ 39.00', precioAntes: 'S/ 45.00', estilo: 'oferta', stock: '0 und', nivel: 'cero', estado: 'Inactivo', activo: false, variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false, sedeCentro: '0', sedeNorte: '0', sedeAlmacen: '0', precioMayor: 'S/ 36.00 (desde 12)' },
+      { id: 'p7', nombre: 'FRAZADA POLAR CARNERITO', codigo: 'FRZ-0088', categoria: 'Frazadas', marca: 'JAYLI', presentacion: 'Unidad', precio: 'S/ 59.90', precioAntes: '', estilo: 'plano', stock: '112 und', nivel: 'ok', estado: 'Activo', activo: true, variantes: false, combo: false, insumo: false, liquidacion: false, destacado: true, sedeCentro: '112', sedeNorte: '46', sedeAlmacen: '210', precioMayor: 'S/ 52.00 (desde 12)' },
+      { id: 'p8', nombre: 'SÁBANA KITTY 1.5 PLAZAS', codigo: 'SAB-0044', categoria: 'Sábanas', marca: 'JAYLI', presentacion: 'Juego', precio: 'S/ 79.00', precioAntes: '', estilo: 'plano', stock: '18 jgo', nivel: 'ok', estado: 'Activo', activo: true, variantes: false, combo: false, insumo: false, liquidacion: false, destacado: false, sedeCentro: '18', sedeNorte: '7', sedeAlmacen: '52', precioMayor: 'S/ 71.00 (desde 6)' },
+    ];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const nivelClase = { ok: 'pill s-ok', bajo: 'pill s-bajo', cero: 'pill s-cero' };
+    const lista = this.catalogo().slice(0, 6);
+    const enHoja = lista.find((x) => x.id === s.hoja);
+
+    const filas = lista.map((p) => ({
+      nombre: p.nombre, codigo: p.codigo, categoria: p.categoria, marca: p.marca,
+      presentacion: p.presentacion, precio: p.precio, precioAntes: p.precioAntes,
+      precioCorto: p.estilo === 'ninguno' ? '—' : p.precio,
+      stock: p.stock, estado: p.estado, precioMayor: p.precioMayor,
+      sedeCentro: p.sedeCentro, sedeNorte: p.sedeNorte, sedeAlmacen: p.sedeAlmacen,
+      esVariantes: p.variantes, esCombo: p.combo, esInsumo: p.insumo,
+      enLiquidacion: p.liquidacion, destacado: p.destacado, inactivo: !p.activo,
+      sinPrecio: p.estilo === 'ninguno',
+      conRebaja: p.estilo === 'liquidacion' || p.estilo === 'oferta',
+      precioPlano: p.estilo === 'plano',
+      clasePrecio: p.estilo === 'liquidacion' ? 'precioLiq' : 'precioOf',
+      clasePrecioLista: p.estilo === 'liquidacion' ? 'precioLista liq' : (p.estilo === 'oferta' ? 'precioLista of' : 'precioLista'),
+      claseStock: nivelClase[p.nivel] || 'pill s-ok',
+      claseCard: p.activo ? 'card' : 'card inactiva',
+      abierta: s.abierta === p.id,
+      claseEnv: s.abierta === p.id ? 'env abierta' : 'env',
+      claseChev: s.abierta === p.id ? 'chev abierto' : 'chev',
+      toggle: () => this.setState({ abierta: s.abierta === p.id ? null : p.id }),
+      abrirHoja: (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+        this.setState({ hoja: p.id });
+      },
+    }));
+
+    return {
+      acento: this.props.acento ?? '#004A94',
+      filas,
+      esTarjetas: s.vista === 'tarjetas',
+      esLista: s.vista === 'lista',
+      segTarjetas: s.vista === 'tarjetas' ? 'seg act' : 'seg',
+      segLista: s.vista === 'lista' ? 'seg act' : 'seg',
+      verTarjetas: () => this.setState({ vista: 'tarjetas' }),
+      verLista: () => this.setState({ vista: 'lista' }),
+      hojaAbierta: !!enHoja,
+      nombreHoja: enHoja ? enHoja.nombre : '',
+      cerrarHoja: () => this.setState({ hoja: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>

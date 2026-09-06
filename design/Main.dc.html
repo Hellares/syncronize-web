@@ -1,0 +1,290 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Amazon Ember', Inter, system-ui, sans-serif; background: #f4f6f9; color: #1f2937; }
+    a { color: #004A94; } a:hover { color: #003570; }
+    .inp { width: 100%; background: #f4f4f5; color: #004A94; font-size: 12px; font-family: inherit;
+           box-shadow: inset 0 0 0 1px #60a5fa, 0 1px 3px rgba(0,0,0,.1); outline: none;
+           border: 0; border-radius: 6px; height: 30px; padding: 0 12px; box-sizing: border-box; }
+    .inp::placeholder { color: #a1a1aa; }
+    .ta { width: 100%; background: #f4f4f5; color: #004A94; font-size: 12px; font-family: inherit;
+          box-shadow: inset 0 0 0 1px #60a5fa, 0 1px 3px rgba(0,0,0,.1); outline: none;
+          border: 0; border-radius: 6px; padding: 8px 12px; box-sizing: border-box; resize: none; }
+    .lbl { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 500; color: #4b5563; }
+    .req { color: #ef4444; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 0; background: #f4f6f9; min-height: 100%;">
+
+  <!-- Cabecera: el titulo y la accion viven juntos, no en extremos opuestos -->
+  <div style="display: flex; align-items: center; gap: 16px; padding: 14px 28px; background: #ffffff; border-bottom: 1px solid #e5e7eb;">
+    <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: #f1f5f9; cursor: pointer;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 1px;">
+      <div style="font-size: 15px; font-weight: 700; color: #111827; letter-spacing: -0.2px;">Nueva orden de servicio</div>
+      <div style="font-size: 11px; color: #9ca3af;">Recepción de equipo · los campos con <span class="req">*</span> son obligatorios</div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="font-size: 11px; font-weight: 500; color: #6b7280; padding: 7px 14px; border-radius: 6px; background: #ffffff; box-shadow: inset 0 0 0 1px #e5e7eb;">Cancelar</div>
+      <div style="font-size: 12px; font-weight: 700; color: #ffffff; padding: 8px 20px; border-radius: 6px; background: #004A94; box-shadow: 0 1px 3px rgba(0,74,148,.3);">Crear orden</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; padding: 20px 28px 28px 28px; align-items: start;">
+
+    <!-- ── Columna de trabajo ── -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- RECEPCION: cliente y equipo se llenan juntos en el mostrador -->
+      <div style="background: #ffffff; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb, 0 1px 2px rgba(0,0,0,.04);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px 0 16px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <div style="font-size: 11px; font-weight: 700; color: #004A94; letter-spacing: 0.6px;">RECEPCIÓN</div>
+          <div style="flex-grow: 1; height: 1px; background: #f1f5f9;"></div>
+        </div>
+
+        <div style="padding: 12px 16px 16px 16px; display: flex; flex-direction: column; gap: 14px;">
+
+          <!-- Cliente elegido: mismo lenguaje azul del sistema, no verde -->
+          <sc-if value="{{ tieneCliente }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe;">
+              <div style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: #004A94; color: #ffffff; font-size: 13px; font-weight: 700; flex-shrink: 0;">MR</div>
+              <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex-grow: 1;">
+                <div style="font-size: 13px; font-weight: 600; color: #1e3a8a;">MARIA ROSA QUISPE TORRES</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <div style="font-size: 10px; color: #1d4ed8; background: #dbeafe; padding: 2px 7px; border-radius: 4px;">DNI 44886060</div>
+                  <div style="font-size: 10px; color: #1d4ed8; background: #dbeafe; padding: 2px 7px; border-radius: 4px;">987 654 321</div>
+                  <div style="font-size: 10px; color: #1d4ed8; background: #dbeafe; padding: 2px 7px; border-radius: 4px;">Av. España 1420</div>
+                </div>
+              </div>
+              <div style="font-size: 11px; font-weight: 500; color: #1d4ed8; padding: 5px 10px; border-radius: 6px; background: #ffffff; flex-shrink: 0;">Cambiar</div>
+            </div>
+          </sc-if>
+
+          <!-- Cliente vacio: buscar o crear, en una sola fila -->
+          <sc-if value="{{ sinCliente }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="lbl">Cliente <span style="color: #9ca3af; font-weight: 400;">— opcional, puede ser una orden sin cliente registrado</span></label>
+              <div style="display: flex; gap: 8px;">
+                <div style="flex-grow: 1; position: relative; display: flex; align-items: center;">
+                  <svg style="position: absolute; left: 10px;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                  <input class="inp" style="padding-left: 30px;" placeholder="Buscar por nombre, DNI o RUC…">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: #004A94; padding: 0 12px; height: 30px; border-radius: 6px; box-shadow: inset 0 0 0 1px #bfdbfe; background: #ffffff;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                  Persona
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: #004A94; padding: 0 12px; height: 30px; border-radius: 6px; box-shadow: inset 0 0 0 1px #bfdbfe; background: #ffffff;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                  Empresa
+                </div>
+              </div>
+              <div style="font-size: 10px; color: #9ca3af;">Si no existe, se crea acá: busca en RENIEC/SUNAT por DNI o RUC.</div>
+            </div>
+          </sc-if>
+
+          <div style="height: 1px; background: #f1f5f9;"></div>
+
+          <!-- Equipo: cuatro campos en una grilla pareja -->
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+            <div>
+              <label class="lbl">Tipo de equipo</label>
+              <input class="inp" placeholder="Laptop, impresora…">
+            </div>
+            <div>
+              <label class="lbl">Marca</label>
+              <input class="inp" placeholder="Dell, HP…">
+            </div>
+            <div>
+              <label class="lbl">N.° de serie</label>
+              <input class="inp" placeholder="Serie o IMEI">
+            </div>
+            <div>
+              <label class="lbl">Condición al recibir</label>
+              <input class="inp" placeholder="Rayado, sin cargador…">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EL TRABAJO -->
+      <div style="background: #ffffff; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb, 0 1px 2px rgba(0,0,0,.04);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px 0 16px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          <div style="font-size: 11px; font-weight: 700; color: #004A94; letter-spacing: 0.6px;">EL TRABAJO</div>
+          <div style="flex-grow: 1; height: 1px; background: #f1f5f9;"></div>
+        </div>
+
+        <div style="padding: 12px 16px 16px 16px; display: flex; flex-direction: column; gap: 12px;">
+
+          <div>
+            <label class="lbl">Servicio del catálogo</label>
+            <div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 6px; background: #f4f4f5; box-shadow: inset 0 0 0 1px #60a5fa, 0 1px 3px rgba(0,0,0,.1);">
+              <span style="font-size: 12px; color: #004A94; flex-grow: 1;">Mantenimiento preventivo de laptop</span>
+              <span style="font-size: 11px; font-weight: 600; color: #004A94; background: #dbeafe; padding: 1px 7px; border-radius: 4px;">S/ 80.00</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </div>
+            <div style="margin-top: 4px; font-size: 10px; color: #9ca3af;">Elegirlo trae su precio y los campos de su plantilla.</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+            <div>
+              <label class="lbl">Tipo de servicio <span class="req">*</span></label>
+              <input class="inp" value="Reparación">
+            </div>
+            <div>
+              <label class="lbl">Prioridad</label>
+              <input class="inp" value="Normal">
+            </div>
+            <div>
+              <label class="lbl">Sede</label>
+              <input class="inp" value="Tienda principal">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; align-items: start;">
+            <div>
+              <label class="lbl">Problema reportado</label>
+              <textarea class="ta" rows="3" placeholder="Qué dice el cliente que le pasa al equipo"></textarea>
+            </div>
+            <div>
+              <label class="lbl">Fecha de solución</label>
+              <input class="inp" value="28/08/2026">
+              <div style="margin-top: 4px; font-size: 10px; color: #9ca3af; line-height: 1.4;">Para cuándo se le prometió. Si se pasa y no se entregó, la orden sale como atrasada.</div>
+            </div>
+          </div>
+
+          <!-- Campos de la plantilla: se distingue como bloque anidado -->
+          <div style="border-radius: 8px; background: #fafafa; box-shadow: inset 0 0 0 1px #e5e7eb; padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+              <div style="font-size: 10px; font-weight: 700; color: #6b7280; letter-spacing: 0.5px;">DATOS DE LA PLANTILLA</div>
+              <div style="font-size: 10px; color: #9ca3af;">Mantenimiento preventivo de laptop</div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+              <div>
+                <label class="lbl">Contraseña del equipo</label>
+                <input class="inp" style="background: #ffffff;" placeholder="—">
+              </div>
+              <div>
+                <label class="lbl">Accesorios recibidos</label>
+                <input class="inp" style="background: #ffffff;" placeholder="Cargador, funda…">
+              </div>
+              <div>
+                <label class="lbl">Nivel de batería</label>
+                <input class="inp" style="background: #ffffff;" placeholder="%">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DINERO -->
+      <div style="background: #ffffff; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb, 0 1px 2px rgba(0,0,0,.04);">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 16px 0 16px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#004A94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>
+          <div style="font-size: 11px; font-weight: 700; color: #004A94; letter-spacing: 0.6px;">COSTOS Y ADELANTO</div>
+          <div style="flex-grow: 1; height: 1px; background: #f1f5f9;"></div>
+        </div>
+        <div style="padding: 12px 16px 16px 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+          <div>
+            <label class="lbl">Costo total</label>
+            <input class="inp" style="text-align: right;" value="80.00">
+          </div>
+          <div>
+            <label class="lbl">Descuento</label>
+            <input class="inp" style="text-align: right;" placeholder="0.00">
+          </div>
+          <div>
+            <label class="lbl">Adelanto</label>
+            <input class="inp" style="text-align: right;" value="40.00">
+          </div>
+          <div>
+            <label class="lbl">Método del adelanto <span class="req">*</span></label>
+            <input class="inp" value="Yape">
+          </div>
+          <div style="grid-column: span 4; display: flex; align-items: center; gap: 6px; font-size: 10px; color: #b45309; background: #fffbeb; padding: 6px 10px; border-radius: 6px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            El adelanto entra a la caja abierta del usuario.
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTAS: plegado, porque casi siempre queda vacio -->
+      <div style="background: #ffffff; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb, 0 1px 2px rgba(0,0,0,.04); padding: 12px 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9z"></path><path d="M15 3v6h6"></path></svg>
+          <div style="font-size: 11px; font-weight: 700; color: #6b7280; letter-spacing: 0.6px;">NOTAS Y SEGUIMIENTO</div>
+          <div style="font-size: 10px; color: #9ca3af;">notas internas · aviso de mantenimiento</div>
+          <div style="flex-grow: 1;"></div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Ticket: la plata primero, el detalle despues ── -->
+    <div style="display: flex; flex-direction: column; gap: 12px; background: #ffffff; border-radius: 10px; box-shadow: inset 0 0 0 1px #e5e7eb, 0 1px 2px rgba(0,0,0,.04); padding: 16px;">
+
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: 0.6px;">SALDO AL ENTREGAR</div>
+        <div style="font-size: 30px; font-weight: 700; color: #004A94; letter-spacing: -1px; line-height: 1.1;">S/ 40.00</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 10px; box-shadow: inset 0 1px 0 #f1f5f9;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+          <span style="color: #9ca3af;">Costo</span><span style="color: #374151; font-variant-numeric: tabular-nums;">S/ 80.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+          <span style="color: #9ca3af;">Adelanto</span><span style="color: #16a34a; font-variant-numeric: tabular-nums;">− S/ 40.00</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 7px; padding-top: 10px; box-shadow: inset 0 1px 0 #f1f5f9;">
+        <div style="font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: 0.6px;">LO QUE SE REGISTRA</div>
+        <div style="display: flex; gap: 8px; align-items: baseline;">
+          <span style="font-size: 10px; color: #9ca3af; width: 54px; flex-shrink: 0;">Cliente</span>
+          <span style="font-size: 11px; color: #374151; font-weight: 500;">María Rosa Quispe</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: baseline;">
+          <span style="font-size: 10px; color: #9ca3af; width: 54px; flex-shrink: 0;">Equipo</span>
+          <span style="font-size: 11px; color: #374151; font-weight: 500;">Laptop Dell</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: baseline;">
+          <span style="font-size: 10px; color: #9ca3af; width: 54px; flex-shrink: 0;">Servicio</span>
+          <span style="font-size: 11px; color: #374151; font-weight: 500;">Mantenimiento preventivo</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: baseline;">
+          <span style="font-size: 10px; color: #9ca3af; width: 54px; flex-shrink: 0;">Entrega</span>
+          <span style="font-size: 11px; color: #374151; font-weight: 500;">28/08/2026</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 6px; background: #f0fdf4;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+        <span style="font-size: 10px; color: #15803d; line-height: 1.35;">Al crearla se imprime el ticket de recepción para el cliente.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"clienteElegido":{"editor":"boolean","default":true,"section":"Estado"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const elegido = this.props.clienteElegido ?? true;
+    return { tieneCliente: elegido, sinCliente: !elegido };
+  }
+}
+</script>
+</body>
+</html>
