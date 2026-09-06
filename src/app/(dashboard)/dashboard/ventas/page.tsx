@@ -245,26 +245,29 @@ export default function VentasPage() {
       ) : ventas.length === 0 ? (
         <div className="py-20 text-center"><p className="text-4xl mb-2">🧾</p><p className="text-gray-400">Sin ventas con estos filtros</p></div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left text-[11px] uppercase text-gray-400">
-                <th className="px-4 py-2.5">Código</th>
-                <th className="px-4 py-2.5">Fecha</th>
-                <th className="px-4 py-2.5">Cliente</th>
-                <th className="px-4 py-2.5 hidden lg:table-cell">Vendedor</th>
-                <th className="px-4 py-2.5 hidden md:table-cell">Comprobante</th>
-                <th className="px-4 py-2.5 text-right">Total</th>
-                <th className="px-4 py-2.5">Estado</th>
+        /* Misma firma que las tablas de productos y cuentas por cobrar: ring
+           azul --el borde gris no se ve sobre el #f5f7fa del dashboard--,
+           cabecera #eaf2fd fija y 12 px. */
+        <div className="max-h-[calc(100vh-24rem)] min-h-[16rem] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+          <table className="w-full text-left text-[12px]">
+            <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
+              <tr>
+                <th className="px-4 py-3 font-medium text-[#004A94]">Código</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-[#004A94]">Fecha</th>
+                <th className="px-4 py-3 font-medium text-[#004A94]">Cliente</th>
+                <th className="hidden px-4 py-3 font-medium text-[#004A94] lg:table-cell">Vendedor</th>
+                <th className="hidden px-4 py-3 font-medium text-[#004A94] md:table-cell">Comprobante</th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-[#004A94]">Total</th>
+                <th className="px-4 py-3 font-medium text-[#004A94]">Estado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-200">
               {ventas.map(v => {
                 const cfg = ESTADO_VENTA_CONFIG[(v.estado ?? '') as EstadoVenta];
                 return (
                   <tr key={v.id} onClick={() => router.push(`/dashboard/ventas/${v.id}`)}
-                    className="cursor-pointer transition-colors hover:bg-[#437EFF]/5">
-                    <td className="px-4 py-2.5">
+                    className="cursor-pointer transition-colors hover:bg-gray-50/50">
+                    <td className="px-4 py-2">
                       <span className="font-mono text-xs font-medium text-gray-900">{v.codigo}</span>
                       {(v.ordenesServicio ?? []).map(os => (
                         <span key={os.codigo} className="ml-1 rounded bg-blue-100 px-1 py-0.5 text-[9px] text-blue-700">{os.codigo}</span>
@@ -293,13 +296,13 @@ export default function VentasPage() {
                         <span className="ml-1 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">🤖 Agente IA</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500">{fmtFecha(v.fechaVenta ?? v.creadoEn)}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2 text-xs text-gray-500">{fmtFecha(v.fechaVenta ?? v.creadoEn)}</td>
+                    <td className="px-4 py-2">
                       <p className="text-xs font-medium text-gray-800 truncate max-w-[180px]">{v.nombreCliente ?? '—'}</p>
                       {v.documentoCliente && <p className="text-[10px] text-gray-400">{v.documentoCliente}</p>}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500 hidden lg:table-cell">{(v.vendedorAlias || v.vendedorNombre) ?? '—'}</td>
-                    <td className="px-4 py-2.5 hidden md:table-cell">
+                    <td className="px-4 py-2 text-xs text-gray-500 hidden lg:table-cell">{(v.vendedorAlias || v.vendedorNombre) ?? '—'}</td>
+                    <td className="px-4 py-2 hidden md:table-cell">
                       {v.codigoComprobante ? (
                         // Chip BEL:/FEL: con punto de color por estado SUNAT (paridad app)
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5"
@@ -313,11 +316,11 @@ export default function VentasPage() {
                         <span className="text-[10px] text-gray-400">{v.tipoComprobante ?? 'TICKET'}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
+                    <td className="px-4 py-2 text-right">
                       <span className={`text-sm font-bold ${v.estado === 'ANULADA' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{fmt(v.total)}</span>
                       {(v.metodoPago) && <p className="text-[9px] text-gray-400">{METODO_PAGO_LABEL[v.metodoPago] ?? v.metodoPago}{v.esCredito ? ' · Crédito' : ''}</p>}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg?.color ?? 'text-gray-600'} ${cfg?.bg ?? 'bg-gray-100'}`}>
                         {cfg?.label ?? v.estado}
                       </span>
