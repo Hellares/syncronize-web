@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { CuentaPorCobrar } from '@/core/types/cuentas-cobrar';
+import type { CuentaPorCobrar, EstadoCuenta } from '@/core/types/cuentas-cobrar';
 import type { VentaDetalle } from '@/core/types/venta';
 import { esLineaGratuita } from '@/core/types/venta';
 import { getVenta } from '@/features/venta/services/venta-service';
@@ -27,10 +27,32 @@ function fmtFecha(iso?: string | null): string {
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+/**
+ * El tono de los bloques sale del ESTADO de la cuenta, igual que las tarjetas
+ * de resumen de la pantalla: desplegar una vencida se tiene que sentir
+ * distinto de desplegar una pagada, sin tener que volver a leer la pill.
+ *
+ * 🔴 Ring de color y no `border-gray-200`: el gris no se ve sobre el fondo del
+ * dashboard --el mismo motivo por el que la tabla usa ring azul--.
+ */
+const TONO: Record<EstadoCuenta, { ring: string; fondo: string; titulo: string }> = {
+  PENDIENTE: { ring: 'ring-amber-400', fondo: 'from-white to-amber-100', titulo: 'text-amber-700' },
+  VENCIDA: { ring: 'ring-red-400', fondo: 'from-white to-red-100', titulo: 'text-red-700' },
+  PAGADA: { ring: 'ring-green-400', fondo: 'from-white to-green-100', titulo: 'text-green-700' },
+};
+
+function Bloque({
+  titulo,
+  tono,
+  children,
+}: {
+  titulo: string;
+  tono: { ring: string; fondo: string; titulo: string };
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-lg bg-white p-3 ring-1 ring-[#e6edf7]">
-      <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-gray-400">{titulo}</p>
+    <div className={`rounded-lg bg-gradient-to-br p-3 shadow-sm ring-1 ${tono.fondo} ${tono.ring}`}>
+      <p className={`mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] ${tono.titulo}`}>{titulo}</p>
       {children}
     </div>
   );
@@ -65,6 +87,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
     return () => { cancelado = true; };
   }, [c.ventaId]);
 
+  const tono = TONO[c.estado] ?? TONO.PENDIENTE;
   const cuotas = c.cuotas ?? [];
   const pagos = c.pagos ?? [];
   const totalConMora = c.saldoPendiente + (c.totalMora ?? 0);
@@ -73,7 +96,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
     <div className="space-y-3 bg-[#f9fbff] px-4 pb-4 pt-3 sm:pl-12">
       {/* Lo que se vendió: es lo primero que se pregunta cuando el cliente
           discute la deuda por teléfono. */}
-      <Bloque titulo="Productos de la venta">
+      <Bloque titulo="Productos de la venta" tono={tono}>
         {errorVenta ? (
           <p className="text-[11px] text-gray-400">No se pudo cargar el detalle de la venta.</p>
         ) : lineas == null ? (
@@ -127,7 +150,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
       </Bloque>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Bloque titulo="El crédito">
+        <Bloque titulo="El crédito" tono={tono}>
           <Dato etiqueta="Vendido" valor={fmtFecha(c.fechaVenta)} />
           <Dato etiqueta="Vence" valor={fmtFecha(c.fechaVencimiento)} />
           <Dato etiqueta="Plazo" valor={c.plazoCredito ? `${c.plazoCredito} días` : null} />
@@ -139,14 +162,14 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
           />
         </Bloque>
 
-        <Bloque titulo="El cliente">
+        <Bloque titulo="El cliente" tono={tono}>
           <Dato etiqueta="Nombre" valor={c.nombreCliente} />
           <Dato etiqueta="Documento" valor={c.documentoCliente} />
           <Dato etiqueta="Teléfono" valor={c.telefonoCliente} />
           <Dato etiqueta="Sede" valor={c.sedeNombre} />
         </Bloque>
 
-        <Bloque titulo={cuotas.length > 0 ? `Cuotas (${cuotas.length})` : 'Cuotas'}>
+        <Bloque titulo={cuotas.length > 0 ? `Cuotas (${cuotas.length})` : 'Cuotas'} tono={tono}>
           {cuotas.length === 0 ? (
             <p className="text-[11px] leading-relaxed text-gray-500">
               Crédito sin cuotas: se cobra el saldo completo al vencimiento.
@@ -154,7 +177,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
           ) : (
             <div className="space-y-1">
               {cuotas.map(cu => (
-                <div key={cu.id} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px]">
+                <div key={cu.id} className="flex items-center justify-between gap-2 rounded-md bg-white/70 px-2 py-1 text-[11px]">
                   <span className="text-gray-600">
                     #{cu.numero} · {fmtFecha(cu.fechaVencimiento)}
                     {(cu.diasVencido ?? 0) > 0 && <span className="ml-1 font-semibold text-red-500">+{cu.diasVencido}d</span>}
@@ -173,13 +196,13 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
         </Bloque>
       </div>
 
-      <Bloque titulo={pagos.length > 0 ? `Abonos (${pagos.length})` : 'Abonos'}>
+      <Bloque titulo={pagos.length > 0 ? `Abonos (${pagos.length})` : 'Abonos'} tono={tono}>
         {pagos.length === 0 ? (
           <p className="text-[11px] text-gray-400">Todavía no abonó nada.</p>
         ) : (
           <div className="space-y-1">
             {pagos.map(p => (
-              <div key={p.id} className={`flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1 text-[11px] ${p.anulado ? 'opacity-50' : ''}`}>
+              <div key={p.id} className={`flex items-center justify-between gap-2 rounded-md bg-white/70 px-2 py-1 text-[11px] ${p.anulado ? 'opacity-50' : ''}`}>
                 <span className="text-gray-600">
                   {p.metodoPago} · {fmtFecha(p.fechaPago)}
                   {p.fuente && <span className="ml-1 text-[9px] text-gray-400">→ {p.fuente}</span>}

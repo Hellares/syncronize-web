@@ -139,10 +139,10 @@ export default function CuentasCobrarPage() {
               degradado suave del blanco a ese tono: asi el borde existe y de
               paso la tarjeta dice de que habla antes de leerla. */}
           {[
-            { label: 'Total por cobrar', val: totalPorCobrar, color: 'text-[#004A94]', ring: 'ring-[#004A94]/35', fondo: 'from-white to-blue-50' },
-            { label: `Pendiente (${resumen.cantidadPendientes})`, val: resumen.totalPendiente, color: 'text-amber-600', ring: 'ring-amber-300', fondo: 'from-white to-amber-50' },
-            { label: `Vencido (${resumen.cantidadVencidas})`, val: resumen.totalVencido, color: 'text-red-600', ring: 'ring-red-300', fondo: 'from-white to-red-50' },
-            { label: 'Mora acumulada', val: resumen.totalMora, color: 'text-red-600', ring: 'ring-red-300', fondo: 'from-white to-red-50' },
+            { label: 'Total por cobrar', val: totalPorCobrar, color: 'text-[#004A94]', ring: 'ring-[#004A94]/50', fondo: 'from-white to-blue-100' },
+            { label: `Pendiente (${resumen.cantidadPendientes})`, val: resumen.totalPendiente, color: 'text-amber-600', ring: 'ring-amber-400', fondo: 'from-white to-amber-100' },
+            { label: `Vencido (${resumen.cantidadVencidas})`, val: resumen.totalVencido, color: 'text-red-600', ring: 'ring-red-400', fondo: 'from-white to-red-100' },
+            { label: 'Mora acumulada', val: resumen.totalMora, color: 'text-red-600', ring: 'ring-red-400', fondo: 'from-white to-red-100' },
           ].map(s => (
             <div key={s.label} className={`rounded-xl bg-gradient-to-br p-3 shadow-sm ring-1 ${s.fondo} ${s.ring}`}>
               <p className={`text-lg font-bold ${s.color}`}>{fmt(s.val)}</p>
