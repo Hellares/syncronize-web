@@ -30,6 +30,10 @@ const FILTROS: { label: string; value?: EstadoCompra }[] = [
 // son w-full: el ancho lo pone cada uno.
 const INPUT_STD =
   'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+// Los filtros van un escalon por debajo del buscador --26 px y 10 px--, igual
+// que en Productos: el buscador es donde se escribe y estos son de apoyo.
+const SELECT_FILTRO =
+  'bg-zinc-100 text-[#004A94] font-sans text-[10px] ring-1 ring-blue-400 outline-none transition-all duration-300 rounded-[6px] h-[26px] px-2.5 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 
 /**
@@ -108,19 +112,26 @@ export default function ComprasPage() {
         </div>
         <button
           onClick={() => router.push('/dashboard/compras/nueva')}
-          className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74]"
+          className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
         >
-          + Nueva compra
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Nueva compra
         </button>
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
+        {/* La misma pastilla gris con el elegido en blanco que usan los chips
+            de estado de Productos. */}
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
           {FILTROS.map((f) => (
             <button
               key={f.label}
               onClick={() => setEstado(f.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${estado === f.value ? 'bg-[#004A94] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${
+                estado === f.value ? 'bg-white text-[#004A94] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               {f.label}
             </button>
@@ -128,13 +139,13 @@ export default function ComprasPage() {
         </div>
         {sedes.filter(s => s.isActive).length > 1 && (
           <select value={sedeId} onChange={(e) => setSedeId(e.target.value)}
-            className={INPUT_STD}>
+            className={SELECT_FILTRO}>
             <option value="">Todas las sedes</option>
             {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
           </select>
         )}
         <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}
-          className={INPUT_STD}>
+          className={SELECT_FILTRO}>
           <option value="">Todos los proveedores</option>
           {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
@@ -153,26 +164,29 @@ export default function ComprasPage() {
       ) : items.length === 0 ? (
         <div className="py-16 text-center text-sm text-gray-500">Sin compras.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500">
+        // Misma firma que Productos, Ventas y Cotizaciones: ring azul --el
+        // borde gris no se ve sobre el #f5f7fa del dashboard--, cabecera
+        // #eaf2fd fija y 12 px.
+        <div className="max-h-[calc(100vh-22rem)] min-h-[16rem] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+          <table className="w-full text-left text-[12px]">
+            <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
               <tr>
-                <th className="px-3 py-2 text-left">Código</th>
-                <th className="px-3 py-2 text-left">Proveedor</th>
-                <th className="px-3 py-2 text-left">Fecha</th>
-                <th className="px-3 py-2 text-right">Total</th>
-                <th className="px-3 py-2 text-center">Estado</th>
-                <th className="px-3 py-2 text-center">CxP</th>
-                <th className="px-3 py-2 text-right">Acción</th>
+                <th className="px-3 py-3 font-medium text-[#004A94]">Código</th>
+                <th className="px-3 py-3 font-medium text-[#004A94]">Proveedor</th>
+                <th className="whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
+                <th className="whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
+                <th className="px-3 py-3 text-center font-medium text-[#004A94]">Estado</th>
+                <th className="px-3 py-3 text-center font-medium text-[#004A94]">CxP</th>
+                <th className="px-3 py-3 text-right font-medium text-[#004A94]">Acción</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-200">
               {items.map((c) => (
-                <tr key={c.id} className="cursor-pointer hover:bg-gray-50/60" onClick={() => router.push(`/dashboard/compras/${c.id}`)}>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-500">{c.codigo}</td>
+                <tr key={c.id} className="cursor-pointer transition-colors hover:bg-gray-50/50" onClick={() => router.push(`/dashboard/compras/${c.id}`)}>
+                  <td className="px-3 py-2 text-[11px] tracking-tight text-gray-500">{c.codigo}</td>
                   <td className="px-3 py-2 text-gray-800">{c.nombreProveedor}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaRecepcion)}</td>
-                  <td className="px-3 py-2 text-right font-medium">{sim(c.moneda)} {num(c.total).toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-[13px] font-semibold text-[#004A94]">{sim(c.moneda)} {num(c.total).toFixed(2)}</td>
                   <td className="px-3 py-2 text-center">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ESTADO_STYLE[c.estado]}`}>{c.estado}</span>
                   </td>
