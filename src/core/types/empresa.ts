@@ -48,6 +48,8 @@ export interface EmpresaPermissions {
   canAbrirCaja: boolean;
   canCerrarCaja: boolean;
   canEditarCostoProducto: boolean;
+  /** Dar de alta un producto desde Venta Rápida (granular `producto.alta-rapida-venta`). */
+  canAltaRapidaVenta: boolean;
   canEditarPrecioVenta: boolean;
   canDescuentoLibre: boolean;
   /**

@@ -59,7 +59,8 @@ const DEFAULT_PERMISSIONS: EmpresaPermissions = {
   canViewReportesIncidencia: false, canManageReportesIncidencia: false,
   canViewGastosRecurrentes: false, canManageGastosRecurrentes: false,
   canAbrirCaja: false, canCerrarCaja: false,
-  canEditarCostoProducto: false, canEditarPrecioVenta: false, canDescuentoLibre: false,
+  canEditarCostoProducto: false, canAltaRapidaVenta: false,
+  canEditarPrecioVenta: false, canDescuentoLibre: false,
   accesosRapidosOcultos: [],
 };
 

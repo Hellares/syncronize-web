@@ -47,6 +47,27 @@ export async function createProducto(data: CreateProductoDto): Promise<Producto>
   return res.data;
 }
 
+/**
+ * Alta de producto desde el mostrador: nombre, precio y cantidad, y queda
+ * listo para cobrar.
+ *
+ * Una sola llamada, transaccional en el backend. 🔴 No usar `createProducto`
+ * + precio + stock por separado para esto: si una de las tres falla, el
+ * producto queda a medio crear y reintentar lo duplica.
+ *
+ * Exige el granular `producto.alta-rapida-venta` (`canAltaRapidaVenta`).
+ */
+export async function altaRapidaVenta(data: {
+  empresaId: string;
+  sedeId: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+}): Promise<Producto> {
+  const res = await apiClient.post<Producto>('/productos/alta-rapida', data);
+  return res.data;
+}
+
 export async function updateProducto(id: string, data: UpdateProductoDto): Promise<Producto> {
   const res = await apiClient.put<Producto>(`/productos/${id}`, data);
   return res.data;

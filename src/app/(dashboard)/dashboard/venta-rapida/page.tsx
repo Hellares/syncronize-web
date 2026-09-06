@@ -38,7 +38,7 @@ function VentaRapidaInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const ordenServicioParam = searchParams.get('ordenServicioId');
-  const { sedes } = useEmpresa();
+  const { empresa, sedes } = useEmpresa();
   const permissions = usePermissions();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
   const sedeId = defaultSede?.id ?? '';
@@ -56,6 +56,14 @@ function VentaRapidaInner() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
   const [variantePicker, setVariantePicker] = useState<Producto | null>(null);
+
+  // --- Alta rápida: crear el producto sin salir del mostrador ---
+  // Se abre cuando la búsqueda no encuentra nada y el usuario tiene el
+  // granular. Pide lo único que no se puede adivinar: precio y cantidad.
+  const [altaPrecio, setAltaPrecio] = useState('');
+  const [altaCantidad, setAltaCantidad] = useState('1');
+  const [altaGuardando, setAltaGuardando] = useState(false);
+  const [altaError, setAltaError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dialogs carrito
@@ -243,6 +251,44 @@ function VentaRapidaInner() {
     }
     addItem(p);
   };
+
+  /**
+   * Crea el producto que se está buscando y lo mete al carrito, de una.
+   *
+   * El nombre sale del propio buscador: si escribió "MOUSE LOGITECH" y no
+   * apareció nada, ése es el producto que quiere crear. Solo pide precio y
+   * cantidad, que es lo único que el sistema no puede saber.
+   */
+  const crearYAgregar = useCallback(async () => {
+    const nombre = query.trim();
+    const precio = Number(altaPrecio);
+    const cantidad = Number(altaCantidad);
+    if (!nombre) return;
+    if (!(precio > 0)) { setAltaError('Poné el precio de venta'); return; }
+    if (!(cantidad > 0)) { setAltaError('Poné cuántas unidades entran'); return; }
+    if (!empresa?.id || !sedeId) { setAltaError('No hay sede activa'); return; }
+
+    setAltaGuardando(true);
+    setAltaError(null);
+    try {
+      const creado = await productoService.altaRapidaVenta({
+        empresaId: empresa.id, sedeId, nombre, precio, cantidad,
+      });
+      // Entra al carrito con LA cantidad creada: el técnico pidió 2, se
+      // crearon 2 y se venden 2.
+      await addItem(creado, undefined, undefined, cantidad);
+      setAltaPrecio('');
+      setAltaCantidad('1');
+      // Limpia el buscador para el siguiente ítem. El producto ya quedó en el
+      // catálogo, así que la próxima vez se encuentra en vez de duplicarse.
+      search('');
+    } catch (e) {
+      const msg = e instanceof AxiosError ? e.response?.data?.message : undefined;
+      setAltaError(Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo crear el producto');
+    } finally {
+      setAltaGuardando(false);
+    }
+  }, [query, altaPrecio, altaCantidad, empresa?.id, sedeId, addItem, search]);
 
   const cambiarCantidad = (key: string, nueva: number) => {
     if (nueva < 1) return;
@@ -552,7 +598,59 @@ function VentaRapidaInner() {
               </button>
             ))}
             {!searching && productos.length === 0 && (
-              <p className="col-span-full py-10 text-center text-sm text-gray-400">Sin productos</p>
+              query.trim() && permissions.canAltaRapidaVenta ? (
+                /* No está en el catálogo y este usuario puede darlo de alta:
+                   en vez de un callejón sin salida, el precio y la cantidad
+                   acá mismo. Sin diálogo: son dos campos y Enter. */
+                <div className="col-span-full rounded-xl bg-gradient-to-br from-white from-30% to-blue-200 p-4 shadow-lg">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    No está en el catálogo
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-[#004A94]">
+                    Crear &ldquo;{query.trim()}&rdquo; y agregarlo
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        Precio de venta
+                      </span>
+                      <input
+                        type="number" min="0" step="0.01" inputMode="decimal" autoFocus
+                        value={altaPrecio}
+                        onChange={e => setAltaPrecio(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') crearYAgregar(); }}
+                        placeholder="0.00"
+                        className={`${inputClass} w-[110px] px-3`}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        Cantidad
+                      </span>
+                      <input
+                        type="number" min="1" step="1" inputMode="numeric"
+                        value={altaCantidad}
+                        onChange={e => setAltaCantidad(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') crearYAgregar(); }}
+                        className={`${inputClass} w-[80px] px-3`}
+                      />
+                    </label>
+                    <button
+                      onClick={crearYAgregar}
+                      disabled={altaGuardando}
+                      className="h-[30px] rounded-[6px] bg-[#004A94] px-3 text-[11px] font-bold text-white shadow-md hover:bg-[#003570] disabled:opacity-50"
+                    >
+                      {altaGuardando ? 'Creando...' : 'Crear y agregar'}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-500">
+                    Queda con la ficha básica: categoría, marca y costo se completan después desde Inventario.
+                  </p>
+                  {altaError && <p className="mt-1 text-[11px] font-semibold text-red-600">{altaError}</p>}
+                </div>
+              ) : (
+                <p className="col-span-full py-10 text-center text-sm text-gray-400">Sin productos</p>
+              )
             )}
           </div>
         </div>
