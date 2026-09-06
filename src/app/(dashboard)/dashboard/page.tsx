@@ -65,15 +65,17 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * del dato en vez de borde gris —🔴 `border-gray-200` no se ve sobre el
  * #f5f7fa del dashboard—. Cada tarjeta dice de qué habla antes de leerla.
  *
- * La CIFRA sigue en gris oscuro a propósito: acá mide 28px y es lo primero que
- * se lee; teñirla resta contraste. El color va en el marco y en el ícono.
+ * `cifra` es el tono OSCURO de cada color, no el vivo: sobre blanco, el 600 de
+ * naranja se queda en 3.6:1 de contraste y la cifra es el dato que se lee de
+ * lejos. Viaja como custom property `--tono-cifra` para que `Cifra` no tenga
+ * que repetir el tono en cada llamada y no puedan desincronizarse.
  */
 const TONOS = {
-  neutro:  { fondo: 'from-white to-gray-100',    ring: 'ring-gray-300',     chip: 'bg-gray-100 text-gray-500' },
-  azul:    { fondo: 'from-white to-blue-100',    ring: 'ring-[#004A94]/50', chip: 'bg-blue-100 text-[#004A94]' },
-  naranja: { fondo: 'from-white to-orange-100',  ring: 'ring-orange-400',   chip: 'bg-orange-100 text-orange-700' },
-  fucsia:  { fondo: 'from-white to-fuchsia-100', ring: 'ring-fuchsia-400',  chip: 'bg-fuchsia-100 text-fuchsia-700' },
-  verde:   { fondo: 'from-white to-green-100',   ring: 'ring-green-500',    chip: 'bg-green-100 text-green-700' },
+  neutro:  { fondo: 'from-white to-gray-100',    ring: 'ring-gray-300',     chip: 'bg-gray-100 text-gray-500',           cifra: '#111827' },
+  azul:    { fondo: 'from-white to-blue-100',    ring: 'ring-[#004A94]/50', chip: 'bg-blue-100 text-[#004A94]',          cifra: '#004A94' },
+  naranja: { fondo: 'from-white to-orange-100',  ring: 'ring-orange-400',   chip: 'bg-orange-100 text-orange-700',       cifra: '#c2410c' },
+  fucsia:  { fondo: 'from-white to-fuchsia-100', ring: 'ring-fuchsia-400',  chip: 'bg-fuchsia-100 text-fuchsia-700',     cifra: '#a21caf' },
+  verde:   { fondo: 'from-white to-green-100',   ring: 'ring-green-500',    chip: 'bg-green-100 text-green-700',         cifra: '#15803d' },
 } as const;
 
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
@@ -84,7 +86,10 @@ function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
 }) {
   const t = TONOS[tono];
   return (
-    <div className={`rounded-xl bg-gradient-to-br p-4 shadow-md ring-1 transition-shadow hover:shadow-lg ${t.fondo} ${t.ring}`}>
+    <div
+      className={`rounded-xl bg-gradient-to-br p-4 shadow-md ring-1 transition-shadow hover:shadow-lg ${t.fondo} ${t.ring}`}
+      style={{ '--tono-cifra': t.cifra } as React.CSSProperties}
+    >
       <div className="flex items-center gap-2">
         <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${t.chip}`}>{icono}</span>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{titulo}</span>
@@ -95,7 +100,9 @@ function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
 }
 
 function Cifra({ children }: { children: React.ReactNode }) {
-  return <p className="mt-2.5 text-[28px] font-bold leading-none tracking-tight text-gray-900">{children}</p>;
+  // Toma el color de SU tarjeta vía `--tono-cifra`; el gris queda de respaldo
+  // por si algún día se usa fuera de una `Tarjeta`.
+  return <p className="mt-2.5 text-[28px] font-bold leading-none tracking-tight text-[color:var(--tono-cifra,#111827)]">{children}</p>;
 }
 
 function FilaMagnitud({ nombre, valor, porcentaje, detalle }: {
@@ -385,7 +392,11 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-2.5 flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-green-600" />
-                  <span className="text-sm font-bold text-green-900">
+                  {/* 🔴 `font-medium` (500) y no `font-semibold`: Amazon Ember
+                      mapea 600-1000 a la MISMA cara Bold, así que bajar de 700
+                      a 600 no cambia nada en pantalla. 500 cae en Medium, que
+                      es la cara que necesita este renglón. */}
+                  <span className="text-sm font-medium text-green-800">
                     Abierta desde las {new Date(caja.caja.fechaApertura).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
