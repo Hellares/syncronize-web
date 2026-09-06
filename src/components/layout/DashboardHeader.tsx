@@ -43,6 +43,26 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   /** Qué acceso rápido tiene su desplegable abierto, por `href`. */
   const [submenu, setSubmenu] = useState<string | null>(null);
+  const cierreRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * 🔴 El cierre va con RETRASO y el panel no deja hueco con el botón.
+   *
+   * Con `mt-1` quedaban 4 px de cabecera entre los dos: al bajar el mouse
+   * hacia las opciones pasaba por ahí, eso cuenta como salir del contenedor y
+   * el menú se cerraba antes de llegar. Ahora el panel arranca pegado --la
+   * separación es un `pt-1` DENTRO del área que se puede pisar-- y además hay
+   * 250 ms de gracia para volver a entrar.
+   */
+  const cancelarCierre = () => {
+    if (cierreRef.current) clearTimeout(cierreRef.current);
+    cierreRef.current = null;
+  };
+  const cerrarConRetraso = () => {
+    cancelarCierre();
+    cierreRef.current = setTimeout(() => setSubmenu(null), 250);
+  };
+  useEffect(() => () => cancelarCierre(), []);
   const menuRef = useRef<HTMLDivElement>(null);
   const ruta = useRuta(pathname);
   // Mismos permisos que el menú: un vendedor sin cotizaciones no ve el acceso.
@@ -74,8 +94,17 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
     const alTeclear = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSubmenu(null);
     };
+    // Abre también con clic, así que tiene que cerrarse tocando afuera: sin
+    // esto queda abierto para siempre en una pantalla táctil.
+    const alTocar = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-submenu]')) setSubmenu(null);
+    };
     document.addEventListener('keydown', alTeclear);
-    return () => document.removeEventListener('keydown', alTeclear);
+    document.addEventListener('mousedown', alTocar);
+    return () => {
+      document.removeEventListener('keydown', alTeclear);
+      document.removeEventListener('mousedown', alTocar);
+    };
   }, [submenu]);
 
   return (
@@ -129,9 +158,10 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
             return (
               <div
                 key={a.href}
+                data-submenu
                 className="relative"
-                onMouseEnter={() => setSubmenu(a.href)}
-                onMouseLeave={() => setSubmenu((s) => (s === a.href ? null : s))}
+                onMouseEnter={() => { cancelarCierre(); setSubmenu(a.href); }}
+                onMouseLeave={cerrarConRetraso}
               >
                 <button
                   type="button"
@@ -149,7 +179,10 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
                 </button>
 
                 {abierto && (
-                  <div className="absolute right-0 top-full z-40 mt-1 w-56 rounded-[6px] bg-white p-1.5 shadow-lg ring-1 ring-blue-400/60">
+                  // El `pt-1` hace de puente: separa el panel del botón sin
+                  // dejar un hueco muerto por el que se escape el mouse.
+                  <div className="absolute right-0 top-full z-40 w-56 pt-1">
+                  <div className="rounded-[6px] bg-white p-1.5 shadow-lg ring-1 ring-blue-400/60">
                     {hijos.map((h) => {
                       const hActivo = pathname === h.href || pathname.startsWith(h.href + '/');
                       return (
@@ -168,6 +201,7 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
                         </Link>
                       );
                     })}
+                  </div>
                   </div>
                 )}
               </div>
