@@ -36,8 +36,8 @@ export default function CotizacionFilaDetalle({ cotizacionId, moneda = 'PEN', ca
 
   return (
     <div className="bg-[#f9fbff] px-4 pb-4 pt-3 sm:pl-12">
-      <div className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-[#e6edf7]">
-        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-gray-400">
+      <div className="rounded-lg bg-gradient-to-br from-white to-blue-100 p-3 shadow-sm ring-1 ring-[#004A94]/50">
+        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#004A94]">
           Ítems de la cotización{cantidadItems ? ` (${cantidadItems})` : ''}
         </p>
 
@@ -54,7 +54,7 @@ export default function CotizacionFilaDetalle({ cotizacionId, moneda = 'PEN', ca
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[11px]">
               <thead>
-                <tr className="border-b border-gray-200 text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+                <tr className="border-b border-[#004A94]/25 text-[9px] font-semibold uppercase tracking-wide text-[#004A94]/70">
                   <th className="py-1 pr-2 font-semibold">Descripción</th>
                   <th className="w-px whitespace-nowrap px-2 py-1 text-right font-semibold">Cant.</th>
                   <th className="w-px whitespace-nowrap px-2 py-1 text-right font-semibold">P. unit.</th>
@@ -69,7 +69,7 @@ export default function CotizacionFilaDetalle({ cotizacionId, moneda = 'PEN', ca
                   // fuera de la venta. Las dos explican el stock.
                   const reserva = d.reservaEstado;
                   return (
-                    <tr key={d.id} className="border-b border-gray-100 last:border-0">
+                    <tr key={d.id} className="border-b border-[#004A94]/10 last:border-0">
                       <td className="py-1.5 pr-2 text-gray-700">
                         {d.descripcion}
                         {reserva === 'ACTIVA' && (
