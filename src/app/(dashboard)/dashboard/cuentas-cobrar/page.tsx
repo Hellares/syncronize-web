@@ -11,6 +11,12 @@ import CuentaFilaDetalle from '@/features/cuentas-cobrar/components/CuentaFilaDe
 import MenuAcciones, { type AccionMenu } from '@/components/ui/MenuAcciones';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de productos, compras y servicios/nueva. Este buscador habia quedado
+// con el borde gris de antes, que sobre el fondo del dashboard no se ve.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 const ESTADOS: Array<{ value: EstadoCuenta | ''; label: string }> = [
   { value: '', label: 'Todas' },
   { value: 'PENDIENTE', label: 'Pendientes' },
@@ -127,13 +133,18 @@ export default function CuentasCobrarPage() {
       {/* Resumen */}
       {resumen && (
         <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-2 sm:grid-cols-4">
+          {/* 🔴 `border-gray-200` no se ve sobre el #f5f7fa del dashboard --el
+              mismo motivo por el que la tabla usa ring azul--. Cada tarjeta
+              lleva ahora el ring de SU color, que es el del numero, y un
+              degradado suave del blanco a ese tono: asi el borde existe y de
+              paso la tarjeta dice de que habla antes de leerla. */}
           {[
-            { label: 'Total por cobrar', val: totalPorCobrar, color: 'text-gray-900' },
-            { label: `Pendiente (${resumen.cantidadPendientes})`, val: resumen.totalPendiente, color: 'text-amber-600' },
-            { label: `Vencido (${resumen.cantidadVencidas})`, val: resumen.totalVencido, color: 'text-red-600' },
-            { label: 'Mora acumulada', val: resumen.totalMora, color: 'text-red-600' },
+            { label: 'Total por cobrar', val: totalPorCobrar, color: 'text-[#004A94]', ring: 'ring-[#004A94]/35', fondo: 'from-white to-blue-50' },
+            { label: `Pendiente (${resumen.cantidadPendientes})`, val: resumen.totalPendiente, color: 'text-amber-600', ring: 'ring-amber-300', fondo: 'from-white to-amber-50' },
+            { label: `Vencido (${resumen.cantidadVencidas})`, val: resumen.totalVencido, color: 'text-red-600', ring: 'ring-red-300', fondo: 'from-white to-red-50' },
+            { label: 'Mora acumulada', val: resumen.totalMora, color: 'text-red-600', ring: 'ring-red-300', fondo: 'from-white to-red-50' },
           ].map(s => (
-            <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-3">
+            <div key={s.label} className={`rounded-xl bg-gradient-to-br p-3 shadow-sm ring-1 ${s.fondo} ${s.ring}`}>
               <p className={`text-lg font-bold ${s.color}`}>{fmt(s.val)}</p>
               <p className="text-[11px] text-gray-500">{s.label}</p>
             </div>
@@ -232,12 +243,11 @@ export default function CuentasCobrarPage() {
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className="min-w-[200px] flex-1 max-w-sm rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+          className={`${INPUT_STD} min-w-[200px] max-w-sm flex-1`}
           value={search} onChange={e => handleSearch(e.target.value)}
-          placeholder="Buscar por código o cliente..." />
+          placeholder="Buscar por código o cliente…" />
         {sedesActivas.length > 1 && (
-          <select value={sedeId} onChange={e => setSedeId(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]">
+          <select value={sedeId} onChange={e => setSedeId(e.target.value)} className={INPUT_STD}>
             <option value="">Todas las sedes</option>
             {sedesActivas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
           </select>
