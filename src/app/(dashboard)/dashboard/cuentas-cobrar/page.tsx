@@ -211,7 +211,7 @@ export default function CuentasCobrarPage() {
               <tr>
                 <th className="w-px px-2 py-3" />
                 <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
-                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Ticket</th>
+                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Documento</th>
                 <th className="w-full px-4 py-3 font-medium text-[#004A94]">Cliente</th>
                 <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
                 <th className="hidden w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94] lg:table-cell">Pagado</th>
@@ -281,7 +281,10 @@ export default function CuentasCobrarPage() {
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaVenta)}</td>
 
                       <td className="whitespace-nowrap px-3 py-2">
-                        <span className="font-mono text-xs font-semibold text-gray-900">{c.codigo}</span>
+                        {/* El codigo es una REFERENCIA, no el titular de la fila: en mono,
+                            negrita y gris oscuro pesaba mas que el nombre del cliente.
+                            Achicado y en gris medio se lee igual y deja de competir. */}
+                        <span className="font-mono text-[11px] tracking-tight text-gray-500">{c.codigo}</span>
                         {(c.numeroCuotas ?? 0) > 0 && (
                           <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-500">
                             {c.numeroCuotas} cuotas
