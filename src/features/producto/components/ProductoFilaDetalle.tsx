@@ -53,8 +53,10 @@ function Dato({ etiqueta, valor, mono = false }: { etiqueta: string; valor?: str
 
 function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-white p-3 ring-1 ring-[#e6edf7]">
-      <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-gray-400">{titulo}</p>
+    // El ring gris casi no se ve sobre el fondo del desplegable: degradado y
+    // borde azules, como los bloques de cuentas por cobrar y cotizaciones.
+    <div className="rounded-lg bg-gradient-to-br from-white to-blue-100 p-3 shadow-sm ring-1 ring-[#004A94]/50">
+      <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#004A94]">{titulo}</p>
       {children}
     </div>
   );
@@ -109,7 +111,7 @@ export default function ProductoFilaDetalle({ producto: p, sedeId, acciones = []
                 <span
                   key={s.sedeId}
                   className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] ${
-                    s.sedeId === sedeId ? 'bg-blue-50 text-[#004A94] ring-1 ring-blue-200' : 'bg-slate-50 text-slate-600'
+                    s.sedeId === sedeId ? 'bg-white text-[#004A94] ring-1 ring-[#004A94]/40' : 'bg-white/70 text-slate-600'
                   }`}
                   title={s.ubicacion ? `Ubicación: ${s.ubicacion}` : undefined}
                 >
