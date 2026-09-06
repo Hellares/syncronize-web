@@ -51,30 +51,63 @@ export async function construirEstadoCuentaClientePdf(
   doc.setDrawColor(0, 74, 148).setLineWidth(0.5).line(margin, y, W - margin, y);
   y += 6;
 
-  // Cliente
-  doc.setFontSize(8).setTextColor(110, 110, 110).text('Cliente', margin, y);
-  y += 4;
+  // ── Cliente a la izquierda, saldo a la derecha, en la MISMA fila ──
+  //
+  // El saldo ocupaba una banda de color de ancho completo debajo del cliente:
+  // 17 mm de alto para un solo numero, en una hoja donde lo que importa es la
+  // lista de ventas. Pegado al nombre dice lo mismo y devuelve el espacio.
+  const conSaldo = r.saldoPendiente > 0.005;
+  const anchoTarjeta = 62;
+  const altoTarjeta = 15;
+  const xTarjeta = W - margin - anchoTarjeta;
+  const yTarjeta = y - 3;
+
+  // 🔴 jsPDF no tiene degradados: se simula con franjas verticales de 0.4 mm
+  // interpolando los dos colores. A esa altura el corte no se ve.
+  const franjas = Math.round(anchoTarjeta / 0.4);
+  const desde: [number, number, number] = [255, 255, 255];
+  const hasta: [number, number, number] = conSaldo ? [254, 226, 226] : [220, 252, 231];
+  for (let i = 0; i < franjas; i++) {
+    const t = i / (franjas - 1);
+    doc.setFillColor(
+      Math.round(desde[0] + (hasta[0] - desde[0]) * t),
+      Math.round(desde[1] + (hasta[1] - desde[1]) * t),
+      Math.round(desde[2] + (hasta[2] - desde[2]) * t),
+    );
+    doc.rect(xTarjeta + (anchoTarjeta * i) / franjas, yTarjeta, anchoTarjeta / franjas + 0.15, altoTarjeta, 'F');
+  }
+  // El borde toma el color del texto, como las tarjetas de la web.
+  const borde: [number, number, number] = conSaldo ? [220, 100, 100] : [90, 180, 120];
+  doc.setDrawColor(...borde).setLineWidth(0.4).rect(xTarjeta, yTarjeta, anchoTarjeta, altoTarjeta);
+
+  const tinta: [number, number, number] = conSaldo ? [190, 40, 40] : [30, 130, 70];
+  doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(110, 110, 110);
+  doc.text('SALDO PENDIENTE', xTarjeta + anchoTarjeta - 3, yTarjeta + 5, { align: 'right' });
+  doc.setFontSize(14).setTextColor(...tinta);
+  doc.text(money(r.saldoPendiente), xTarjeta + anchoTarjeta - 3, yTarjeta + 11, { align: 'right' });
+  if (r.totalMora > 0) {
+    doc.setFont('helvetica', 'normal').setFontSize(6.5).setTextColor(190, 90, 30);
+    doc.text(`incl. mora ${money(r.totalMora)}`, xTarjeta + anchoTarjeta - 3, yTarjeta + 14, { align: 'right' });
+  }
+
+  // El nombre se corta contra la tarjeta: sin esto un cliente con razon social
+  // larga se le mete encima.
+  const anchoCliente = xTarjeta - margin - 5;
+  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(110, 110, 110);
+  doc.text('Cliente', margin, y);
+  y += 4.5;
   doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(0, 0, 0);
-  doc.text(c.nombre ?? 'Cliente', margin, y);
+  const nombreCliente: string[] = doc.splitTextToSize(c.nombre ?? 'Cliente', anchoCliente);
+  doc.text(nombreCliente.slice(0, 2), margin, y);
+  y += 4.5 * Math.min(nombreCliente.length, 2);
   doc.setFont('helvetica', 'normal').setFontSize(9);
-  y += 4;
   doc.text(
     `${c.documento ? `RUC/DNI: ${c.documento} · ` : ''}${c.tipo === 'EMPRESA' ? 'Empresa' : 'Persona'}`,
     margin, y,
   );
-  y += 6;
 
-  // Resumen: saldo pendiente destacado + vendido/abonado/mora/#ventas
-  const conSaldo = r.saldoPendiente > 0.005;
-  doc.setFillColor(...(conSaldo ? [200, 50, 50] : [40, 150, 80]) as [number, number, number])
-    .rect(margin, y, W - margin * 2, 13, 'F');
-  doc.setTextColor(255, 255, 255).setFontSize(8).setFont('helvetica', 'bold');
-  doc.text('SALDO PENDIENTE', margin + 3, y + 5);
-  doc.setFontSize(11).text(
-    `${money(r.saldoPendiente)}${r.totalMora > 0 ? `   (incl. mora ${money(r.totalMora)})` : ''}`,
-    margin + 3, y + 10,
-  );
-  y += 17;
+  // Lo que siga arranca debajo de las DOS columnas.
+  y = Math.max(y, yTarjeta + altoTarjeta) + 6;
   doc.setTextColor(0, 0, 0).setFont('helvetica', 'normal').setFontSize(9);
   doc.text(
     `Total vendido: ${money(r.totalVendido)}    Total abonado: ${money(r.totalAbonado)}    Ventas: ${r.cantidadVentas} (${r.ventasConSaldo} con saldo)`,
@@ -111,7 +144,7 @@ export async function construirEstadoCuentaClientePdf(
     // renglones contra una celda angosta. El bloque se sigue leyendo como del
     // renglon de arriba por el fondo gris y la flecha.
     const tenue = {
-      fontSize: 4.5,
+      fontSize: 5.5,
       textColor: [110, 110, 110] as [number, number, number],
       fillColor: [248, 250, 252] as [number, number, number],
       lineWidth: 0,
