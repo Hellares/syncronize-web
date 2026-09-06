@@ -268,14 +268,14 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
           <button
             onClick={onClose}
             disabled={trabajando}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex h-[30px] items-center rounded-[6px] px-3 text-[10px] font-medium text-gray-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={descargar}
             disabled={trabajando || nadaQueMostrar}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-xs font-semibold text-[#004A94] ring-1 ring-blue-400 hover:shadow-md disabled:opacity-50"
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-zinc-100 px-3 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200 disabled:opacity-50"
           >
             {trabajando && <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#004A94]/30 border-t-[#004A94]" />}
             {trabajando ? 'Armando…' : 'Descargar'}
@@ -283,7 +283,7 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
           <button
             onClick={() => setEnviando(true)}
             disabled={trabajando || nadaQueMostrar}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-green-600 px-3 text-[10px] font-medium text-white shadow-md transition-colors hover:bg-green-700 disabled:opacity-50"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 11.5a8.4 8.4 0 01-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1121 11.5z" />
