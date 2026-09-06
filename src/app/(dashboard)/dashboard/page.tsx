@@ -71,11 +71,11 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * que repetir el tono en cada llamada y no puedan desincronizarse.
  */
 const TONOS = {
-  neutro:  { fondo: 'from-white to-gray-100',    ring: 'ring-gray-300',     chip: 'bg-gray-100 text-gray-500',           cifra: '#111827' },
-  azul:    { fondo: 'from-white to-blue-100',    ring: 'ring-[#004A94]/50', chip: 'bg-blue-100 text-[#004A94]',          cifra: '#004A94' },
-  naranja: { fondo: 'from-white to-orange-100',  ring: 'ring-orange-400',   chip: 'bg-orange-100 text-orange-700',       cifra: '#c2410c' },
-  fucsia:  { fondo: 'from-white to-fuchsia-100', ring: 'ring-fuchsia-400',  chip: 'bg-fuchsia-100 text-fuchsia-700',     cifra: '#a21caf' },
-  verde:   { fondo: 'from-white to-green-100',   ring: 'ring-green-500',    chip: 'bg-green-100 text-green-700',         cifra: '#15803d' },
+  neutro:  { fondo: 'from-white to-gray-100',    ring: 'ring-gray-300/50',     chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
+  azul:    { fondo: 'from-white to-blue-100',    ring: 'ring-[#004A94]/25',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
+  naranja: { fondo: 'from-white to-orange-100',  ring: 'ring-orange-400/50',   chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
+  fucsia:  { fondo: 'from-white to-fuchsia-100', ring: 'ring-fuchsia-400/50',  chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
+  verde:   { fondo: 'from-white to-green-100',   ring: 'ring-green-500/50',    chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
 } as const;
 
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
