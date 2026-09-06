@@ -91,6 +91,21 @@ const TONOS = {
   verde:   { fondo: 'from-white from-30% to-green-200',   chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
 } as const;
 
+/**
+ * Los bloques grandes (Este mes, Ventas por día, Necesita atención, Lo más
+ * vendido, Cómo te pagaron hoy) llevan el mismo tratamiento que la tarjeta de
+ * Ventas de hoy: su degradado azul y su elevación, en vez del borde gris.
+ */
+const BLOQUE_STD = `rounded-xl bg-gradient-to-br shadow-lg transition-shadow hover:shadow-xl ${TONOS.azul.fondo}`;
+
+/**
+ * Título de bloque. 🔴 `font-medium` (500) y no `font-semibold`: Amazon Ember
+ * mapea 600-1000 a la MISMA cara Bold, así que entre 600 y 700 no cambia un
+ * píxel. A 13px la Bold se empasta; la Medium respira y el azul de marca hace
+ * el trabajo de jerarquía que antes hacía el peso.
+ */
+const TITULO_BLOQUE = 'text-[13px] font-medium text-[#004A94]';
+
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
   titulo: string;
   icono: React.ReactNode;
@@ -141,9 +156,9 @@ interface Aviso { grave: boolean; titulo: string; detalle: string; href: string;
 
 function Bloque({ titulo, extra, children }: { titulo: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col rounded-xl border border-[#e8ecf1] bg-white">
+    <div className={`flex flex-col ${BLOQUE_STD}`}>
       <div className="flex items-baseline justify-between gap-3 px-4 pb-2.5 pt-3.5">
-        <h2 className="text-[13px] font-bold text-gray-900">{titulo}</h2>
+        <h2 className={TITULO_BLOQUE}>{titulo}</h2>
         {extra}
       </div>
       {children}
@@ -444,9 +459,9 @@ export default function DashboardPage() {
 
       {/* ── Este mes: el puente al análisis, sin duplicarlo ── */}
       {verStats && (proyeccion || mes) && (
-        <div className="rounded-xl border border-[#e8ecf1] bg-white p-4">
+        <div className={`p-4 ${BLOQUE_STD}`}>
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-[13px] font-bold text-gray-900">Este mes</h2>
+            <h2 className={TITULO_BLOQUE}>Este mes</h2>
             <Link href="/dashboard/ventas/analytics" className="text-[11px] font-bold text-[#004A94] hover:underline">
               Ver estadísticas completas →
             </Link>
@@ -512,10 +527,10 @@ export default function DashboardPage() {
       {verStats && (
         <div className="grid gap-3.5 xl:grid-cols-12">
 
-          <div className="flex min-h-[300px] flex-col rounded-xl border border-[#e8ecf1] bg-white p-4 xl:col-span-7">
+          <div className={`flex min-h-[300px] flex-col p-4 xl:col-span-7 ${BLOQUE_STD}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-[13px] font-bold text-gray-900">Ventas por día</h2>
+                <h2 className={TITULO_BLOQUE}>Ventas por día</h2>
                 <p className="mt-0.5 text-[11px] text-gray-500">Últimos {rango} días</p>
               </div>
               <div className="flex gap-1 rounded-lg border border-[#e8ecf1] p-0.5">
