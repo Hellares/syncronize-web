@@ -171,13 +171,13 @@ export default function VentasPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Ventas</h1>
-          <p className="text-sm text-gray-500">
-            {isLoading ? 'Cargando...' : `${ventas.length} ventas · ${fmt(totalVisible)}`}
-            {esVistaLimitada && <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">Mostrando solo tus ventas</span>}
-          </p>
-        </div>
+        {/* Sin <h1>: la cabecera del dashboard ya dice "Ventas" tres
+            centimetros mas arriba. Lo que aporta esta linea es el CONTEO y el
+            total de lo que se esta viendo. */}
+        <p className="text-sm text-gray-500">
+          {isLoading ? 'Cargando...' : `${ventas.length} ventas · ${fmt(totalVisible)}`}
+          {esVistaLimitada && <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">Mostrando solo tus ventas</span>}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           {/* Las mismas medidas que los botones de Productos: 30 px de alto,
               10 px de fuente, medium y radio 6. Antes eran 14 px en negrita a
@@ -203,12 +203,6 @@ export default function VentasPage() {
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1 max-w-sm">
-          <input
-            className={`${INPUT_STD} w-full`}
-            value={search} onChange={e => handleSearch(e.target.value)}
-            placeholder="Buscar por código, cliente o documento..." />
-        </div>
         <select value={estado} onChange={e => setEstado(e.target.value as EstadoVenta | '')}
           className={SELECT_FILTRO}>
           {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
@@ -248,8 +242,15 @@ export default function VentasPage() {
           className={SELECT_FILTRO} />
       </div>
 
-      {/* Atajos de fecha */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Buscar y el periodo, en la misma fila: son las dos cosas que se tocan
+          en cada visita. El resto de los filtros va abajo, que se usan de vez
+          en cuando. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className={`${INPUT_STD} min-w-[220px] max-w-sm flex-1`}
+          value={search} onChange={e => handleSearch(e.target.value)}
+          placeholder="Buscar por código, cliente o documento…" />
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
         {/* Mismos chips que los de estado en Productos: una pastilla gris con
             el elegido en blanco. Los bordes sueltos de antes competian con los
             selects que tienen al lado. */}
@@ -269,6 +270,7 @@ export default function VentasPage() {
             Limpiar fechas
           </button>
         )}
+        </div>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3"><p className="text-sm text-red-600">{error}</p></div>}
