@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import { AxiosError } from 'axios';
 import type { CuentaPorCobrar, ResumenCuentasCobrar, EstadoCuenta, ConfiguracionMora } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
 import * as cxcService from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import AbonoDialog from '@/features/cuentas-cobrar/components/abono-dialog';
+import CuentaFilaDetalle from '@/features/cuentas-cobrar/components/CuentaFilaDetalle';
+import MenuAcciones, { type AccionMenu } from '@/components/ui/MenuAcciones';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 const ESTADOS: Array<{ value: EstadoCuenta | ''; label: string }> = [
@@ -24,7 +25,6 @@ function fmtFecha(iso?: string | null): string {
 }
 
 export default function CuentasCobrarPage() {
-  const router = useRouter();
   const { sedes } = useEmpresa();
   const permissions = usePermissions();
   const puedeGestionar = permissions.canManageVentas;
@@ -201,112 +201,181 @@ export default function CuentasCobrarPage() {
       ) : cuentas.length === 0 ? (
         <div className="py-20 text-center"><p className="text-4xl mb-2">💰</p><p className="text-gray-400">Sin cuentas por cobrar con estos filtros</p></div>
       ) : (
-        <div className="space-y-2">
-          {cuentas.map(c => {
-            const cfg = ESTADO_CUENTA_CONFIG[c.estado];
-            const abierta = expandido === c.ventaId;
-            const totalConMora = c.saldoPendiente + (c.totalMora ?? 0);
-            return (
-              <div key={c.ventaId} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                <div className="flex flex-wrap items-center gap-3 p-3">
-                  <button onClick={() => setExpandido(abierta ? null : c.ventaId)} className="flex-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-gray-900">{c.codigo}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.text} ${cfg.bg}`}>{cfg.label}</span>
-                      {(c.numeroCuotas ?? 0) > 0 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500">{c.numeroCuotas} cuotas</span>}
-                    </div>
-                    <p className="mt-0.5 text-xs text-gray-600">{c.nombreCliente}{c.documentoCliente ? ` · ${c.documentoCliente}` : ''}</p>
-                  </button>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">{fmt(c.saldoPendiente)}</p>
-                    <p className="text-[10px] text-gray-400">
-                      de {fmt(c.totalVenta)}
-                      {(c.totalMora ?? 0) > 0 && <span className="text-red-500"> · mora {fmt(c.totalMora)}</span>}
-                    </p>
-                    {c.diasVencimiento != null && (
-                      <p className={`text-[10px] ${c.diasVencimiento < 0 ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
-                        {c.diasVencimiento < 0 ? `vencido ${Math.abs(c.diasVencimiento)}d` : `vence en ${c.diasVencimiento}d`} · {fmtFecha(c.fechaVencimiento)}
-                      </p>
+        /* Tabla, no tarjetas: son ventas comparables entre si --misma fecha,
+           mismo cliente, mismo saldo-- y en columnas se barren de un vistazo.
+           Mismo lenguaje que la lista de productos: ring azul, cabecera fija y
+           la fila que se despliega. */
+        <div className="max-h-[calc(100vh-26rem)] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+          <table className="w-full text-left text-[12px]">
+            <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
+              <tr>
+                <th className="w-px px-2 py-3" />
+                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
+                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Ticket</th>
+                <th className="w-full px-4 py-3 font-medium text-[#004A94]">Cliente</th>
+                <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
+                <th className="hidden w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94] lg:table-cell">Pagado</th>
+                <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Saldo</th>
+                <th className="hidden w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] md:table-cell">Vence</th>
+                <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Estado</th>
+                <th className="w-px whitespace-nowrap px-4 py-3 text-right font-medium text-[#004A94]">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {cuentas.map(c => {
+                const cfg = ESTADO_CUENTA_CONFIG[c.estado];
+                const abierta = expandido === c.ventaId;
+                const vencido = (c.diasVencimiento ?? 0) < 0;
+
+                // "Estado de cuenta" solo si sabemos a QUE cliente pertenece:
+                // una venta a publico general no tiene a quien acumularle nada.
+                const acciones: AccionMenu[] = [];
+                if (c.clienteId || c.clienteEmpresaId) {
+                  const q = new URLSearchParams(
+                    // Prioridad clienteEmpresaId (B2B) sobre clienteId, paridad app
+                    c.clienteEmpresaId ? { clienteEmpresaId: c.clienteEmpresaId } : { clienteId: c.clienteId! },
+                  );
+                  if (c.nombreCliente) q.set('nombre', c.nombreCliente);
+                  acciones.push({
+                    id: 'estado-cuenta',
+                    label: 'Estado de cuenta',
+                    href: `/dashboard/cuentas-cobrar/estado-cuenta?${q.toString()}`,
+                    icono: (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 4h12l4 4v12H4z" /><path d="M8 12h8M8 16h5" />
+                      </svg>
+                    ),
+                  });
+                }
+                acciones.push({
+                  id: 'venta',
+                  label: 'Ver la venta',
+                  href: `/dashboard/ventas/${c.ventaId}`,
+                  icono: (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" /><circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  ),
+                });
+
+                return (
+                  <Fragment key={c.ventaId}>
+                    <tr
+                      onClick={() => setExpandido(abierta ? null : c.ventaId)}
+                      className={`cursor-pointer transition-colors ${abierta ? 'bg-[#f9fbff]' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <td className="w-px py-2 pl-3 pr-0">
+                        <span
+                          aria-hidden
+                          className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                            abierta ? 'bg-[#437EFF] text-white' : 'bg-blue-50 text-[#437EFF]'
+                          }`}
+                        >
+                          <svg className={`h-3.5 w-3.5 transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
+                        </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaVenta)}</td>
+
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <span className="font-mono text-xs font-semibold text-gray-900">{c.codigo}</span>
+                        {(c.numeroCuotas ?? 0) > 0 && (
+                          <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-gray-500">
+                            {c.numeroCuotas} cuotas
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="max-w-0 px-4 py-2">
+                        <p className="truncate font-medium text-gray-900">{c.nombreCliente}</p>
+                        {c.documentoCliente && (
+                          <p className="truncate font-mono text-[10px] text-gray-400">{c.documentoCliente}</p>
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">{fmt(c.totalVenta)}</td>
+
+                      <td className="hidden whitespace-nowrap px-3 py-2 text-right text-green-700 lg:table-cell">
+                        {c.totalPagado > 0.005 ? fmt(c.totalPagado) : <span className="text-gray-300">—</span>}
+                      </td>
+
+                      {/* La mora va pegada al saldo y no en columna propia: casi
+                          siempre es cero, pero cuando existe es lo mas
+                          importante de la fila. */}
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        <span className="font-bold text-gray-900">{fmt(c.saldoPendiente)}</span>
+                        {(c.totalMora ?? 0) > 0 && (
+                          <span className="block text-[10px] font-semibold text-red-500">+ {fmt(c.totalMora)} mora</span>
+                        )}
+                      </td>
+
+                      <td className="hidden whitespace-nowrap px-3 py-2 md:table-cell">
+                        <span className="text-xs text-gray-600">{fmtFecha(c.fechaVencimiento)}</span>
+                        {c.diasVencimiento != null && (
+                          <span className={`block text-[10px] ${vencido ? 'font-semibold text-red-500' : 'text-gray-400'}`}>
+                            {vencido ? `vencido ${Math.abs(c.diasVencimiento)}d` : `en ${c.diasVencimiento}d`}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="whitespace-nowrap px-2 py-2 text-center">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.text} ${cfg.bg}`}>
+                          {cfg.label}
+                        </span>
+                      </td>
+
+                      {/* `stopPropagation` en toda la celda: sin esto cada boton
+                          ademas despliega o cierra la fila. */}
+                      <td className="whitespace-nowrap px-4 py-2 text-right" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Abonar NO va al menu: es la razon de ser de esta
+                              pantalla y tiene que estar a un solo toque. */}
+                          {puedeGestionar && c.saldoPendiente > 0.005 && (
+                            <button
+                              type="button"
+                              onClick={() => setAbonoTarget(c)}
+                              className="hidden rounded-lg bg-green-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-green-700 sm:inline-flex"
+                            >
+                              Abonar
+                            </button>
+                          )}
+                          <MenuAcciones acciones={acciones} titulo={`${c.codigo} · ${c.nombreCliente}`} />
+                        </div>
+                      </td>
+                    </tr>
+
+                    {abierta && (
+                      <tr className="bg-[#f9fbff]">
+                        <td colSpan={10} className="p-0">
+                          <CuentaFilaDetalle
+                            cuenta={c}
+                            puedeGestionar={puedeGestionar}
+                            onAnularAbono={anularAbono}
+                          />
+                          {/* En pantalla chica el boton verde de la fila no
+                              entra: aca abajo, con area de dedo. */}
+                          {puedeGestionar && c.saldoPendiente > 0.005 && (
+                            <div className="px-4 pb-4 sm:hidden">
+                              <button
+                                type="button"
+                                onClick={() => setAbonoTarget(c)}
+                                className="h-11 w-full rounded-lg bg-green-600 text-xs font-bold text-white"
+                              >
+                                Abonar {fmt(c.saldoPendiente)}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                  {puedeGestionar && c.saldoPendiente > 0.005 && (
-                    <button onClick={() => setAbonoTarget(c)}
-                      className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700">Abonar</button>
-                  )}
-                  {(c.clienteId || c.clienteEmpresaId) && (
-                    <button
-                      onClick={() => {
-                        // Prioridad clienteEmpresaId (B2B) sobre clienteId, paridad app
-                        const q = new URLSearchParams(
-                          c.clienteEmpresaId ? { clienteEmpresaId: c.clienteEmpresaId } : { clienteId: c.clienteId! },
-                        );
-                        if (c.nombreCliente) q.set('nombre', c.nombreCliente);
-                        router.push(`/dashboard/cuentas-cobrar/estado-cuenta?${q.toString()}`);
-                      }}
-                      title="Estado de cuenta del cliente"
-                      className="rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-500 hover:bg-gray-50">Estado de cuenta</button>
-                  )}
-                  <button onClick={() => router.push(`/dashboard/ventas/${c.ventaId}`)}
-                    className="rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-500 hover:bg-gray-50">Venta</button>
-                </div>
-
-                {/* Cuotas */}
-                {abierta && (c.cuotas ?? []).length > 0 && (
-                  <div className="border-t border-gray-100 bg-gray-50/50 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase text-gray-400">Cuotas</p>
-                    <div className="space-y-1">
-                      {c.cuotas!.map(cu => (
-                        <div key={cu.id} className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-xs">
-                          <span className="text-gray-600">
-                            #{cu.numero} · vence {fmtFecha(cu.fechaVencimiento)}
-                            {(cu.diasVencido ?? 0) > 0 && <span className="ml-1 font-semibold text-red-500">+{cu.diasVencido}d</span>}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            {(cu.montoMora ?? 0) > 0 && <span className="text-red-500">mora {fmt(cu.montoMora)}</span>}
-                            <span className="text-gray-400">{fmt(cu.montoPagado)}/{fmt(cu.monto)}</span>
-                            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${cu.saldoPendiente <= 0.005 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                              {cu.saldoPendiente <= 0.005 ? 'Pagada' : fmt(cu.saldoPendiente)}
-                            </span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {abierta && (c.cuotas ?? []).length === 0 && (
-                  <div className="border-t border-gray-100 bg-gray-50/50 p-3 text-xs text-gray-500">
-                    Crédito sin cuotas · saldo {fmt(c.saldoPendiente)} con vencimiento {fmtFecha(c.fechaVencimiento)}.
-                    {(c.totalMora ?? 0) > 0 && <span className="text-red-500"> Total con mora: {fmt(totalConMora)}.</span>}
-                  </div>
-                )}
-
-                {/* Historial de abonos */}
-                {abierta && (c.pagos ?? []).length > 0 && (
-                  <div className="border-t border-gray-100 bg-gray-50/50 p-3">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase text-gray-400">Abonos realizados</p>
-                    <div className="space-y-1">
-                      {c.pagos!.map(p => (
-                        <div key={p.id} className={`flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-xs ${p.anulado ? 'opacity-50' : ''}`}>
-                          <span className="text-gray-600">
-                            {p.metodoPago} · {fmtFecha(p.fechaPago)}
-                            {p.fuente && <span className="ml-1 text-[9px] text-gray-400">→ {p.fuente}</span>}
-                            {p.anulado && <span className="ml-1 rounded bg-red-100 px-1 text-[8px] font-bold text-red-600">ANULADO</span>}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <span className={`font-semibold ${p.anulado ? 'text-gray-400 line-through' : 'text-green-700'}`}>{fmt(p.monto)}</span>
-                            {puedeGestionar && !p.anulado && c.estado !== 'PAGADA' && (
-                              <button onClick={() => anularAbono(p.id)} title="Anular abono (revierte el ingreso y recomputa cuotas)"
-                                className="rounded p-0.5 text-gray-300 hover:bg-red-50 hover:text-red-500">✕</button>
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
