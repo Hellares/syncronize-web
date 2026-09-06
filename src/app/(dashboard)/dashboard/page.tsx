@@ -66,8 +66,10 @@ function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
   children: React.ReactNode;
 }) {
   const fondos = { neutro: 'bg-gray-100 text-gray-500', azul: 'bg-blue-50 text-blue-700', verde: 'bg-green-50 text-green-700' };
+  // `borde-animado` (globals.css) reemplaza al borde gris: el anillo cónico ES
+  // el borde, y trae el resplandor de fondo girando con él.
   return (
-    <div className="rounded-xl border border-[#e8ecf1] bg-white p-4 transition-shadow hover:shadow-sm">
+    <div className="borde-animado rounded-xl bg-white p-4 transition-shadow hover:shadow-sm">
       <div className="flex items-center gap-2">
         <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${fondos[tono]}`}>{icono}</span>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{titulo}</span>
@@ -359,7 +361,7 @@ export default function DashboardPage() {
         {permissions.canViewCaja && (
           cajaLista ? (
             caja ? (
-              <div className="flex flex-col rounded-xl border border-[#cfe3d6] bg-[#f6fbf7] p-4">
+              <div className="borde-animado flex flex-col rounded-xl bg-[#f6fbf7] p-4">
                 <div className="flex items-center gap-2">
                   <span className="flex h-[26px] w-[26px] items-center justify-center rounded-lg bg-[#dcf0e3] text-green-700">
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
@@ -380,7 +382,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className="flex flex-col rounded-xl border border-[#e8ecf1] bg-white p-4">
+              <div className="borde-animado flex flex-col rounded-xl bg-white p-4">
                 <div className="flex items-center gap-2">
                   <span className="flex h-[26px] w-[26px] items-center justify-center rounded-lg bg-gray-100 text-gray-500">
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
