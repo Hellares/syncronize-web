@@ -343,7 +343,10 @@ export default function VentasPage() {
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <span className={`text-sm font-bold ${v.estado === 'ANULADA' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{fmt(v.total)}</span>
+                      {/* 13 px y semibold en el azul de la marca: en negro a 14 px en
+                          negrita era lo mas pesado de la fila y le ganaba al nombre
+                          del cliente. */}
+                      <span className={`text-[13px] font-semibold ${v.estado === 'ANULADA' ? 'text-gray-400 line-through' : 'text-[#004A94]'}`}>{fmt(v.total)}</span>
                       {(v.metodoPago) && <p className="text-[9px] text-gray-400">{METODO_PAGO_LABEL[v.metodoPago] ?? v.metodoPago}{v.esCredito ? ' · Crédito' : ''}</p>}
                     </td>
                     <td className="px-4 py-2">
