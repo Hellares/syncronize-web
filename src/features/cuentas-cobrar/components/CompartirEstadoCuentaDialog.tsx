@@ -211,14 +211,14 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
               <button
                 type="button"
                 onClick={() => setElegidas(new Set(data.ventas.map(v => v.ventaId)))}
-                className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-[#437EFF] hover:bg-blue-50"
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#437EFF] hover:bg-blue-50"
               >
                 Todas
               </button>
               <button
                 type="button"
                 onClick={() => setElegidas(new Set(pendientes.map(v => v.ventaId)))}
-                className="rounded px-1.5 py-0.5 text-[10px] font-semibold text-[#437EFF] hover:bg-blue-50"
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#437EFF] hover:bg-blue-50"
               >
                 Solo pendientes
               </button>
@@ -275,7 +275,7 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
           <button
             onClick={descargar}
             disabled={trabajando || nadaQueMostrar}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-xs font-bold text-[#004A94] ring-1 ring-blue-400 hover:shadow-md disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-xs font-semibold text-[#004A94] ring-1 ring-blue-400 hover:shadow-md disabled:opacity-50"
           >
             {trabajando && <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#004A94]/30 border-t-[#004A94]" />}
             {trabajando ? 'Armando…' : 'Descargar'}
@@ -283,7 +283,7 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
           <button
             onClick={() => setEnviando(true)}
             disabled={trabajando || nadaQueMostrar}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 11.5a8.4 8.4 0 01-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1121 11.5z" />
