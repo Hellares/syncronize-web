@@ -34,13 +34,13 @@ function TableSkeleton() {
     <>
       {Array.from({ length: 6 }).map((_, i) => (
         <tr key={i} className="animate-pulse">
-          <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-32 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-gray-200" /></td>
-          <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-24 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-32 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-20 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-20 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-20 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-28 rounded bg-gray-200" /></td>
+          <td className="px-4 py-2"><div className="h-4 w-24 rounded bg-gray-200" /></td>
         </tr>
       ))}
     </>
@@ -61,6 +61,14 @@ function EmptyState() {
     </tr>
   );
 }
+
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de Productos, Ventas y Compras. Los filtros van un escalon por debajo
+// del buscador: es donde se escribe, y si compiten la barra no se lee.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const SELECT_FILTRO =
+  'bg-zinc-100 text-[#004A94] font-sans text-[10px] ring-1 ring-blue-400 outline-none transition-all duration-300 rounded-[6px] h-[26px] px-2.5 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 export default function CotizacionesPage() {
   const { cotizaciones, filtros, isLoading, cargandoMas, hasMore, error, updateFiltros, cargarMas, reload, resetFiltros } = useCotizaciones();
@@ -111,7 +119,7 @@ export default function CotizacionesPage() {
         {permissions.canManageCotizaciones && (
           <Link
             href="/dashboard/cotizaciones/nuevo"
-            className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-[#004A94] px-3.5 text-xs font-medium text-white transition-colors hover:bg-[#003570]"
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
               <path d="M12 5v14M5 12h14" />
@@ -122,26 +130,26 @@ export default function CotizacionesPage() {
       </div>
 
       {/* ========== Filters ========== */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
         {/* Search */}
         <div className="flex-1 min-w-[200px]">
-          <label className="mb-1 block text-xs font-medium text-gray-500">Buscar</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">Buscar</label>
           <input
             type="text"
             placeholder="Codigo, cliente..."
             value={filtros.search ?? ''}
             onChange={e => updateFiltros({ search: e.target.value || undefined })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+            className={`${INPUT_STD} w-full`}
           />
         </div>
 
         {/* Estado */}
         <div className="min-w-[140px]">
-          <label className="mb-1 block text-xs font-medium text-gray-500">Estado</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">Estado</label>
           <select
             value={filtros.estado ?? ''}
             onChange={e => updateFiltros({ estado: (e.target.value || undefined) as EstadoCotizacion | undefined })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+            className={`${SELECT_FILTRO} w-full`}
           >
             <option value="">Todos</option>
             {ESTADOS.map(est => (
@@ -152,11 +160,11 @@ export default function CotizacionesPage() {
 
         {/* Sede */}
         <div className="min-w-[140px]">
-          <label className="mb-1 block text-xs font-medium text-gray-500">Sede</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">Sede</label>
           <select
             value={filtros.sedeId ?? ''}
             onChange={e => updateFiltros({ sedeId: e.target.value || undefined })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+            className={`${SELECT_FILTRO} w-full`}
           >
             <option value="">Todas</option>
             {sedes
@@ -169,30 +177,30 @@ export default function CotizacionesPage() {
 
         {/* Fecha desde */}
         <div className="min-w-[150px]">
-          <label className="mb-1 block text-xs font-medium text-gray-500">Desde</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">Desde</label>
           <input
             type="date"
             value={filtros.fechaDesde ?? ''}
             onChange={e => updateFiltros({ fechaDesde: e.target.value || undefined })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+            className={`${SELECT_FILTRO} w-full`}
           />
         </div>
 
         {/* Fecha hasta */}
         <div className="min-w-[150px]">
-          <label className="mb-1 block text-xs font-medium text-gray-500">Hasta</label>
+          <label className="mb-1 block text-[11px] font-medium text-gray-600">Hasta</label>
           <input
             type="date"
             value={filtros.fechaHasta ?? ''}
             onChange={e => updateFiltros({ fechaHasta: e.target.value || undefined })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#004A94] focus:ring-1 focus:ring-[#004A94]"
+            className={`${SELECT_FILTRO} w-full`}
           />
         </div>
 
         {/* Reset */}
         <button
           onClick={resetFiltros}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          className="inline-flex h-[26px] items-center rounded-[6px] px-2.5 text-[10px] font-medium text-gray-600 ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
         >
           Limpiar
         </button>
@@ -206,17 +214,20 @@ export default function CotizacionesPage() {
       )}
 
       {/* ========== Table ========== */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
+      {/* Misma firma que Productos, Ventas y las dos cuentas: ring azul --el
+          borde gris no se ve sobre el #f5f7fa del dashboard--, cabecera
+          #eaf2fd fija y 12 px. */}
+      <div className="max-h-[calc(100vh-26rem)] min-h-[16rem] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+        <table className="min-w-full text-left text-[12px]">
+          <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Codigo</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Vendedor</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
+              <th className="px-4 py-2 font-medium text-[#004A94]">Codigo</th>
+              <th className="px-4 py-2 font-medium text-[#004A94]">Cliente</th>
+              <th className="whitespace-nowrap px-4 py-2 text-right font-medium text-[#004A94]">Monto</th>
+              <th className="px-4 py-2 text-center font-medium text-[#004A94]">Estado</th>
+              <th className="whitespace-nowrap px-4 py-2 font-medium text-[#004A94]">Fecha</th>
+              <th className="px-4 py-2 font-medium text-[#004A94]">Vendedor</th>
+              <th className="px-4 py-2 text-right font-medium text-[#004A94]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -230,19 +241,19 @@ export default function CotizacionesPage() {
                 const estadoCfg = ESTADO_COTIZACION_CONFIG[estadoEfectivoCotizacion(cot)];
                 const isBorrador = cot.estado === 'BORRADOR';
                 return (
-                  <tr key={cot.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={cot.id} className="transition-colors hover:bg-gray-50/50">
                     {/* Codigo */}
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
+                    <td className="whitespace-nowrap px-4 py-2 text-[11px] font-medium tracking-tight text-gray-700">
                       {cot.codigo}
                     </td>
 
                     {/* Cliente */}
-                    <td className="px-4 py-3 text-gray-700 max-w-[200px] truncate">
+                    <td className="px-4 py-2 text-gray-700 max-w-[200px] truncate">
                       {getClienteName(cot)}
                     </td>
 
                     {/* Monto (con adelanto si existe) */}
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-900">
+                    <td className="whitespace-nowrap px-4 py-2 text-right font-medium text-gray-900">
                       {formatCurrency(cot.total)}
                       {(cot.adelantoMonto ?? 0) > 0 && (
                         <div className="text-[10px] font-normal text-green-600">
@@ -252,7 +263,7 @@ export default function CotizacionesPage() {
                     </td>
 
                     {/* Estado (+ badge Reservado, paridad Flutter) */}
-                    <td className="whitespace-nowrap px-4 py-3 text-center">
+                    <td className="whitespace-nowrap px-4 py-2 text-center">
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${estadoCfg.color} ${estadoCfg.bg}`}>
                         {estadoCfg.label}
                       </span>
@@ -264,17 +275,17 @@ export default function CotizacionesPage() {
                     </td>
 
                     {/* Fecha */}
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                    <td className="whitespace-nowrap px-4 py-2 text-gray-600">
                       {formatDate(cot.fechaEmision)}
                     </td>
 
                     {/* Vendedor */}
-                    <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">
+                    <td className="px-4 py-2 text-gray-600 max-w-[180px] truncate">
                       {getVendedorName(cot)}
                     </td>
 
                     {/* Acciones */}
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <td className="whitespace-nowrap px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {/* Ver */}
                         <Link
