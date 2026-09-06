@@ -322,7 +322,7 @@ export default function DashboardPage() {
       {/* ── Encabezado ── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[19px] font-bold tracking-tight text-gray-900">{saludoDelDia()}, {user.nombres}</h1>
+          <h1 className="text-[19px] font-bold tracking-tight text-[#004A94]">{saludoDelDia()}, {user.nombres}</h1>
           <p className="mt-0.5 text-xs capitalize text-gray-500">
             {FECHA_LARGA.format(new Date())}
             {empresa?.nombre && <span className="normal-case"> · {empresa.nombre}</span>}
