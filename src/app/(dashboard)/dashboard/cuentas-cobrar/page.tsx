@@ -361,19 +361,19 @@ export default function CuentasCobrarPage() {
                           querer y termina leyendo el saldo de otro cliente. El
                           celeste es lo facturado, el verde lo cobrado y el
                           naranja lo que falta. */}
-                      <td className="whitespace-nowrap bg-sky-50 px-3 py-2 text-right text-gray-600">{fmt(c.totalVenta)}</td>
+                      <td className="whitespace-nowrap bg-sky-100 px-3 py-2 text-right text-gray-700">{fmt(c.totalVenta)}</td>
 
-                      <td className="hidden whitespace-nowrap bg-green-50 px-3 py-2 text-right text-green-700 lg:table-cell">
+                      <td className="hidden whitespace-nowrap bg-green-100 px-3 py-2 text-right text-green-800 lg:table-cell">
                         {c.totalPagado > 0.005 ? fmt(c.totalPagado) : <span className="text-gray-300">—</span>}
                       </td>
 
                       {/* La mora va pegada al saldo y no en columna propia: casi
                           siempre es cero, pero cuando existe es lo mas
                           importante de la fila. */}
-                      <td className="whitespace-nowrap bg-orange-50 px-3 py-2 text-right">
+                      <td className="whitespace-nowrap bg-orange-100 px-3 py-2 text-right">
                         <span className="font-bold text-gray-900">{fmt(c.saldoPendiente)}</span>
                         {(c.totalMora ?? 0) > 0 && (
-                          <span className="block text-[10px] font-semibold text-red-500">+ {fmt(c.totalMora)} mora</span>
+                          <span className="block text-[10px] font-semibold text-red-600">+ {fmt(c.totalMora)} mora</span>
                         )}
                       </td>
 
