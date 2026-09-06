@@ -106,17 +106,27 @@ export async function construirEstadoCuentaClientePdf(
   const filasDetalle = (v: VentaCreditoEC) => {
     const lineas = detallesPorVenta[v.ventaId];
     if (!lineas?.length) return [];
-    const tenue = { fontSize: 6.5, textColor: [110, 110, 110] as [number, number, number], fillColor: [248, 250, 252] as [number, number, number] };
+    // `lineWidth: 0` saca las lineas de la grilla en estas filas: sin la
+    // division, un nombre largo usa todo el ancho en vez de romperse en dos
+    // renglones contra una celda angosta. El bloque se sigue leyendo como del
+    // renglon de arriba por el fondo gris y la flecha.
+    const tenue = {
+      fontSize: 4.5,
+      textColor: [110, 110, 110] as [number, number, number],
+      fillColor: [248, 250, 252] as [number, number, number],
+      lineWidth: 0,
+    };
     return lineas.map((d) => {
       const cant = Number(d.cantidad ?? 0);
       const pu = Number(d.precioUnitario ?? 0);
+      // Sin el "1 x S/ 36.00": la venta ya dice cuanto se cobro, aca alcanza
+      // QUE se vendio y cuanto sumo esa linea.
       return [
         {
           content: d.descripcion,
-          colSpan: 3,
-          styles: { ...tenue, cellPadding: { top: 1.8, right: 1.8, bottom: 1.8, left: SANGRIA_FLECHA } },
+          colSpan: 5,
+          styles: { ...tenue, cellPadding: { top: 1.5, right: 1.8, bottom: 1.5, left: SANGRIA_FLECHA } },
         },
-        { content: `${cant} x ${money(pu)}`, colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
         { content: money(d.total ?? cant * pu), colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
       ];
     });
@@ -125,7 +135,7 @@ export async function construirEstadoCuentaClientePdf(
   /** Traza `└─>` dentro de la sangría que dejó la celda del detalle. */
   const dibujarFlecha = (x: number, yCelda: number) => {
     const izq = x + 2.2;      // donde baja el trazo vertical
-    const alto = 3.2;         // hasta la mitad de la primera linea de texto
+    const alto = 2.7;         // hasta la mitad de la primera linea de texto
     const largo = 2.6;        // el tramo horizontal
     doc.setDrawColor(160, 160, 160).setLineWidth(0.25);
     doc.line(izq, yCelda, izq, yCelda + alto);
