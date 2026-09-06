@@ -568,7 +568,10 @@ function VentaRapidaInner() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* === Catálogo === */}
-        <div className="lg:col-span-3 space-y-3">
+        {/* `space-y-1.5` + el `pt-1.5` de la grilla: entre el buscador y las
+            tarjetas quedan 12px en vez de 24 (6 del hueco + 6 del padding de
+            arriba). Los costados y el fondo del contenedor no se tocan. */}
+        <div className="lg:col-span-3 space-y-1.5">
           <div className="relative">
             <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -591,7 +594,7 @@ function VentaRapidaInner() {
             ) : null}
           </div>
           {/* Máximo 6 columnas con respiro entre cards */}
-          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 content-start">
+          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 pt-1.5 content-start">
             {productos.map(p => (
               <button key={p.id} onClick={() => handlePick(p)} className={PRODUCT_CARD_SHELL}>
                 <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />
@@ -606,7 +609,10 @@ function VentaRapidaInner() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                     No está en el catálogo
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[#004A94]">
+                  {/* 🔴 `font-medium` (500): Amazon Ember mapea 600-1000 a la
+                      misma cara Bold, así que `font-semibold` no cambiaría
+                      nada. A 14px la Bold se empasta. */}
+                  <p className="mt-1 text-sm font-medium text-[#004A94]">
                     Crear &ldquo;{query.trim()}&rdquo; y agregarlo
                   </p>
                   <div className="mt-3 flex flex-wrap items-end gap-2">
