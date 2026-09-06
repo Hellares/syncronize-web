@@ -63,11 +63,14 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * Tonos de las tarjetas de cifras: degradado suave del blanco al tono, para
  * que cada tarjeta diga de qué habla antes de leerla.
  *
- * SIN borde. En cuentas por cobrar estas tarjetas llevan `ring-1` del color
- * porque ahí no hay sombra y 🔴 un `border-gray-200` no se ve sobre el #f5f7fa
- * del dashboard. Acá el canto lo dibujan la sombra y el blanco del arranque
- * del degradado contra el gris del fondo, así que el ring sobraba: con la
- * cifra ya teñida, marco y número decían lo mismo dos veces.
+ * SIN borde. En cuentas por cobrar estas tarjetas llevan `ring-1` del color;
+ * acá el canto lo dibujan la sombra y el tono del degradado, así que el ring
+ * sobraba: con la cifra ya teñida, marco y número decían lo mismo dos veces.
+ *
+ * 🔴 El degradado NO arranca en blanco: el fondo del dashboard es blanco desde
+ * el 06-09, y `from-white` dejaba la esquina superior izquierda disuelta en la
+ * página. Va del 50 al 200 del propio tono, y el ícono pasó a `bg-white` —que
+ * ahora es lo que contrasta— en vez del 100 que se perdía contra la tarjeta.
  *
  * La elevación es `shadow-lg` en reposo y `shadow-xl` al hover. Lo que se lee
  * como altura es el DESPLAZAMIENTO y el desenfoque de la sombra, no su
@@ -79,11 +82,11 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * que repetir el tono en cada llamada y no puedan desincronizarse.
  */
 const TONOS = {
-  neutro:  { fondo: 'from-white to-gray-100',    chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
-  azul:    { fondo: 'from-white to-blue-100',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
-  naranja: { fondo: 'from-white to-orange-100',  chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
-  fucsia:  { fondo: 'from-white to-fuchsia-100', chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
-  verde:   { fondo: 'from-white to-green-100',   chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
+  neutro:  { fondo: 'from-gray-50 to-gray-200',       chip: 'bg-white text-gray-500',       cifra: '#111827' },
+  azul:    { fondo: 'from-blue-50 to-blue-200',       chip: 'bg-white text-[#004A94]',      cifra: '#004A94' },
+  naranja: { fondo: 'from-orange-50 to-orange-200',   chip: 'bg-white text-orange-700',     cifra: '#c2410c' },
+  fucsia:  { fondo: 'from-fuchsia-50 to-fuchsia-200', chip: 'bg-white text-fuchsia-700',    cifra: '#a21caf' },
+  verde:   { fondo: 'from-green-50 to-green-200',     chip: 'bg-white text-green-700',      cifra: '#15803d' },
 } as const;
 
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
