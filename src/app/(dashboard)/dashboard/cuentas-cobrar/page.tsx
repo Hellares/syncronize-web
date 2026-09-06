@@ -126,7 +126,7 @@ export default function CuentasCobrarPage() {
 
       {/* Resumen */}
       {resumen && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             { label: 'Total por cobrar', val: totalPorCobrar, color: 'text-gray-900' },
             { label: `Pendiente (${resumen.cantidadPendientes})`, val: resumen.totalPendiente, color: 'text-amber-600' },
@@ -147,7 +147,7 @@ export default function CuentasCobrarPage() {
           altura que necesita la lista, que es lo que se usa todos los días.
           Cerrados dicen lo esencial en una línea. */}
       {resumen && (resumen.topDeudores.length > 0 || resumen.proximasVencer.length > 0) && (
-        <div className="space-y-2">
+        <div className="mx-auto w-full max-w-5xl space-y-2">
           {resumen.topDeudores.length > 0 && (
             <Plegable
               titulo="Top deudores"
@@ -356,16 +356,21 @@ export default function CuentasCobrarPage() {
                         )}
                       </td>
 
-                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">{fmt(c.totalVenta)}</td>
+                      {/* Las tres columnas de plata van con su banda de color: en
+                          una fila de diez columnas, el ojo salta de fila sin
+                          querer y termina leyendo el saldo de otro cliente. El
+                          celeste es lo facturado, el verde lo cobrado y el
+                          naranja lo que falta. */}
+                      <td className="whitespace-nowrap bg-sky-50 px-3 py-2 text-right text-gray-600">{fmt(c.totalVenta)}</td>
 
-                      <td className="hidden whitespace-nowrap px-3 py-2 text-right text-green-700 lg:table-cell">
+                      <td className="hidden whitespace-nowrap bg-green-50 px-3 py-2 text-right text-green-700 lg:table-cell">
                         {c.totalPagado > 0.005 ? fmt(c.totalPagado) : <span className="text-gray-300">—</span>}
                       </td>
 
                       {/* La mora va pegada al saldo y no en columna propia: casi
                           siempre es cero, pero cuando existe es lo mas
                           importante de la fila. */}
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <td className="whitespace-nowrap bg-orange-50 px-3 py-2 text-right">
                         <span className="font-bold text-gray-900">{fmt(c.saldoPendiente)}</span>
                         {(c.totalMora ?? 0) > 0 && (
                           <span className="block text-[10px] font-semibold text-red-500">+ {fmt(c.totalMora)} mora</span>
