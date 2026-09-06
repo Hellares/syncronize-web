@@ -99,9 +99,13 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
           const activo = pathname === a.href || pathname.startsWith(a.href + '/');
           return (
             <Link key={a.href} href={a.href} title={a.label}
-              className={`flex h-[34px] items-center gap-2 rounded-lg border px-2.5 text-[12px] transition-colors ${activo
-                ? 'border-[#cfe0f5] bg-[#eaf2fd] font-bold text-[#004A94]'
-                : 'border-transparent font-medium text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
+              // 🔴 El peso NO cambia con el activo: pasando a bold el texto se
+              // ensancha y el boton SALTA de ancho al navegar, moviendo de
+              // lugar a los de al lado. Lo que dice donde estas es el fondo
+              // #eaf2fd y el azul, no el grosor.
+              className={`flex h-[34px] items-center gap-2 rounded-lg border px-2.5 text-[10px] font-medium transition-colors ${activo
+                ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
+                : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
               <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                 <path d={ICONOS[a.icon]} />
               </svg>
