@@ -57,13 +57,20 @@ export async function construirEstadoCuentaClientePdf(
   // 17 mm de alto para un solo numero, en una hoja donde lo que importa es la
   // lista de ventas. Pegado al nombre dice lo mismo y devuelve el espacio.
   const conSaldo = r.saldoPendiente > 0.005;
-  const anchoTarjeta = 62;
+  const anchoTarjeta = 48;
   const altoTarjeta = 15;
   const xTarjeta = W - margin - anchoTarjeta;
   const yTarjeta = y - 3;
 
   // 🔴 jsPDF no tiene degradados: se simula con franjas verticales de 0.4 mm
   // interpolando los dos colores. A esa altura el corte no se ve.
+  const radio = 1.6; // 6 px
+  // El degradado se dibuja con rectangulos, asi que para que respete la
+  // esquina redondeada se RECORTA contra el mismo contorno antes de pintarlo.
+  doc.saveGraphicsState();
+  doc.roundedRect(xTarjeta, yTarjeta, anchoTarjeta, altoTarjeta, radio, radio, null as unknown as string);
+  doc.clip();
+  doc.discardPath();
   const franjas = Math.round(anchoTarjeta / 0.4);
   const desde: [number, number, number] = [255, 255, 255];
   const hasta: [number, number, number] = conSaldo ? [254, 226, 226] : [220, 252, 231];
@@ -76,9 +83,11 @@ export async function construirEstadoCuentaClientePdf(
     );
     doc.rect(xTarjeta + (anchoTarjeta * i) / franjas, yTarjeta, anchoTarjeta / franjas + 0.15, altoTarjeta, 'F');
   }
+  doc.restoreGraphicsState();
   // El borde toma el color del texto, como las tarjetas de la web.
   const borde: [number, number, number] = conSaldo ? [220, 100, 100] : [90, 180, 120];
-  doc.setDrawColor(...borde).setLineWidth(0.4).rect(xTarjeta, yTarjeta, anchoTarjeta, altoTarjeta);
+  doc.setDrawColor(...borde).setLineWidth(0.4)
+    .roundedRect(xTarjeta, yTarjeta, anchoTarjeta, altoTarjeta, radio, radio, 'S');
 
   const tinta: [number, number, number] = conSaldo ? [190, 40, 40] : [30, 130, 70];
   doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(110, 110, 110);
