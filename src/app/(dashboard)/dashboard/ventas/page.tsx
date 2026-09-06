@@ -68,6 +68,16 @@ function rangoAtajo(atajo: string): { desde: string; hasta: string } {
   }
 }
 
+// Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
+// mismo de Productos, Compras y Cuentas por cobrar. Los filtros van un escalon
+// por debajo del buscador --26 px y 10 px de fuente-- a proposito: el buscador
+// es donde se escribe y los filtros son de apoyo, asi que la barra se lee mejor
+// si no compiten.
+const INPUT_STD =
+  'bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const SELECT_FILTRO =
+  'bg-zinc-100 text-[#004A94] font-sans text-[10px] ring-1 ring-blue-400 outline-none transition-all duration-300 rounded-[6px] h-[26px] px-2.5 shadow-md focus:shadow-lg focus:shadow-blue-200';
+
 export default function VentasPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -187,61 +197,68 @@ export default function VentasPage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1 max-w-sm">
           <input
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+            className={`${INPUT_STD} w-full`}
             value={search} onChange={e => handleSearch(e.target.value)}
             placeholder="Buscar por código, cliente o documento..." />
         </div>
         <select value={estado} onChange={e => setEstado(e.target.value as EstadoVenta | '')}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+          className={SELECT_FILTRO}>
           {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
         </select>
         <select value={canal} onChange={e => setCanal(e.target.value as CanalVenta | '')}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+          className={SELECT_FILTRO}>
           {CANALES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
         {sedes.filter(s => s.isActive).length > 1 && (
           <select value={sedeId} onChange={e => setSedeId(e.target.value)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+            className={SELECT_FILTRO}>
             <option value="">Todas las sedes</option>
             {sedes.filter(s => s.isActive).map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
           </select>
         )}
         <select value={tipoEntrega} onChange={e => setTipoEntrega(e.target.value as TipoEntregaFiltro | '')}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:border-[#437EFF]">
+          className={SELECT_FILTRO}>
           {ENTREGAS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         {(tipoEntrega === 'ENVIO' || tipoEntrega === 'DELIVERY' || tipoEntrega === '') && (
           <input
-            className="w-44 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20"
+            className={`${SELECT_FILTRO} w-44`}
             value={entregaBusqueda} onChange={e => handleEntregaBusqueda(e.target.value)}
             placeholder={tipoEntrega === 'DELIVERY' ? 'Dirección o distrito...' : tipoEntrega === 'ENVIO' ? 'Agencia o destino...' : 'Agencia, dirección, destino...'} />
         )}
         {emisores.length >= 2 && (
           <select value={rucEmisor} onChange={e => setRucEmisor(e.target.value)}
-            className="rounded-lg border border-teal-200 px-3 py-2 text-sm bg-white outline-none focus:border-teal-500 text-teal-800">
+            className={`${SELECT_FILTRO} ring-teal-400 text-teal-800`}>
             <option value="">Todos los emisores</option>
             {emisores.map(em => <option key={em.ruc} value={em.ruc}>{em.razonSocial} ({em.ruc})</option>)}
             <option value="SIN_COMPROBANTE">Ticket sin comprobante</option>
           </select>
         )}
         <input type="date" value={fechaDesde} onChange={e => { setFechaDesde(e.target.value); setAtajo(''); }}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+          className={SELECT_FILTRO} />
         <input type="date" value={fechaHasta} onChange={e => { setFechaHasta(e.target.value); setAtajo(''); }}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]" />
+          className={SELECT_FILTRO} />
       </div>
 
       {/* Atajos de fecha */}
-      <div className="flex flex-wrap gap-1.5">
-        {[['hoy', 'Hoy'], ['ayer', 'Ayer'], ['semana', 'Esta semana'], ['mes', 'Este mes']].map(([k, lbl]) => (
-          <button key={k} onClick={() => aplicarAtajo(k)}
-            className={`rounded-full border px-3 py-1 text-xs ${atajo === k ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-semibold' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-            {lbl}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* Mismos chips que los de estado en Productos: una pastilla gris con
+            el elegido en blanco. Los bordes sueltos de antes competian con los
+            selects que tienen al lado. */}
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
+          {[['hoy', 'Hoy'], ['ayer', 'Ayer'], ['semana', 'Esta semana'], ['mes', 'Este mes']].map(([k, lbl]) => (
+            <button key={k} onClick={() => aplicarAtajo(k)}
+              className={`rounded-md px-2.5 py-1 text-[10px] font-medium transition-all ${
+                atajo === k ? 'bg-white text-[#004A94] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
         {(fechaDesde || fechaHasta) && (
           <button onClick={() => { setFechaDesde(''); setFechaHasta(''); setAtajo(''); }}
-            className="rounded-full border border-red-200 px-3 py-1 text-xs text-red-500 hover:bg-red-50">
-            ✕ Limpiar fechas
+            className="rounded-md px-2.5 py-1 text-[10px] font-medium text-red-500 transition-colors hover:bg-red-50">
+            Limpiar fechas
           </button>
         )}
       </div>
