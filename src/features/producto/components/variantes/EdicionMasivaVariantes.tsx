@@ -265,7 +265,7 @@ export default function EdicionMasivaVariantes({ producto, variantes, sedeId, on
               <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Stock</th>
               <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">+ Stock</th>
               <th className="w-px whitespace-nowrap bg-green-100 px-2 py-3 text-center font-medium text-[#004A94]">P.Venta</th>
-              <th className="w-px whitespace-nowrap bg-sky-100 px-2 py-3 text-center font-medium text-[#004A94]">Costo</th>
+              <th className="w-px whitespace-nowrap bg-yellow-100 px-2 py-3 text-center font-medium text-[#004A94]">Costo</th>
               <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Desde</th>
               <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Mayor S/</th>
             </tr>
@@ -313,7 +313,7 @@ export default function EdicionMasivaVariantes({ producto, variantes, sedeId, on
                   <td className="bg-green-50 px-2 py-1.5">
                     <input value={f.precio} onChange={e => setCampo(v.id, 'precio', e.target.value)} inputMode="decimal" placeholder={st?.precio != null ? String(Number(st.precio)) : ''} className={`${INPUT_CELDA} w-[76px]`} />
                   </td>
-                  <td className="bg-sky-50 px-2 py-1.5">
+                  <td className="bg-yellow-50 px-2 py-1.5">
                     <input value={f.precioCosto} onChange={e => setCampo(v.id, 'precioCosto', e.target.value)} inputMode="decimal" placeholder={st?.precioCosto != null ? String(Number(st.precioCosto)) : ''} className={`${INPUT_CELDA} w-[76px]`} />
                   </td>
                   <td className="px-2 py-1.5"><input value={f.mayorDesde} onChange={e => setCampo(v.id, 'mayorDesde', e.target.value)} inputMode="numeric" placeholder={nivel ? String(nivel.cantidadMinima) : ''} className={`${INPUT_CELDA} w-[62px]`} /></td>
