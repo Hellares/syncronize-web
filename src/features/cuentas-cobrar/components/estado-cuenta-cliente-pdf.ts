@@ -2,17 +2,29 @@
 // jsPDF + autotable, mismo patrón que estado-cuenta-tercero-pdf.ts.
 
 import type { EstadoCuentaCliente, VentaCreditoEC, AbonoEC } from '@/core/types/cuentas-cobrar';
+import type { VentaDetalle } from '@/core/types/venta';
+
+/** Las líneas de cada venta, por `ventaId`. El estado de cuenta no las trae:
+ *  las pide la pantalla antes de generar el PDF. */
+export type DetallesPorVenta = Record<string, VentaDetalle[] | undefined>;
 
 const money = (v: number) => `S/ ${Number(v ?? 0).toFixed(2)}`;
 const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
 const fuenteLabel = (f?: string | null) =>
   f === 'TESORERIA' ? 'Tesorería' : f === 'CAJA' ? 'Caja' : f === 'BANCO' ? 'Banco' : f ?? '—';
 
-export async function descargarEstadoCuentaCliente(
+/**
+ * Arma el documento y lo devuelve SIN guardarlo.
+ *
+ * Separado de `descargar` para poder renderizarlo en Node --jiti + PyMuPDF--
+ * y mirar como queda sin levantar el dashboard: `doc.save()` es del navegador.
+ */
+export async function construirEstadoCuentaClientePdf(
   data: EstadoCuentaCliente,
   empresaNombre: string,
   empresaRuc?: string,
-): Promise<void> {
+  detallesPorVenta: DetallesPorVenta = {},
+) {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
@@ -75,6 +87,31 @@ export async function descargarEstadoCuentaCliente(
     y += 2;
   };
 
+  /**
+   * Las líneas de una venta, colgando de su fila con una flecha.
+   *
+   * Van como filas de la MISMA tabla y no como una tabla aparte: así el corte
+   * de página las mantiene pegadas a su venta y las columnas siguen alineadas.
+   * Los `colSpan` suman 7, que son las columnas de la tabla de ventas.
+   *
+   * 🔴 La flecha es ASCII (`|_>`) a propósito: las fuentes estándar de jsPDF
+   * son WinAnsi y un `└─>` sale como basura.
+   */
+  const filasDetalle = (v: VentaCreditoEC) => {
+    const lineas = detallesPorVenta[v.ventaId];
+    if (!lineas?.length) return [];
+    const tenue = { fontSize: 6.5, textColor: [110, 110, 110] as [number, number, number], fillColor: [248, 250, 252] as [number, number, number] };
+    return lineas.map((d) => {
+      const cant = Number(d.cantidad ?? 0);
+      const pu = Number(d.precioUnitario ?? 0);
+      return [
+        { content: `   |_>  ${d.descripcion}`, colSpan: 3, styles: tenue },
+        { content: `${cant} x ${money(pu)}`, colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
+        { content: money(d.total ?? cant * pu), colSpan: 2, styles: { ...tenue, halign: 'right' as const } },
+      ];
+    });
+  };
+
   const tablaVentas = (titulo: string, ventas: VentaCreditoEC[], emptyMsg?: string) => {
     seccion(titulo);
     if (!ventas.length) {
@@ -84,14 +121,17 @@ export async function descargarEstadoCuentaCliente(
     autoTable(doc, {
       startY: y,
       head: [['Código', 'Fecha', 'Vence', 'Total', 'Abonado', 'Saldo', 'Estado']],
-      body: ventas.map((v) => [
-        v.codigo,
-        fmtFecha(v.fechaVenta),
-        fmtFecha(v.fechaVencimiento),
-        money(v.total),
-        money(v.totalPagado),
-        money(v.saldoPendiente),
-        v.estado,
+      body: ventas.flatMap((v) => [
+        [
+          v.codigo,
+          fmtFecha(v.fechaVenta),
+          fmtFecha(v.fechaVencimiento),
+          money(v.total),
+          money(v.totalPagado),
+          money(v.saldoPendiente),
+          v.estado,
+        ],
+        ...filasDetalle(v),
       ]),
       styles: { fontSize: 7.5, cellPadding: 1.8 },
       headStyles: { fillColor: [0, 74, 148], fontSize: 8 },
@@ -134,6 +174,16 @@ export async function descargarEstadoCuentaCliente(
   tablaAbonos(data.abonos);
   if (historial.length) tablaVentas('HISTORIAL (PAGADAS)', historial);
 
-  const nombre = (c.nombre ?? 'cliente').replace(/[^A-Za-z0-9]+/g, '_');
+  return doc;
+}
+
+export async function descargarEstadoCuentaCliente(
+  data: EstadoCuentaCliente,
+  empresaNombre: string,
+  empresaRuc?: string,
+  detallesPorVenta: DetallesPorVenta = {},
+): Promise<void> {
+  const doc = await construirEstadoCuentaClientePdf(data, empresaNombre, empresaRuc, detallesPorVenta);
+  const nombre = (data.cliente.nombre ?? 'cliente').replace(/[^A-Za-z0-9]+/g, '_');
   doc.save(`estado-cuenta-${nombre}.pdf`);
 }
