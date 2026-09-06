@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useProductos } from '@/features/producto/hooks/use-productos';
 import ProductoTable from '@/features/producto/components/ProductoTable';
-import ProductoFilters from '@/features/producto/components/ProductoFilters';
+import ProductoFilters, { TogglesRapidos } from '@/features/producto/components/ProductoFilters';
 import DeleteDialog from '@/features/producto/components/DeleteDialog';
 import * as productoService from '@/features/producto/services/producto-service';
 import * as stockService from '@/features/stock/services/stock-service';
@@ -162,6 +162,12 @@ export default function ProductosPage() {
             </p>
           </>
         )}
+        {/* Los atajos, pegados al conteo: son los filtros que mas se tocan y
+            estaban al final de la barra, detras de cinco desplegables. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <TogglesRapidos filtros={filtros} onUpdate={updateFiltros} />
+        </div>
+
         <div className="ml-auto flex items-center gap-2">
           {/* Armar un catálogo NO es administrar productos: lo usa quien
               atiende, que muchas veces no puede editarlos. */}

@@ -190,28 +190,6 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
           ))}
         </select>
 
-        {/* Toggles rápidos (mismos filtros que la app Flutter) */}
-        {([
-          { label: '🏷 En oferta', key: 'enOferta' },
-          { label: '⚠ Stock bajo', key: 'stockBajo' },
-          { label: '★ Destacados', key: 'destacado' },
-          { label: '🛒 Marketplace', key: 'visibleMarketplace' },
-        ] as const).map((t) => {
-          const active = filtros[t.key] === true;
-          return (
-            <button
-              key={t.key}
-              onClick={() => onUpdate({ [t.key]: active ? undefined : true })}
-              className={`rounded-lg border px-3 py-1.5 text-[10px] font-medium transition-colors ${
-                active
-                  ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
-                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
 
         <button
           onClick={onReset}
@@ -221,5 +199,48 @@ export default function ProductoFilters({ filtros, onUpdate, onReset }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Los cuatro atajos de siempre --oferta, stock bajo, destacados,
+ * marketplace-- que se dibujan en la CABECERA, al lado del conteo.
+ *
+ * Estaban al final de la barra de filtros, detrás de cinco desplegables: son
+ * los que más se tocan y quedaban en el peor lugar. Viven en este archivo
+ * porque sus claves son las mismas de `ProductoFiltros` y conviene que se
+ * cambien de a una sola vez.
+ */
+export function TogglesRapidos({
+  filtros,
+  onUpdate,
+}: {
+  filtros: ProductoFiltros;
+  onUpdate: (partial: Partial<ProductoFiltros>) => void;
+}) {
+  return (
+    <>
+      {([
+        { label: '🏷 En oferta', key: 'enOferta' },
+        { label: '⚠ Stock bajo', key: 'stockBajo' },
+        { label: '★ Destacados', key: 'destacado' },
+        { label: '🛒 Marketplace', key: 'visibleMarketplace' },
+      ] as const).map((t) => {
+        const active = filtros[t.key] === true;
+        return (
+          <button
+            key={t.key}
+            onClick={() => onUpdate({ [t.key]: active ? undefined : true })}
+            className={`inline-flex h-[26px] items-center rounded-md border px-2.5 text-[10px] font-medium transition-colors ${
+              active
+                ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </>
   );
 }
