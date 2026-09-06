@@ -65,9 +65,13 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  *
  * SIN borde. En cuentas por cobrar estas tarjetas llevan `ring-1` del color
  * porque ahí no hay sombra y 🔴 un `border-gray-200` no se ve sobre el #f5f7fa
- * del dashboard. Acá el canto lo dibujan la `shadow-md` y el blanco del
- * arranque del degradado contra el gris del fondo, así que el ring sobraba: con
- * la cifra ya teñida, marco y número decían lo mismo dos veces.
+ * del dashboard. Acá el canto lo dibujan la sombra y el blanco del arranque
+ * del degradado contra el gris del fondo, así que el ring sobraba: con la
+ * cifra ya teñida, marco y número decían lo mismo dos veces.
+ *
+ * La elevación es `shadow-lg` en reposo y `shadow-xl` al hover. Lo que se lee
+ * como altura es el DESPLAZAMIENTO y el desenfoque de la sombra, no su
+ * opacidad: para levantarlas más hay que subir de escalón, no oscurecerlas.
  *
  * `cifra` es el tono OSCURO de cada color, no el vivo: sobre blanco, el 600 de
  * naranja se queda en 3.6:1 de contraste y la cifra es el dato que se lee de
@@ -91,7 +95,7 @@ function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
   const t = TONOS[tono];
   return (
     <div
-      className={`rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${t.fondo}`}
+      className={`rounded-xl bg-gradient-to-br p-4 shadow-lg transition-shadow hover:shadow-xl ${t.fondo}`}
       style={{ '--tono-cifra': t.cifra } as React.CSSProperties}
     >
       <div className="flex items-center gap-2">
@@ -387,7 +391,7 @@ export default function DashboardPage() {
         {permissions.canViewCaja && (
           cajaLista ? (
             caja ? (
-              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${TONOS.verde.fondo}`}>
+              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-lg transition-shadow hover:shadow-xl ${TONOS.verde.fondo}`}>
                 <div className="flex items-center gap-2">
                   <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${TONOS.verde.chip}`}>
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
@@ -412,7 +416,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${TONOS.neutro.fondo}`}>
+              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-lg transition-shadow hover:shadow-xl ${TONOS.neutro.fondo}`}>
                 {/* Sin caja abierta va en GRIS, no en verde: el verde de esta
                     tarjeta significa "caja abierta", y teñirla igual borraría
                     la única señal que da de un vistazo. */}
