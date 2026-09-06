@@ -73,8 +73,8 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * como altura es el DESPLAZAMIENTO y el desenfoque de la sombra, no su
  * opacidad: para levantarlas más hay que subir de escalón, no oscurecerlas.
  *
- * `from-40%` retrasa el arranque: la tarjeta se queda BLANCA hasta el 40% de
- * la diagonal y el degradado ocurre en el 60% restante. Sin esa parada el
+ * `from-30%` retrasa el arranque: la tarjeta se queda BLANCA hasta el 30% de
+ * la diagonal y el degradado ocurre en el 70% restante. Sin esa parada el
  * blanco vive solo en la esquina (0%) y a un cuarto de camino ya hay mezcla,
  * así que el tono terminaba invadiendo la zona donde va la cifra.
  *
@@ -84,11 +84,11 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * que repetir el tono en cada llamada y no puedan desincronizarse.
  */
 const TONOS = {
-  neutro:  { fondo: 'from-white from-40% to-gray-200',    chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
-  azul:    { fondo: 'from-white from-40% to-blue-200',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
-  naranja: { fondo: 'from-white from-40% to-orange-200',  chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
-  fucsia:  { fondo: 'from-white from-40% to-fuchsia-200', chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
-  verde:   { fondo: 'from-white from-40% to-green-200',   chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
+  neutro:  { fondo: 'from-white from-30% to-gray-200',    chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
+  azul:    { fondo: 'from-white from-30% to-blue-200',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
+  naranja: { fondo: 'from-white from-30% to-orange-200',  chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
+  fucsia:  { fondo: 'from-white from-30% to-fuchsia-200', chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
+  verde:   { fondo: 'from-white from-30% to-green-200',   chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
 } as const;
 
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
