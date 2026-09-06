@@ -39,6 +39,14 @@ export interface SidebarItem {
   icon: string;
   permission?: CondicionPermiso;
   /**
+   * Solo en `ACCESOS_RAPIDOS`: el boton no navega, despliega estos.
+   *
+   * 🔴 El destino propio va DENTRO de la lista, no en el boton: si el boton
+   * navegara, en una pantalla tactil el toque se iria a la pagina y el
+   * desplegable no se abriria nunca --el mismo problema del riel del menu--.
+   */
+  submenu?: SidebarItem[];
+  /**
    * Id del catálogo de elementos ocultables (`accesosRapidosOcultos`).
    *
    * Los del dashboard van sin prefijo (`venta-rapida`), los que solo viven en
@@ -540,4 +548,18 @@ export const ACCESOS_RAPIDOS: SidebarItem[] = [
   // esa es `alcancia`, asi que abajo de `xl`, donde solo se ven iconos, los
   // dos accesos siguen siendo distinguibles.
   { label: 'Productos', labelCorto: 'Prod', href: '/dashboard/productos', permission: 'canViewProducts', ocultableId: 'productos', icon: 'caja' },
+  // Tesoreria agrupa lo que se cobra y lo que se paga: son tres pantallas que
+  // se visitan juntas y como tres botones sueltos comerian toda la barra.
+  {
+    label: 'Tesorería',
+    href: '/dashboard/tesoreria',
+    icon: 'banco',
+    permission: ['canViewCaja', 'canViewReports', 'canViewCompras'],
+    ocultableId: 'tesoreria-accesos',
+    submenu: [
+      { label: 'Tesorería', href: '/dashboard/tesoreria', icon: 'banco', permission: 'canViewCaja' },
+      { label: 'Cuentas por Cobrar', href: '/dashboard/cuentas-cobrar', icon: 'billetera', permission: 'canViewReports' },
+      { label: 'Cuentas por Pagar', href: '/dashboard/cuentas-pagar', icon: 'pago', permission: 'canViewCompras' },
+    ],
+  },
 ];

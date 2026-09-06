@@ -41,6 +41,8 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
   const permissions = usePermissions();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  /** Qué acceso rápido tiene su desplegable abierto, por `href`. */
+  const [submenu, setSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const ruta = useRuta(pathname);
   // Mismos permisos que el menú: un vendedor sin cotizaciones no ve el acceso.
@@ -66,6 +68,15 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
     if (userMenuOpen) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [userMenuOpen]);
+
+  useEffect(() => {
+    if (!submenu) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSubmenu(null);
+    };
+    document.addEventListener('keydown', alTeclear);
+    return () => document.removeEventListener('keydown', alTeclear);
+  }, [submenu]);
 
   return (
     <header className="sticky top-0 z-30 flex h-[58px] items-center gap-3 border-b border-[#e8ecf1] bg-white px-4 md:px-5">
@@ -97,18 +108,75 @@ export default function DashboardHeader({ onMenuToggle }: Props) {
       <nav className="hidden shrink-0 items-center gap-1.5 sm:flex">
         {accesos.map((a) => {
           const activo = pathname === a.href || pathname.startsWith(a.href + '/');
+          // 🔴 El peso NO cambia con el activo: pasando a bold el texto se
+          // ensancha y el boton SALTA de ancho al navegar, moviendo de lugar a
+          // los de al lado. Lo que dice donde estas es el fondo #eaf2fd y el
+          // azul, no el grosor.
+          const clases = `flex h-[30px] items-center gap-2 rounded-lg border px-2.5 text-[10px] font-medium transition-colors ${activo
+            ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
+            : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`;
+          const icono = (
+            <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <path d={ICONOS[a.icon]} />
+            </svg>
+          );
+
+          // Con submenú el botón NO navega: despliega. Abre al pasar el mouse y
+          // también al tocarlo, que es lo que lo hace usable en una tablet.
+          const hijos = (a.submenu ?? []).filter((h) => tienePermiso(permissions, h.permission));
+          if (hijos.length > 0) {
+            const abierto = submenu === a.href;
+            return (
+              <div
+                key={a.href}
+                className="relative"
+                onMouseEnter={() => setSubmenu(a.href)}
+                onMouseLeave={() => setSubmenu((s) => (s === a.href ? null : s))}
+              >
+                <button
+                  type="button"
+                  title={a.label}
+                  aria-expanded={abierto}
+                  onClick={() => setSubmenu((s) => (s === a.href ? null : a.href))}
+                  className={clases}
+                >
+                  {icono}
+                  <span className="hidden xl:inline">{a.labelCorto ?? a.label}</span>
+                  <svg className={`h-2.5 w-2.5 shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {abierto && (
+                  <div className="absolute right-0 top-full z-40 mt-1 w-56 rounded-[6px] bg-white p-1.5 shadow-lg ring-1 ring-blue-400/60">
+                    {hijos.map((h) => {
+                      const hActivo = pathname === h.href || pathname.startsWith(h.href + '/');
+                      return (
+                        <Link
+                          key={h.href}
+                          href={h.href}
+                          onClick={() => setSubmenu(null)}
+                          className={`flex items-center gap-2.5 rounded-[4px] px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                            hActivo ? 'bg-[#eaf2fd] text-[#004A94]' : 'text-gray-600 hover:bg-gray-50 hover:text-[#004A94]'
+                          }`}
+                        >
+                          <svg className="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                            <path d={ICONOS[h.icon]} />
+                          </svg>
+                          {h.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           return (
-            <Link key={a.href} href={a.href} title={a.label}
-              // 🔴 El peso NO cambia con el activo: pasando a bold el texto se
-              // ensancha y el boton SALTA de ancho al navegar, moviendo de
-              // lugar a los de al lado. Lo que dice donde estas es el fondo
-              // #eaf2fd y el azul, no el grosor.
-              className={`flex h-[30px] items-center gap-2 rounded-lg border px-2.5 text-[10px] font-medium transition-colors ${activo
-                ? 'border-[#cfe0f5] bg-[#eaf2fd] text-[#004A94]'
-                : 'border-transparent text-gray-500 hover:border-[#e8ecf1] hover:bg-gray-50 hover:text-[#004A94]'}`}>
-              <svg className="h-[17px] w-[17px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                <path d={ICONOS[a.icon]} />
-              </svg>
+            <Link key={a.href} href={a.href} title={a.label} className={clases}>
+              {icono}
               <span className="hidden xl:inline">{a.labelCorto ?? a.label}</span>
             </Link>
           );
