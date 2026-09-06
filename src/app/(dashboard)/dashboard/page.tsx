@@ -60,10 +60,14 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
 /* ─────────── Piezas ─────────── */
 
 /**
- * Tonos de las tarjetas de cifras, con el mismo lenguaje que el resumen de
- * cuentas por cobrar: degradado suave del blanco al tono y `ring-1` del color
- * del dato en vez de borde gris —🔴 `border-gray-200` no se ve sobre el
- * #f5f7fa del dashboard—. Cada tarjeta dice de qué habla antes de leerla.
+ * Tonos de las tarjetas de cifras: degradado suave del blanco al tono, para
+ * que cada tarjeta diga de qué habla antes de leerla.
+ *
+ * SIN borde. En cuentas por cobrar estas tarjetas llevan `ring-1` del color
+ * porque ahí no hay sombra y 🔴 un `border-gray-200` no se ve sobre el #f5f7fa
+ * del dashboard. Acá el canto lo dibujan la `shadow-md` y el blanco del
+ * arranque del degradado contra el gris del fondo, así que el ring sobraba: con
+ * la cifra ya teñida, marco y número decían lo mismo dos veces.
  *
  * `cifra` es el tono OSCURO de cada color, no el vivo: sobre blanco, el 600 de
  * naranja se queda en 3.6:1 de contraste y la cifra es el dato que se lee de
@@ -71,11 +75,11 @@ const FECHA_LARGA = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'nu
  * que repetir el tono en cada llamada y no puedan desincronizarse.
  */
 const TONOS = {
-  neutro:  { fondo: 'from-white to-gray-100',    ring: 'ring-gray-300/50',     chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
-  azul:    { fondo: 'from-white to-blue-100',    ring: 'ring-[#004A94]/25',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
-  naranja: { fondo: 'from-white to-orange-100',  ring: 'ring-orange-400/50',   chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
-  fucsia:  { fondo: 'from-white to-fuchsia-100', ring: 'ring-fuchsia-400/50',  chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
-  verde:   { fondo: 'from-white to-green-100',   ring: 'ring-green-500/50',    chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
+  neutro:  { fondo: 'from-white to-gray-100',    chip: 'bg-gray-100 text-gray-500',       cifra: '#111827' },
+  azul:    { fondo: 'from-white to-blue-100',    chip: 'bg-blue-100 text-[#004A94]',      cifra: '#004A94' },
+  naranja: { fondo: 'from-white to-orange-100',  chip: 'bg-orange-100 text-orange-700',   cifra: '#c2410c' },
+  fucsia:  { fondo: 'from-white to-fuchsia-100', chip: 'bg-fuchsia-100 text-fuchsia-700', cifra: '#a21caf' },
+  verde:   { fondo: 'from-white to-green-100',   chip: 'bg-green-100 text-green-700',     cifra: '#15803d' },
 } as const;
 
 function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
@@ -87,7 +91,7 @@ function Tarjeta({ titulo, icono, tono = 'neutro', children }: {
   const t = TONOS[tono];
   return (
     <div
-      className={`rounded-xl bg-gradient-to-br p-4 shadow-md ring-1 transition-shadow hover:shadow-lg ${t.fondo} ${t.ring}`}
+      className={`rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${t.fondo}`}
       style={{ '--tono-cifra': t.cifra } as React.CSSProperties}
     >
       <div className="flex items-center gap-2">
@@ -383,7 +387,7 @@ export default function DashboardPage() {
         {permissions.canViewCaja && (
           cajaLista ? (
             caja ? (
-              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md ring-1 transition-shadow hover:shadow-lg ${TONOS.verde.fondo} ${TONOS.verde.ring}`}>
+              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${TONOS.verde.fondo}`}>
                 <div className="flex items-center gap-2">
                   <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${TONOS.verde.chip}`}>
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
@@ -408,7 +412,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md ring-1 transition-shadow hover:shadow-lg ${TONOS.neutro.fondo} ${TONOS.neutro.ring}`}>
+              <div className={`flex flex-col rounded-xl bg-gradient-to-br p-4 shadow-md transition-shadow hover:shadow-lg ${TONOS.neutro.fondo}`}>
                 {/* Sin caja abierta va en GRIS, no en verde: el verde de esta
                     tarjeta significa "caja abierta", y teñirla igual borraría
                     la única señal que da de un vistazo. */}
