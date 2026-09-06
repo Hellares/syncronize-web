@@ -464,10 +464,11 @@ export default function DashboardPage() {
 
       {/* ── Este mes: el puente al análisis, sin duplicarlo ── */}
       {verStats && (proyeccion || mes) && (
-        // `p-3` y no `p-4` como el resto de los bloques: son 4px arriba y 4
-        // abajo, la mitad de los 10px que se le recortaron a esta tarjeta para
-        // compactarla. Los otros 2 salen del `mt-2.5` de la grilla.
-        <div className={`p-3 ${BLOQUE_STD}`}>
+        // Esta tarjeta NO usa `BLOQUE_STD`: va en #e8f2ff plano —sin degradado
+        // y sin borde— y con `p-2`, 18px menos de alto que los demás bloques
+        // (8 del padding contra su p-4 original, más 2 del `mt-2.5` de la
+        // grilla, más lo que cede la cifra al bajar de 22 a 20px).
+        <div className="rounded-xl bg-[#e8f2ff] p-2">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className={TITULO_BLOQUE}>Este mes</h2>
             <Link href="/dashboard/ventas/analytics" className="text-[11px] font-bold text-[#004A94] hover:underline">
@@ -478,7 +479,7 @@ export default function DashboardPage() {
           <div className="mt-2.5 grid gap-4 sm:grid-cols-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Vendido</p>
-              <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+              <p className="mt-1 text-[20px] font-bold leading-none tracking-tight text-[#004A94]">
                 {soles(mes?.montoTotal ?? proyeccion?.ventasActual ?? 0)}
               </p>
               <p className="mt-1.5 text-[11px] text-gray-500">
@@ -492,7 +493,7 @@ export default function DashboardPage() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Proyección al cierre</p>
               {proyeccion?.suficiente && proyeccion.proyeccionCierre != null ? (
                 <>
-                  <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+                  <p className="mt-1 text-[20px] font-bold leading-none tracking-tight text-[#004A94]">
                     {soles(proyeccion.proyeccionCierre)}
                   </p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -519,7 +520,7 @@ export default function DashboardPage() {
             {permissions.canViewReports && (
               <div className="sm:border-l sm:border-gray-100 sm:pl-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Margen del mes</p>
-                <p className="mt-1 text-[22px] font-bold leading-none tracking-tight text-gray-900">
+                <p className="mt-1 text-[20px] font-bold leading-none tracking-tight text-[#004A94]">
                   {mes ? soles(mes.utilidadBruta) : '—'}
                 </p>
                 <p className="mt-1.5 text-[11px] text-gray-500">
