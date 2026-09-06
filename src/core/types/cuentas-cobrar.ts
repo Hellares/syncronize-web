@@ -87,6 +87,8 @@ export interface EstadoCuentaCliente {
     tipo: 'PERSONA' | 'EMPRESA';
     nombre: string | null;
     documento: string | null;
+    /** Del snapshot de sus ventas (o de la ficha B2B). Para mandarle el PDF. */
+    telefono?: string | null;
   };
   resumen: {
     saldoPendiente: number;

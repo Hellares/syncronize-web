@@ -9,6 +9,31 @@ import type { VentaDetalle } from '@/core/types/venta';
  *  las pide la pantalla antes de generar el PDF. */
 export type DetallesPorVenta = Record<string, VentaDetalle[] | undefined>;
 
+/**
+ * Qué entra en el documento.
+ *
+ * Nace de un problema real: una vez saldada la venta, su fila en el historial y
+ * sus abonos hacen ruido en el PDF que se le manda al cliente para cobrarle.
+ * Por eso el historial y los abonos arrancan APAGADOS, y se pueden elegir
+ * ventas puntuales --el cliente que pide el detalle de pagos de UNA venta--.
+ */
+export interface OpcionesEstadoCuenta {
+  incluirPendientes: boolean;
+  incluirHistorial: boolean;
+  incluirAbonos: boolean;
+  /** Las líneas de cada venta, colgando de su fila. */
+  incluirDetalle: boolean;
+  /** Si viene, SOLO estas ventas. Vacío o ausente = todas. */
+  ventasIds?: string[];
+}
+
+export const OPCIONES_POR_DEFECTO: OpcionesEstadoCuenta = {
+  incluirPendientes: true,
+  incluirHistorial: false,
+  incluirAbonos: false,
+  incluirDetalle: true,
+};
+
 const money = (v: number) => `S/ ${Number(v ?? 0).toFixed(2)}`;
 const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
 const fuenteLabel = (f?: string | null) =>
@@ -25,6 +50,7 @@ export async function construirEstadoCuentaClientePdf(
   empresaNombre: string,
   empresaRuc?: string,
   detallesPorVenta: DetallesPorVenta = {},
+  opciones: OpcionesEstadoCuenta = OPCIONES_POR_DEFECTO,
 ) {
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
@@ -36,8 +62,25 @@ export async function construirEstadoCuentaClientePdf(
 
   const c = data.cliente;
   const r = data.resumen;
-  const pendientes = data.ventas.filter((v) => v.saldoPendiente > 0.01);
-  const historial = data.ventas.filter((v) => v.saldoPendiente <= 0.01);
+  // 🔴 El RESUMEN de arriba no se filtra nunca: es la deuda real del cliente.
+  // Recalcularlo sobre las ventas elegidas diría que debe menos de lo que debe.
+  // Lo que se aclara, abajo de la tabla, es cuántas de cuántas se muestran.
+  const elegidas = opciones.ventasIds?.length
+    ? data.ventas.filter((v) => opciones.ventasIds!.includes(v.ventaId))
+    : data.ventas;
+  const hayFiltro = elegidas.length !== data.ventas.length;
+  const pendientes = opciones.incluirPendientes
+    ? elegidas.filter((v) => v.saldoPendiente > 0.01)
+    : [];
+  const historial = opciones.incluirHistorial
+    ? elegidas.filter((v) => v.saldoPendiente <= 0.01)
+    : [];
+  // Los abonos siguen a las ventas elegidas: si se pidió el detalle de una
+  // venta, los abonos de las otras no tienen por qué aparecer.
+  const codigosElegidos = new Set(elegidas.map((v) => v.codigo));
+  const abonos = opciones.incluirAbonos
+    ? data.abonos.filter((a) => !a.ventaCodigo || codigosElegidos.has(a.ventaCodigo))
+    : [];
 
   // Encabezado
   doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(0, 0, 0);
@@ -146,6 +189,7 @@ export async function construirEstadoCuentaClientePdf(
   const SANGRIA_FLECHA = 7;
 
   const filasDetalle = (v: VentaCreditoEC) => {
+    if (!opciones.incluirDetalle) return [];
     const lineas = detallesPorVenta[v.ventaId];
     if (!lineas?.length) return [];
     // `lineWidth: 0` saca las lineas de la grilla en estas filas: sin la
@@ -259,9 +303,19 @@ export async function construirEstadoCuentaClientePdf(
     y = doc.lastAutoTable.finalY + 6;
   };
 
-  tablaVentas('VENTAS PENDIENTES', pendientes, 'Sin ventas pendientes.');
-  tablaAbonos(data.abonos);
-  if (historial.length) tablaVentas('HISTORIAL (PAGADAS)', historial);
+  if (opciones.incluirPendientes) tablaVentas('VENTAS PENDIENTES', pendientes, 'Sin ventas pendientes.');
+  if (opciones.incluirHistorial && historial.length) tablaVentas('HISTORIAL (PAGADAS)', historial);
+  if (opciones.incluirAbonos) tablaAbonos(abonos);
+
+  // Sin esta línea, un PDF de dos ventas parecería el estado de cuenta entero.
+  if (hayFiltro) {
+    doc.setFontSize(7.5).setFont('helvetica', 'italic').setTextColor(130, 130, 130);
+    doc.text(
+      `Muestra ${elegidas.length} de ${data.ventas.length} ventas a crédito del cliente.`,
+      margin, y,
+    );
+    y += 6;
+  }
 
   return doc;
 }
@@ -271,8 +325,9 @@ export async function descargarEstadoCuentaCliente(
   empresaNombre: string,
   empresaRuc?: string,
   detallesPorVenta: DetallesPorVenta = {},
+  opciones: OpcionesEstadoCuenta = OPCIONES_POR_DEFECTO,
 ): Promise<void> {
-  const doc = await construirEstadoCuentaClientePdf(data, empresaNombre, empresaRuc, detallesPorVenta);
+  const doc = await construirEstadoCuentaClientePdf(data, empresaNombre, empresaRuc, detallesPorVenta, opciones);
   const nombre = (data.cliente.nombre ?? 'cliente').replace(/[^A-Za-z0-9]+/g, '_');
   doc.save(`estado-cuenta-${nombre}.pdf`);
 }

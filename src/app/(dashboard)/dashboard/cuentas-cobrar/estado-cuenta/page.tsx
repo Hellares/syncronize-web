@@ -9,8 +9,7 @@ import { useSearchParams } from 'next/navigation';
 import type { EstadoCuentaCliente, VentaCreditoEC } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
 import { getEstadoCuentaCliente } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
-import { descargarEstadoCuentaCliente, type DetallesPorVenta } from '@/features/cuentas-cobrar/components/estado-cuenta-cliente-pdf';
-import { getVenta } from '@/features/venta/services/venta-service';
+import CompartirEstadoCuentaDialog from '@/features/cuentas-cobrar/components/CompartirEstadoCuentaDialog';
 import VentaEstadoCuentaDetalle from '@/features/cuentas-cobrar/components/VentaEstadoCuentaDetalle';
 import Plegable from '@/components/ui/Plegable';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
@@ -36,7 +35,7 @@ function EstadoCuentaClienteContent() {
   const [desplegada, setDesplegada] = useState<string | null>(null);
   const [verHistorial, setVerHistorial] = useState(false);
   const [verAbonos, setVerAbonos] = useState(false);
-  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [compartir, setCompartir] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!clienteId && !clienteEmpresaId) {
@@ -74,40 +73,6 @@ function EstadoCuentaClienteContent() {
 
   const alternar = (ventaId: string) => setDesplegada(d => (d === ventaId ? null : ventaId));
 
-  /**
-   * El PDF lleva las líneas de cada venta PENDIENTE colgando de su fila, y el
-   * estado de cuenta no las trae: se piden acá, una por venta y en paralelo,
-   * recién al tocar el botón. Es lo que el cliente pregunta cuando recibe el
-   * PDF --"¿qué me vendiste en esta?"-- y ahorra la llamada de vuelta.
-   *
-   * Una venta que falle sale sin detalle: el PDF igual se genera. Es un
-   * resumen de deuda, no puede caerse porque una línea no cargó.
-   */
-  const descargarPdf = async () => {
-    setGenerandoPdf(true);
-    try {
-      const detalles: DetallesPorVenta = {};
-      await Promise.all(
-        pendientes.map(async v => {
-          try {
-            const venta = await getVenta(v.ventaId);
-            detalles[v.ventaId] = venta.detalles ?? [];
-          } catch {
-            // sin detalle para esa venta
-          }
-        }),
-      );
-      await descargarEstadoCuentaCliente(
-        data,
-        empresa?.razonSocial ?? empresa?.nombre ?? 'Mi empresa',
-        empresa?.ruc ?? undefined,
-        detalles,
-      );
-    } finally {
-      setGenerandoPdf(false);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       {/* Header cliente */}
@@ -136,17 +101,12 @@ function EstadoCuentaClienteContent() {
           </div>
         </div>
         <button
-          onClick={descargarPdf}
-          disabled={generandoPdf}
-          className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-zinc-100 px-3 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200 disabled:opacity-60">
-          {generandoPdf ? (
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-[#004A94]/30 border-t-[#004A94]" />
-          ) : (
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 4v11M8 11l4 4 4-4M4 19h16" />
-            </svg>
-          )}
-          {generandoPdf ? 'Armando el PDF…' : 'Descargar PDF'}
+          onClick={() => setCompartir(true)}
+          className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-zinc-100 px-3 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4v11M8 11l4 4 4-4M4 19h16" />
+          </svg>
+          Compartir
         </button>
       </div>
 
@@ -245,6 +205,15 @@ function EstadoCuentaClienteContent() {
           </table>
         )}
       </Plegable>
+
+      {compartir && (
+        <CompartirEstadoCuentaDialog
+          data={data}
+          empresaNombre={empresa?.razonSocial ?? empresa?.nombre ?? 'Mi empresa'}
+          empresaRuc={empresa?.ruc ?? undefined}
+          onClose={() => setCompartir(false)}
+        />
+      )}
     </div>
   );
 }
