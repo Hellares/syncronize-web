@@ -61,6 +61,9 @@ export interface Cotizacion {
   creadoEn: string;
   actualizadoEn: string;
   detalles?: CotizacionDetalle[];
+  /** Solo en el LISTADO: cuantas lineas tiene, sin traerlas. El detalle se
+   *  pide con `getCotizacion` al desplegar la fila. */
+  _count?: { detalles?: number };
   sede?: { id: string; nombre: string };
   vendedor?: { id: string; aliasTicket?: string | null; persona?: { nombres: string; apellidos: string } };
   cliente?: { id: string; persona?: { nombres: string; apellidos: string } };

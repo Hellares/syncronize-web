@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import { useCotizaciones } from '@/features/cotizacion/hooks/use-cotizaciones';
 import * as cotizacionService from '@/features/cotizacion/services/cotizacion-service';
 import type { Cotizacion, EstadoCotizacion } from '@/core/types/cotizacion';
 import { ESTADO_COTIZACION_CONFIG, estadoEfectivoCotizacion } from '@/core/types/cotizacion';
 import { usePermissions, useEmpresa } from '@/features/empresa/context/empresa-context';
+import CotizacionFilaDetalle from '@/features/cotizacion/components/CotizacionFilaDetalle';
 
 const ESTADOS: EstadoCotizacion[] = ['BORRADOR', 'PENDIENTE', 'APROBADA', 'RECHAZADA', 'VENCIDA', 'CONVERTIDA'];
 
@@ -74,6 +75,8 @@ export default function CotizacionesPage() {
   const { cotizaciones, filtros, isLoading, cargandoMas, hasMore, error, updateFiltros, cargarMas, reload, resetFiltros } = useCotizaciones();
   const permissions = usePermissions();
   const { sedes } = useEmpresa();
+  /** Una sola cotizacion desplegada a la vez, como en las otras tablas. */
+  const [desplegada, setDesplegada] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Cotizacion | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
@@ -221,13 +224,14 @@ export default function CotizacionesPage() {
         <table className="min-w-full text-left text-[12px]">
           <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
             <tr>
-              <th className="px-4 py-2 font-medium text-[#004A94]">Codigo</th>
-              <th className="px-4 py-2 font-medium text-[#004A94]">Cliente</th>
-              <th className="whitespace-nowrap px-4 py-2 text-right font-medium text-[#004A94]">Monto</th>
-              <th className="px-4 py-2 text-center font-medium text-[#004A94]">Estado</th>
-              <th className="whitespace-nowrap px-4 py-2 font-medium text-[#004A94]">Fecha</th>
-              <th className="px-4 py-2 font-medium text-[#004A94]">Vendedor</th>
-              <th className="px-4 py-2 text-right font-medium text-[#004A94]">Acciones</th>
+              <th className="w-px px-2 py-3" />
+              <th className="px-4 py-3 font-medium text-[#004A94]">Codigo</th>
+              <th className="px-4 py-3 font-medium text-[#004A94]">Cliente</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-[#004A94]">Monto</th>
+              <th className="px-4 py-3 text-center font-medium text-[#004A94]">Estado</th>
+              <th className="whitespace-nowrap px-4 py-3 font-medium text-[#004A94]">Fecha</th>
+              <th className="px-4 py-3 font-medium text-[#004A94]">Vendedor</th>
+              <th className="px-4 py-3 text-right font-medium text-[#004A94]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -240,8 +244,31 @@ export default function CotizacionesPage() {
                 // VENCIDA es computada en el front (fechaVencimiento < hoy), paridad Flutter
                 const estadoCfg = ESTADO_COTIZACION_CONFIG[estadoEfectivoCotizacion(cot)];
                 const isBorrador = cot.estado === 'BORRADOR';
+                const abierta = desplegada === cot.id;
+                const items = cot._count?.detalles ?? 0;
                 return (
-                  <tr key={cot.id} className="transition-colors hover:bg-gray-50/50">
+                  <Fragment key={cot.id}>
+                  <tr className={`transition-colors ${abierta ? 'bg-[#f9fbff]' : 'hover:bg-gray-50/50'}`}>
+                    {/* La flecha abre los items. Sin items no hay nada que
+                        abrir, asi que ahi no se dibuja. */}
+                    <td className="w-px py-2 pl-3 pr-0">
+                      {items > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setDesplegada(abierta ? null : cot.id)}
+                          aria-expanded={abierta}
+                          title={abierta ? 'Ocultar los items' : `Ver los ${items} items`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
+                            abierta ? 'bg-[#437EFF] text-white' : 'bg-blue-50 text-[#437EFF] hover:bg-blue-100'
+                          }`}
+                        >
+                          <svg className={`h-3.5 w-3.5 transition-transform duration-150 ${abierta ? 'rotate-90' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 6l6 6-6 6" />
+                          </svg>
+                        </button>
+                      )}
+                    </td>
                     {/* Codigo */}
                     <td className="whitespace-nowrap px-4 py-2 text-[11px] font-medium tracking-tight text-gray-700">
                       {cot.codigo}
@@ -264,7 +291,7 @@ export default function CotizacionesPage() {
 
                     {/* Estado (+ badge Reservado, paridad Flutter) */}
                     <td className="whitespace-nowrap px-4 py-2 text-center">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${estadoCfg.color} ${estadoCfg.bg}`}>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${estadoCfg.color} ${estadoCfg.bg}`}>
                         {estadoCfg.label}
                       </span>
                       {cot.tieneReservaActiva && (
@@ -328,6 +355,20 @@ export default function CotizacionesPage() {
                       </div>
                     </td>
                   </tr>
+
+                  {abierta && (
+                    <tr className="bg-[#f9fbff]">
+                      {/* 8 columnas: las 7 de datos mas la de la flecha. */}
+                      <td colSpan={8} className="p-0">
+                        <CotizacionFilaDetalle
+                          cotizacionId={cot.id}
+                          moneda={cot.moneda}
+                          cantidadItems={items}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })
             )}
