@@ -95,9 +95,15 @@ const TONOS = {
  * Los bloques grandes (Este mes, Ventas por día, Necesita atención, Lo más
  * vendido, Cómo te pagaron hoy) van en blanco con borde gris.
  *
- * El borde es #e8f2ff, el mismo azul del fondo de "Este mes": los bloques lo
- * llevan como línea y esa tarjeta como relleno, así que la fila se lee como un
- * conjunto sin que todos tengan que ir teñidos.
+ * El borde es #dcecff: el mismo azul del fondo de "Este mes" (#e8f2ff) pero un
+ * 50% más lejos del blanco. Los bloques lo llevan como línea y esa tarjeta
+ * como relleno, así que la pantalla se lee como un conjunto sin teñirlos a
+ * todos.
+ *
+ * 🔴 Que el borde vaya MÁS FUERTE que el relleno no es una inconsistencia: un
+ * trazo de 1px necesita bastante más contraste que un área grande para leerse
+ * igual. Con el #e8f2ff exacto del relleno, el borde desaparecía contra el
+ * #f5f7fa del fondo.
  *
  * 🔴 Se probó darles el degradado azul de las tarjetas de cifras (06-09) y no
  * funciona: son mucho más altos, así que el degradado se estira sobre mucha
@@ -105,7 +111,7 @@ const TONOS = {
  * listas y texto. El degradado sirve para una tarjeta de ~120px, no para un
  * bloque de 300.
  */
-const BLOQUE_STD = 'rounded-xl border border-[#e8f2ff] bg-white';
+const BLOQUE_STD = 'rounded-xl border border-[#dcecff] bg-white';
 
 /**
  * Título de bloque. 🔴 `font-medium` (500) y no `font-semibold`: Amazon Ember
