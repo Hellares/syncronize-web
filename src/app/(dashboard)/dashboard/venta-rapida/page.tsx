@@ -605,17 +605,22 @@ function VentaRapidaInner() {
                 /* No está en el catálogo y este usuario puede darlo de alta:
                    en vez de un callejón sin salida, el precio y la cantidad
                    acá mismo. Sin diálogo: son dos campos y Enter. */
-                <div className="col-span-full rounded-xl bg-gradient-to-br from-white from-30% to-blue-200 p-4 shadow-lg">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                    No está en el catálogo
-                  </p>
-                  {/* 🔴 `font-medium` (500): Amazon Ember mapea 600-1000 a la
-                      misma cara Bold, así que `font-semibold` no cambiaría
-                      nada. A 14px la Bold se empasta. */}
-                  <p className="mt-1 text-sm font-medium text-[#004A94]">
-                    Crear &ldquo;{query.trim()}&rdquo; y agregarlo
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                <div className="col-span-full rounded-xl bg-gradient-to-br from-white from-30% to-blue-200 px-4 py-2.5 shadow-lg">
+                  {/* Las dos líneas del encabezado van en la MISMA fila:
+                      `items-baseline` para que 11px y 14px se apoyen en la
+                      misma línea de base pese a la diferencia de tamaño. */}
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      No está en el catálogo
+                    </p>
+                    {/* 🔴 `font-medium` (500): Amazon Ember mapea 600-1000 a la
+                        misma cara Bold, así que `font-semibold` no cambiaría
+                        nada. A 14px la Bold se empasta. */}
+                    <p className="text-sm font-medium text-[#004A94]">
+                      Crear &ldquo;{query.trim()}&rdquo; y agregarlo
+                    </p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-end gap-2">
                     <label className="flex flex-col gap-1">
                       <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                         Precio de venta
