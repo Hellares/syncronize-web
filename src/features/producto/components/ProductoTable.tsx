@@ -313,7 +313,12 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                 <th className={`w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] ${colCodigo}`}>Código</th>
                 <th className={`px-4 py-3 font-medium text-[#004A94] ${colCategoria}`}>Categoría</th>
                 <th className={`px-4 py-3 font-medium text-[#004A94] ${colMarca}`}>Marca</th>
-                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-right">Precio</th>
+                {/* 🔴 El costo es plata que no todos pueden ver: misma llave que
+                    en el desplegable, `canEditarCostoProducto`. */}
+                {puedeVerCosto && (
+                  <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-right">P. Costo</th>
+                )}
+                <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-right">P. Venta</th>
                 <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94] text-center">Stock</th>
                 <th className="w-px whitespace-nowrap px-2 py-3 font-medium text-[#004A94] text-center">Estado</th>
                 <th className="px-4 py-3 font-medium text-[#004A94] text-right">Acciones</th>
@@ -424,8 +429,23 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                         <span className="text-xs text-gray-500">{p.marca?.nombre || '—'}</span>
                       </td>
 
+                      {/* Costo. Un producto con variantes no tiene el suyo: su
+                          stock --y por lo tanto su costo-- vive en cada variante. */}
+                      {puedeVerCosto && (
+                        <td className={`w-px whitespace-nowrap bg-sky-100 px-3 text-right ${D.celda}`}>
+                          {p.tieneVariantes || stock.precioCosto == null ? (
+                            <span className="text-xs text-gray-400">—</span>
+                          ) : (
+                            <span className="text-gray-700">{pres.precioTexto(Number(stock.precioCosto))}</span>
+                          )}
+                        </td>
+                      )}
+
                       {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
-                      <td className={`w-px whitespace-nowrap px-3 text-right ${D.celda}`}>
+                      {/* Banda verde: es lo que entra. La azul de al lado es lo que
+                          costó, y juntas se leen como un par sin tener que ir al
+                          encabezado. */}
+                      <td className={`w-px whitespace-nowrap bg-green-100 px-3 text-right ${D.celda}`}>
                         {/* 🔴 Un producto CON variantes no tiene precio propio: el
                             precio vive en cada variante y el de la fila padre salia
                             de la primera que tuviera uno, o sea un numero que no
@@ -437,13 +457,13 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                           <span className="text-xs text-gray-300">—</span>
                         ) : infoLiquidacionActiva(stock) ? (
                           <>
-                            <span className="text-xs text-gray-400 line-through block">{pres.precioTexto(Number(stock.precio))}</span>
-                            <span className="font-bold text-red-600">{pres.precioTexto(Number(stock.precioLiquidacion))}</span>
+                            <span className="block text-xs text-gray-500 line-through">{pres.precioTexto(Number(stock.precio))}</span>
+                            <span className="font-bold text-red-700">{pres.precioTexto(Number(stock.precioLiquidacion))}</span>
                           </>
                         ) : infoOfertaActiva(stock) ? (
                           <>
-                            <span className="text-xs text-gray-400 line-through block">{pres.precioTexto(Number(stock.precio))}</span>
-                            <span className="font-bold text-green-600">{pres.precioTexto(Number(stock.precioOferta))}</span>
+                            <span className="block text-xs text-gray-500 line-through">{pres.precioTexto(Number(stock.precio))}</span>
+                            <span className="font-bold text-green-800">{pres.precioTexto(Number(stock.precioOferta))}</span>
                           </>
                         ) : (
                           <span className="font-medium text-gray-900">
@@ -518,9 +538,10 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
 
                     {abierta && (
                       <tr className="bg-[#f9fbff]">
-                        {/* 9 columnas: el `colSpan` cuenta las que existen, no
-                            las que se ven --el navegador lo recorta solo. */}
-                        <td colSpan={9} className="p-0">
+                        {/* Las columnas existentes: 9, o 10 con la de costo. El
+                            `colSpan` cuenta las que EXISTEN, no las que se ven
+                            --el navegador lo recorta solo--. */}
+                        <td colSpan={puedeVerCosto ? 10 : 9} className="p-0">
                           <ProductoFilaDetalle
                             producto={p}
                             sedeId={sedeId}
