@@ -570,13 +570,13 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   onChange={setMontoInput}
                   quickAmounts={[10, 20, 50, 100, 200]}
                   acciones={[
-                    // "Exacto" acá solo COMPLETA el campo; el botón de abajo es
-                    // el que agrega el pago. Separarlos deja revisar el monto
-                    // antes de confirmarlo, que es lo que se hace con billetes
-                    // en la mano.
+                    // "Exacto" cobra de una: completa el monto Y agrega el
+                    // pago, igual que el botón de abajo. Es el caso más común
+                    // del mostrador —el cliente paga justo— y encadenar dos
+                    // toques para algo que no se revisa era fricción.
                     {
                       label: 'Exacto',
-                      onTap: () => setMontoInput(Math.max(0, faltante).toFixed(2)),
+                      onTap: () => agregarPago(Math.max(0, faltante)),
                       destacado: true,
                       enabled: faltante > TOLERANCIA,
                     },
