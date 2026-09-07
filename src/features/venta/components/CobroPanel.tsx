@@ -550,6 +550,31 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               </div>
             )}
           </div>
+
+          {/* Los pagos ya agregados viven acá, en la columna izquierda, y no
+              en el panel: el panel tiene alto FIJO —display, métodos, teclas y
+              cobrar— y si la lista creciera ahí adentro, cada pago empujaría
+              el botón de cobrar más abajo. Acá crece hacia el lado que tiene
+              lugar. */}
+          {pagos.length > 0 && (
+            <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
+              <p className="mb-2 text-sm font-medium text-gray-800">
+                Pagos registrados
+                {pagos.length > 1 && <span className="ml-2 text-[10px] font-medium text-purple-600">MIXTO</span>}
+              </p>
+              <div className="space-y-1">
+                {pagos.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
+                    <span className="text-gray-700">{p.metodoPago}{p.banco ? ` · ${p.banco}` : ''}{p.referencia ? ` · ${p.referencia}` : ''}</span>
+                    <span className="flex items-center gap-2">
+                      <strong className="font-medium">S/ {fmt(p.monto)}</strong>
+                      <button onClick={() => setPagos(prev => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">✕</button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* === Panel de cobro === */}
@@ -627,20 +652,6 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 </button>
               </div>
 
-              {pagos.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {pagos.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
-                      <span className="text-gray-700">{p.metodoPago}{p.banco ? ` · ${p.banco}` : ''}{p.referencia ? ` · ${p.referencia}` : ''}</span>
-                      <span className="flex items-center gap-2">
-                        <strong>S/ {fmt(p.monto)}</strong>
-                        <button onClick={() => setPagos(prev => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">✕</button>
-                      </span>
-                    </div>
-                  ))}
-                  {pagos.length > 1 && <p className="text-right text-[10px] font-semibold text-purple-600">Pago MIXTO</p>}
-                </div>
-              )}
 
               {/* Recibido, faltante y vuelto se fueron al display de arriba:
                   repetirlos acá era decir tres veces lo mismo en la misma
