@@ -396,13 +396,18 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             </svg>
           </button>
           <h1 className="text-xl font-bold text-gray-900">Cobrar</h1>
+          <span className="ml-1.5 rounded-full bg-[#eef4ff] px-2.5 py-0.5 text-[11px] font-medium text-[#004A94]">
+            {items.length} {items.length === 1 ? 'ítem' : 'ítems'}
+          </span>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-[#004A94]">S/ {fmt(total)}</p>
-          {adelantoAplicado > 0 && (
-            <p className="text-[11px] text-gray-500">Adelanto −S/ {fmt(adelantoAplicado)} · <span className="font-semibold text-green-600">a cobrar hoy S/ {fmt(totalACobrar)}</span></p>
-          )}
-        </div>
+        {/* El total se fue de acá al display del panel de cobro: lo que decide
+            si la venta se puede cerrar es el FALTANTE, y tenerlo a un lado de
+            la pantalla y las teclas al otro obligaba a cruzar la vista. */}
+        {adelantoAplicado > 0 && (
+          <p className="text-[11px] text-gray-500">
+            Adelanto −S/ {fmt(adelantoAplicado)} · <span className="font-medium text-green-600">a cobrar hoy S/ {fmt(totalACobrar)}</span>
+          </p>
+        )}
       </div>
 
       {hayOrdenes && (
@@ -417,7 +422,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Caja registradora: a la izquierda lo que se define UNA vez —
+          comprobante, cliente, condición—, y a la derecha una columna fija de
+          340px con el faltante, las teclas y el botón de cobrar juntos. */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         {/* === Comprobante + cliente + crédito === */}
         <div className="space-y-3">
           <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
@@ -526,8 +534,25 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           </div>
         </div>
 
-        {/* === Pagos === */}
+        {/* === Panel de cobro === */}
         <div className="space-y-3">
+
+          {/* Display de caja registradora. Muestra el FALTANTE, no el total:
+              es el número que decide si se puede cerrar la venta. El total y
+              lo ya recibido quedan de contexto abajo. */}
+          <div className="rounded-xl bg-[#004A94] px-4 py-3 text-white">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-white/60">
+              {esCredito ? 'A financiar' : vuelto > TOLERANCIA ? 'Vuelto' : 'Falta cobrar'}
+            </p>
+            <p className="text-[34px] font-bold leading-none tracking-tight">
+              S/ {fmt(esCredito ? totalACobrar : vuelto > TOLERANCIA ? vuelto : Math.max(0, faltante))}
+            </p>
+            <div className="mt-2 flex justify-between border-t border-white/20 pt-2 text-[11px] text-white/80">
+              <span>Total S/ {fmt(totalACobrar)}</span>
+              {!esCredito && <span>Recibido S/ {fmt(totalPagado)}</span>}
+            </div>
+          </div>
+
           {!esCredito && (
             <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
               <p className="text-sm font-medium text-gray-800 mb-2">Pagos</p>
@@ -609,13 +634,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 </div>
               )}
 
-              <div className="mt-3 space-y-1 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Recibido</span><span className="font-medium">S/ {fmt(totalPagado)}</span></div>
-                {faltante > TOLERANCIA && <div className="flex justify-between text-red-500"><span>Faltante</span><span className="font-bold">S/ {fmt(faltante)}</span></div>}
-                {vuelto > TOLERANCIA && (
-                  <div className="flex justify-between rounded-md bg-green-50 px-2 py-1 text-green-700"><span className="font-semibold">Vuelto</span><span className="font-bold">S/ {fmt(vuelto)}</span></div>
-                )}
-              </div>
+              {/* Recibido, faltante y vuelto se fueron al display de arriba:
+                  repetirlos acá era decir tres veces lo mismo en la misma
+                  columna. El aviso de MIXTO ya vive en la lista de pagos. */}
             </div>
           )}
 
