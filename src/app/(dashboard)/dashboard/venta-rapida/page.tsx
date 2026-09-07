@@ -620,7 +620,16 @@ function VentaRapidaInner() {
           {/* Máximo 6 columnas con respiro entre cards */}
           <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 pt-1.5 content-start">
             {productos.map(p => (
-              <button key={p.id} onClick={() => handlePick(p)} className={PRODUCT_CARD_SHELL}>
+              // La esquina superior derecha de la tarjeta acompaña la de la
+              // imagen (`rounded-tr-[1.6rem]` en ProductCard). 1.85rem y no
+              // 1.6: para que dos curvas se vean PARALELAS, la de afuera tiene
+              // que ser la de adentro más la separación —el `p-1` de la
+              // tarjeta, 4px—. Con el mismo valor en las dos, la de afuera se
+              // ve más cerrada.
+              // Va acá y no en PRODUCT_CARD_SHELL porque ese shell también lo
+              // usan la lista de productos y la tabla.
+              <button key={p.id} onClick={() => handlePick(p)}
+                className={`${PRODUCT_CARD_SHELL} rounded-tr-[1.85rem]`}>
                 <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />
               </button>
             ))}
