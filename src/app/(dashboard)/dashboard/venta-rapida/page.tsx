@@ -578,8 +578,15 @@ function VentaRapidaInner() {
                 <circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" />
               </svg>
             </span>
-            <input className={inputClass} value={query} onChange={e => search(e.target.value)}
-              placeholder="Buscar producto por nombre, código o SKU…" />
+            {/* Se escribe SIEMPRE en mayúsculas: de este campo sale el nombre
+                del producto cuando se da de alta, y el catálogo tiene que
+                quedar parejo. Se transforma el VALOR, no solo la vista con
+                `text-transform`, porque lo que se guarda es el valor.
+                Buscar no se ve afectado: `textoBusqueda` normaliza a
+                minúsculas y sin acentos. */}
+            <input className={inputClass} value={query}
+              onChange={e => search(e.target.value.toUpperCase())}
+              placeholder="BUSCAR POR NOMBRE, CÓDIGO O SKU…" />
             {searching ? (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-[#437EFF]" />
