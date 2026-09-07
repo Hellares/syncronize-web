@@ -64,6 +64,11 @@ function VentaRapidaInner() {
   const [altaCantidad, setAltaCantidad] = useState('1');
   const [altaGuardando, setAltaGuardando] = useState(false);
   const [altaError, setAltaError] = useState<string | null>(null);
+  // 🔴 El panel NO se autoenfoca. Aparece mientras todavía están tecleando
+  // —la búsqueda dispara a los 350ms— y si roba el cursor, quien escribe
+  // despacio termina metiendo el resto del nombre en el precio. El foco lo
+  // mueve el usuario: Enter o Tab desde el buscador.
+  const precioRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dialogs carrito
@@ -586,13 +591,25 @@ function VentaRapidaInner() {
                 minúsculas y sin acentos. */}
             <input className={inputClass} value={query}
               onChange={e => search(e.target.value.toUpperCase())}
+              onKeyDown={e => {
+                // Enter = "terminé de escribir el nombre": salta al precio.
+                // Tab llega solo, porque el botón de limpiar está fuera del
+                // orden de tabulación.
+                if (e.key === 'Enter' && precioRef.current) {
+                  e.preventDefault();
+                  precioRef.current.focus();
+                }
+              }}
               placeholder="BUSCAR POR NOMBRE, CÓDIGO O SKU…" />
             {searching ? (
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-[#437EFF]" />
               </div>
             ) : query ? (
-              <button onClick={() => search('')} title="Limpiar"
+              // `tabIndex={-1}`: es un atajo de mouse, y dentro del orden de
+              // tabulación se interpone entre el buscador y el precio, que es
+              // el salto que de verdad se usa.
+              <button onClick={() => search('')} title="Limpiar" tabIndex={-1}
                 className="absolute right-1.5 top-1/2 flex h-[22px] w-[22px] -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:text-gray-600">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -633,7 +650,8 @@ function VentaRapidaInner() {
                         Precio de venta
                       </span>
                       <input
-                        type="number" min="0" step="0.01" inputMode="decimal" autoFocus
+                        ref={precioRef}
+                        type="number" min="0" step="0.01" inputMode="decimal"
                         value={altaPrecio}
                         onChange={e => setAltaPrecio(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') crearYAgregar(); }}
