@@ -17,7 +17,7 @@ import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
-import ProductCard, { PRODUCT_CARD_SHELL } from '@/features/producto/components/ProductCard';
+import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 
@@ -629,7 +629,7 @@ function VentaRapidaInner() {
               // Va acá y no en PRODUCT_CARD_SHELL porque ese shell también lo
               // usan la lista de productos y la tabla.
               <button key={p.id} onClick={() => handlePick(p)}
-                className={`${PRODUCT_CARD_SHELL} rounded-tr-[1.85rem]`}>
+                className={`${PRODUCT_CARD_BASE} rounded-tr-[1.85rem] border-[#d1e5ff]`}>
                 <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />
               </button>
             ))}
@@ -702,12 +702,17 @@ function VentaRapidaInner() {
 
         {/* === Carrito === */}
         <div className="lg:col-span-2 space-y-3">
-          <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+          {/* Mismo #d1e5ff que los bloques del dashboard, para que las
+              superficies grandes de la app se lean como una familia. */}
+          <div className="flex flex-col overflow-hidden rounded-xl border border-[#d1e5ff] bg-white">
 
             {/* Cabecera: manda lo que se lleva, no cuántas filas hay */}
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3.5 py-2.5">
               <div className="flex min-w-0 items-baseline gap-2">
-                <p className="text-sm font-semibold text-gray-800">Carrito</p>
+                {/* 🔴 `font-medium` (500): Amazon Ember mapea 600-1000 a la
+                    misma cara Bold, así que `font-semibold` renderizaba en
+                    Bold y a 14px se empastaba. */}
+                <p className="text-sm font-medium text-gray-800">Carrito</p>
                 <p className="truncate text-[11px] text-gray-500">{resumenCarrito.texto}</p>
               </div>
               {items.length > 0 && (

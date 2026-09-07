@@ -8,9 +8,20 @@
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 
-/** Clases del <button> contenedor (úsalas en el padre para unificar el shell). */
-export const PRODUCT_CARD_SHELL =
-  'group relative flex w-full flex-col rounded-xl border border-gray-200/80 bg-white p-1 text-left shadow-[rgba(100,100,111,0.2)_0px_50px_30px_-20px] transition-all duration-500 ease-in-out hover:scale-[1.03]';
+/**
+ * Shell del <button> contenedor, SIN color de borde.
+ *
+ * 🔴 El color va aparte porque agregarle otro `border-*` encima al shell
+ * completo NO alcanza: las dos son utilidades de `border-color` y en la hoja
+ * compilada el arbitrario (`border-[#...]`) se declara ANTES que el nombrado
+ * (`border-gray-200/80`), así que gana el gris y el override queda mudo. El
+ * orden de las clases en el atributo no decide nada.
+ */
+export const PRODUCT_CARD_BASE =
+  'group relative flex w-full flex-col rounded-xl border bg-white p-1 text-left shadow-[rgba(100,100,111,0.2)_0px_50px_30px_-20px] transition-all duration-500 ease-in-out hover:scale-[1.03]';
+
+/** Shell por defecto, con el borde gris de siempre. */
+export const PRODUCT_CARD_SHELL = `${PRODUCT_CARD_BASE} border-gray-200/80`;
 
 function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
