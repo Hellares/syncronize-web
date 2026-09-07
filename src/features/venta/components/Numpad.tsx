@@ -28,6 +28,9 @@ interface AccionNumpad {
 }
 
 interface Props {
+  /** Qué se está tipeando. Necesario desde que el mismo teclado sirve al
+   *  monto y al DNI/RUC: sin esto no se sabe a qué campo le está escribiendo. */
+  titulo?: string;
   value: string;
   onChange: (v: string) => void;
   /** Chips que SUMAN al monto actual. Sin ellos, no se muestran. */
@@ -70,7 +73,7 @@ const BTN =
   'flex h-11 items-center justify-center rounded-lg bg-white text-sm font-medium text-gray-800 ' +
   'shadow-sm ring-1 ring-[#d1e5ff] transition-colors hover:bg-blue-50 active:bg-blue-100';
 
-export default function Numpad({ value, onChange, quickAmounts, acciones = [], decimales = 2 }: Props) {
+export default function Numpad({ titulo, value, onChange, quickAmounts, acciones = [], decimales = 2 }: Props) {
   // Que el botón no se lleve el foco: el cursor sigue en el input y se puede
   // alternar entre el teclado físico y este sin volver a hacer clic.
   const sinRobarFoco = (e: React.MouseEvent) => e.preventDefault();
@@ -82,6 +85,12 @@ export default function Numpad({ value, onChange, quickAmounts, acciones = [], d
 
   return (
     <div className="mt-2 rounded-xl border border-[#d1e5ff] bg-[#f7fafd] p-2">
+      {titulo && (
+        <div className="mb-2 flex items-baseline justify-between px-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-[0.04em] text-gray-500">{titulo}</span>
+          <span className="text-sm font-medium text-[#004A94]">{value || '—'}</span>
+        </div>
+      )}
       {quickAmounts && quickAmounts.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {quickAmounts.map(m => (

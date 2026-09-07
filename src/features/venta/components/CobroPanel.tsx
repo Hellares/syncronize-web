@@ -81,6 +81,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const ultimoBuscado = useRef<string>('');
   const [esGenerico, setEsGenerico] = useState(false);
 
+  // A qué campo le escribe el numpad. Lo decide el foco: tocar el DNI/RUC lo
+  // pasa a modo documento (sin decimales ni chips), tocar el monto lo devuelve.
+  const [campoNumpad, setCampoNumpad] = useState<'monto' | 'documento'>('monto');
+
   // Preferencia del DISPOSITIVO, no del usuario: ver `preferencia-numpad.ts`.
   // Va por `useSyncExternalStore` y no por un effect que lee localStorage,
   // porque eso último no pasa el lint del compilador de React.
@@ -472,7 +476,13 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               )}
             </div>
             <div className="mt-2 flex gap-2">
+              {/* 🔴 `inputMode="none"` con el numpad abierto: suprime el
+                  teclado del sistema en la tablet —que es de lo que se trata—
+                  sin bloquear el input, así el teclado FÍSICO de la PC sigue
+                  escribiendo normal. `readOnly` habría matado las dos cosas. */}
               <input className={inputClass} value={documento}
+                inputMode={verNumpad ? 'none' : 'numeric'}
+                onFocus={() => setCampoNumpad('documento')}
                 onChange={e => { setDocumento(e.target.value); setEsGenerico(false); }}
                 placeholder={tipoComprobante === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (8) o RUC (11)'}
                 maxLength={11}
@@ -567,6 +577,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="relative">
                   <input className={inputClass + ' pr-9 text-right'} type="number" step="0.01" min="0" value={montoInput}
+                    inputMode={verNumpad ? 'none' : 'decimal'}
+                    onFocus={() => setCampoNumpad('monto')}
                     onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
                   {/* El numpad se fija por DISPOSITIVO: en la PC del mostrador
                       estorba, en una tablet es la única forma cómoda de tipear.
@@ -589,25 +601,6 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   <input className={`${inputClass} col-span-2`} value={bancoInput} onChange={e => setBancoInput(e.target.value)} placeholder="Banco (BCP, Interbank...) *" />
                 )}
               </div>
-              {verNumpad && (
-                <Numpad
-                  value={montoInput}
-                  onChange={setMontoInput}
-                  quickAmounts={[10, 20, 50, 100, 200]}
-                  acciones={[
-                    // "Exacto" cobra de una: completa el monto Y agrega el
-                    // pago, igual que el botón de abajo. Es el caso más común
-                    // del mostrador —el cliente paga justo— y encadenar dos
-                    // toques para algo que no se revisa era fricción.
-                    {
-                      label: 'Exacto',
-                      onTap: () => agregarPago(Math.max(0, faltante)),
-                      destacado: true,
-                      enabled: faltante > TOLERANCIA,
-                    },
-                  ]}
-                />
-              )}
               <div className="mt-2 flex gap-2">
                 <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
                   className="flex-1 rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-40">
@@ -638,6 +631,42 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   repetirlos acá era decir tres veces lo mismo en la misma
                   columna. El aviso de MIXTO ya vive en la lista de pagos. */}
             </div>
+          )}
+
+          {/* El numpad vive en el PANEL, no dentro de la tarjeta de Pagos, por
+              dos motivos: escribe tanto el monto como el DNI/RUC según dónde
+              esté el cursor, y en CRÉDITO la tarjeta de Pagos no se muestra —
+              justo cuando el documento es obligatorio, porque no se le fía a
+              un cliente sin identificar. */}
+          {verNumpad && (
+            campoNumpad === 'documento' ? (
+              <Numpad
+                titulo="DNI / RUC"
+                value={documento}
+                onChange={v => { setDocumento(v); setEsGenerico(false); }}
+                decimales={0}
+                acciones={[{ label: 'Buscar', onTap: () => buscarCliente(), destacado: true, enabled: !buscandoCliente }]}
+              />
+            ) : (
+              <Numpad
+                titulo="Monto del pago"
+                value={montoInput}
+                onChange={setMontoInput}
+                quickAmounts={[10, 20, 50, 100, 200]}
+                acciones={[
+                  // "Exacto" cobra de una: completa el monto Y agrega el pago.
+                  // Es el caso más común del mostrador —el cliente paga
+                  // justo— y encadenar dos toques para algo que no se revisa
+                  // era fricción.
+                  {
+                    label: 'Exacto',
+                    onTap: () => agregarPago(Math.max(0, faltante)),
+                    destacado: true,
+                    enabled: faltante > TOLERANCIA,
+                  },
+                ]}
+              />
+            )
           )}
 
           {esCredito && (
