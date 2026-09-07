@@ -138,7 +138,13 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     });
   }, [esCredito, numeroCuotas, plazoDias, total]);
 
-  // --- Cliente lookup (RENIEC/SUNAT) ---
+  /**
+   * Cliente lookup (RENIEC/SUNAT).
+   *
+   * Al resolverse BIEN, el numpad vuelve solo al monto: el documento ya está
+   * cargado y lo siguiente que se tipea es cuánto paga. Si falla NO cambia,
+   * porque ahí lo que hace falta es corregir los dígitos.
+   */
   const buscarCliente = useCallback(async (docParam?: string) => {
     setError('');
     const doc = (docParam ?? documento).trim();
@@ -150,12 +156,14 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         setClienteId(c.clienteEmpresaId);
         setClienteEmpresaId(undefined);
         setEsGenerico(false);
+        setCampoNumpad('monto');
       } else if (doc.length === 11) {
         const c = await ventaService.buscarClientePorRuc(doc);
         setClienteNombre(c.razonSocial);
         setClienteEmpresaId(c.clienteEmpresaId);
         setClienteId(undefined);
         setEsGenerico(false);
+        setCampoNumpad('monto');
       } else {
         setError('Documento inválido: DNI (8 dígitos) o RUC (11 dígitos)');
       }
@@ -576,7 +584,14 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="relative">
-                  <input className={inputClass + ' pr-9 text-right'} type="number" step="0.01" min="0" value={montoInput}
+                  {/* 🔴 `type="text"` y no `number`: varios navegadores móviles
+                      IGNORAN `inputMode` sobre un input numérico y abren su
+                      teclado igual, que es justo lo que el numpad viene a
+                      evitar. Con text, `inputMode` manda. De paso se acaba el
+                      clásico de la rueda del mouse cambiando el monto sin que
+                      nadie la toque. El valor ya era string y se lee con
+                      `parseFloat`, así que no cambia nada más. */}
+                  <input className={inputClass + ' pr-9 text-right'} type="text" value={montoInput}
                     inputMode={verNumpad ? 'none' : 'decimal'}
                     onFocus={() => setCampoNumpad('monto')}
                     onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
