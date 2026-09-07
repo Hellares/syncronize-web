@@ -13,6 +13,7 @@ import { baseFacturableOrden, costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClient
 import * as productoService from '@/features/producto/services/producto-service';
 import * as precioNivelService from '@/features/producto/services/precio-nivel-service';
 import * as cajaService from '@/features/caja/services/caja-service';
+import type { Caja } from '@/core/types/caja';
 import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
@@ -46,6 +47,9 @@ function VentaRapidaInner() {
   const [mode, setMode] = useState<'carrito' | 'cobro'>('carrito');
   const [items, setItems] = useState<VentaItem[]>([]);
   const [cajaOk, setCajaOk] = useState<boolean | null>(null);
+  // La caja entera, no solo si existe: su código y su cajero van en la
+  // cabecera. Ya se pedía para el guard, así que no cuesta una llamada más.
+  const [cajaActiva, setCajaActiva] = useState<Caja | null>(null);
 
   // Cobro de órdenes de servicio
   const [ordenCliente, setOrdenCliente] = useState<OrdenClienteCtx | null>(null);
@@ -86,7 +90,7 @@ function VentaRapidaInner() {
   // --- Guard de caja (paridad caja_guard Flutter) ---
   useEffect(() => {
     cajaService.getCajaActiva()
-      .then(c => setCajaOk(!!c?.id))
+      .then(c => { setCajaOk(!!c?.id); setCajaActiva(c ?? null); })
       .catch((err) => {
         if (err instanceof AxiosError && err.response?.status === 404) setCajaOk(false);
         else setCajaOk(false);
@@ -554,13 +558,37 @@ function VentaRapidaInner() {
     );
   }
 
+  // Quién opera la caja. `cajeroNombre` viene armado desde el backend; si no,
+  // se compone de la persona del usuario que la abrió.
+  // Los paréntesis no son de estilo: mezclar `??` con `||` sin ellos es un
+  // error de sintaxis, no una precedencia discutible.
+  const nombreCajero =
+    cajaActiva?.cajeroNombre
+    ?? ([cajaActiva?.usuario?.persona?.nombres, cajaActiva?.usuario?.persona?.apellidos]
+      .filter(Boolean).join(' ') || null);
+
+  const horaApertura = cajaActiva?.fechaApertura
+    ? new Date(cajaActiva.fechaApertura).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   // --- Modo carrito ---
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">🛒 Venta Rápida</h1>
-          <p className="text-sm text-gray-500">{defaultSede?.nombre ?? ''}</p>
+        {/* La cabecera del layout ya dice "Venta Rápida": repetirlo acá era
+            gastar la línea más visible de la pantalla en algo que ya se sabe.
+            En su lugar va lo que importa mientras se cobra —qué caja está
+            abierta y quién la opera—, porque una venta mal atribuida recién
+            se descubre al cerrar, cuando el conteo no cuadra. */}
+        <div className="min-w-0">
+          <p className="truncate text-base font-medium text-[#004A94]">
+            {cajaActiva?.codigo ? `Caja ${cajaActiva.codigo}` : 'Caja abierta'}
+            {nombreCajero && <span className="text-gray-700"> · {nombreCajero}</span>}
+          </p>
+          <p className="truncate text-[11px] text-gray-500">
+            {defaultSede?.nombre ?? ''}
+            {horaApertura && ` · abierta desde las ${horaApertura}`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {info && <p className="text-xs text-green-600">{info}</p>}
