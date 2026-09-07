@@ -127,15 +127,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     });
   }, [esCredito, numeroCuotas, plazoDias, total]);
 
-  /**
-   * Cliente lookup (RENIEC/SUNAT).
-   *
-   * Al encontrar el documento propone el comprobante, igual que el app: DNI →
-   * BOLETA, RUC → FACTURA. Solo desde TICKET, así que NUNCA pisa una elección
-   * manual, y solo con facturación activa (`puedeEmitir`); sin emisor la única
-   * opción válida es TICKET. Sigue siendo una propuesta: se puede cambiar
-   * antes de cobrar.
-   */
+  // --- Cliente lookup (RENIEC/SUNAT) ---
   const buscarCliente = useCallback(async (docParam?: string) => {
     setError('');
     const doc = (docParam ?? documento).trim();
@@ -147,16 +139,12 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         setClienteId(c.clienteEmpresaId);
         setClienteEmpresaId(undefined);
         setEsGenerico(false);
-        // Paridad con el app: un DNI encontrado propone BOLETA.
-        if (puedeEmitir && tipoComprobante === 'TICKET') setTipoComprobante('BOLETA');
       } else if (doc.length === 11) {
         const c = await ventaService.buscarClientePorRuc(doc);
         setClienteNombre(c.razonSocial);
         setClienteEmpresaId(c.clienteEmpresaId);
         setClienteId(undefined);
         setEsGenerico(false);
-        // Y un RUC, FACTURA.
-        if (puedeEmitir && tipoComprobante === 'TICKET') setTipoComprobante('FACTURA');
       } else {
         setError('Documento inválido: DNI (8 dígitos) o RUC (11 dígitos)');
       }
@@ -166,7 +154,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setBuscandoCliente(false);
     }
-  }, [documento, puedeEmitir, tipoComprobante]);
+  }, [documento]);
 
   /**
    * Busca solo con la cantidad de dígitos completa: 8 = DNI, 11 = RUC.
