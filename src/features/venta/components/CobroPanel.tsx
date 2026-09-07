@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AxiosError } from 'axios';
 import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
 import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN, FRECUENCIAS, CUOTAS_OPCIONES, labelFrecuencia } from '@/core/types/venta';
@@ -75,6 +75,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [clienteId, setClienteId] = useState<string | undefined>(initialCliente?.clienteId);
   const [clienteEmpresaId, setClienteEmpresaId] = useState<string | undefined>(initialCliente?.clienteEmpresaId);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
+  // Ultimo documento consultado, para no repetir la busqueda en cada render.
+  const ultimoBuscado = useRef<string>('');
   const [esGenerico, setEsGenerico] = useState(false);
 
   // Crédito
@@ -126,9 +128,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   }, [esCredito, numeroCuotas, plazoDias, total]);
 
   // --- Cliente lookup (RENIEC/SUNAT) ---
-  const buscarCliente = async () => {
+  const buscarCliente = useCallback(async (docParam?: string) => {
     setError('');
-    const doc = documento.trim();
+    const doc = (docParam ?? documento).trim();
     setBuscandoCliente(true);
     try {
       if (doc.length === 8) {
@@ -152,7 +154,29 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setBuscandoCliente(false);
     }
-  };
+  }, [documento]);
+
+  /**
+   * Busca solo con la cantidad de dígitos completa: 8 = DNI, 11 = RUC.
+   *
+   * Los dos cuidados que hacen que esto no moleste:
+   *  - `ultimoBuscado` evita repetir la consulta si el valor no cambió (React
+   *    puede re-renderizar por cualquier otra razón).
+   *  - 🔴 Se saltea el genérico: `usarGenerico()` escribe `00000000`, que son
+   *    8 dígitos, y sin esta guarda dispararía una consulta a RENIEC por un
+   *    documento que sabemos que no existe.
+   * Al bajar de 8 se limpia la marca, así que corregir un dígito y volver a
+   * completarlo vuelve a buscar.
+   */
+  useEffect(() => {
+    const doc = documento.trim();
+    if (doc.length < 8) { ultimoBuscado.current = ''; return; }
+    if (esGenerico || doc === '00000000') return;
+    if (!/^\d{8}$|^\d{11}$/.test(doc)) return;
+    if (ultimoBuscado.current === doc) return;
+    ultimoBuscado.current = doc;
+    buscarCliente(doc);
+  }, [documento, esGenerico, buscarCliente]);
 
   const usarGenerico = () => {
     setEsGenerico(true);
@@ -293,7 +317,11 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     const sinSaldoHoy = totalACobrar <= TOLERANCIA;
     if (!esCredito && !sinSaldoHoy && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
     if (!esCredito && !sinSaldoHoy && !cubierto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
-    if (!clienteNombre.trim()) { setError('Indica el cliente (busca por documento o usa Genérico)'); return; }
+    // Sin cliente identificado la venta va a CLIENTES VARIOS y sigue: en un
+    // mostrador con cola, obligar a elegir "Genérico" era un paso de más para
+    // el caso más común. El payload ya cae a `CLIENTES VARIOS` / `00000000`.
+    // Las dos excepciones siguen arriba y no se tocan: FACTURA exige RUC, y
+    // el crédito exige cliente identificado —no se le fía a "varios"—.
 
     // Venta bajo costo → autorización
     if (requiereAutorizacionBajoCosto(items)) {
@@ -385,8 +413,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
       <div className="grid gap-4 lg:grid-cols-2">
         {/* === Comprobante + cliente + crédito === */}
         <div className="space-y-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-sm font-semibold text-gray-800 mb-2">Comprobante</p>
+          <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
+            <p className="text-sm font-medium text-gray-800 mb-2">Comprobante</p>
             <div className="flex gap-2">
               {(['TICKET', 'BOLETA', 'FACTURA'] as const).map(t => {
                 const bloqueado = t !== 'TICKET' && !puedeEmitir;
@@ -418,9 +446,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">Cliente</p>
+              <p className="text-sm font-medium text-gray-800">Cliente</p>
               {tipoComprobante !== 'FACTURA' && (
                 <button onClick={usarGenerico}
                   className={`rounded-lg border px-2 py-1 text-[10px] ${esGenerico ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold' : 'border-gray-200 text-gray-500'}`}>
@@ -434,7 +462,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 placeholder={tipoComprobante === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (8) o RUC (11)'}
                 maxLength={11}
                 onKeyDown={e => { if (e.key === 'Enter') buscarCliente(); }} />
-              <button onClick={buscarCliente} disabled={buscandoCliente}
+              <button onClick={() => buscarCliente()} disabled={buscandoCliente}
                 className="shrink-0 rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
                 {buscandoCliente ? '...' : 'Buscar'}
               </button>
@@ -445,8 +473,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           </div>
 
           {/* Crédito */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-sm font-semibold text-gray-800 mb-2">Condición de pago</p>
+          <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
+            <p className="text-sm font-medium text-gray-800 mb-2">Condición de pago</p>
             <div className="flex gap-2">
               {(['CONTADO', 'CREDITO'] as const).map(c => (
                 <button key={c} onClick={() => { setCondicionPago(c); if (c === 'CREDITO') setPagos([]); }}
@@ -494,8 +522,8 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         {/* === Pagos === */}
         <div className="space-y-3">
           {!esCredito && (
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <p className="text-sm font-semibold text-gray-800 mb-2">Pagos</p>
+            <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
+              <p className="text-sm font-medium text-gray-800 mb-2">Pagos</p>
               <div className="flex flex-wrap gap-1.5">
                 {METODOS.map(m => (
                   <button key={m} onClick={() => seleccionarMetodo(m)}
