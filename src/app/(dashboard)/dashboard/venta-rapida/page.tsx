@@ -719,7 +719,7 @@ function VentaRapidaInner() {
                   <p className="mt-2 text-[11px] text-gray-500">
                     Queda con la ficha básica: categoría, marca y costo se completan después desde Inventario.
                   </p>
-                  {altaError && <p className="mt-1 text-[11px] font-semibold text-red-600">{altaError}</p>}
+                  {altaError && <p className="mt-1 text-[11px] font-medium text-red-600">{altaError}</p>}
                 </div>
               ) : (
                 <p className="col-span-full py-10 text-center text-sm text-gray-400">Sin productos</p>
@@ -745,7 +745,7 @@ function VentaRapidaInner() {
               </div>
               {items.length > 0 && (
                 <button onClick={() => setDescGlobalOpen(true)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50">
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">
                   <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                     <path d="M19 5 5 19" /><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" />
                   </svg>
@@ -769,7 +769,7 @@ function VentaRapidaInner() {
                   </svg>
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-[11px] font-bold ${t.aplicado ? 'text-blue-700' : 'text-amber-800'}`}>
+                  <p className={`text-[11px] font-medium ${t.aplicado ? 'text-blue-700' : 'text-amber-800'}`}>
                     {t.aplicado
                       ? `${t.nivel.nombre} ≥${t.nivel.cantidadMinima} aplicado a ${t.lineas.length} líneas`
                       : `Te falta ${t.faltan} ${t.faltan === 1 ? 'unidad' : 'unidades'} para ${t.nivel.nombre}`}
@@ -782,7 +782,7 @@ function VentaRapidaInner() {
                 </div>
                 {!t.aplicado && (
                   <button onClick={() => cambiarCantidad(t.ultima.key, t.ultima.cantidad + t.faltan)}
-                    className="shrink-0 rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-50">
+                    className="shrink-0 rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-medium text-amber-800 hover:bg-amber-50">
                     +{t.faltan}
                   </button>
                 )}
@@ -804,7 +804,7 @@ function VentaRapidaInner() {
 
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-semibold text-[#043261]">
+                        <p className="truncate text-[13px] font-medium text-[#043261]">
                           {it.esOrdenServicio && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
                           {it.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO</span>}
                           {titulo}
@@ -837,25 +837,29 @@ function VentaRapidaInner() {
                             className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
                           </button>
-                          <span className="min-w-[26px] text-center text-[13px] font-bold text-[#043261]">{it.cantidad}</span>
+                          <span className="min-w-[26px] text-center text-[13px] font-medium text-[#043261]">{it.cantidad}</span>
                           <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)}
                             className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
                           </button>
                         </div>
                         <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
-                          className={`h-8 rounded-full border px-2.5 text-[11px] ${it.descuento > 0
-                            ? 'border-amber-300 bg-amber-50 font-bold text-amber-700'
-                            : 'border-gray-200 font-medium text-gray-500 hover:bg-gray-50'}`}>
+                          /* 🔴 El peso queda FUERA del ternario: cambiarlo al
+                             activarse ensancha el texto y el botón salta de
+                             ancho, empujando lo que tiene al lado. Lo que
+                             marca el estado son el color y el fondo. */
+                          className={`h-8 rounded-full border px-2.5 text-[11px] font-medium ${it.descuento > 0
+                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                           {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
                         </button>
                         {conNivel && it.nivelAplicado && (
-                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-blue-700">
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">
                             {it.nivelAplicado}
                           </span>
                         )}
                         {it.enLiquidacion && (
-                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-red-600">LIQ</span>
+                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-600">LIQ</span>
                         )}
                       </div>
                     )}
@@ -872,7 +876,7 @@ function VentaRapidaInner() {
                         <button onClick={() => ((it.stockDisponible ?? 0) > 0
                           ? cambiarCantidad(it.key, it.stockDisponible as number)
                           : quitarItem(it.key))}
-                          className="shrink-0 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-bold text-red-700 hover:bg-red-50">
+                          className="shrink-0 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50">
                           {(it.stockDisponible ?? 0) > 0 ? `Ajustar a ${it.stockDisponible}` : 'Quitar'}
                         </button>
                       </div>
