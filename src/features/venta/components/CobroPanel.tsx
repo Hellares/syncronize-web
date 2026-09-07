@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { AxiosError } from 'axios';
 import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
 import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN, FRECUENCIAS, CUOTAS_OPCIONES, labelFrecuencia } from '@/core/types/venta';
@@ -10,6 +10,8 @@ import * as ventaService from '../services/venta-service';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import Numpad from './Numpad';
+import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
 const METODOS = ['EFECTIVO', 'YAPE', 'TARJETA', 'PLIN', 'TRANSFERENCIA'] as const;
 const METODOS_DIGITALES = ['YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
@@ -78,6 +80,11 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // Ultimo documento consultado, para no repetir la busqueda en cada render.
   const ultimoBuscado = useRef<string>('');
   const [esGenerico, setEsGenerico] = useState(false);
+
+  // Preferencia del DISPOSITIVO, no del usuario: ver `preferencia-numpad.ts`.
+  // Va por `useSyncExternalStore` y no por un effect que lee localStorage,
+  // porque eso último no pasa el lint del compilador de React.
+  const verNumpad = useSyncExternalStore(suscribirNumpad, numpadAbierto, numpadDelServer);
 
   // Crédito
   const [condicionPago, setCondicionPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
@@ -533,8 +540,23 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 ))}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <input className={inputClass + ' text-right'} type="number" step="0.01" min="0" value={montoInput}
-                  onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
+                <div className="relative">
+                  <input className={inputClass + ' pr-9 text-right'} type="number" step="0.01" min="0" value={montoInput}
+                    onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
+                  {/* El numpad se fija por DISPOSITIVO: en la PC del mostrador
+                      estorba, en una tablet es la única forma cómoda de tipear.
+                      Arranca cerrado y se recuerda. */}
+                  <button type="button" onMouseDown={e => e.preventDefault()}
+                    onClick={() => guardarNumpad(!verNumpad)}
+                    title={verNumpad ? 'Ocultar teclado numérico' : 'Mostrar teclado numérico'}
+                    className={`absolute right-1.5 top-1/2 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-md ${
+                      verNumpad ? 'bg-[#004A94] text-white' : 'text-gray-400 hover:bg-gray-100'
+                    }`}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                      <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
+                    </svg>
+                  </button>
+                </div>
                 {METODOS_DIGITALES.includes(metodoActual) && (
                   <input className={inputClass} value={refInput} onChange={e => setRefInput(e.target.value)} placeholder="N° operación" />
                 )}
@@ -542,6 +564,25 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   <input className={`${inputClass} col-span-2`} value={bancoInput} onChange={e => setBancoInput(e.target.value)} placeholder="Banco (BCP, Interbank...) *" />
                 )}
               </div>
+              {verNumpad && (
+                <Numpad
+                  value={montoInput}
+                  onChange={setMontoInput}
+                  quickAmounts={[10, 20, 50, 100, 200]}
+                  acciones={[
+                    // "Exacto" acá solo COMPLETA el campo; el botón de abajo es
+                    // el que agrega el pago. Separarlos deja revisar el monto
+                    // antes de confirmarlo, que es lo que se hace con billetes
+                    // en la mano.
+                    {
+                      label: 'Exacto',
+                      onTap: () => setMontoInput(Math.max(0, faltante).toFixed(2)),
+                      destacado: true,
+                      enabled: faltante > TOLERANCIA,
+                    },
+                  ]}
+                />
+              )}
               <div className="mt-2 flex gap-2">
                 <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
                   className="flex-1 rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-40">
