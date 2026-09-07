@@ -581,11 +581,11 @@ function VentaRapidaInner() {
             abierta y quién la opera—, porque una venta mal atribuida recién
             se descubre al cerrar, cuando el conteo no cuadra. */}
         <div className="min-w-0">
-          <p className="truncate text-base font-medium text-[#004A94]">
+          <p className="truncate text-sm font-medium text-[#004A94]">
             {cajaActiva?.codigo ? `Caja ${cajaActiva.codigo}` : 'Caja abierta'}
             {nombreCajero && <span className="text-gray-700"> · {nombreCajero}</span>}
           </p>
-          <p className="truncate text-[11px] text-gray-500">
+          <p className="truncate text-[9px] text-gray-500">
             {defaultSede?.nombre ?? ''}
             {horaApertura && ` · abierta desde las ${horaApertura}`}
           </p>
