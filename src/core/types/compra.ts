@@ -50,7 +50,11 @@ export interface CompraDetalleItem {
   ordenCompraDetalleId?: string | null;
   descripcion: string;
   cantidad: number;
+  /** De `cantidad`, cuántas vinieron de REGALO (promo 10+1 → 11 y 1). Entran
+   *  al stock igual, pero no se pagan: el costo queda prorrateado entre todas. */
+  cantidadBonificada?: number;
   precioUnitario: number | string;
+  /** Rebaja en PLATA sobre lo que sí se paga. Convive con la bonificación. */
   descuento?: number | string;
   porcentajeIGV?: number | string;
   subtotal: number | string;
@@ -186,6 +190,10 @@ export interface CrearCompraLinea {
   factorCompra?: number;
   /** Ajusta el precio de venta del producto al confirmar la compra (+ historial) */
   nuevoPrecioVenta?: number;
+  /** Unidades de REGALO dentro de `cantidad`, en la MISMA unidad que ella
+   *  (con `usaUnidadCompra`, en sacos/paquetes: el backend las convierte). */
+  cantidadBonificada?: number;
+  /** Descuento de la línea en PLATA (nunca en %). */
   descuento?: number;
   /** Solo al EDITAR: sin el, el backend recalcula con el 18 por defecto y una
    *  linea exonerada cambia sola de impuesto. */

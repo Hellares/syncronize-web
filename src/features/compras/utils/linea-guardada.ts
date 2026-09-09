@@ -25,7 +25,14 @@ export type LineaForm = {
   descripcion: string;
   cantidad: string;
   precioUnitario: string;
-  descuento?: number;
+  /** Unidades de REGALO dentro de `cantidad`, en la MISMA unidad en que se
+   *  escribe la cantidad (sacos si el empaque esta prendido). */
+  cantidadBonificada?: string;
+  /** Rebaja en PLATA. Texto como el resto: con `parseFloat(x) || 0` el campo
+   *  no se puede borrar. */
+  descuento?: string;
+  /** Solo UI: el bloque de bonificacion/descuento esta desplegado. */
+  promoAbierta?: boolean;
   /** IGV con el que se guardo la linea. Viaja de vuelta al editar o el backend
    *  la recalcula con el 18 por defecto. */
   porcentajeIGV?: number;
@@ -87,10 +94,16 @@ const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
  * va por encima (que es como entran las recepciones desde una OC).
  */
 function precioPorUnidadDeCompra(d: CompraDetalleItem, precioIncluyeIgv: boolean): number {
+  const factor = num(d.factorAplicado) || 1;
+  const listado = round6(num(d.precioUnitario) * factor);
   const cantidad = num(d.cantidadOriginal);
-  if (cantidad <= 0) return round6(num(d.precioUnitario) * (num(d.factorAplicado) || 1));
+  if (cantidad <= 0) return listado;
+  // 🔴 La plata de la linea paga solo los paquetes que NO son regalo: con
+  // 10+1 sacos, repartir los S/1000 entre 11 devolveria S/90.90 el saco.
+  const pagados = cantidad - num(d.cantidadBonificada) / factor;
+  if (pagados <= 0) return listado; // todo bonificado: la plata es 0 y no dice nada
   const bruto = precioIncluyeIgv ? num(d.total) : num(d.subtotal);
-  return round6((bruto + num(d.descuento)) / cantidad);
+  return round6((bruto + num(d.descuento)) / pagados);
 }
 
 /** Rearma la linea del formulario a partir de una ya guardada. */
@@ -134,7 +147,14 @@ export function lineaDesdeDetalleGuardado(
     descripcion: d.descripcion,
     cantidad: txt(cantidad),
     precioUnitario: txt(precio),
-    descuento: num(d.descuento),
+    // La bonificacion se guarda en unidad ATOMICA, igual que la cantidad, asi
+    // que se re-expresa con el MISMO divisor (`fCarga`) o "1 saco de regalo"
+    // volveria como 50.
+    ...(d.cantidadBonificada
+      ? { cantidadBonificada: txt(d.cantidadBonificada / (porEmpaque ? factorAplicado || 1 : fCarga)) }
+      : {}),
+    ...(num(d.descuento) > 0 ? { descuento: txt(num(d.descuento)) } : {}),
+    ...(d.cantidadBonificada || num(d.descuento) > 0 ? { promoAbierta: true } : {}),
     porcentajeIGV: num(d.porcentajeIGV),
     unidadCompraNombre: d.unidadOriginalSimbolo ?? nombreUnidad(producto?.unidadCompra),
     unidadBaseNombre: nombreUnidad(variante?.unidadMedida ?? producto?.unidadMedida),

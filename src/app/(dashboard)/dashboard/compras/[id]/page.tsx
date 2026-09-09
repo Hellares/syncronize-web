@@ -155,11 +155,33 @@ export default function CompraDetallePage() {
                       {((num(d.total) + num(d.gastoProrrateado)) / num(d.cantidad)).toFixed(4)} c/u
                     </span>
                   )}
+                  {/* Regalo del proveedor: las unidades entran al stock pero no
+                      se pagan, asi que el costo real por unidad es el
+                      prorrateado entre TODAS — el mismo numero que el
+                      proveedor imprime en su linea de promocion. */}
+                  {!!d.cantidadBonificada && d.cantidadBonificada > 0 && num(d.cantidad) > 0 && (
+                    <span className="block text-[10px] text-green-700">
+                      {d.cantidadBonificada} de regalo: se pagan {num(d.cantidad) - d.cantidadBonificada} de{' '}
+                      {num(d.cantidad)} → costo {sim(c.moneda)} {(num(d.total) / num(d.cantidad)).toFixed(4)} c/u
+                    </span>
+                  )}
+                  {num(d.descuento ?? 0) > 0 && (
+                    <span className="block text-[10px] text-gray-500">
+                      Descuento de línea: − {sim(c.moneda)} {num(d.descuento ?? 0).toFixed(2)}
+                    </span>
+                  )}
                   {d.nuevoPrecioVenta != null && num(d.nuevoPrecioVenta) > 0 && (
                     <span className="block text-[10px] text-blue-600">Nuevo precio venta al confirmar: {sim(c.moneda)} {num(d.nuevoPrecioVenta).toFixed(2)}</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right">{num(d.cantidad)}</td>
+                <td className="px-3 py-2 text-right">
+                  {num(d.cantidad)}
+                  {!!d.cantidadBonificada && d.cantidadBonificada > 0 && (
+                    <span className="ml-1 rounded bg-green-100 px-1 py-0.5 text-[9px] font-bold text-green-700">
+                      +{d.cantidadBonificada} GRATIS
+                    </span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">{sim(c.moneda)} {num(d.precioUnitario).toFixed(2)}</td>
                 <td className="px-3 py-2 text-right font-medium">{sim(c.moneda)} {num(d.total).toFixed(2)}</td>
               </tr>

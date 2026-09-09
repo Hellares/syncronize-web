@@ -321,6 +321,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   };
   const actualizar = (i: number, campo: keyof LineaForm, valor: string) =>
     setLineas((l) => l.map((x, idx) => (idx === i ? { ...x, [campo]: valor } : x)));
+  /** Igual que `actualizar` pero para campos que no son texto (el toggle). */
+  const parchar = (i: number, patch: Partial<LineaForm>) =>
+    setLineas((l) => l.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const quitar = (i: number) => {
     setLineas((l) => l.filter((_, idx) => idx !== i));
     // Sin esto la seleccion queda apuntando a otra linea (o a ninguna) y el
@@ -379,6 +382,24 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     setLineas((ls) => ls.map((x, idx) => idx === i ? { ...x, usaUnidadCompra: prendido } : x));
   };
 
+  /** Unidades de REGALO, en la unidad en que se escribe la cantidad. */
+  const bonificadas = (l: LineaForm) => numVal(l.cantidadBonificada ?? '');
+  /** Lo que se PAGA de la linea. Es la misma cuenta que hace `calcularDetalle`
+   *  en el backend — (cantidad − regalo) × precio − descuento— y tiene que
+   *  serlo: si difiere, el resumen del formulario miente contra lo guardado. */
+  const importeLinea = (l: LineaForm) => {
+    const pagadas = Math.max(0, numVal(l.cantidad) - bonificadas(l));
+    return Math.max(0, pagadas * numVal(l.precioUnitario) - numVal(l.descuento ?? ''));
+  };
+  /** Costo real por unidad recibida: el regalo abarata a TODAS, no a si mismo.
+   *  Es el "precio prorrateado" que el proveedor imprime en su factura. */
+  const costoProrrateado = (l: LineaForm): number | null => {
+    const cant = numVal(l.cantidad);
+    if (cant <= 0 || numVal(l.precioUnitario) <= 0) return null;
+    return importeLinea(l) / cant;
+  };
+  const conPromo = (l: LineaForm) => bonificadas(l) > 0 || numVal(l.descuento ?? '') > 0;
+
   /**
    * Costo por unidad de VENTA de la linea.
    *
@@ -386,11 +407,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
    * guarda que impide guardar: si cada uno lo calculara por su cuenta podrian
    * discrepar, y el usuario veria un aviso que no bloquea o un bloqueo sin
    * aviso.
+   *
+   * 🔴 Parte del costo PRORRATEADO, no del de lista: con una promo 10+1 el
+   * precio de lista sobreestima el costo y el margen proyectado saldria peor
+   * de lo que realmente es.
    */
   const costoUnitarioVenta = (l: LineaForm): number | null => {
     const precio = numVal(l.precioUnitario);
     if (precio <= 0) return null;
-    return precio / (factorEmpaque(l) * factorPresentacion(l));
+    return (costoProrrateado(l) ?? precio) / (factorEmpaque(l) * factorPresentacion(l));
   };
   /** Cantidad de la linea en unidad ATOMICA, que es como se guarda el stock. */
   const cantidadAtomica = (l: LineaForm) =>
@@ -484,7 +509,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const setGasto = (i: number, patch: Partial<GastoForm>) =>
     setGastos((gs) => gs.map((g, j) => (j === i ? { ...g, ...patch } : g)));
   const gastosCargados = () => gastos.filter((g) => g.concepto.trim() && numVal(g.monto) > 0);
-  const totalMercaderia = lineas.reduce((s, l) => s + numVal(l.cantidad) * numVal(l.precioUnitario), 0);
+  const totalMercaderia = lineas.reduce((s, l) => s + importeLinea(l), 0);
   const totalGastos = gastosCargados().reduce((s, g) => s + numVal(g.monto), 0);
   const gastosProrrateables = gastosCargados()
     .filter((g) => g.prorratea)
@@ -525,6 +550,25 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       );
     }
 
+    // El regalo va DENTRO de lo recibido, no se suma aparte: 11 con 1 gratis,
+    // no 12. Y un descuento mayor al importe dejaria un costo negativo.
+    const regaloDeMas = cargadas.filter((l) => bonificadas(l) > numVal(l.cantidad));
+    if (regaloDeMas.length > 0) {
+      return setError(
+        `Las unidades de regalo superan la cantidad recibida en ${regaloDeMas.length} línea(s): ${nombres(regaloDeMas)}. ` +
+        'La promo 10+1 se carga como cantidad 11 con 1 de regalo.',
+      );
+    }
+    const dctoDeMas = cargadas.filter(
+      (l) => numVal(l.descuento ?? '') >
+        Math.max(0, numVal(l.cantidad) - bonificadas(l)) * numVal(l.precioUnitario),
+    );
+    if (dctoDeMas.length > 0) {
+      return setError(
+        `El descuento supera el importe en ${dctoDeMas.length} línea(s): ${nombres(dctoDeMas)}.`,
+      );
+    }
+
     // (2) BLOQUEA, no avisa: guardar una linea cuyo costo supera el precio de
     // venta deja el producto vendiendose a perdida hasta que alguien mire el
     // cierre. Es el mismo criterio del app.
@@ -555,6 +599,12 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         // la cantidad venia fraccionada.
         const fAplanado = fPres * (aplana ? fEmp : 1);
         const cantidadFinal = Math.round(cant * fAplanado);
+        // 🔴 El regalo viaja en la MISMA unidad que la cantidad de esta
+        // linea: si la cantidad se aplano a unidad atomica, el regalo tambien.
+        // Mandarlo sin aplanar deja "1 saco gratis" valiendo 1 gramo.
+        const bonif = bonificadas(l);
+        const bonifFinal = fAplanado > 1 ? Math.round(bonif * fAplanado) : Math.round(bonif);
+        const dcto = numVal(l.descuento ?? '');
         const precioFinal = fAplanado > 1
           ? round6(numVal(l.precioUnitario) / fAplanado)
           : numVal(l.precioUnitario);
@@ -564,6 +614,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           descripcion: l.descripcion.trim(),
           // Con empaque: cantidad/precio van en unidad de COMPRA y el backend convierte con el factor
           cantidad: fAplanado > 1 ? cantidadFinal : Math.round(cant),
+          ...(bonifFinal > 0 ? { cantidadBonificada: bonifFinal } : {}),
           precioUnitario: precioFinal,
           ...(usaEmpaque ? { usaUnidadCompra: true, factorCompra: factorLinea } : {}),
           // 🔴 Tambien por unidad de VENTA aunque el campo se escriba en
@@ -575,7 +626,8 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           // reemplaza los detalles enteros, asi que lo que no vuelve se
           // pierde. El IGV volveria al 18 por defecto y la orden de compra se
           // quedaria sin su linea recibida.
-          ...(l.descuento ? { descuento: l.descuento } : {}),
+          // Plata: NO se divide por el factor como el precio unitario.
+          ...(dcto > 0 ? { descuento: dcto } : {}),
           ...(l.porcentajeIGV != null ? { porcentajeIGV: l.porcentajeIGV } : {}),
           ...(l.ordenCompraDetalleId
             ? { ordenCompraDetalleId: l.ordenCompraDetalleId }
@@ -936,7 +988,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className={`text-xs font-bold ${activa ? 'text-[#004A94]' : 'text-gray-900'}`}>
-                    {sinCosto(l) ? '—' : `${sim(moneda)} ${(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}`}
+                    {sinCosto(l) ? '—' : `${sim(moneda)} ${importeLinea(l).toFixed(2)}`}
                   </p>
                   <p className={`mt-0.5 text-[9px] font-bold ${est.color}`}>{est.txt}</p>
                 </div>
@@ -1037,7 +1089,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                       <p className="text-xl font-bold text-[#004A94]">
                         {sinCosto(l)
                           ? <span className="rounded bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-700">falta el costo</span>
-                          : `${sim(moneda)} ${(numVal(l.cantidad) * numVal(l.precioUnitario)).toFixed(2)}`}
+                          : `${sim(moneda)} ${importeLinea(l).toFixed(2)}`}
                       </p>
                     </div>
                     {/* Quitar la linea desde arriba: el boton del pie queda
@@ -1095,6 +1147,69 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                     <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
                   </div>
                 </div>
+
+                {/* Bonificacion y descuento del proveedor. Plegados: la enorme
+                    mayoria de las lineas no tiene ninguno de los dos, y dos
+                    campos mas por linea vuelven ilegible la tarjeta. Se abren
+                    solos cuando la linea ya trae algo cargado. */}
+                {l.promoAbierta || conPromo(l) ? (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Regalo y descuento</p>
+                      {!conPromo(l) && (
+                        <button type="button" onClick={() => parchar(i, { promoAbierta: false })}
+                          className="text-[10px] font-semibold text-gray-400 hover:text-gray-600">
+                          Ocultar
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className={LABEL}>Vienen gratis</label>
+                        <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0"
+                          value={l.cantidadBonificada ?? ''}
+                          onChange={(e) => actualizar(i, 'cantidadBonificada', e.target.value)} />
+                        <p className="mt-1 text-[10px] text-gray-400">
+                          Van DENTRO de la cantidad: la promo 10+1 se carga como 11 con 1 gratis
+                        </p>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Descuento</label>
+                        <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
+                          value={l.descuento ?? ''}
+                          onChange={(e) => actualizar(i, 'descuento', e.target.value)} />
+                        <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} sobre el total de la linea</p>
+                      </div>
+                    </div>
+
+                    {/* La cuenta a la vista: el regalo no se paga pero SI entra
+                        al stock, asi que abarata a todas las unidades. Es el
+                        mismo numero que el proveedor imprime como "precio
+                        prorrateado" en su factura. */}
+                    {conPromo(l) && costoProrrateado(l) != null && (
+                      <p className="mt-2 rounded-md bg-white/70 px-2.5 py-1.5 text-[11px] text-gray-600">
+                        Pagas <strong className="text-gray-900">
+                          {sinCeros(Math.max(0, numVal(l.cantidad) - bonificadas(l)), 3)}
+                        </strong>
+                        {' · '}Entran al stock <strong className="text-gray-900">{sinCeros(numVal(l.cantidad), 3)}</strong>
+                        {' · '}Costo real <strong className="text-[#004A94]">
+                          {sim(moneda)} {(costoProrrateado(l) as number).toFixed(4)}
+                        </strong>
+                        <span className="text-[10px] text-gray-400"> /{simboloCarga}</span>
+                      </p>
+                    )}
+                    {bonificadas(l) > numVal(l.cantidad) && (
+                      <p className="mt-2 rounded-md bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                        El regalo no puede superar lo recibido: en 10+1 la cantidad es 11, no 10.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => parchar(i, { promoAbierta: true })}
+                    className="mt-2 text-[11px] font-semibold text-[#437EFF] hover:text-[#004A94]">
+                    + Regalo o descuento del proveedor
+                  </button>
+                )}
 
                 {/* "Comprar por": el mismo selector del app. Un saco y la unidad
                     en la que se le habla al usuario (kg) son dos formas de
