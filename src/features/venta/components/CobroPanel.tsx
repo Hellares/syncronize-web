@@ -11,6 +11,8 @@ import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
+import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
+import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
 import Numpad from './Numpad';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
@@ -87,6 +89,15 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // sabe su documento. Es sobre los clientes que la empresa YA tiene: el
   // alta de uno nuevo sigue saliendo del documento, que es lo que RENIEC y
   // SUNAT saben resolver.
+  // El documento de la consulta en vuelo. Sirve para descartar la respuesta si
+  // el usuario siguió tecleando mientras volvía.
+  const docEnVuelo = useRef('');
+  // Documento completo que ni RENIEC ni SUNAT reconocieron: habilita el alta a
+  // mano, que es la única salida cuando la fuente oficial no lo tiene.
+  const [noEncontrado, setNoEncontrado] = useState('');
+  const [dialogoPersona, setDialogoPersona] = useState('');
+  const [dialogoEmpresa, setDialogoEmpresa] = useState('');
+
   const [busquedaNombre, setBusquedaNombre] = useState('');
   const [resultados, setResultados] = useState<Awaited<ReturnType<typeof buscarClientes>>>([]);
   const [buscandoNombre, setBuscandoNombre] = useState(false);
@@ -163,10 +174,18 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const buscarCliente = useCallback(async (docParam?: string) => {
     setError('');
     const doc = (docParam ?? documento).trim();
+    // 🔴 Cada consulta se queda con su numero: si mientras vuelve el usuario
+    // siguió tecleando, el resultado ya no corresponde a lo que hay en el campo
+    // y NO se aplica. Sin esto, un RUC de 11 disparaba tambien la consulta del
+    // prefijo de 8 y, como RENIEC tarda mas que SUNAT, el error del DNI llegaba
+    // despues y pisaba al del RUC: el usuario veia "no se pudo consultar el
+    // DNI" con su RUC recortado a 8 digitos.
+    docEnVuelo.current = doc;
     setBuscandoCliente(true);
     try {
       if (doc.length === 8) {
         const c = await ventaService.buscarClientePorDni(doc);
+        if (docEnVuelo.current !== doc) return;
         setClienteNombre(c.nombreCompleto);
         setClienteId(c.clienteEmpresaId);
         setClienteEmpresaId(undefined);
@@ -174,6 +193,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         setCampoNumpad('monto');
       } else if (doc.length === 11) {
         const c = await ventaService.buscarClientePorRuc(doc);
+        if (docEnVuelo.current !== doc) return;
         setClienteNombre(c.razonSocial);
         setClienteEmpresaId(c.clienteEmpresaId);
         setClienteId(undefined);
@@ -183,14 +203,18 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         setError('Documento inválido: DNI (8 dígitos) o RUC (11 dígitos)');
       }
     } catch (err) {
+      if (docEnVuelo.current !== doc) return;
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se encontró el documento');
+      // Con el documento completo y sin resultado, se ofrece registrarlo a
+      // mano: el get-or-create solo sabe crear lo que RENIEC o SUNAT conocen.
+      setNoEncontrado(doc);
       // 🔴 Se suelta la marca del documento buscado: si no, el efecto lo da por
       // consultado y NUNCA reintenta con el mismo número. Antes eso lo tapaba
       // el botón "Buscar"; sin botón, esto es el reintento.
       ultimoBuscado.current = '';
     } finally {
-      setBuscandoCliente(false);
+      if (docEnVuelo.current === doc) setBuscandoCliente(false);
     }
   }, [documento]);
 
@@ -208,12 +232,19 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
    */
   useEffect(() => {
     const doc = documento.trim();
-    if (doc.length < 8) { ultimoBuscado.current = ''; return; }
+    if (doc.length < 8) { ultimoBuscado.current = ''; setNoEncontrado(''); return; }
     if (esGenerico || doc === '00000000') return;
     if (!/^\d{8}$|^\d{11}$/.test(doc)) return;
     if (ultimoBuscado.current === doc) return;
-    ultimoBuscado.current = doc;
-    buscarCliente(doc);
+    // 🔴 Medio segundo de espera: los 8 primeros digitos de un RUC son un DNI
+    // valido, asi que sin esto tipear un RUC disparaba SIEMPRE una consulta a
+    // RENIEC por un DNI que nadie pidio. Con la pausa, escribiendo de corrido
+    // solo sale la consulta del numero terminado.
+    const t = setTimeout(() => {
+      ultimoBuscado.current = doc;
+      buscarCliente(doc);
+    }, 500);
+    return () => clearTimeout(t);
   }, [documento, esGenerico, buscarCliente]);
 
   /**
@@ -254,6 +285,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     }
     setEsGenerico(false);
     setError('');
+    setNoEncontrado('');
     setBusquedaNombre('');
     setResultados([]);
     // Ya resuelto por nombre: que el efecto del documento no vuelva a
@@ -263,6 +295,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   };
 
   const usarGenerico = () => {
+    setNoEncontrado('');
     setEsGenerico(true);
     setDocumento('00000000');
     setClienteNombre('CLIENTES VARIOS');
@@ -615,6 +648,21 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             {clienteNombre && (
               <p className="mt-2 rounded-[6px] bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">✓ {clienteNombre}</p>
             )}
+            {/* Ni RENIEC ni SUNAT lo conocen: el get-or-create no puede crearlo
+                solo, asi que se ofrece cargarlo a mano. Mismo camino que el app. */}
+            {noEncontrado && !clienteNombre && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-[6px] bg-amber-50 px-3 py-2">
+                <span className="text-[11px] text-amber-800">
+                  No se encontró {noEncontrado.length === 11 ? 'el RUC' : 'el documento'} {noEncontrado}.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => (noEncontrado.length === 11 ? setDialogoEmpresa(noEncontrado) : setDialogoPersona(noEncontrado))}
+                  className="inline-flex h-[26px] shrink-0 items-center rounded-md bg-[#004A94] px-2.5 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]">
+                  Registrar cliente
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Crédito */}
@@ -890,6 +938,48 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             </div>
           </div>
         </div>
+      )}
+
+      {/* Alta del cliente cuando la fuente oficial no lo tiene. Al crearlo
+          queda SELECCIONADO: es para lo que se abrio. */}
+      {dialogoPersona && (
+        <ClientePersonaFormDialog
+          isOpen
+          initialDni={dialogoPersona}
+          onSuccess={(_msg, creado) => {
+            setDialogoPersona('');
+            if (!creado) return;
+            elegirCliente({
+              id: creado.id,
+              tipo: 'persona',
+              nombre: creado.nombreCompleto || `${creado.nombres} ${creado.apellidos}`.trim(),
+              documento: creado.dni ?? '',
+            });
+            setNoEncontrado('');
+            setError('');
+          }}
+          onClose={() => setDialogoPersona('')}
+        />
+      )}
+      {dialogoEmpresa && (
+        <ClienteEmpresaFormDialog
+          isOpen
+          empresaId={empresaId}
+          initialRuc={dialogoEmpresa}
+          onSuccess={(_msg, creado) => {
+            setDialogoEmpresa('');
+            if (!creado) return;
+            elegirCliente({
+              id: creado.id,
+              tipo: 'empresa',
+              nombre: creado.razonSocial,
+              documento: creado.numeroDocumento ?? '',
+            });
+            setNoEncontrado('');
+            setError('');
+          }}
+          onClose={() => setDialogoEmpresa('')}
+        />
       )}
 
       {/* Autorización venta bajo costo */}
