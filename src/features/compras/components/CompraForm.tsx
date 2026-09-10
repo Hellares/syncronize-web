@@ -759,7 +759,11 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    // 🔴 Sin padding propio: el `<main>` del dashboard ya trae
+    // `p-4 pt-2 md:p-6 md:pt-3`, y el `p-4 md:p-6` que habia aca lo DUPLICABA,
+    // bajando la barra de accion y comiendose el alto util de la pantalla. Es
+    // el mismo armado que Productos.
+    <div>
       {/* Barra superior: identidad de la compra, el total y la accion */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -797,8 +801,17 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
               )
             )}
           </div>
+          {/* El mismo boton que "+ Nuevo producto": 30 px de alto, `px-3` y
+              texto de 10 — la altura del input estandar de la web. */}
           <button onClick={guardar} disabled={guardando}
-            className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
+            className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570] disabled:opacity-60">
+            {!guardando && (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                {editando
+                  ? <path d="M5 13l4 4L19 7" />
+                  : <path d="M12 5v14M5 12h14" />}
+              </svg>
+            )}
             {guardando
               ? (editando ? 'Guardando…' : 'Creando…')
               : (editando ? 'Guardar cambios' : 'Crear compra')}

@@ -104,24 +104,29 @@ export default function ComprasPage() {
   useEffect(() => { cargar(); }, [cargar]);
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    // 🔴 Sin padding propio: el `<main>` del dashboard ya trae
+    // `p-4 pt-2 md:p-6 md:pt-3`. El `p-4 md:p-6` que habia aca lo DUPLICABA y
+    // empujaba toda la pagina hacia abajo. Es el mismo armado de Productos.
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Sin <h1>: la cabecera del dashboard ya dice "Recepcion/Compras".
             La linea que queda explica que HACE confirmar una compra, que es lo
             que nadie tiene claro la primera vez. */}
         <p className="text-xs text-gray-500">Recepciones de compra. Al confirmar generan stock y, según el pago, van a Cuentas por Pagar.</p>
-        <button
-          onClick={() => router.push('/dashboard/compras/nueva')}
-          className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Nueva compra
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => router.push('/dashboard/compras/nueva')}
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570]"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nueva compra
+          </button>
+        </div>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* La misma pastilla gris con el elegido en blanco que usan los chips
             de estado de Productos. */}
         <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
