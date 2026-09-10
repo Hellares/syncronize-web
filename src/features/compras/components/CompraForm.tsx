@@ -391,6 +391,13 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     setLineas((ls) => ls.map((x, idx) => idx === i ? { ...x, usaUnidadCompra: prendido } : x));
   };
 
+  // 🔴 Arriba de TODO lo que los usa: `costoInventario` los necesita y en
+  // este archivo ya nos mordio una vez usar un const antes de declararlo.
+  const enMonedaExtranjera = moneda !== 'PEN';
+  const tc = numVal(tipoCambio);
+  /** El factor a soles de ESTA compra. 1 en soles: no cambia ningun numero. */
+  const aSoles = enMonedaExtranjera && tc > 0 ? tc : 1;
+
   /** Unidades de REGALO, en la unidad en que se escribe la cantidad. */
   const bonificadas = (l: LineaForm) => numVal(l.cantidadBonificada ?? '');
   /** Lo que se PAGA de la linea. Es la misma cuenta que hace `calcularDetalle`
@@ -410,6 +417,30 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const conPromo = (l: LineaForm) => bonificadas(l) > 0 || numVal(l.descuento ?? '') > 0;
 
   /**
+   * 🔴 El costo que va a quedar en el producto: EN SOLES y CON IGV.
+   *
+   * `ProductoStock.precioCosto` no tiene moneda —es soles— y lleva el IGV
+   * adentro, porque el backend lo calcula como `total / cantidad`, y `total`
+   * carga el IGV en las DOS convenciones de `precioIncluyeIgv`. Todo lo que se
+   * compare contra el costo o contra el precio de venta del producto tiene que
+   * estar en esa misma base.
+   *
+   * Sin esto, comprando la misma memoria al mismo precio y al mismo TC, el
+   * panel decia "estas pagando 74.24" (US$20 x 3.712, sin IGV) contra un costo
+   * guardado de 87.6032, y el costo proyectado promediaba 87.60 con 20.00
+   * —dolares sin IGV— y devolvia 53.80.
+   */
+  const costoInventario = (l: LineaForm): number | null => {
+    const cant = numVal(l.cantidad);
+    if (cant <= 0 || numVal(l.precioUnitario) <= 0) return null;
+    const bruto = importeLinea(l);
+    const conIgv = precioIncluyeIgv
+      ? bruto
+      : bruto * (1 + (l.porcentajeIGV ?? 18) / 100);
+    return (conIgv / cant) * aSoles;
+  };
+
+  /**
    * Costo por unidad de VENTA de la linea.
    *
    * Vive suelto porque lo usan el aviso de "supera el precio de venta" y la
@@ -417,14 +448,14 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
    * discrepar, y el usuario veria un aviso que no bloquea o un bloqueo sin
    * aviso.
    *
-   * 🔴 Parte del costo PRORRATEADO, no del de lista: con una promo 10+1 el
-   * precio de lista sobreestima el costo y el margen proyectado saldria peor
-   * de lo que realmente es.
+   * 🔴 Sale de `costoInventario`: en SOLES, con IGV y ya prorrateado por el
+   * regalo. Es la unica base en la que se puede comparar contra el costo y el
+   * precio de venta del producto, que viven en `ProductoStock` y son soles.
    */
   const costoUnitarioVenta = (l: LineaForm): number | null => {
-    const precio = numVal(l.precioUnitario);
-    if (precio <= 0) return null;
-    return (costoProrrateado(l) ?? precio) / (factorEmpaque(l) * factorPresentacion(l));
+    const costo = costoInventario(l);
+    if (costo == null) return null;
+    return costo / (factorEmpaque(l) * factorPresentacion(l));
   };
   /** Cantidad de la linea en unidad ATOMICA, que es como se guarda el stock. */
   const cantidadAtomica = (l: LineaForm) =>
@@ -534,8 +565,6 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   // soles y se compara contra el precio de venta, que tambien lo es—, asi que
   // sin el, el costo del proveedor entraria en dolares y el margen del producto
   // seria ficcion. El backend rechaza la compra sin TC; esto lo avisa antes.
-  const enMonedaExtranjera = moneda !== 'PEN';
-  const tc = numVal(tipoCambio);
   const totalSoles = enMonedaExtranjera && tc > 0 ? total * tc : null;
 
   const guardar = async () => {
@@ -1085,12 +1114,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           const margenProy = margenProyectadoPct(l);
           const mantener = sugerenciaMantenerMargen(l);
           const mas10 = sugerenciaMas10(l);
-          // 🔴 El historial viene EN SOLES (convertido con el TC congelado de
-          // cada compra), asi que la linea que se esta cargando tambien tiene
-          // que llevarse a soles antes de compararla. Sin esto, cargar en
-          // dolares contra un historial en soles daba -73% habiendo comprado
-          // al mismo precio.
-          const costoUnitSoles = costoUnit != null ? costoUnit * (enMonedaExtranjera && tc > 0 ? tc : 1) : null;
+          // `costoUnit` YA viene en soles y con IGV (`costoInventario`), que es
+          // la base del historial y la del costo del producto.
+          const costoUnitSoles = costoUnit;
           const ultimoCosto = l.historial?.ultimoCosto ?? null;
           const variacion = costoUnitSoles != null && ultimoCosto != null && Number(ultimoCosto) > 0
             ? ((costoUnitSoles - Number(ultimoCosto)) / Number(ultimoCosto)) * 100 : null;
@@ -1116,7 +1142,10 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           const costoPorEmpaque = costoAtomico != null && conEmpaque && factorVigente > 1
             ? costoAtomico * factorVigente
             : null;
-          const fmtMon = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
+          // 🔴 SOLES, no la moneda de la compra: todo lo que este helper pinta
+          // (costo actual, precio de venta, sugerencias) sale de
+          // `ProductoStock`, que no tiene moneda — es soles con IGV adentro.
+          const fmtMon = (n: number) => `S/ ${n.toFixed(2)}`;
           const costoActualMostrado = l.costoActual != null && l.costoActual > 0
             ? l.costoActual * fpres : null;
           const ventaActualMostrada = l.precioVentaActual != null && l.precioVentaActual > 0
@@ -1334,12 +1363,12 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                       {entranAlStock > 0 && costoAtomico != null && (
                         <p className="ml-auto flex flex-wrap items-baseline justify-end gap-x-2 text-right text-[11px] font-semibold leading-tight text-green-800">
                           <span>
-                            Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ {sim(moneda)} {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
+                            Entran {sinCeros(entranAlStock / fpres, 3)} {unidadEquiv} @ S/ {sinCeros(costoAtomico * fpres, 4)}/{unidadEquiv}
                           </span>
                           {costoPorEmpaque != null && (
                             <>
                               <span className="text-green-600/60">·</span>
-                              <span>{sim(moneda)} {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
+                              <span>S/ {sinCeros(costoPorEmpaque, 2)} por {l.unidadCompraNombre}</span>
                             </>
                           )}
                         </p>
@@ -1371,7 +1400,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                           <span className="text-xs text-gray-400 line-through">{fmtMon(costoActualMostrado)}</span>
                         )}
                         <span className="text-lg font-bold text-[#004A94]">
-                          {proy != null ? `${sim(moneda)} ${sinCeros(proy * fpres, 4)}` : '—'}
+                          {proy != null ? `S/ ${sinCeros(proy * fpres, 4)}` : '—'}
                         </span>
                         {proy != null && <span className="text-[10px] text-gray-400">/{unidadEquiv}</span>}
                       </p>
@@ -1390,17 +1419,17 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                           {fpres > 1 && (
                             <div className="flex items-baseline justify-between text-[10px]">
                               <span className="text-gray-400">por {l.unidadVentaSimbolo}</span>
-                              <span className="font-semibold text-gray-600">{sim(moneda)} {sinCeros(proy, 6)}</span>
+                              <span className="font-medium text-gray-600">S/ {sinCeros(proy, 6)}</span>
                             </div>
                           )}
                           <div className="flex items-baseline justify-between text-[10px]">
                             <span className="text-gray-400">por {unidadEquiv}</span>
-                            <span className="font-semibold text-gray-700">{sim(moneda)} {sinCeros(proy * fpres, 4)}</span>
+                            <span className="font-medium text-gray-700">S/ {sinCeros(proy * fpres, 4)}</span>
                           </div>
                           {conEmpaque && factorVigente > 1 && (
                             <div className="flex items-baseline justify-between text-[10px]">
                               <span className="text-gray-400">por {l.unidadCompraNombre}</span>
-                              <span className="font-semibold text-gray-700">{sim(moneda)} {sinCeros(proy * factorVigente, 2)}</span>
+                              <span className="font-medium text-gray-700">S/ {sinCeros(proy * factorVigente, 2)}</span>
                             </div>
                           )}
                         </div>
@@ -1428,7 +1457,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                       )}
                       <p className="mt-1.5 text-[10px] leading-snug text-gray-400">
                         {l.precioVentaActual != null && l.precioVentaActual > 0
-                          ? `Vendiéndose a ${sim(moneda)} ${(l.precioVentaActual * factorDisplay(l)).toFixed(2)}${l.simboloPres ? `/${l.simboloPres}` : ''}.`
+                          ? `Vendiéndose a S/ ${(l.precioVentaActual * factorDisplay(l)).toFixed(2)}${l.simboloPres ? `/${l.simboloPres}` : ''}.`
                           : 'Este producto todavía no tiene precio de venta en la sede.'}
                       </p>
                     </div>
@@ -1451,7 +1480,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                           {ventaActualMostrada != null ? 'Cambiarlo a' : 'Establecer precio'}
                         </label>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400">{sim(moneda)}</span>
+                          <span className="text-xs font-medium text-gray-400">S/</span>
                           <input type="text" inputMode="decimal" placeholder={ventaActualMostrada != null ? 'sin cambios' : '0.00'}
                             value={l.nuevoPrecioVenta ?? ''}
                             onChange={(e) => actualizar(i, 'nuevoPrecioVenta', e.target.value)}
@@ -1483,13 +1512,13 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                         {mantener != null && (
                           <button type="button" onClick={() => actualizar(i, 'nuevoPrecioVenta', String(mantener))}
                             className="rounded bg-blue-50 px-2 py-1 text-[10px] font-bold text-[#004A94] hover:bg-blue-100">
-                            mantener {margenAnt != null ? `${margenAnt.toFixed(0)}%` : ''} → {sim(moneda)} {mantener.toFixed(2)}
+                            mantener {margenAnt != null ? `${margenAnt.toFixed(0)}%` : ''} → S/ {mantener.toFixed(2)}
                           </button>
                         )}
                         {mas10 != null && (
                           <button type="button" onClick={() => actualizar(i, 'nuevoPrecioVenta', String(mas10))}
                             className="rounded bg-blue-50 px-2 py-1 text-[10px] font-bold text-[#004A94] hover:bg-blue-100">
-                            +10% → {sim(moneda)} {mas10.toFixed(2)}
+                            +10% → S/ {mas10.toFixed(2)}
                           </button>
                         )}
                         {ventaNueva != null && (
