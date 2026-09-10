@@ -210,17 +210,28 @@ export default function CompraDetallePage() {
           <div className="flex justify-between border-t pt-1 font-semibold text-[#004A94]">
             <span>Total</span><span>{sim(c.moneda)} {num(c.total).toFixed(2)}</span>
           </div>
+          {/* En moneda extranjera, a cuanto se reconocio en soles. Es el numero
+              con el que el costo entro al inventario, congelado al TC de ESE
+              dia: lo unico que se mueve despues es la deuda. */}
+          {c.moneda !== 'PEN' && num(c.tipoCambio ?? 0) > 0 && (
+            <div className="flex justify-between text-[11px] text-gray-500">
+              <span>TC {num(c.tipoCambio ?? 0)}</span>
+              <span className="font-semibold text-[#437EFF]">
+                = S/ {num(c.totalSoles ?? num(c.total) * num(c.tipoCambio ?? 0)).toFixed(2)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      <ConfirmarPagoDialog
+      {pagoOpen && <ConfirmarPagoDialog
         isOpen={pagoOpen}
         total={num(c.total)}
         moneda={c.moneda}
         onRegistrar={(pago) => doConfirmar(pago)}
         onOmitir={() => doConfirmar()}
         onClose={() => setPagoOpen(false)}
-      />
+      />}
 
       {toast && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>

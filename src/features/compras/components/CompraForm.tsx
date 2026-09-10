@@ -54,6 +54,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const [proveedorId, setProveedorId] = useState('');
   const [sedeId, setSedeId] = useState('');
   const [moneda, setMoneda] = useState('PEN');
+  // Texto, como el resto de los numeros del formulario: con `parseFloat(x)||0`
+  // el campo no se puede borrar.
+  const [tipoCambio, setTipoCambio] = useState('');
   const [terminosPago, setTerminosPago] = useState('CONTADO');
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [tipoDoc, setTipoDoc] = useState('FACTURA');
@@ -98,6 +101,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     setProveedorId(compra.proveedorId ?? compra.proveedor?.id ?? '');
     setSedeId(compra.sedeId ?? compra.sede?.id ?? '');
     setMoneda(compra.moneda ?? 'PEN');
+    setTipoCambio(compra.tipoCambio != null ? String(compra.tipoCambio) : '');
     setTerminosPago(compra.terminosPago ?? 'CONTADO');
     setFecha((compra.fechaRecepcion ?? '').slice(0, 10));
     if (compra.tipoDocumentoProveedor) setTipoDoc(compra.tipoDocumentoProveedor);
@@ -521,6 +525,13 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   ).length;
   // La factura se paga entera: el total incluye los gastos prorrateen o no.
   const total = totalMercaderia + totalGastos;
+  // 🔴 El TC no es cosmetico: `ProductoStock.precioCosto` no tiene moneda —es
+  // soles y se compara contra el precio de venta, que tambien lo es—, asi que
+  // sin el, el costo del proveedor entraria en dolares y el margen del producto
+  // seria ficcion. El backend rechaza la compra sin TC; esto lo avisa antes.
+  const enMonedaExtranjera = moneda !== 'PEN';
+  const tc = numVal(tipoCambio);
+  const totalSoles = enMonedaExtranjera && tc > 0 ? total * tc : null;
 
   const guardar = async () => {
     if (!proveedorId) return setError('Seleccioná un proveedor');
@@ -550,6 +561,11 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       );
     }
 
+    if (enMonedaExtranjera && !(tc > 0)) {
+      return setError(
+        `La compra es en ${moneda}: falta el tipo de cambio del día para saber cuánto costó en soles.`,
+      );
+    }
     // El regalo va DENTRO de lo recibido, no se suma aparte: 11 con 1 gratis,
     // no 12. Y un descuento mayor al importe dejaria un costo negativo.
     const regaloDeMas = cargadas.filter((l) => bonificadas(l) > numVal(l.cantidad));
@@ -649,6 +665,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     }));
     const cabecera = {
       sedeId, proveedorId, moneda, terminosPago, fechaRecepcion: fecha,
+      // Se congela con la compra: es a cuanto costo ESE dia, y no se mueve
+      // aunque el dolar cambie despues.
+      ...(enMonedaExtranjera ? { tipoCambio: tc } : {}),
       ...(terminosPago === 'PERSONALIZADO' && parseInt(diasCredito) > 0 ? { diasCredito: parseInt(diasCredito) } : {}),
       precioIncluyeIgv,
       detalles,
@@ -728,6 +747,17 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                 {totalMercaderia.toFixed(2)} mercaderia + {totalGastos.toFixed(2)} gastos
               </p>
             )}
+            {/* Lo que la compra vale en NUESTRA moneda: es el numero con el que
+                entra el costo al inventario, y el que se congela con la compra. */}
+            {enMonedaExtranjera && (
+              totalSoles != null ? (
+                <p className="text-[10px] font-semibold text-[#437EFF]">
+                  = S/ {totalSoles.toFixed(2)} al TC {tc}
+                </p>
+              ) : (
+                <p className="text-[10px] font-semibold text-amber-600">falta el tipo de cambio</p>
+              )
+            )}
           </div>
           <button onClick={guardar} disabled={guardando}
             className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
@@ -762,12 +792,22 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
               {TERMINOS.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
             </select>
           </div>
-          <div>
-            <label className={LABEL}>Moneda</label>
-            <select className={INPUT_STD} value={moneda} onChange={(e) => setMoneda(e.target.value)}>
-              <option value="PEN">PEN (S/)</option>
-              <option value="USD">USD ($)</option>
-            </select>
+          <div className={enMonedaExtranjera ? 'grid grid-cols-2 gap-2' : ''}>
+            <div>
+              <label className={LABEL}>Moneda</label>
+              <select className={INPUT_STD} value={moneda} onChange={(e) => setMoneda(e.target.value)}>
+                <option value="PEN">PEN (S/)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            {enMonedaExtranjera && (
+              <div>
+                <label className={LABEL}>Tipo de cambio</label>
+                <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
+                  placeholder="3.712" value={tipoCambio}
+                  onChange={(e) => setTipoCambio(e.target.value)} />
+              </div>
+            )}
           </div>
           <div>
             <label className={LABEL}>Fecha</label>

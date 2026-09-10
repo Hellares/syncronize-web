@@ -114,6 +114,11 @@ export interface CompraDetalle extends CompraListItem {
   detalles: CompraDetalleItem[];
   /** Suma de los gastos, prorrateen o no. Ya viene dentro de `total`. */
   totalGastos?: number | string;
+  /** El de la FACTURA del proveedor. Obligatorio cuando la moneda no es PEN. */
+  tipoCambio?: number | string | null;
+  /** `total` × `tipoCambio`, CONGELADO al confirmar. En PEN es igual a `total`.
+   *  Es el valor con el que el costo entró al inventario y no se vuelve a mover. */
+  totalSoles?: number | string;
   gastos?: CompraGastoItem[];
 }
 
@@ -156,7 +161,12 @@ export interface PagoContadoCompra {
   metodoPago: MetodoPago;
   fuente?: FuentePagoCompra;
   bancoId?: string;
+  /** Lo que SALE de la fuente, en la moneda de esa fuente (los soles de la caja). */
   monto?: number;
+  /** TC del día del pago. Obligatorio si la fuente y la compra no comparten moneda. */
+  tipoCambio?: number;
+  /** Lo que CANCELA de la deuda, en la moneda de la COMPRA. */
+  montoAplicado?: number;
   referencia?: string;
 }
 

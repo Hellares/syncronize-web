@@ -27,36 +27,47 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
   const [metodo, setMetodo] = useState<MetodoPago>('EFECTIVO');
   const [fuente, setFuente] = useState<FuentePagoCompra>('TESORERIA');
   const [bancoId, setBancoId] = useState<string>('');
-  const [monto, setMonto] = useState(String(total));
+  const [monto, setMonto] = useState(total.toFixed(2));
+  const [tipoCambio, setTipoCambio] = useState('');
   const [bancos, setBancos] = useState<BancoEmpresa[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const esExtranjera = moneda.toUpperCase() !== 'PEN';
   const esBancario = metodo !== 'EFECTIVO';
   const defaultFuente = (m: MetodoPago): FuentePagoCompra =>
-    esExtranjera ? 'BANCO' : m === 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
+    m === 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
 
-  const bancosCompatibles = useMemo(
-    () => bancos.filter((b) => (b.moneda ?? 'PEN').toUpperCase() === moneda.toUpperCase()),
-    [bancos, moneda],
-  );
+  // ¿De que moneda sale la plata? Las cajas son en soles; el banco, la suya.
+  const bancoElegido = bancos.find((b) => b.id === bancoIdEfectivo) ?? null;
+  const monedaFuente =
+    fuente === 'BANCO' ? (bancoElegido?.moneda ?? 'PEN').toUpperCase() : 'PEN';
+  // 🔴 Que no coincidan es lo NORMAL cuando el proveedor factura en dolares y
+  // la empresa no maneja dolares: paga en soles al TC del dia. Antes esto se
+  // prohibia y no habia forma de registrar el pago real.
+  const conversion = monedaFuente !== moneda.toUpperCase();
+  const tc = parseFloat(tipoCambio.replace(',', '.')) || 0;
+  const montoNum = parseFloat(monto.replace(',', '.')) || 0;
+  // El monto se escribe SIEMPRE en la moneda de la compra (es lo que se le debe
+  // al proveedor); los soles que salen se derivan.
+  const saleDeLaFuente = conversion && tc > 0 ? Math.round(montoNum * tc * 100) / 100 : null;
 
+  // Se listan TODAS las cuentas: pagar una factura en dolares desde una cuenta
+  // en soles es exactamente el caso de uso. La moneda va en la etiqueta.
+  const bancosCompatibles = useMemo(() => bancos, [bancos]);
+  // 🔴 La cuenta por defecto se DERIVA en el render, no se setea en un
+  // effect: `useEffect` + `setState` no pasa el lint de este repo. Mientras el
+  // usuario no elija, vale la principal (o la primera).
+  const bancoIdEfectivo =
+    bancoId ||
+    (bancosCompatibles.find((b) => b.esPrincipal) ?? bancosCompatibles[0])?.id ||
+    '';
+
+
+  // 🔴 Idem PagoProveedorDialog: el reset vive en el MONTAJE, no en un
+  // effect. La página renderiza el diálogo solo cuando está abierto.
   useEffect(() => {
-    if (!isOpen) return;
-    setError(null);
-    setMetodo('EFECTIVO');
-    setFuente(defaultFuente('EFECTIVO'));
-    setMonto(total.toFixed(2));
     getBancos().then(setBancos).catch(() => setBancos([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, total]);
+  }, []);
 
-  useEffect(() => {
-    if (fuente === 'BANCO' && !bancoId && bancosCompatibles.length > 0) {
-      const principal = bancosCompatibles.find((b) => b.esPrincipal) ?? bancosCompatibles[0];
-      setBancoId(principal.id);
-    }
-  }, [fuente, bancoId, bancosCompatibles]);
 
   if (!isOpen) return null;
 
@@ -68,23 +79,30 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
   };
 
   const registrar = () => {
-    if (fuente === 'BANCO' && !bancoId) return setError('Seleccioná la cuenta bancaria');
-    let m = parseFloat(monto.replace(',', '.')) || 0;
+    if (fuente === 'BANCO' && !bancoIdEfectivo) return setError('Seleccioná la cuenta bancaria');
+    let m = montoNum;
     if (m <= 0) return setError('Ingresá un monto válido');
     if (m > total + 0.001) m = total;
+    m = Math.round(m * 100) / 100;
+    if (conversion && !(tc > 0)) {
+      return setError(
+        `La compra es en ${moneda} y el pago sale en ${monedaFuente}: falta el tipo de cambio del día.`,
+      );
+    }
     onRegistrar({
       metodoPago: metodo,
       fuente,
-      monto: Math.round(m * 100) / 100,
-      ...(fuente === 'BANCO' ? { bancoId } : {}),
+      // `monto` son los soles que salen; `montoAplicado` lo que cancela de la
+      // deuda. Sin conversion son el mismo numero y viaja solo `monto`.
+      monto: conversion ? Math.round(m * tc * 100) / 100 : m,
+      ...(conversion ? { tipoCambio: tc, montoAplicado: m } : {}),
+      ...(fuente === 'BANCO' ? { bancoId: bancoIdEfectivo } : {}),
     });
   };
 
-  const fuentes: FuentePagoCompra[] = esExtranjera
-    ? ['BANCO']
-    : esBancario
-      ? ['BANCO', 'TESORERIA', 'CAJA']
-      : ['TESORERIA', 'CAJA'];
+  const fuentes: FuentePagoCompra[] = esBancario
+    ? ['BANCO', 'TESORERIA', 'CAJA']
+    : ['TESORERIA', 'CAJA'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -101,10 +119,36 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
               {METODOS.map((m) => <option key={m} value={m}>{m[0] + m.slice(1).toLowerCase()}</option>)}
             </select>
           </div>
-          <div>
-            <label className={LABEL}>Monto (máx {sim(moneda)} {total.toFixed(2)})</label>
-            <input className={INPUT_STD} value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="decimal" />
+          <div className={conversion ? 'grid grid-cols-2 gap-2' : ''}>
+            <div>
+              <label className={LABEL}>Monto (máx {sim(moneda)} {total.toFixed(2)})</label>
+              <input className={INPUT_STD} value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="decimal" />
+            </div>
+            {conversion && (
+              <div>
+                <label className={LABEL}>TC del día</label>
+                <input className={`${INPUT_STD} text-right`} value={tipoCambio} placeholder="3.755"
+                  onChange={(e) => setTipoCambio(e.target.value)} inputMode="decimal" />
+              </div>
+            )}
           </div>
+          {/* La cuenta a la vista: se cancela la deuda en la moneda de la
+              factura y salen soles de la caja. El TC es el de HOY y no tiene
+              por que ser el de la compra — esa brecha es la diferencia de
+              cambio, y se ve en el detalle de la compra. */}
+          {conversion && (
+            saleDeLaFuente != null ? (
+              <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-[11px] text-gray-600">
+                Cancela <strong className="text-gray-900">{sim(moneda)} {montoNum.toFixed(2)}</strong> de la deuda
+                {' · '}salen <strong className="text-[#004A94]">{sim(monedaFuente)} {saleDeLaFuente.toFixed(2)}</strong>
+                {' de '}{fuente === 'BANCO' ? 'la cuenta' : 'la caja'}
+              </p>
+            ) : (
+              <p className="rounded-md bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                La compra es en {moneda} y la plata sale en {monedaFuente}: poné el tipo de cambio de hoy.
+              </p>
+            )
+          )}
           <div>
             <label className={LABEL}>Sale de</label>
             <select className={INPUT_STD} value={fuente} onChange={(e) => { setFuente(e.target.value as FuentePagoCompra); }}>
@@ -118,12 +162,12 @@ export default function ConfirmarPagoDialog({ isOpen, total, moneda, onRegistrar
           {fuente === 'BANCO' && (
             bancosCompatibles.length === 0 ? (
               <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
-                No hay cuentas bancarias en {moneda}. Creá una en Tesorería.
+                No hay cuentas bancarias cargadas. Creá una en Tesorería.
               </div>
             ) : (
               <div>
                 <label className={LABEL}>Cuenta bancaria</label>
-                <select className={INPUT_STD} value={bancoId} onChange={(e) => setBancoId(e.target.value)}>
+                <select className={INPUT_STD} value={bancoIdEfectivo} onChange={(e) => setBancoId(e.target.value)}>
                   {bancosCompatibles.map((b) => (
                     <option key={b.id} value={b.id}>{b.nombreBanco} ·· {b.numeroCuenta} ({b.moneda ?? 'PEN'})</option>
                   ))}

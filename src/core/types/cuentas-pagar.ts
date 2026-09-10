@@ -42,7 +42,11 @@ export interface DeudaProveedor {
 export interface PagoRealizado {
   id: string;
   metodoPago: string;
+  /** Los soles que salieron de la caja o el banco. */
   monto: number;
+  /** Lo que canceló de la deuda, en la moneda de la compra. null = misma moneda. */
+  montoAplicado?: number | null;
+  tipoCambio?: number | null;
   fuente?: FuentePagoCompra | null;
   referencia?: string | null;
   fechaPago: string;
@@ -60,11 +64,25 @@ export interface CuentaPagarDetalleItem {
 export interface CuentaPagarDetalle extends CuentaPorPagar {
   detalles: CuentaPagarDetalleItem[];
   pagos: PagoRealizado[];
+  /** `total` × el TC de la compra, congelado: a cuánto se reconoció en soles. */
+  totalSoles?: number;
+  /** El TC de la FACTURA. null en una compra en soles. */
+  tipoCambio?: number | null;
+  /** Soles que realmente salieron de caja o banco por esta compra. */
+  pagadoSoles?: number;
+  /** `pagadoSoles − totalSoles`, y solo con la deuda saldada. Positivo =
+   *  se pagó más caro en soles que el día de la compra (pérdida). */
+  diferenciaCambio?: number;
 }
 
 export interface RegistrarPagoDto {
   metodoPago: MetodoPago;
+  /** Lo que SALE de la fuente, en la moneda de esa fuente (los soles de la caja). */
   monto: number;
+  /** TC del día del pago. Obligatorio si la fuente y la deuda no comparten moneda. */
+  tipoCambio?: number;
+  /** Lo que CANCELA de la deuda, en la moneda de la COMPRA. */
+  montoAplicado?: number;
   fuente?: FuentePagoCompra;
   bancoId?: string;
   referencia?: string;

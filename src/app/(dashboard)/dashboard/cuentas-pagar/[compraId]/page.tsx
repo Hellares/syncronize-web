@@ -61,6 +61,23 @@ export default function CxPDetallePage() {
           <h1 className="text-lg font-semibold text-[#004A94]">{c.codigo}</h1>
           <p className="text-sm text-gray-700">{c.nombreProveedor}</p>
           <p className="text-xs text-gray-500">{c.estado} · saldo {sim(c.moneda)} {num(c.saldoPendiente).toFixed(2)} de {sim(c.moneda)} {num(c.totalCompra).toFixed(2)}</p>
+          {/* La deuda vive en la moneda de la factura; el costo del inventario
+              se congelo en soles al TC de la compra. La brecha contra los soles
+              que de verdad salieron es la diferencia de cambio, y aparece
+              recien cuando la deuda quedo saldada. */}
+          {c.moneda !== 'PEN' && (
+            <p className="text-[11px] text-gray-500">
+              Se reconoció en <strong className="text-gray-700">S/ {num(c.totalSoles ?? 0).toFixed(2)}</strong>
+              {num(c.tipoCambio ?? 0) > 0 && ` al TC ${num(c.tipoCambio ?? 0)}`}
+              {num(c.pagadoSoles ?? 0) > 0 && ` · pagados S/ ${num(c.pagadoSoles ?? 0).toFixed(2)}`}
+              {num(c.diferenciaCambio ?? 0) !== 0 && (
+                <span className={num(c.diferenciaCambio ?? 0) > 0 ? 'text-red-600' : 'text-green-700'}>
+                  {' · '}diferencia de cambio {num(c.diferenciaCambio ?? 0) > 0 ? '−' : '+'} S/{' '}
+                  {Math.abs(num(c.diferenciaCambio ?? 0)).toFixed(2)}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         {num(c.saldoPendiente) > 0.001 && (
           <button onClick={() => setPagoOpen(true)} disabled={busy} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003a74] disabled:opacity-60">
@@ -104,7 +121,18 @@ export default function CxPDetallePage() {
                 <div className="text-xs text-gray-500">{fmtFechaHora(p.fechaPago)}</div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-green-700">{sim(c.moneda)} {num(p.monto).toFixed(2)}</span>
+                {/* Con conversion, lo que importa es lo que CANCELO de la deuda;
+                    los soles que salieron van abajo, chiquitos, con su TC. */}
+                <span className="text-right">
+                  <span className="block font-semibold text-green-700">
+                    {sim(c.moneda)} {num(p.montoAplicado ?? p.monto ?? 0).toFixed(2)}
+                  </span>
+                  {p.montoAplicado != null && (
+                    <span className="block text-[10px] text-gray-500">
+                      salieron S/ {num(p.monto).toFixed(2)} al TC {num(p.tipoCambio ?? 0)}
+                    </span>
+                  )}
+                </span>
                 <button onClick={() => onAnularPago(p.id)} disabled={busy} className="text-xs text-red-600 hover:underline disabled:opacity-50">Anular</button>
               </div>
             </div>
@@ -112,13 +140,13 @@ export default function CxPDetallePage() {
         </div>
       )}
 
-      <PagoProveedorDialog
+      {pagoOpen && <PagoProveedorDialog
         isOpen={pagoOpen}
         saldo={num(c.saldoPendiente)}
         moneda={c.moneda}
         onRegistrar={onRegistrar}
         onClose={() => setPagoOpen(false)}
-      />
+      />}
 
       {toast && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>
