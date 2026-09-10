@@ -185,6 +185,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se encontró el documento');
+      // 🔴 Se suelta la marca del documento buscado: si no, el efecto lo da por
+      // consultado y NUNCA reintenta con el mismo número. Antes eso lo tapaba
+      // el botón "Buscar"; sin botón, esto es el reintento.
+      ultimoBuscado.current = '';
     } finally {
       setBuscandoCliente(false);
     }
@@ -548,7 +552,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 crea si la empresa no lo tiene) y el nombre (que busca entre los
                 que ya estan). En pantallas angostas se apilan solos. */}
             <div className="mt-2 flex flex-wrap items-start gap-2">
-              <div className="flex min-w-[190px] flex-1 gap-2">
+              {/* Sin botón: la consulta sale sola al completar los 8 u 11
+                  dígitos. Enter queda por si el número ya estaba escrito y hace
+                  falta reintentar. */}
+              <div className="relative min-w-[190px] flex-1">
                 {/* 🔴 `inputMode="none"` con el numpad abierto: suprime el
                     teclado del sistema en la tablet —que es de lo que se trata—
                     sin bloquear el input, así el teclado FÍSICO de la PC sigue
@@ -560,10 +567,11 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   placeholder={tipoComprobante === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (8) o RUC (11)'}
                   maxLength={11}
                   onKeyDown={e => { if (e.key === 'Enter') buscarCliente(); }} />
-                <button onClick={() => buscarCliente()} disabled={buscandoCliente}
-                  className="inline-flex h-[30px] shrink-0 items-center rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570] disabled:opacity-50">
-                  {buscandoCliente ? '…' : 'Buscar'}
-                </button>
+                {buscandoCliente && (
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
+                    buscando…
+                  </span>
+                )}
               </div>
 
               <div className="relative min-w-[190px] flex-1">
