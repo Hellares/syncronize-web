@@ -16,6 +16,7 @@ import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import { useAuth } from '@/core/auth/auth-context';
 
+import EvidenciaVentaGaleria from '@/features/venta/components/EvidenciaVentaGaleria';
 const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 const METODOS_PAGO: MetodoPagoVenta[] = ['EFECTIVO', 'TARJETA', 'YAPE', 'PLIN', 'TRANSFERENCIA'];
 
@@ -521,6 +522,10 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           </div>
+
+          {/* La entrega suele pasar horas después del cobro, así que las fotos
+              se pueden sumar acá y no solo al vender. */}
+          <EvidenciaVentaGaleria ventaId={venta.id} />
 
           {venta.observaciones && (
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">

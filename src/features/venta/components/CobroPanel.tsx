@@ -13,6 +13,7 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
+import EvidenciaVentaCard from './EvidenciaVentaCard';
 import Numpad from './Numpad';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
@@ -97,6 +98,11 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [noEncontrado, setNoEncontrado] = useState('');
   const [dialogoPersona, setDialogoPersona] = useState('');
   const [dialogoEmpresa, setDialogoEmpresa] = useState('');
+
+  // Fotos de la venta. Ya subidas (los ids) y si queda alguna en vuelo: el
+  // boton de cobrar espera a que terminen para no perderlas.
+  const [evidenciaIds, setEvidenciaIds] = useState<string[]>([]);
+  const [subiendoFotos, setSubiendoFotos] = useState(false);
 
   const [busquedaNombre, setBusquedaNombre] = useState('');
   const [resultados, setResultados] = useState<Awaited<ReturnType<typeof buscarClientes>>>([]);
@@ -342,6 +348,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
       const venta = await ventaService.crearYCobrar({
         canalVenta: 'POS',
         sedeId,
+        ...(evidenciaIds.length > 0 && { evidenciaIds }),
         vendedorId: userId,
         clienteId,
         clienteEmpresaId,
@@ -419,7 +426,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, onSuccess]);
+  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, evidenciaIds, onSuccess]);
 
   const handleCobrar = () => {
     setError('');
@@ -453,6 +460,12 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   };
 
   const preCobro = (bajoCostoAuthId?: string) => {
+    // 🔴 Si queda una foto subiendo, su `archivoId` todavía no existe y la
+    // venta se crearía SIN ella. Son segundos y el cajero ya la sacó.
+    if (subiendoFotos) {
+      setError('Esperá a que terminen de subir las fotos.');
+      return;
+    }
     // Bancarización: confirmar riesgo antes de enviar
     if (aplicaBancarizacion) {
       setPendingBajoCosto(bajoCostoAuthId);
@@ -664,6 +677,14 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               </div>
             )}
           </div>
+
+          {/* Las fotos van en la columna de la IZQUIERDA, con lo que se define
+              una vez por venta. La derecha es la caja registradora (faltante,
+              teclas, cobrar) y meter una galería ahí la parte al medio. */}
+          <EvidenciaVentaCard
+            onChange={setEvidenciaIds}
+            onSubiendoChange={setSubiendoFotos}
+          />
 
           {/* Crédito */}
           <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">

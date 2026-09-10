@@ -55,6 +55,9 @@ export interface CrearYCobrarVentaDto {
   moneda?: string;
   tipoCambio?: number;
   observaciones?: string;
+  /** Fotos subidas con `POST /ventas/evidencia` antes de crear la venta. Se
+   *  enlazan al crearla. Es evidencia INTERNA: no va al comprobante. */
+  evidenciaIds?: string[];
   detalles: VentaDetalleDto[];
   // Crédito
   esCredito?: boolean;

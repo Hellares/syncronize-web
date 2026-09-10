@@ -187,3 +187,44 @@ export async function obtenerClienteGenerico(): Promise<ClienteResueltoDni> {
   const res = await apiClient.get<ClienteResueltoDni>('/clientes/generico');
   return res.data;
 }
+
+// ─── Evidencia fotográfica de la venta ────────────────────────────────
+// 🔴 Van por `/ventas/...` y no por `/storage/upload`: ese exige
+// `MANAGE_SETTINGS` (admin) y quien saca estas fotos es el cajero.
+
+export interface EvidenciaVenta {
+  archivoId: string;
+  url: string;
+  urlThumbnail?: string | null;
+  nombreOriginal?: string;
+  creadoEn?: string;
+}
+
+/** Sube una foto ANTES de que la venta exista; su id viaja en `evidenciaIds`. */
+export async function subirEvidencia(file: File): Promise<EvidenciaVenta> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await apiClient.post('/ventas/evidencia', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
+/** Adjunta una foto a una venta YA hecha (la entrega suele ser después). */
+export async function adjuntarEvidencia(ventaId: string, file: File): Promise<EvidenciaVenta> {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await apiClient.post(`/ventas/${ventaId}/evidencia`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
+export async function getEvidencias(ventaId: string): Promise<EvidenciaVenta[]> {
+  const res = await apiClient.get(`/ventas/${ventaId}/evidencia`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function eliminarEvidencia(ventaId: string, archivoId: string): Promise<void> {
+  await apiClient.delete(`/ventas/${ventaId}/evidencia/${archivoId}`);
+}
