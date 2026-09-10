@@ -129,12 +129,18 @@ export interface HistorialCompraRow {
   fecha: string;
   proveedorId?: string | null;
   proveedor: string;
+  /** La moneda de la FACTURA de esa compra. */
   moneda: string;
+  /** El TC congelado de esa compra. null en una compra en soles. */
+  tipoCambio?: number | null;
   cantidad: number;
   precioUnitario: number;
   total: number;
-  /** total/cantidad — el costo real por unidad base */
+  /** 🔴 EN SOLES, por unidad base: `total/cantidad × tipoCambio`. Es la única
+   *  base comparable entre compras y contra `ProductoStock.precioCosto`. */
   costoUnitario: number;
+  /** Lo que facturó el proveedor, en SU moneda. Igual al anterior en PEN. */
+  costoUnitarioOriginal?: number;
   usaUnidadCompra?: boolean;
   cantidadOriginal?: number | null;
   unidadOriginalSimbolo?: string | null;

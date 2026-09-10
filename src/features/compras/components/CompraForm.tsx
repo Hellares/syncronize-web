@@ -1085,9 +1085,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           const margenProy = margenProyectadoPct(l);
           const mantener = sugerenciaMantenerMargen(l);
           const mas10 = sugerenciaMas10(l);
+          // 🔴 El historial viene EN SOLES (convertido con el TC congelado de
+          // cada compra), asi que la linea que se esta cargando tambien tiene
+          // que llevarse a soles antes de compararla. Sin esto, cargar en
+          // dolares contra un historial en soles daba -73% habiendo comprado
+          // al mismo precio.
+          const costoUnitSoles = costoUnit != null ? costoUnit * (enMonedaExtranjera && tc > 0 ? tc : 1) : null;
           const ultimoCosto = l.historial?.ultimoCosto ?? null;
-          const variacion = costoUnit != null && ultimoCosto != null && Number(ultimoCosto) > 0
-            ? ((costoUnit - Number(ultimoCosto)) / Number(ultimoCosto)) * 100 : null;
+          const variacion = costoUnitSoles != null && ultimoCosto != null && Number(ultimoCosto) > 0
+            ? ((costoUnitSoles - Number(ultimoCosto)) / Number(ultimoCosto)) * 100 : null;
           const saltoCosto = proy != null && l.costoActual != null && l.costoActual > 0
             ? ((proy - l.costoActual) / l.costoActual) * 100 : null;
           // Todo lo de PRECIO se muestra en la unidad en la que se escribe: el
@@ -1509,8 +1515,22 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                   {(ultimoCosto != null || variacion != null) && (
                     <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 text-[11px] text-gray-500">
                       {ultimoCosto != null && (
-                        <span>Último costo: <strong className="text-gray-700">{sim(moneda)} {Number(ultimoCosto).toFixed(2)}</strong>
-                          {l.historial?.compras[0]?.proveedor ? ` (${l.historial.compras[0].proveedor})` : ''}</span>
+                        <span>
+                          {/* 🔴 SIEMPRE S/: el historial viene convertido. Antes
+                              usaba el simbolo de la compra ACTUAL y una compra
+                              en dolares se leia como si fueran soles. */}
+                          Último costo: <strong className="text-gray-700">S/ {Number(ultimoCosto).toFixed(2)}</strong>
+                          {l.historial?.compras[0]?.proveedor ? ` (${l.historial.compras[0].proveedor})` : ''}
+                          {/* Lo que facturo el proveedor en SU moneda, para que
+                              el numero se pueda cotejar contra el papel. */}
+                          {l.historial?.compras[0] && l.historial.compras[0].moneda !== 'PEN' && (
+                            <span className="text-gray-400">
+                              {' ← '}{sim(l.historial.compras[0].moneda)}{' '}
+                              {Number(l.historial.compras[0].costoUnitarioOriginal ?? 0).toFixed(2)}
+                              {' al TC '}{l.historial.compras[0].tipoCambio}
+                            </span>
+                          )}
+                        </span>
                       )}
                       {variacion != null && Math.abs(variacion) >= 0.5 && (
                         <span className={`rounded px-1.5 py-0.5 font-bold ${variacion > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
@@ -1531,14 +1551,20 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                 const costos = h.compras.map((c) => Number(c.costoUnitario) * fp);
                 const minimo = Math.min(...costos);
                 const maximo = Math.max(...costos);
-                const hoy = costoUnit != null ? costoUnit * fp : null;
+                // 🔴 En SOLES, como el historial: comparar el costo en dolares
+                // de la compra que se esta cargando contra un historial en
+                // soles ubicaba el marcador en el extremo barato siempre.
+                const hoy = costoUnitSoles != null ? costoUnitSoles * fp : null;
                 const hayRango = maximo - minimo > 0.0001;
                 // Donde cae lo que estas pagando dentro de lo que pagaste antes.
                 const posicion = hoy != null && hayRango
                   ? Math.min(100, Math.max(0, ((hoy - minimo) / (maximo - minimo)) * 100))
                   : null;
                 const vsMinimo = hoy != null && minimo > 0 ? ((hoy - minimo) / minimo) * 100 : null;
-                const fmt = (n: number) => `${sim(moneda)} ${n.toFixed(2)}`;
+                // Todo este bloque habla en SOLES, no en la moneda de la compra
+                // que se esta cargando: es la unica base en la que las compras
+                // viejas son comparables entre si y contra la de hoy.
+                const fmt = (n: number) => `S/ ${n.toFixed(2)}`;
                 const fecha = (f: string) => new Date(f).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
 
                 return (
@@ -1609,9 +1635,18 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                                 ? `${c.cantidadOriginal} ${c.unidadOriginalSimbolo ?? 'paq.'}`
                                 : `${fp > 1 ? (c.cantidad / fp).toLocaleString('es-PE') : c.cantidad} ${uni === 'unidad' ? 'und' : uni}`}
                             </span>
-                            <span className={`text-right font-semibold ${esMinimo ? 'text-green-700' : 'text-gray-800'}`}>
-                              {sim(c.moneda)} {(Number(c.costoUnitario) * fp).toFixed(2)}
-                              {esMinimo && <span className="ml-1 text-[9px] font-bold">↓</span>}
+                            <span className={`text-right ${esMinimo ? 'text-green-700' : 'text-gray-800'}`}>
+                              <span className="font-medium">
+                                S/ {(Number(c.costoUnitario) * fp).toFixed(2)}
+                                {esMinimo && <span className="ml-1 text-[9px] font-bold">↓</span>}
+                              </span>
+                              {/* Lo que facturó el proveedor, para poder cotejar
+                                  la fila contra el papel de esa compra. */}
+                              {c.moneda !== 'PEN' && (
+                                <span className="block text-[9px] text-gray-400">
+                                  {sim(c.moneda)} {(Number(c.costoUnitarioOriginal ?? 0) * fp).toFixed(2)} · TC {c.tipoCambio}
+                                </span>
+                              )}
                             </span>
                           </div>
                         );
