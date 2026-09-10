@@ -20,7 +20,11 @@ const REQUIEREN_BANCO = ['TARJETA', 'TRANSFERENCIA'];
 const TOLERANCIA = 0.005;
 const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
+// Estilo estandar de la web: zinc + ring azul + glow al focus, 30 px de alto
+// (la altura del input estandar). El ring va BAKED porque aca el error es un
+// banner arriba, no una marca por campo.
+const inputClass =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 
 
 interface Pago { metodoPago: string; monto: number; referencia?: string; banco?: string }
@@ -540,64 +544,69 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                 </button>
               )}
             </div>
-            <div className="mt-2 flex gap-2">
-              {/* 🔴 `inputMode="none"` con el numpad abierto: suprime el
-                  teclado del sistema en la tablet —que es de lo que se trata—
-                  sin bloquear el input, así el teclado FÍSICO de la PC sigue
-                  escribiendo normal. `readOnly` habría matado las dos cosas. */}
-              <input className={inputClass} value={documento}
-                inputMode={verNumpad ? 'none' : 'numeric'}
-                onFocus={() => setCampoNumpad('documento')}
-                onChange={e => { setDocumento(e.target.value); setEsGenerico(false); }}
-                placeholder={tipoComprobante === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (8) o RUC (11)'}
-                maxLength={11}
-                onKeyDown={e => { if (e.key === 'Enter') buscarCliente(); }} />
-              <button onClick={() => buscarCliente()} disabled={buscandoCliente}
-                className="shrink-0 rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
-                {buscandoCliente ? '...' : 'Buscar'}
-              </button>
+            {/* Los dos caminos al cliente en UNA fila: el documento (que lo
+                crea si la empresa no lo tiene) y el nombre (que busca entre los
+                que ya estan). En pantallas angostas se apilan solos. */}
+            <div className="mt-2 flex flex-wrap items-start gap-2">
+              <div className="flex min-w-[190px] flex-1 gap-2">
+                {/* 🔴 `inputMode="none"` con el numpad abierto: suprime el
+                    teclado del sistema en la tablet —que es de lo que se trata—
+                    sin bloquear el input, así el teclado FÍSICO de la PC sigue
+                    escribiendo normal. `readOnly` habría matado las dos cosas. */}
+                <input className={inputClass} value={documento}
+                  inputMode={verNumpad ? 'none' : 'numeric'}
+                  onFocus={() => setCampoNumpad('documento')}
+                  onChange={e => { setDocumento(e.target.value); setEsGenerico(false); }}
+                  placeholder={tipoComprobante === 'FACTURA' ? 'RUC (11 dígitos)' : 'DNI (8) o RUC (11)'}
+                  maxLength={11}
+                  onKeyDown={e => { if (e.key === 'Enter') buscarCliente(); }} />
+                <button onClick={() => buscarCliente()} disabled={buscandoCliente}
+                  className="inline-flex h-[30px] shrink-0 items-center rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570] disabled:opacity-50">
+                  {buscandoCliente ? '…' : 'Buscar'}
+                </button>
+              </div>
+
+              <div className="relative min-w-[190px] flex-1">
+                <input
+                  className={inputClass}
+                  value={busquedaNombre}
+                  onChange={e => setBusquedaNombre(e.target.value)}
+                  onFocus={() => setCampoNumpad('monto')}
+                  placeholder="…o buscá por nombre"
+                />
+                {busquedaNombre.trim().length >= 3 && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-auto rounded-[6px] bg-white shadow-lg ring-1 ring-blue-400/40">
+                    {buscandoNombre ? (
+                      <p className="px-3 py-2 text-[11px] text-gray-400">Buscando…</p>
+                    ) : resultados.length === 0 ? (
+                      <p className="px-3 py-2 text-[11px] text-gray-500">
+                        Sin resultados. Tecleá el DNI o el RUC al lado: si no está en
+                        la empresa se crea solo con los datos de RENIEC o SUNAT.
+                      </p>
+                    ) : (
+                      resultados.map(r => (
+                        <button
+                          key={`${r.tipo}-${r.id}`}
+                          type="button"
+                          onClick={() => elegirCliente(r)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-blue-50"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs text-gray-800">{r.nombre}</span>
+                            <span className="block text-[10px] text-gray-400">
+                              {r.tipo === 'empresa' ? 'RUC' : 'DNI'} {r.documento || '—'}
+                            </span>
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             {clienteNombre && (
-              <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700">✓ {clienteNombre}</p>
+              <p className="mt-2 rounded-[6px] bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">✓ {clienteNombre}</p>
             )}
-
-            <div className="relative mt-2">
-              <input
-                className={inputClass}
-                value={busquedaNombre}
-                onChange={e => setBusquedaNombre(e.target.value)}
-                onFocus={() => setCampoNumpad('monto')}
-                placeholder="…o buscá por nombre"
-              />
-              {busquedaNombre.trim().length >= 3 && (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                  {buscandoNombre ? (
-                    <p className="px-3 py-2 text-[11px] text-gray-400">Buscando…</p>
-                  ) : resultados.length === 0 ? (
-                    <p className="px-3 py-2 text-[11px] text-gray-500">
-                      Sin resultados. Tecleá el DNI o el RUC arriba: si no está en la
-                      empresa se crea solo con los datos de RENIEC o SUNAT.
-                    </p>
-                  ) : (
-                    resultados.map(r => (
-                      <button
-                        key={`${r.tipo}-${r.id}`}
-                        type="button"
-                        onClick={() => elegirCliente(r)}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-blue-50"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs text-gray-800">{r.nombre}</span>
-                          <span className="block text-[10px] text-gray-400">
-                            {r.tipo === 'empresa' ? 'RUC' : 'DNI'} {r.documento || '—'}
-                          </span>
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Crédito */}
