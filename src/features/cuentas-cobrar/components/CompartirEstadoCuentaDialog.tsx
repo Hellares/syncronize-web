@@ -18,6 +18,7 @@ import { useState } from 'react';
 import type { EstadoCuentaCliente } from '@/core/types/cuentas-cobrar';
 import { getVenta } from '@/features/venta/services/venta-service';
 import EnviarPorWhatsappDialog from '@/features/whatsapp/components/EnviarPorWhatsappDialog';
+import { fmtFechaHora } from '@/core/utils/fecha';
 import {
   construirEstadoCuentaClientePdf,
   descargarEstadoCuentaCliente,
@@ -28,8 +29,6 @@ import {
 
 const fmt = (n: number | undefined | null) =>
   `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtFecha = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
 
 function Casilla({
   marcada,
@@ -246,7 +245,7 @@ export default function CompartirEstadoCuentaDialog({ data, empresaNombre, empre
                     </svg>
                   </span>
                   <span className="font-mono text-[11px] tracking-tight text-gray-500">{v.codigo}</span>
-                  <span className="text-[10px] text-gray-400">{fmtFecha(v.fechaVenta)}</span>
+                  <span className="text-[10px] text-gray-400">{fmtFechaHora(v.fechaVenta)}</span>
                   <span className="ml-auto text-[11px] font-semibold text-gray-800">{fmt(v.saldoPendiente)}</span>
                   {saldada && (
                     <span className="rounded-full bg-green-100 px-1.5 text-[9px] font-bold text-green-700">pagada</span>

@@ -14,6 +14,7 @@ import VentaEstadoCuentaDetalle from '@/features/cuentas-cobrar/components/Venta
 import Plegable from '@/components/ui/Plegable';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 
+import { fmtFechaHora } from '@/core/utils/fecha';
 const fmt = (n: number | undefined | null) =>
   `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtFecha = (iso?: string | null) =>
@@ -194,7 +195,7 @@ function EstadoCuentaClienteContent() {
             <tbody className="divide-y divide-gray-100">
               {abonos.map(a => (
                 <tr key={a.id} className="transition-colors hover:bg-gray-50/60">
-                  <td className="whitespace-nowrap py-1.5 pr-3 text-gray-600">{fmtFecha(a.fechaPago)}</td>
+                  <td className="whitespace-nowrap py-1.5 pr-3 text-gray-600">{fmtFechaHora(a.fechaPago)}</td>
                   <td className="whitespace-nowrap px-3 py-1.5 font-mono text-[11px] tracking-tight text-gray-500">{a.ventaCodigo ?? '—'}</td>
                   <td className="py-1.5 pr-3 text-gray-700">{a.metodoPago}</td>
                   <td className="hidden whitespace-nowrap px-3 py-1.5 text-gray-500 sm:table-cell">{fuenteLabel(a.fuente) || '—'}</td>
@@ -273,7 +274,7 @@ function TablaVentas({
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFecha(v.fechaVenta)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFechaHora(v.fechaVenta)}</td>
 
                   <td className="px-3 py-2">
                     <span className="font-mono text-[11px] tracking-tight text-gray-500">{v.codigo}</span>

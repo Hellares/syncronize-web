@@ -6,6 +6,22 @@ import type { EstadoCuentaTercero, EcDoc } from '@/core/types/proveedor';
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const money = (m: string, v: number) => `${sim(m)} ${Number(v ?? 0).toFixed(2)}`;
 const fmtFecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '');
+// El documento es un MOMENTO: la hora ubica el registro entre varios del mismo
+// dia. Una compra cargada antes de que el formulario pidiera la hora quedo a
+// medianoche UTC y no tiene ninguna que mostrar, asi que sale solo el dia.
+const fmtFechaDoc = (iso?: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sinHora =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (sinHora) return d.toLocaleDateString('es-PE', { timeZone: 'UTC' });
+  return `${d.toLocaleDateString('es-PE')} ${d.toLocaleTimeString('es-PE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })}`;
+};
 const porMonedaTxt = (m: Record<string, number>) => {
   const e = Object.entries(m).filter(([, v]) => Math.abs(v) > 0.001);
   return e.length ? e.map(([k, v]) => money(k, v)).join('   ') : '—';
@@ -78,7 +94,7 @@ export async function descargarEstadoCuentaTercero(
       startY: y,
       head: [['Documento', 'Detalle', 'Total', 'Saldo']],
       body: docs.map((d) => [
-        `${d.codigo}\n${fmtFecha(d.fecha)} · ${d.estado}`,
+        `${d.codigo}\n${fmtFechaDoc(d.fecha)} · ${d.estado}`,
         itemsTxt(d),
         money(d.moneda, d.total),
         d.saldoPendiente > 0.001 ? money(d.moneda, d.saldoPendiente) : '—',

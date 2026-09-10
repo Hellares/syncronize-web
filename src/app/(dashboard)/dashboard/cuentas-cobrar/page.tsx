@@ -12,6 +12,7 @@ import MenuAcciones, { type AccionMenu } from '@/components/ui/MenuAcciones';
 import Plegable from '@/components/ui/Plegable';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
+import { fmtFechaHora } from '@/core/utils/fecha';
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus), el
 // mismo de productos, compras y servicios/nueva. Este buscador habia quedado
 // con el borde gris de antes, que sobre el fondo del dashboard no se ve.
@@ -27,6 +28,8 @@ const ESTADOS: Array<{ value: EstadoCuenta | ''; label: string }> = [
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+// Un vencimiento es un DIA; una venta o un abono son un MOMENTO. Ver
+// `core/utils/fecha`.
 function fmtFecha(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
@@ -349,7 +352,7 @@ export default function CuentasCobrarPage() {
                         </span>
                       </td>
 
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaVenta)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-gray-600">{fmtFechaHora(c.fechaVenta)}</td>
 
                       <td className="whitespace-nowrap px-3 py-2">
                         {/* El codigo es una REFERENCIA, no el titular de la fila: en mono,

@@ -35,7 +35,22 @@ export const OPCIONES_POR_DEFECTO: OpcionesEstadoCuenta = {
 };
 
 const money = (v: number) => `S/ ${Number(v ?? 0).toFixed(2)}`;
+// 🔴 Dos formatos y la diferencia importa: la venta y el abono son un
+// MOMENTO (con hora, que es lo que permite ubicar el registro entre varios del
+// mismo dia) y el vencimiento es un DIA — su hora es un artefacto, sale de
+// `fechaVenta + N dias`, y un credito no vence "a las 02:51".
 const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
+const fmtFechaHora = (iso?: string | null) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${d.toLocaleDateString('es-PE')}
+${d.toLocaleTimeString('es-PE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })}`;
+};
 const fuenteLabel = (f?: string | null) =>
   f === 'TESORERIA' ? 'Tesorería' : f === 'CAJA' ? 'Caja' : f === 'BANCO' ? 'Banco' : f ?? '—';
 
@@ -244,7 +259,7 @@ export async function construirEstadoCuentaClientePdf(
     for (const v of ventas) {
       cuerpo.push([
         v.codigo,
-        fmtFecha(v.fechaVenta),
+        fmtFechaHora(v.fechaVenta),
         fmtFecha(v.fechaVencimiento),
         money(v.total),
         money(v.totalPagado),
@@ -287,7 +302,7 @@ export async function construirEstadoCuentaClientePdf(
       startY: y,
       head: [['Fecha', 'Método', 'Fuente', 'Venta', 'Monto']],
       body: abonos.map((a) => [
-        fmtFecha(a.fechaPago),
+        fmtFechaHora(a.fechaPago),
         a.metodoPago,
         fuenteLabel(a.fuente),
         a.ventaCodigo ?? '—',

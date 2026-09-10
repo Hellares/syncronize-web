@@ -19,6 +19,7 @@ import { getVenta } from '@/features/venta/services/venta-service';
 import VentaProductosTabla from '@/features/venta/components/VentaProductosTabla';
 import { tonoDe, type TonoEstado } from './tono-estado';
 
+import { fmtFechaHora } from '@/core/utils/fecha';
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -91,7 +92,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
 
       <div className="grid gap-3 lg:grid-cols-3">
         <Bloque titulo="El crédito" tono={tono}>
-          <Dato etiqueta="Vendido" valor={fmtFecha(c.fechaVenta)} />
+          <Dato etiqueta="Vendido" valor={fmtFechaHora(c.fechaVenta)} />
           <Dato etiqueta="Vence" valor={fmtFecha(c.fechaVencimiento)} />
           <Dato etiqueta="Plazo" valor={c.plazoCredito ? `${c.plazoCredito} días` : null} />
           <Dato etiqueta="Total" valor={fmt(c.totalVenta)} />
@@ -144,7 +145,7 @@ export default function CuentaFilaDetalle({ cuenta: c, puedeGestionar, onAnularA
             {pagos.map(p => (
               <div key={p.id} className={`flex items-center justify-between gap-2 rounded-md bg-white/70 px-2 py-1 text-[11px] ${p.anulado ? 'opacity-50' : ''}`}>
                 <span className="text-gray-600">
-                  {p.metodoPago} · {fmtFecha(p.fechaPago)}
+                  {p.metodoPago} · {fmtFechaHora(p.fechaPago)}
                   {p.fuente && <span className="ml-1 text-[9px] text-gray-400">→ {p.fuente}</span>}
                   {p.anulado && <span className="ml-1 rounded bg-red-100 px-1 text-[8px] font-bold text-red-600">ANULADO</span>}
                 </span>

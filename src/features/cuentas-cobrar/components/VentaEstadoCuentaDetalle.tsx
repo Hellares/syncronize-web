@@ -15,6 +15,7 @@ import { getVenta } from '@/features/venta/services/venta-service';
 import VentaProductosTabla from '@/features/venta/components/VentaProductosTabla';
 import { tonoDe, type TonoEstado } from './tono-estado';
 
+import { fmtFechaHora } from '@/core/utils/fecha';
 const fmt = (n: number | undefined | null) =>
   `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtFecha = (iso?: string | null) =>
@@ -110,7 +111,7 @@ export default function VentaEstadoCuentaDetalle({ venta }: { venta: VentaCredit
                     className={`flex items-center justify-between gap-2 rounded-md bg-white/70 px-2 py-1 text-[11px] ${anulado ? 'opacity-50' : ''}`}
                   >
                     <span className="text-gray-600">
-                      {p.metodoPago} · {fmtFecha(cuando)}
+                      {p.metodoPago} · {fmtFechaHora(cuando)}
                       {anulado && <span className="ml-1 rounded bg-red-100 px-1 text-[8px] font-bold text-red-600">ANULADO</span>}
                     </span>
                     <span className={`font-semibold ${anulado ? 'text-gray-400 line-through' : 'text-green-700'}`}>
