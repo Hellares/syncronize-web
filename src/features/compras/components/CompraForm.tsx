@@ -16,6 +16,7 @@ import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
 import ProveedorFormDialog from '@/features/proveedores/components/ProveedorFormDialog';
 import SelectBuscable from '@/components/ui/SelectBuscable';
+import { aInputDateTimeLocal, compraSinHora } from '@/core/utils/fecha-compra';
 import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
 import ProductGrid from '@/features/producto/components/ProductGrid';
 import CrearProductoRapidoDialog from '@/features/producto/components/CrearProductoRapidoDialog';
@@ -63,7 +64,10 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   // el campo no se puede borrar.
   const [tipoCambio, setTipoCambio] = useState('');
   const [terminosPago, setTerminosPago] = useState('CONTADO');
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  // 🔴 Hora local, no `toISOString().slice(0,10)`: eso da la fecha en UTC y
+  // despues de las 19:00 en Lima ya es el dia siguiente, asi que el formulario
+  // arrancaba con la fecha de MANANA.
+  const [fecha, setFecha] = useState(aInputDateTimeLocal(new Date()));
   const [tipoDoc, setTipoDoc] = useState('FACTURA');
   const [serie, setSerie] = useState('');
   const [numero, setNumero] = useState('');
@@ -108,7 +112,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
     setMoneda(compra.moneda ?? 'PEN');
     setTipoCambio(compra.tipoCambio != null ? String(compra.tipoCambio) : '');
     setTerminosPago(compra.terminosPago ?? 'CONTADO');
-    setFecha((compra.fechaRecepcion ?? '').slice(0, 10));
+    // Una compra vieja se guardo a medianoche UTC (sin hora): se reabre en esa
+    // fecha a las 00:00 locales, no corrida un dia para atras.
+    setFecha(
+      compra.fechaRecepcion
+        ? compraSinHora(compra.fechaRecepcion)
+          ? `${compra.fechaRecepcion.slice(0, 10)}T00:00`
+          : aInputDateTimeLocal(new Date(compra.fechaRecepcion))
+        : aInputDateTimeLocal(new Date()),
+    );
     if (compra.tipoDocumentoProveedor) setTipoDoc(compra.tipoDocumentoProveedor);
     setSerie(compra.serieDocumentoProveedor ?? '');
     setNumero(compra.numeroDocumentoProveedor ?? '');
@@ -702,7 +714,10 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       orden: i,
     }));
     const cabecera = {
-      sedeId, proveedorId, moneda, terminosPago, fechaRecepcion: fecha,
+      // El input da hora LOCAL ("2026-09-10T14:30"); `new Date` la interpreta
+      // como tal y el ISO viaja como el instante correcto.
+      sedeId, proveedorId, moneda, terminosPago,
+      fechaRecepcion: new Date(fecha).toISOString(),
       // Se congela con la compra: es a cuanto costo ESE dia, y no se mueve
       // aunque el dolar cambie despues.
       ...(enMonedaExtranjera ? { tipoCambio: tc } : {}),
@@ -879,8 +894,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
             )}
           </div>
           <div>
-            <label className={LABEL}>Fecha</label>
-            <input type="date" className={INPUT_STD} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <label className={LABEL}>Fecha y hora de recepción</label>
+            <input type="datetime-local" className={INPUT_STD} value={fecha}
+              onChange={(e) => setFecha(e.target.value)} />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>

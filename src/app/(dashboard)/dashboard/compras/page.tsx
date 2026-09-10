@@ -7,10 +7,14 @@ import type { Proveedor } from '@/core/types/proveedor';
 import { listarCompras } from '@/features/compras/services/compra-service';
 import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { fmtFechaHoraCompra } from '@/core/utils/fecha-compra';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const num = (v: number | string) => Number(v ?? 0);
-const fmtFecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '');
+
+// Las compras cargadas antes de que el formulario pidiera la hora no tienen
+// ninguna que mostrar: ahi sale solo el dia.
+const fmtFecha = (iso?: string) => (iso ? fmtFechaHoraCompra(iso) : '');
 
 const ESTADO_STYLE: Record<EstadoCompra, string> = {
   BORRADOR: 'bg-amber-50 text-amber-700',

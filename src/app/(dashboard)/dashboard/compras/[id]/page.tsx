@@ -7,10 +7,14 @@ import { useRouter } from 'next/navigation';
 import type { CompraDetalle, PagoContadoCompra } from '@/core/types/compra';
 import { getCompra, confirmarCompra, anularCompra, eliminarCompra } from '@/features/compras/services/compra-service';
 import ConfirmarPagoDialog from '@/features/compras/components/ConfirmarPagoDialog';
+import { fmtFechaHoraCompra } from '@/core/utils/fecha-compra';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const num = (v: number | string) => Number(v ?? 0);
-const fmtFecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '');
+
+// Con hora cuando la compra la tiene; las viejas se guardaron a medianoche
+// UTC y ahi sale solo el dia, sin inventar una hora que nadie eligio.
+const fmtFecha = (iso?: string) => (iso ? fmtFechaHoraCompra(iso) : '');
 
 export default function CompraDetallePage() {
   const params = useParams();
