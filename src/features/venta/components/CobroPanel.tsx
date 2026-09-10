@@ -719,8 +719,12 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   </button>
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="relative">
+              {/* El monto y las dos acciones en UNA fila: el input se lleva lo
+                  que sobra y los botones van fijos. La tarjeta vive en la
+                  columna de 340 px, asi que el input queda corto a proposito —
+                  un monto entra de sobra en ese ancho. */}
+              <div className="mt-2 flex gap-1.5">
+                <div className="relative min-w-0 flex-1">
                   {/* 🔴 `type="text"` y no `number`: varios navegadores móviles
                       IGNORAN `inputMode` sobre un input numérico y abren su
                       teclado igual, que es justo lo que el numpad viene a
@@ -728,7 +732,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                       clásico de la rueda del mouse cambiando el monto sin que
                       nadie la toque. El valor ya era string y se lee con
                       `parseFloat`, así que no cambia nada más. */}
-                  <input className={inputClass + ' pr-9 text-right'} type="text" value={montoInput}
+                  <input className={inputClass + ' pr-8 text-right'} type="text" value={montoInput}
                     inputMode={verNumpad ? 'none' : 'decimal'}
                     onFocus={() => setCampoNumpad('monto')}
                     onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
@@ -738,31 +742,36 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
                   <button type="button" onMouseDown={e => e.preventDefault()}
                     onClick={() => guardarNumpad(!verNumpad)}
                     title={verNumpad ? 'Ocultar teclado numérico' : 'Mostrar teclado numérico'}
-                    className={`absolute right-1.5 top-1/2 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-md ${
+                    className={`absolute right-1 top-1/2 flex h-[24px] w-[24px] -translate-y-1/2 items-center justify-center rounded-md ${
                       verNumpad ? 'bg-[#004A94] text-white' : 'text-gray-400 hover:bg-gray-100'
                     }`}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                       <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
                     </svg>
                   </button>
                 </div>
-                {METODOS_DIGITALES.includes(metodoActual) && (
-                  <input className={inputClass} value={refInput} onChange={e => setRefInput(e.target.value)} placeholder="N° operación" />
-                )}
-                {REQUIEREN_BANCO.includes(metodoActual) && (
-                  <input className={`${inputClass} col-span-2`} value={bancoInput} onChange={e => setBancoInput(e.target.value)} placeholder="Banco (BCP, Interbank...) *" />
-                )}
-              </div>
-              <div className="mt-2 flex gap-2">
                 <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
-                  className="flex-1 rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5 disabled:opacity-40">
+                  className="inline-flex h-[30px] shrink-0 items-center rounded-md border border-[#437EFF] px-2.5 text-[10px] font-medium text-[#437EFF] transition-colors hover:bg-[#437EFF]/5 disabled:opacity-40">
                   Agregar pago
                 </button>
                 <button onClick={() => agregarPago(Math.max(0, faltante))} disabled={faltante <= TOLERANCIA}
-                  className="rounded-lg border border-green-500 px-3 py-2 text-xs font-bold text-green-600 hover:bg-green-50 disabled:opacity-40">
+                  className="inline-flex h-[30px] shrink-0 items-center rounded-md border border-green-500 px-2.5 text-[10px] font-medium text-green-600 transition-colors hover:bg-green-50 disabled:opacity-40">
                   Exacto
                 </button>
               </div>
+
+              {/* La referencia y el banco bajan a su propia fila: en la de arriba
+                  ya no entran, y no siempre se piden. */}
+              {(METODOS_DIGITALES.includes(metodoActual) || REQUIEREN_BANCO.includes(metodoActual)) && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {METODOS_DIGITALES.includes(metodoActual) && (
+                    <input className={`${inputClass} col-span-2`} value={refInput} onChange={e => setRefInput(e.target.value)} placeholder="N° operación" />
+                  )}
+                  {REQUIEREN_BANCO.includes(metodoActual) && (
+                    <input className={`${inputClass} col-span-2`} value={bancoInput} onChange={e => setBancoInput(e.target.value)} placeholder="Banco (BCP, Interbank...) *" />
+                  )}
+                </div>
+              )}
 
 
               {/* Recibido, faltante y vuelto se fueron al display de arriba:
