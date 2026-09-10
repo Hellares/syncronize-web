@@ -13,9 +13,15 @@ interface Props {
   onClose: () => void;
 }
 
-const inputClass =
-  'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20';
-const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+// Estilo estandar de la web (zinc + ring azul + glow al focus), el mismo de
+// `CotizacionForm` y todo el modulo de compras. El ring va BAKED porque aca el
+// error es un banner arriba, no una marca por campo.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+// 🔴 El textarea NO puede usar la constante: trae `h-[30px]` y lo aplasta.
+const INPUT_STD_TA =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const labelClass = 'mb-1 block text-[11px] font-medium text-gray-600';
 
 const TIPOS_DOC: TipoDocumentoIdentidad[] = ['RUC', 'DNI', 'CARNET_EXTRANJERIA', 'PASAPORTE', 'OTROS'];
 const TERMINOS: TerminosPago[] = [
@@ -122,11 +128,21 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      {/* 🔴 `font-sans` explicito y `role="dialog"`: sin el rol no se activa la
+          regla de globals.css que fija Amazon Ember en los dialogos, y bastaba
+          un contenedor con otra familia para que el panel saliera en Arial. */}
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label={esEdicion ? 'Editar proveedor' : 'Nuevo proveedor'}
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 font-sans shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-base font-semibold text-[#004A94]">
+        {/* 🔴 `font-bold`, NO `font-semibold`: las caras de Amazon Ember estan
+            declaradas por RANGO y 600-1000 caen todas en el MISMO archivo Bold,
+            asi que `semibold` se ve identico a bold pero pide un peso que no
+            existe. El unico escalon real hacia abajo es `font-medium`. */}
+        <h2 className="mb-4 text-base font-bold text-[#004A94]">
           {esEdicion ? 'Editar proveedor' : 'Nuevo proveedor'}
         </h2>
 
@@ -137,22 +153,25 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
         <div className="space-y-3">
           <div>
             <label className={labelClass}>Nombre / Razón social *</label>
-            <input className={inputClass} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            <input className={INPUT_STD} value={nombre} onChange={(e) => setNombre(e.target.value)} />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className={labelClass}>Tipo doc.</label>
-              <select className={inputClass} value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value as TipoDocumentoIdentidad)}>
+              <select className={INPUT_STD} value={tipoDocumento} onChange={(e) => setTipoDocumento(e.target.value as TipoDocumentoIdentidad)}>
                 {TIPOS_DOC.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="col-span-2">
               <label className={labelClass}>
                 N° documento *
-                {buscandoDoc && <span className="ml-2 font-normal text-gray-400">buscando…</span>}
+                {/* 🔴 Sin peso propio: Amazon Ember mapea 350-599 a la MISMA
+                    cara Medium, asi que un `font-normal` aca no aliviana nada
+                    y hace creer que hay un escalon que no existe. */}
+                {buscandoDoc && <span className="ml-2 text-gray-400">buscando…</span>}
               </label>
               <input
-                className={inputClass}
+                className={INPUT_STD}
                 value={numeroDocumento}
                 inputMode="numeric"
                 placeholder={tipoDocumento === 'RUC' ? '20602393365' : tipoDocumento === 'DNI' ? '60412591' : ''}
@@ -175,31 +194,31 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
           )}
           <div>
             <label className={labelClass}>Nombre comercial</label>
-            <input className={inputClass} value={nombreComercial} onChange={(e) => setNombreComercial(e.target.value)} />
+            <input className={INPUT_STD} value={nombreComercial} onChange={(e) => setNombreComercial(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={labelClass}>Email</label>
-              <input className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input className={INPUT_STD} value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Teléfono</label>
-              <input className={inputClass} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+              <input className={INPUT_STD} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
             </div>
           </div>
           <div>
             <label className={labelClass}>Dirección</label>
-            <input className={inputClass} value={direccion} onChange={(e) => setDireccion(e.target.value)} />
+            <input className={INPUT_STD} value={direccion} onChange={(e) => setDireccion(e.target.value)} />
           </div>
           <div>
             <label className={labelClass}>Términos de pago</label>
-            <select className={inputClass} value={terminosPago} onChange={(e) => setTerminosPago(e.target.value as TerminosPago)}>
+            <select className={INPUT_STD} value={terminosPago} onChange={(e) => setTerminosPago(e.target.value as TerminosPago)}>
               {TERMINOS.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
             </select>
           </div>
           <div>
             <label className={labelClass}>Notas</label>
-            <textarea className={inputClass} rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} />
+            <textarea className={INPUT_STD_TA} rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} />
           </div>
         </div>
 
