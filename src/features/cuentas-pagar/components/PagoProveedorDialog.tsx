@@ -33,6 +33,17 @@ export default function PagoProveedorDialog({ isOpen, saldo, moneda, onRegistrar
   const defaultFuente = (m: MetodoPago): FuentePagoCompra =>
     m === 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
 
+  // Todas las cuentas: pagar una factura en dolares desde una en soles es
+  // justamente lo que hay que poder hacer. La moneda va en la etiqueta.
+  const bancosCompatibles = useMemo(() => bancos, [bancos]);
+  // 🔴 La cuenta por defecto se DERIVA en el render, no se setea en un
+  // effect: `useEffect` + `setState` no pasa el lint de este repo. Mientras el
+  // usuario no elija, vale la principal (o la primera).
+  const bancoIdEfectivo =
+    bancoId ||
+    (bancosCompatibles.find((b) => b.esPrincipal) ?? bancosCompatibles[0])?.id ||
+    '';
+
   // ¿De que moneda sale la plata? Las cajas son en soles; el banco, la suya.
   const bancoElegido =
     bancos.find((b) => b.id === bancoIdEfectivo) ?? null;
@@ -46,16 +57,6 @@ export default function PagoProveedorDialog({ isOpen, saldo, moneda, onRegistrar
   const montoNum = parseFloat(monto.replace(',', '.')) || 0;
   const saleDeLaFuente = conversion && tc > 0 ? Math.round(montoNum * tc * 100) / 100 : null;
 
-  // Todas las cuentas: pagar una factura en dolares desde una en soles es
-  // justamente lo que hay que poder hacer. La moneda va en la etiqueta.
-  const bancosCompatibles = useMemo(() => bancos, [bancos]);
-  // 🔴 La cuenta por defecto se DERIVA en el render, no se setea en un
-  // effect: `useEffect` + `setState` no pasa el lint de este repo. Mientras el
-  // usuario no elija, vale la principal (o la primera).
-  const bancoIdEfectivo =
-    bancoId ||
-    (bancosCompatibles.find((b) => b.esPrincipal) ?? bancosCompatibles[0])?.id ||
-    '';
 
 
   // 🔴 Nada de "resetear en un effect al abrir": `useEffect` + `setState` no
