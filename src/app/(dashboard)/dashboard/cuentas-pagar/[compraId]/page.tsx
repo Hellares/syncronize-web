@@ -9,6 +9,7 @@ import PagoProveedorDialog from '@/features/cuentas-pagar/components/PagoProveed
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
 const num = (v: number | string) => Number(v ?? 0);
+// El pago es un MOMENTO: la hora ubica el abono entre varios del mismo dia.
 const fmtFechaHora = (iso?: string) => (iso ? new Date(iso).toLocaleString('es-PE') : '');
 
 export default function CxPDetallePage() {

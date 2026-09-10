@@ -4,8 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CuentaPorPagar, ResumenCxP, DeudaProveedor, EstadoCxP } from '@/core/types/cuentas-pagar';
 import { listarCxP, getResumenCxP, getPorProveedor } from '@/features/cuentas-pagar/services/cuentas-pagar-service';
+import { fmtFechaHoraCompra } from '@/core/utils/fecha-compra';
 
 const sim = (m: string) => (m === 'USD' ? '$' : m === 'PEN' ? 'S/' : `${m} `);
+// 🔴 La fecha de la COMPRA es un momento y lleva hora; el VENCIMIENTO es un
+// dia y no la lleva: sale de `fechaRecepcion + N dias`, asi que arrastra la
+// hora de la compra y una deuda no vence "a las 19:00".
 const fmtFecha = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('es-PE') : '—');
 const porMoneda = (m: Record<string, number>) => {
   const e = Object.entries(m).filter(([, v]) => Math.abs(v) > 0.001);
@@ -81,27 +85,33 @@ export default function CuentasPagarPage() {
         <div className="py-16 text-center text-sm text-gray-500">Cargando…</div>
       ) : tab === 'compra' ? (
         cuentas.length === 0 ? <div className="py-16 text-center text-sm text-gray-500">Sin cuentas.</div> : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
+          <div className="max-h-[calc(100vh-20rem)] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+            {/* Mismo armado que la tabla de Productos: ring azul (el gris se
+                pierde sobre el #f5f7fa del dashboard), cabecera pegada con la
+                banda #eaf2fd, y alto tope + overflow-auto, que es lo que hace
+                que el sticky funcione. */}
+            <table className="w-full text-left text-[12px]">
+              <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
                 <tr>
-                  <th className="px-3 py-2 text-left">Código</th>
-                  <th className="px-3 py-2 text-left">Proveedor</th>
-                  <th className="px-3 py-2 text-left">Vence</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2 text-right">Saldo</th>
-                  <th className="px-3 py-2 text-center">Estado</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Código</th>
+                  <th className="w-full px-4 py-3 font-medium text-[#004A94]">Proveedor</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Vence</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Saldo</th>
+                  <th className="w-px whitespace-nowrap px-2 py-3 text-center font-medium text-[#004A94]">Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-200">
                 {cuentas.map((c) => (
-                  <tr key={c.compraId} className="cursor-pointer hover:bg-gray-50/60" onClick={() => router.push(`/dashboard/cuentas-pagar/${c.compraId}`)}>
-                    <td className="px-3 py-2 font-mono text-xs text-gray-500">{c.codigo}</td>
-                    <td className="px-3 py-2 text-gray-800">{c.nombreProveedor}</td>
-                    <td className="px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaVencimiento)}</td>
-                    <td className="px-3 py-2 text-right text-gray-600">{sim(c.moneda)} {c.totalCompra.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-medium">{sim(c.moneda)} {c.saldoPendiente.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-center"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ESTADO_STYLE[c.estado]}`}>{c.estado}</span></td>
+                  <tr key={c.compraId} className="cursor-pointer hover:bg-[#f9fbff]" onClick={() => router.push(`/dashboard/cuentas-pagar/${c.compraId}`)}>
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-gray-500">{c.codigo}</td>
+                    <td className="px-4 py-2 text-gray-800">{c.nombreProveedor}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">{fmtFechaHoraCompra(c.fechaCompra)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">{fmtFecha(c.fechaVencimiento)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">{sim(c.moneda)} {c.totalCompra.toFixed(2)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-medium text-gray-900">{sim(c.moneda)} {c.saldoPendiente.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-center"><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ESTADO_STYLE[c.estado]}`}>{c.estado}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -110,26 +120,26 @@ export default function CuentasPagarPage() {
         )
       ) : (
         deudas.length === 0 ? <div className="py-16 text-center text-sm text-gray-500">Sin deudas.</div> : (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500">
+          <div className="max-h-[calc(100vh-20rem)] overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+            <table className="w-full text-left text-[12px]">
+              <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
                 <tr>
-                  <th className="px-3 py-2 text-left">Proveedor</th>
-                  <th className="px-3 py-2 text-center">Compras</th>
-                  <th className="px-3 py-2 text-right">Deuda</th>
-                  <th className="px-3 py-2 text-right">Vencido</th>
+                  <th className="w-full px-4 py-3 font-medium text-[#004A94]">Proveedor</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 text-center font-medium text-[#004A94]">Compras</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Deuda</th>
+                  <th className="w-px whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Vencido</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-200">
                 {deudas.map((d) => (
-                  <tr key={d.proveedorId} className="hover:bg-gray-50/60">
-                    <td className="px-3 py-2">
+                  <tr key={d.proveedorId} className="hover:bg-[#f9fbff]">
+                    <td className="px-4 py-2">
                       <div className="text-gray-800">{d.nombreProveedor}</div>
-                      {d.documentoProveedor && <div className="text-xs text-gray-500">{d.documentoProveedor}</div>}
+                      {d.documentoProveedor && <div className="text-[11px] text-gray-500">{d.documentoProveedor}</div>}
                     </td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-600">{d.cantidadCompras}</td>
-                    <td className="px-3 py-2 text-right font-medium">{porMoneda(d.deudaPorMoneda)}</td>
-                    <td className="px-3 py-2 text-right text-xs text-red-600">{d.totalVencido > 0 ? d.totalVencido.toFixed(2) : '—'}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-center text-gray-600">{d.cantidadCompras}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-medium text-gray-900">{porMoneda(d.deudaPorMoneda)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right text-red-600">{d.totalVencido > 0 ? d.totalVencido.toFixed(2) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
