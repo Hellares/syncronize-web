@@ -10,6 +10,7 @@ import * as ventaService from '../services/venta-service';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import Numpad from './Numpad';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
@@ -45,7 +46,8 @@ interface Props {
 
 export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess, adelantoAplicado = 0, initialCliente }: Props) {
   const { state: authState } = useAuth();
-  const { userRoles } = useEmpresa();
+  const { userRoles, empresa } = useEmpresa();
+  const empresaId = empresa?.id ?? '';
   const userId = authState.status === 'authenticated' ? authState.user.id : '';
   const esAutorizador = useMemo(() => userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol)), [userRoles]);
 
@@ -77,6 +79,15 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [clienteId, setClienteId] = useState<string | undefined>(initialCliente?.clienteId);
   const [clienteEmpresaId, setClienteEmpresaId] = useState<string | undefined>(initialCliente?.clienteEmpresaId);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
+  // Busqueda del cliente POR NOMBRE, para cuando el cajero lo conoce pero no
+  // sabe su documento. Es sobre los clientes que la empresa YA tiene: el
+  // alta de uno nuevo sigue saliendo del documento, que es lo que RENIEC y
+  // SUNAT saben resolver.
+  const [busquedaNombre, setBusquedaNombre] = useState('');
+  const [resultados, setResultados] = useState<Awaited<ReturnType<typeof buscarClientes>>>([]);
+  const [buscandoNombre, setBuscandoNombre] = useState(false);
+  const debounceNombre = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Ultimo documento consultado, para no repetir la busqueda en cada render.
   const ultimoBuscado = useRef<string>('');
   const [esGenerico, setEsGenerico] = useState(false);
@@ -196,6 +207,52 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     ultimoBuscado.current = doc;
     buscarCliente(doc);
   }, [documento, esGenerico, buscarCliente]);
+
+  /**
+   * Busca entre los clientes que la empresa YA tiene, por nombre o documento.
+   *
+   * Con menos de 3 letras no dispara: con una o dos vuelve media agenda y el
+   * desplegable tapa el resto de la tarjeta sin servir de nada.
+   */
+  useEffect(() => {
+    const q = busquedaNombre.trim();
+    if (debounceNombre.current) clearTimeout(debounceNombre.current);
+    if (q.length < 3 || !empresaId) { setResultados([]); return; }
+    debounceNombre.current = setTimeout(() => {
+      setBuscandoNombre(true);
+      buscarClientes(empresaId, q)
+        .then(setResultados)
+        .catch(() => setResultados([]))
+        .finally(() => setBuscandoNombre(false));
+    }, 300);
+    return () => { if (debounceNombre.current) clearTimeout(debounceNombre.current); };
+  }, [busquedaNombre, empresaId]);
+
+  /**
+   * 🔴 Persona y empresa viven en TABLAS distintas y cada una tiene su
+   * propia FK: se manda UNO de los dos ids y se limpia el otro. Cruzarlos
+   * hace que el backend no encuentre nada y la venta se emita SIN cliente,
+   * sin ningun error visible — el nombre se ve bien porque viaja aparte.
+   */
+  const elegirCliente = (r: { id: string; tipo: 'empresa' | 'persona'; nombre: string; documento: string }) => {
+    setClienteNombre(r.nombre);
+    setDocumento(r.documento ?? '');
+    if (r.tipo === 'persona') {
+      setClienteId(r.id);
+      setClienteEmpresaId(undefined);
+    } else {
+      setClienteEmpresaId(r.id);
+      setClienteId(undefined);
+    }
+    setEsGenerico(false);
+    setError('');
+    setBusquedaNombre('');
+    setResultados([]);
+    // Ya resuelto por nombre: que el efecto del documento no vuelva a
+    // consultarlo y pise el id con el del get-or-create.
+    ultimoBuscado.current = (r.documento ?? '').trim();
+    setCampoNumpad('monto');
+  };
 
   const usarGenerico = () => {
     setEsGenerico(true);
@@ -503,6 +560,44 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             {clienteNombre && (
               <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700">✓ {clienteNombre}</p>
             )}
+
+            <div className="relative mt-2">
+              <input
+                className={inputClass}
+                value={busquedaNombre}
+                onChange={e => setBusquedaNombre(e.target.value)}
+                onFocus={() => setCampoNumpad('monto')}
+                placeholder="…o buscá por nombre"
+              />
+              {busquedaNombre.trim().length >= 3 && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  {buscandoNombre ? (
+                    <p className="px-3 py-2 text-[11px] text-gray-400">Buscando…</p>
+                  ) : resultados.length === 0 ? (
+                    <p className="px-3 py-2 text-[11px] text-gray-500">
+                      Sin resultados. Tecleá el DNI o el RUC arriba: si no está en la
+                      empresa se crea solo con los datos de RENIEC o SUNAT.
+                    </p>
+                  ) : (
+                    resultados.map(r => (
+                      <button
+                        key={`${r.tipo}-${r.id}`}
+                        type="button"
+                        onClick={() => elegirCliente(r)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-blue-50"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs text-gray-800">{r.nombre}</span>
+                          <span className="block text-[10px] text-gray-400">
+                            {r.tipo === 'empresa' ? 'RUC' : 'DNI'} {r.documento || '—'}
+                          </span>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Crédito */}
