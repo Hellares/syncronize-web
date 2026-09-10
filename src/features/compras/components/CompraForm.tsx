@@ -14,6 +14,7 @@ import { getProductos } from '@/features/producto/services/producto-service';
 import type { Producto, ProductoVariante } from '@/core/types/producto';
 import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
+import ProveedorFormDialog from '@/features/proveedores/components/ProveedorFormDialog';
 import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
 import ProductGrid from '@/features/producto/components/ProductGrid';
 import CrearProductoRapidoDialog from '@/features/producto/components/CrearProductoRapidoDialog';
@@ -52,6 +53,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const [crearDesde, setCrearDesde] = useState<number | null>(null);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [proveedorId, setProveedorId] = useState('');
+  // Alta de proveedor SIN salir de la compra: irse a Proveedores y volver
+  // significa perder las lineas que ya se cargaron.
+  const [crearProveedorOpen, setCrearProveedorOpen] = useState(false);
   const [sedeId, setSedeId] = useState('');
   const [moneda, setMoneda] = useState('PEN');
   // Texto, como el resto de los numeros del formulario: con `parseFloat(x)||0`
@@ -774,7 +778,13 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       {cabeceraAbierta && (
         <div className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-gray-100 bg-white p-4 md:grid-cols-3">
           <div>
-            <label className={LABEL}>Proveedor *</label>
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <label className={LABEL.replace('mb-1 ', '')}>Proveedor *</label>
+              <button type="button" onClick={() => setCrearProveedorOpen(true)}
+                className="text-[11px] font-semibold text-[#437EFF] hover:text-[#004A94]">
+                + Nuevo
+              </button>
+            </div>
             <select className={INPUT_STD} value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}>
               <option value="">Seleccionar…</option>
               {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -1173,83 +1183,79 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                   </div>
                 )}
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={LABEL}>Cantidad</label>
-                    <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
-                      value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
-                    <p className="mt-1 text-[10px] font-semibold text-[#004A94]">{simboloCarga}</p>
-                  </div>
-                  <div>
-                    <label className={LABEL}>Costo unitario</label>
-                    <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
-                      value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
-                    <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
-                  </div>
-                </div>
+                {/* Cantidad, costo y —si la línea trae promo— el regalo y el
+                    descuento, TODO en la misma fila. Sacarlos a una tarjeta
+                    aparte partia en dos una cuenta que se lee de corrido. */}
+                {(() => {
+                  const promo = l.promoAbierta || conPromo(l);
+                  return (
+                    <>
+                      <div className={`mt-4 grid gap-3 ${promo ? 'grid-cols-2 sm:grid-cols-4' : 'sm:grid-cols-2'}`}>
+                        <div>
+                          <label className={LABEL}>Cantidad</label>
+                          <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`}
+                            value={l.cantidad} onChange={(e) => actualizar(i, 'cantidad', e.target.value)} />
+                          <p className="mt-1 text-[10px] font-semibold text-[#004A94]">{simboloCarga}</p>
+                        </div>
+                        <div>
+                          <label className={LABEL}>Costo unitario</label>
+                          <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
+                            value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
+                          <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
+                        </div>
+                        {promo && (
+                          <>
+                            <div>
+                              <label className={LABEL}>Vienen gratis</label>
+                              <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0"
+                                value={l.cantidadBonificada ?? ''}
+                                onChange={(e) => actualizar(i, 'cantidadBonificada', e.target.value)} />
+                              <p className="mt-1 text-[10px] text-gray-400">de las {sinCeros(numVal(l.cantidad), 3) || 0}</p>
+                            </div>
+                            <div>
+                              <label className={LABEL}>Descuento</label>
+                              <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
+                                value={l.descuento ?? ''}
+                                onChange={(e) => actualizar(i, 'descuento', e.target.value)} />
+                              <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} en total</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
-                {/* Bonificacion y descuento del proveedor. Plegados: la enorme
-                    mayoria de las lineas no tiene ninguno de los dos, y dos
-                    campos mas por linea vuelven ilegible la tarjeta. Se abren
-                    solos cuando la linea ya trae algo cargado. */}
-                {l.promoAbierta || conPromo(l) ? (
-                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#004A94]">Regalo y descuento</p>
+                      {/* La cuenta a la vista: el regalo no se paga pero SI entra
+                          al stock, asi que abarata a todas las unidades. Es el
+                          mismo numero que el proveedor imprime como "precio
+                          prorrateado" en su factura. */}
+                      {conPromo(l) && costoProrrateado(l) != null && (
+                        <p className="mt-2 rounded-md bg-blue-50 px-2.5 py-1.5 text-[11px] text-gray-600">
+                          Pagas <strong className="text-gray-900">
+                            {sinCeros(Math.max(0, numVal(l.cantidad) - bonificadas(l)), 3)}
+                          </strong>
+                          {' · '}Entran al stock <strong className="text-gray-900">{sinCeros(numVal(l.cantidad), 3)}</strong>
+                          {' · '}Costo real <strong className="text-[#004A94]">
+                            {sim(moneda)} {(costoProrrateado(l) as number).toFixed(4)}
+                          </strong>
+                          <span className="text-[10px] text-gray-400"> /{simboloCarga}</span>
+                        </p>
+                      )}
+                      {bonificadas(l) > numVal(l.cantidad) && (
+                        <p className="mt-2 rounded-md bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                          El regalo no puede superar lo recibido: en 10+1 la cantidad es 11, no 10.
+                        </p>
+                      )}
+
+                      {/* El toggle: plegado por defecto porque la enorme mayoria
+                          de las lineas no trae ni regalo ni descuento. */}
                       {!conPromo(l) && (
-                        <button type="button" onClick={() => parchar(i, { promoAbierta: false })}
-                          className="text-[10px] font-semibold text-gray-400 hover:text-gray-600">
-                          Ocultar
+                        <button type="button" onClick={() => parchar(i, { promoAbierta: !promo })}
+                          className="mt-2 text-[11px] font-semibold text-[#437EFF] hover:text-[#004A94]">
+                          {promo ? '− Ocultar regalo y descuento' : '+ Regalo o descuento del proveedor'}
                         </button>
                       )}
-                    </div>
-                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className={LABEL}>Vienen gratis</label>
-                        <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0"
-                          value={l.cantidadBonificada ?? ''}
-                          onChange={(e) => actualizar(i, 'cantidadBonificada', e.target.value)} />
-                        <p className="mt-1 text-[10px] text-gray-400">
-                          Van DENTRO de la cantidad: la promo 10+1 se carga como 11 con 1 gratis
-                        </p>
-                      </div>
-                      <div>
-                        <label className={LABEL}>Descuento</label>
-                        <input type="text" inputMode="decimal" className={`${INPUT_STD} text-right`} placeholder="0.00"
-                          value={l.descuento ?? ''}
-                          onChange={(e) => actualizar(i, 'descuento', e.target.value)} />
-                        <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} sobre el total de la linea</p>
-                      </div>
-                    </div>
-
-                    {/* La cuenta a la vista: el regalo no se paga pero SI entra
-                        al stock, asi que abarata a todas las unidades. Es el
-                        mismo numero que el proveedor imprime como "precio
-                        prorrateado" en su factura. */}
-                    {conPromo(l) && costoProrrateado(l) != null && (
-                      <p className="mt-2 rounded-md bg-white/70 px-2.5 py-1.5 text-[11px] text-gray-600">
-                        Pagas <strong className="text-gray-900">
-                          {sinCeros(Math.max(0, numVal(l.cantidad) - bonificadas(l)), 3)}
-                        </strong>
-                        {' · '}Entran al stock <strong className="text-gray-900">{sinCeros(numVal(l.cantidad), 3)}</strong>
-                        {' · '}Costo real <strong className="text-[#004A94]">
-                          {sim(moneda)} {(costoProrrateado(l) as number).toFixed(4)}
-                        </strong>
-                        <span className="text-[10px] text-gray-400"> /{simboloCarga}</span>
-                      </p>
-                    )}
-                    {bonificadas(l) > numVal(l.cantidad) && (
-                      <p className="mt-2 rounded-md bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
-                        El regalo no puede superar lo recibido: en 10+1 la cantidad es 11, no 10.
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => parchar(i, { promoAbierta: true })}
-                    className="mt-2 text-[11px] font-semibold text-[#437EFF] hover:text-[#004A94]">
-                    + Regalo o descuento del proveedor
-                  </button>
-                )}
+                    </>
+                  );
+                })()}
 
                 {/* "Comprar por": el mismo selector del app. Un saco y la unidad
                     en la que se le habla al usuario (kg) son dos formas de
@@ -1712,6 +1718,24 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           yaAgregadas={lineas.map((l) => l.varianteId).filter(Boolean) as string[]}
           onElegir={(v, costo) => agregarVariante(productoVariantes, v, costo)}
           onCerrar={() => setProductoVariantes(null)}
+        />
+      )}
+
+      {/* Alta de proveedor en el lugar: el nuevo queda SELECCIONADO, que es
+          para lo que se abrio. Sin eso hay que buscarlo a mano en la lista. */}
+      {crearProveedorOpen && (
+        <ProveedorFormDialog
+          isOpen
+          onSuccess={(_msg, p) => {
+            setCrearProveedorOpen(false);
+            if (!p) return;
+            setProveedores((ps) => [p, ...ps.filter((x) => x.id !== p.id)]);
+            setProveedorId(p.id);
+            // Los terminos del proveedor mandan, igual que al elegirlo de la
+            // lista: una compra a un proveedor a 30 dias nace a credito.
+            if (p.terminosPago) setTerminosPago(p.terminosPago);
+          }}
+          onClose={() => setCrearProveedorOpen(false)}
         />
       )}
 

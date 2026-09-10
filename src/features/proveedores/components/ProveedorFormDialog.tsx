@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import type { Proveedor, CreateProveedorDto, TipoDocumentoIdentidad, TerminosPago } from '@/core/types/proveedor';
 import { crearProveedor, actualizarProveedor } from '@/features/proveedores/services/proveedor-service';
+import { consultarRuc, consultarDni } from '@/features/cotizacion/services/cliente-service';
 
 interface Props {
   isOpen: boolean;
@@ -34,6 +35,43 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [buscandoDoc, setBuscandoDoc] = useState(false);
+  const [docMsg, setDocMsg] = useState('');
+
+  /**
+   * Trae el nombre desde SUNAT (11 digitos) o RENIEC (8) al terminar de
+   * escribir el documento. Es el mismo lookup del dialogo de cliente.
+   *
+   * Solo PISA el nombre si esta vacio o si lo habia puesto el lookup anterior:
+   * un nombre tecleado a mano no se toca. La direccion se completa solo si
+   * estaba vacia, por lo mismo.
+   */
+  const buscarDoc = useCallback(async (tipo: TipoDocumentoIdentidad, valor: string) => {
+    const doc = valor.trim();
+    const esRuc = tipo === 'RUC' && /^\d{11}$/.test(doc);
+    const esDni = tipo === 'DNI' && /^\d{8}$/.test(doc);
+    if (!esRuc && !esDni) return;
+    setBuscandoDoc(true);
+    setDocMsg('');
+    try {
+      if (esRuc) {
+        const r = await consultarRuc(doc);
+        setNombre((prev) => prev.trim() ? prev : r.razonSocial);
+        setDireccion((prev) => prev.trim() ? prev : (r.direccionCompleta || r.direccion || ''));
+        setDocMsg(`✓ ${r.razonSocial}${r.estado ? ` · ${r.estado}` : ''}`);
+      } else {
+        const r = await consultarDni(doc);
+        const completo = r.nombreCompleto
+          ?? [r.nombres, r.apellidoPaterno, r.apellidoMaterno].filter(Boolean).join(' ');
+        setNombre((prev) => prev.trim() ? prev : completo);
+        setDocMsg(`✓ ${completo || 'Datos encontrados'}`);
+      }
+    } catch {
+      setDocMsg('No se encontraron datos para ese documento');
+    } finally {
+      setBuscandoDoc(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,6 +85,7 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
     setDireccion(proveedor?.direccion ?? '');
     setTerminosPago(proveedor?.terminosPago ?? 'CONTADO');
     setNotas(proveedor?.notas ?? '');
+    setDocMsg('');
   }, [isOpen, proveedor]);
 
   if (!isOpen) return null;
@@ -108,10 +147,32 @@ export default function ProveedorFormDialog({ isOpen, proveedor, onSuccess, onCl
               </select>
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>N° documento *</label>
-              <input className={inputClass} value={numeroDocumento} onChange={(e) => setNumeroDocumento(e.target.value)} />
+              <label className={labelClass}>
+                N° documento *
+                {buscandoDoc && <span className="ml-2 font-normal text-gray-400">buscando…</span>}
+              </label>
+              <input
+                className={inputClass}
+                value={numeroDocumento}
+                inputMode="numeric"
+                placeholder={tipoDocumento === 'RUC' ? '20602393365' : tipoDocumento === 'DNI' ? '60412591' : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setNumeroDocumento(v);
+                  setDocMsg('');
+                  // Se dispara al completar los digitos, sin botón: es el
+                  // largo del documento el que dice cuándo está listo.
+                  void buscarDoc(tipoDocumento, v);
+                }}
+                onBlur={() => void buscarDoc(tipoDocumento, numeroDocumento)}
+              />
             </div>
           </div>
+          {docMsg && (
+            <p className={`-mt-1 text-[11px] ${docMsg.startsWith('✓') ? 'text-green-700' : 'text-amber-700'}`}>
+              {docMsg}
+            </p>
+          )}
           <div>
             <label className={labelClass}>Nombre comercial</label>
             <input className={inputClass} value={nombreComercial} onChange={(e) => setNombreComercial(e.target.value)} />
