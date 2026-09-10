@@ -15,6 +15,7 @@ import type { Producto, ProductoVariante } from '@/core/types/producto';
 import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
 import SelectorVariantesCompra from '@/features/compras/components/SelectorVariantesCompra';
 import ProveedorFormDialog from '@/features/proveedores/components/ProveedorFormDialog';
+import SelectBuscable from '@/components/ui/SelectBuscable';
 import { particionarVariantes, presentacionDeVariante, seCompraPorBulto, stockDeVarianteEnSede } from '@/features/compras/utils/variantes-comprables';
 import ProductGrid from '@/features/producto/components/ProductGrid';
 import CrearProductoRapidoDialog from '@/features/producto/components/CrearProductoRapidoDialog';
@@ -785,10 +786,22 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                 + Nuevo
               </button>
             </div>
-            <select className={INPUT_STD} value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}>
-              <option value="">Seleccionar…</option>
-              {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+            {/* Buscable: con la lista larga, un `<select>` obliga a scrollear
+                hasta un proveedor cuyo nombre uno YA sabe. El documento va en
+                `detalle`, y `SelectBuscable` filtra sobre nombre + detalle, asi
+                que se encuentra tecleando "deltron" o el RUC indistintamente. */}
+            <SelectBuscable
+              value={proveedorId}
+              onChange={setProveedorId}
+              etiqueta="Proveedor"
+              placeholder="Buscar por nombre o RUC…"
+              textoVacio="Sin proveedor"
+              opciones={proveedores.map((p) => ({
+                id: p.id,
+                nombre: p.nombre,
+                detalle: p.numeroDocumento ?? null,
+              }))}
+            />
           </div>
           <div>
             <label className={LABEL}>Sede *</label>
