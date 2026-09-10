@@ -433,6 +433,10 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const costoInventario = (l: LineaForm): number | null => {
     const cant = numVal(l.cantidad);
     if (cant <= 0 || numVal(l.precioUnitario) <= 0) return null;
+    // 🔴 En otra moneda y SIN tipo de cambio el costo en soles no se puede
+    // saber. Cayendo a 1 se mostraban DOLARES rotulados "S/" al lado de un
+    // historial que si esta convertido, y no habia como notarlo.
+    if (enMonedaExtranjera && tc <= 0) return null;
     const bruto = importeLinea(l);
     const conIgv = precioIncluyeIgv
       ? bruto
@@ -1605,12 +1609,27 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                       </span>
                     </div>
 
+                    {/* Sin TC no hay con que comparar: el historial esta en
+                        soles y la linea todavia no se puede convertir. */}
+                    {hoy == null && enMonedaExtranjera && tc <= 0 && (
+                      <p className="mt-3 rounded-lg bg-amber-100 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                        Poné el tipo de cambio arriba para comparar esta compra contra el historial.
+                      </p>
+                    )}
+
                     {/* Veredicto: lo unico que el usuario quiere saber mirando esto */}
                     {hoy != null && (
                       <div className="mt-3 rounded-lg border border-gray-100 bg-slate-50/60 p-3">
                         <div className="flex flex-wrap items-baseline gap-x-2">
                           <span className="text-xs text-gray-500">Estás pagando</span>
                           <span className="text-base font-bold text-[#004A94]">{fmt(hoy)}</span>
+                          {/* De donde sale: el mismo costo en la moneda de la
+                              factura, para poder cotejarlo contra el papel. */}
+                          {enMonedaExtranjera && (
+                            <span className="text-[11px] text-gray-400">
+                              ({sim(moneda)} {(hoy / aSoles).toFixed(2)} al TC {tc})
+                            </span>
+                          )}
                           <span className="text-[11px] text-gray-400">por {uni}</span>
                         </div>
 
