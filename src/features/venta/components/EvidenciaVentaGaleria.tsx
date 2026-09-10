@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   adjuntarEvidencia,
   eliminarEvidencia,
   getEvidencias,
   type EvidenciaVenta,
 } from '../services/venta-service';
+import { useCapturaImagenes } from './useCapturaImagenes';
 
 /**
  * Las fotos de una venta ya hecha, con la opción de sumar más.
@@ -15,18 +16,13 @@ import {
  * después del cobro, y esa —"así se lo entregué"— es justo la foto que sirve
  * ante un reclamo.
  *
- * Es evidencia INTERNA: no viaja al comprobante ni al ticket del cliente.
+ * Entran igual que en el cobro: botón (cámara o galería en el celular),
+ * arrastrar y Ctrl+V. Es evidencia INTERNA: no viaja al comprobante.
  */
-
-const MAX_MB = 10;
-
 export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) {
   const [items, setItems] = useState<EvidenciaVenta[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [enVuelo, setEnVuelo] = useState(0);
-  const [error, setError] = useState('');
   const [zoom, setZoom] = useState<EvidenciaVenta | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -42,26 +38,27 @@ export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) 
     void cargar();
   }, [cargar]);
 
-  const elegir = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setError('');
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_MB * 1024 * 1024) {
-        setError(`"${file.name}" pesa más de ${MAX_MB} MB.`);
-        continue;
-      }
-      setEnVuelo((n) => n + 1);
-      try {
-        const subida = await adjuntarEvidencia(ventaId, file);
-        setItems((prev) => [...prev, subida]);
-      } catch {
-        setError('No se pudo subir una de las fotos.');
-      } finally {
-        setEnVuelo((n) => Math.max(0, n - 1));
-      }
-    }
-    if (inputRef.current) inputRef.current.value = '';
-  };
+  const subir = useCallback(
+    (file: File) => adjuntarEvidencia(ventaId, file),
+    [ventaId],
+  );
+  const onSubidaOk = useCallback((item: EvidenciaVenta) => {
+    setItems((prev) => [...prev, item]);
+  }, []);
+
+  // 🔴 Se DESESTRUCTURA: devolver el objeto entero hace que el compilador de
+  // React lo trate como portador de un ref y marque cada lectura en el render
+  // como "Cannot access refs during render".
+  const {
+    inputRef,
+    onInputChange,
+    propsZona,
+    arrastrando,
+    enVuelo,
+    error,
+    setError,
+    abrirSelector,
+  } = useCapturaImagenes<EvidenciaVenta>({ subir, onSubidaOk });
 
   const quitar = async (archivoId: string) => {
     // Optimista: la foto desaparece al toque y vuelve si el borrado falla.
@@ -75,10 +72,13 @@ export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) 
     }
   };
 
-  // Sin fotos y sin nada subiendo la tarjeta no aporta: se muestra solo el
-  // botón, para que igual se puedan agregar después de la entrega.
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+    <div
+      {...propsZona}
+      className={`rounded-2xl border bg-white p-4 shadow-sm transition-colors ${
+        arrastrando ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-100'
+      }`}
+    >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 text-[13px]">📷</span>
@@ -89,28 +89,30 @@ export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) 
         </div>
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={abrirSelector}
           className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md border border-[#437EFF] px-2.5 text-[10px] font-medium text-[#437EFF] transition-colors hover:bg-[#437EFF]/5"
         >
           + Agregar
         </button>
       </div>
 
+      {/* 🔴 SIN `capture`: con él, el celular abre la cámara directo y esconde
+          la galería. Sin el atributo ofrece las dos y el usuario elige. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
-        onChange={(e) => void elegir(e.target.files)}
+        onChange={onInputChange}
       />
 
       {cargando ? (
         <p className="text-[11px] text-gray-400">Cargando…</p>
       ) : items.length === 0 && enVuelo === 0 ? (
         <p className="text-[11px] text-gray-400">
-          Sin fotos. Sirven de respaldo ante un reclamo: cómo se vendió y cómo se entregó.
+          Sin fotos. Arrastrá una acá, pegá con Ctrl+V o tocá Agregar. Sirven de
+          respaldo ante un reclamo: cómo se vendió y cómo se entregó.
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -144,7 +146,9 @@ export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) 
       )}
 
       {error && (
-        <p className="mt-2 rounded-[6px] bg-amber-100 px-2.5 py-1.5 text-[11px] font-medium text-amber-800">{error}</p>
+        <p className="mt-2 rounded-[6px] bg-amber-100 px-2.5 py-1.5 text-[11px] font-medium text-amber-800">
+          {error}
+        </p>
       )}
 
       {zoom && (

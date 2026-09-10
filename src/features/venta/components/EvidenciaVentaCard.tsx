@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { subirEvidencia, type EvidenciaVenta } from '../services/venta-service';
+import { useCapturaImagenes } from './useCapturaImagenes';
 
 /**
  * Fotos de la venta: cómo se vendió el producto y cómo se entrega.
@@ -10,14 +11,15 @@ import { subirEvidencia, type EvidenciaVenta } from '../services/venta-service';
  * mostrador la foto se saca mientras se cobra; dejar la subida para el final
  * pone al cliente a esperar frente a la caja mientras el archivo sale por
  * datos móviles. El botón de cobrar solo espera si queda alguna en vuelo
- * (`subiendo`), que es lo que el padre consulta.
+ * (`onSubiendoChange`), que es lo que el padre consulta.
+ *
+ * Entran de tres formas —botón, arrastrar y Ctrl+V— y en el celular el botón
+ * ofrece cámara o galería. Todo eso vive en `useCapturaImagenes`.
  *
  * Es evidencia INTERNA: no viaja al comprobante ni al ticket del cliente.
  */
 
 const MAX = 6;
-/** Lo que el navegador acepta antes de mandarlo. El backend valida igual. */
-const MAX_MB = 10;
 
 interface Props {
   /** Ids ya subidos, para que el padre los mande en `evidenciaIds`. */
@@ -26,77 +28,66 @@ interface Props {
   onSubiendoChange?: (subiendo: boolean) => void;
 }
 
-type Item = EvidenciaVenta & { local?: string };
-
 export default function EvidenciaVentaCard({ onChange, onSubiendoChange }: Props) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [enVuelo, setEnVuelo] = useState(0);
-  const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [items, setItems] = useState<EvidenciaVenta[]>([]);
 
-  const emitir = (siguientes: Item[]) => {
-    setItems(siguientes);
-    onChange(siguientes.map((i) => i.archivoId));
-  };
+  const onSubidaOk = useCallback(
+    (item: EvidenciaVenta) => {
+      setItems((prev) => {
+        const siguientes = [...prev, item];
+        onChange(siguientes.map((i) => i.archivoId));
+        return siguientes;
+      });
+    },
+    [onChange],
+  );
 
-  const marcarVuelo = (delta: number) => {
-    setEnVuelo((n) => {
-      const v = Math.max(0, n + delta);
-      onSubiendoChange?.(v > 0);
-      return v;
-    });
-  };
-
-  const elegir = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setError('');
-    const disponibles = MAX - items.length;
-    const lote = Array.from(files).slice(0, Math.max(0, disponibles));
-    if (files.length > lote.length) {
-      setError(`Máximo ${MAX} fotos por venta.`);
-    }
-
-    for (const file of lote) {
-      if (file.size > MAX_MB * 1024 * 1024) {
-        setError(`"${file.name}" pesa más de ${MAX_MB} MB.`);
-        continue;
-      }
-      marcarVuelo(1);
-      try {
-        const subida = await subirEvidencia(file);
-        setItems((prev) => {
-          const siguientes = [...prev, subida];
-          onChange(siguientes.map((i) => i.archivoId));
-          return siguientes;
-        });
-      } catch {
-        setError('No se pudo subir una de las fotos. Probá de nuevo.');
-      } finally {
-        marcarVuelo(-1);
-      }
-    }
-    // Sin esto, elegir el MISMO archivo dos veces seguidas no dispara change.
-    if (inputRef.current) inputRef.current.value = '';
-  };
+  // 🔴 Se DESESTRUCTURA: devolver el objeto entero hace que el compilador de
+  // React lo trate como portador de un ref y marque cada lectura en el render
+  // como "Cannot access refs during render".
+  const {
+    inputRef,
+    onInputChange,
+    propsZona,
+    arrastrando,
+    enVuelo,
+    error,
+    abrirSelector,
+  } = useCapturaImagenes<EvidenciaVenta>({
+    subir: subirEvidencia,
+    max: MAX,
+    yaHay: items.length,
+    onSubidaOk,
+    onEnVueloChange: onSubiendoChange,
+  });
 
   const quitar = (archivoId: string) => {
     // Solo se saca de la lista: la venta todavía no existe, así que el archivo
     // queda huérfano y lo levanta la limpieza, igual que si se abandona el cobro.
-    emitir(items.filter((i) => i.archivoId !== archivoId));
+    setItems((prev) => {
+      const siguientes = prev.filter((i) => i.archivoId !== archivoId);
+      onChange(siguientes.map((i) => i.archivoId));
+      return siguientes;
+    });
   };
 
   return (
-    <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
+    <div
+      {...propsZona}
+      className={`rounded-xl border bg-white p-4 transition-colors ${
+        arrastrando ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-[#d1e5ff]'
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-800">Fotos de la venta</p>
           <p className="text-[10px] text-gray-400">
-            Cómo se vendió y cómo se entrega. No se le envían al cliente.
+            Cómo se vendió y cómo se entrega. Arrastrá, pegá con Ctrl+V o tocá Agregar.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={abrirSelector}
           disabled={items.length >= MAX}
           className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md border border-[#437EFF] px-2.5 text-[10px] font-medium text-[#437EFF] transition-colors hover:bg-[#437EFF]/5 disabled:opacity-40"
         >
@@ -108,16 +99,15 @@ export default function EvidenciaVentaCard({ onChange, onSubiendoChange }: Props
         </button>
       </div>
 
-      {/* `capture` deja que el celular abra la cámara directo; en la PC del
-          mostrador el mismo input abre el explorador. */}
+      {/* 🔴 SIN `capture`: con él, el celular abre la cámara directo y esconde
+          la galería. Sin el atributo ofrece las dos y el usuario elige. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
-        onChange={(e) => void elegir(e.target.files)}
+        onChange={onInputChange}
       />
 
       {(items.length > 0 || enVuelo > 0) && (
