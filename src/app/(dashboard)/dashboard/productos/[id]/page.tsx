@@ -11,6 +11,7 @@ import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import FichaTecnicaAtributos from '@/features/producto/components/FichaTecnicaAtributos';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
+import LotesCard from '@/features/producto/components/LotesCard';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
 import NivelesVarianteInline from '@/features/producto/components/variantes/NivelesVarianteInline';
 import { getStockByVarianteSede } from '@/features/stock/services/stock-service';
@@ -339,6 +340,11 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             factorPresentacion={producto.factorPresentacion}
             simboloPresentacion={producto.unidadPresentacionSimbolo}
           />
+
+          {/* Qué lotes hay y CUÁL SALE PRIMERO. Sigue a la variante elegida,
+              igual que el resto de la página. Se esconde solo si el producto
+              no tiene lotes, que hoy es la mayoría del catálogo. */}
+          <LotesCard productoId={producto.id} varianteId={variante?.id ?? null} />
 
           {/* Combo Info */}
           {producto.esCombo && (

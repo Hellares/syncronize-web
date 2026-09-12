@@ -185,7 +185,10 @@ export interface TrazabilidadProducto {
     ultimaCompra?: string | null;
   }>;
   lotes: Array<{
+    id: string;
     codigo: string;
+    /** ACTIVO | AGOTADO | VENCIDO | BLOQUEADO. */
+    estado?: string;
     proveedor?: string;
     fechaIngreso: string;
     fechaVencimiento?: string | null;
