@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { LoteVendible } from '@/core/types/venta';
+import { diasParaVencer, formatearDiaCalendario } from '@/core/types/lote';
 
 interface Props {
   titulo: string;
@@ -19,13 +20,6 @@ const fmt = (n: number) =>
   n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dia = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
-
-/** Días que faltan para el vencimiento. Negativo = ya venció. */
-function diasPara(iso: string | null): number | null {
-  if (!iso) return null;
-  const hoy = new Date(new Date().toDateString()).getTime();
-  return Math.round((new Date(iso).getTime() - hoy) / 86_400_000);
-}
 
 /**
  * Elegir de QUÉ lote sale esta línea.
@@ -100,7 +94,7 @@ export default function SelectorLoteDialog({
               </button>
 
               {lotes.map((l, i) => {
-                const dias = diasPara(l.fechaVencimiento);
+                const dias = diasParaVencer(l.fechaVencimiento);
                 const vencido = dias != null && dias < 0;
                 const porVencer = dias != null && dias >= 0 && dias <= 30;
                 const sel = elegido === l.loteId;
@@ -137,7 +131,7 @@ export default function SelectorLoteDialog({
                           l.proveedorNombre,
                           l.documentoProveedor ?? l.compraCodigo,
                           dia(l.fechaIngreso),
-                          l.fechaVencimiento && !vencido && !porVencer ? `vence ${dia(l.fechaVencimiento)}` : null,
+                          l.fechaVencimiento && !vencido && !porVencer ? `vence ${formatearDiaCalendario(l.fechaVencimiento)}` : null,
                           l.cantidadBonificada > 0 ? `${l.cantidadBonificada} de regalo en el costo` : null,
                         ].filter(Boolean).join(' · ')}
                       </span>

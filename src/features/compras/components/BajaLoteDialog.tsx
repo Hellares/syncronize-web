@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AxiosError } from 'axios';
 import type { Lote } from '@/core/types/lote';
-import { diasParaVencer, nombreDeLote } from '@/core/types/lote';
+import { diasParaVencer, formatearDiaCalendario, nombreDeLote } from '@/core/types/lote';
 import { darDeBajaLote } from '@/features/compras/services/lote-service';
 
 const INPUT =
@@ -27,12 +27,12 @@ interface Props {
  * todo"; se puede bajar si solo se rompió una parte.
  */
 export default function BajaLoteDialog({ empresaId, lote, onClose, onHecho }: Props) {
-  const dias = diasParaVencer(lote);
+  const dias = diasParaVencer(lote.fechaVencimiento);
   const vencido = dias != null && dias < 0;
 
   const [cantidad, setCantidad] = useState(String(lote.cantidadActual));
   const [motivo, setMotivo] = useState(
-    vencido ? `Vencido el ${new Date(lote.fechaVencimiento!).toLocaleDateString('es-PE')}, se descartó` : '',
+    vencido ? `Vencido el ${formatearDiaCalendario(lote.fechaVencimiento)}, se descartó` : '',
   );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');

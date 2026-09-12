@@ -56,14 +56,40 @@ export function nombreDeLote(l: Lote): string {
   );
 }
 
-/** Días que faltan para el vencimiento. Negativo = ya pasó. Null = no vence. */
-export function diasParaVencer(l: Lote): number | null {
-  if (!l.fechaVencimiento) return null;
+/**
+ * El día del envase para mostrar ("01/10/26"), leído del día guardado y no
+ * del instante: `new Date(iso).toLocaleDateString()` sobre la medianoche UTC
+ * imprime el día ANTERIOR en Lima.
+ */
+export function formatearDiaCalendario(
+  fecha: string | null | undefined,
+  opts: { mes?: 'numeric' | 'short' } = {},
+): string {
+  if (!fecha) return '';
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-PE', {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: opts.mes === 'short' ? 'short' : '2-digit',
+    year: '2-digit',
+  });
+}
+
+/**
+ * Días que faltan para el vencimiento. Negativo = ya pasó. Null = no vence.
+ *
+ * 🔴 Por DÍA de calendario, no por instante: el backend guarda la medianoche
+ * UTC del día del envase, así que el día se lee de los primeros 10 caracteres
+ * y se compara contra hoy local. Convertirlo a hora local (`new Date(iso)`)
+ * daba el día ANTERIOR desde las 19:00 —Lima está a −5 de UTC— y la fila
+ * decía "vencido" un día antes que el envase.
+ */
+export function diasParaVencer(fecha: string | null | undefined): number | null {
+  if (!fecha) return null;
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number);
   const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const d = new Date(l.fechaVencimiento);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - hoy.getTime()) / 86400000);
+  const hoyUtc = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return Math.round((Date.UTC(y, m - 1, d) - hoyUtc) / 86400000);
 }
 
 /**
@@ -74,7 +100,7 @@ export type SituacionLote = 'vencido' | 'por-vencer' | 'ok' | 'agotado';
 
 export function situacionDeLote(l: Lote, diasAlerta = 30): SituacionLote {
   if (l.cantidadActual <= 0 || l.estado === 'AGOTADO') return 'agotado';
-  const dias = diasParaVencer(l);
+  const dias = diasParaVencer(l.fechaVencimiento);
   if (dias == null) return 'ok';
   if (dias < 0) return 'vencido';
   return dias <= diasAlerta ? 'por-vencer' : 'ok';

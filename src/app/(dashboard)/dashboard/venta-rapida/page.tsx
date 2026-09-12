@@ -157,15 +157,19 @@ function VentaRapidaInner() {
     const precioBase = stock ? Number(infoPrecioEfectivo(stock) ?? stock.precio ?? 0) : 0;
     if (precioBase <= 0) { setInfo(`"${p.nombre}" no tiene precio configurado en esta sede`); return; }
 
-    // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId
-    const idx = items.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
+    // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId.
+    // 🔴 Y NUNCA fusionar contra una línea atada a un lote: esa es de un
+    // cliente concreto (compra por encargo), y sumarle una unidad la haría
+    // desbordar a otro lote a otro costo. Lo que se agrega a mano va en su
+    // propia línea, en automático.
+    const idx = items.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null) && !it.loteId);
     if (idx >= 0) {
       // Ya estaba en el carrito: sube la cantidad y la línea pasa a ser la más
       // reciente, o sea que se va ARRIBA. Agregar es agregar aunque la línea ya
       // exista; el cajero tiene que ver el resultado sin buscarlo. El stepper de
       // la propia línea NO mueve nada: ahí se está ajustando algo que ya se ve.
       setItems(prev => {
-        const i = prev.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null));
+        const i = prev.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null) && !it.loteId);
         if (i < 0) return prev;
         const resto = prev.filter((_, j) => j !== i);
         const tocada = { ...prev[i], cantidad: prev[i].cantidad + cantidad };
@@ -366,7 +370,7 @@ function VentaRapidaInner() {
         })),
       );
       const mapa: Record<string, CostosDeItem> = { ...costos };
-      for (const c of res) mapa[claveCosto(c.productoId, c.varianteId)] = c;
+      for (const c of res) mapa[claveCosto(c.productoId, c.varianteId, c.loteId)] = c;
       setCostos(mapa);
       return mapa;
     } catch (e) {
@@ -399,7 +403,7 @@ function VentaRapidaInner() {
       return { ...it, precioModo: null, precioUnitario: it.precioBase };
     }
     if (!puedeVenderseACosto(it)) return it;
-    const precio = precioDelModoCosto(cache[claveCosto(it.productoId, it.varianteId)], modo);
+    const precio = precioDelModoCosto(cache[claveCosto(it.productoId, it.varianteId, it.loteId)], modo);
     if (precio == null) return it;
     // El descuento se limpia: un centavo sobre una línea a costo la manda a
     // pérdida, y el backend la rechaza.
@@ -487,7 +491,7 @@ function VentaRapidaInner() {
     if (!elegibles.length) return;
 
     const firma = elegibles
-      .map(it => `${claveCosto(it.productoId, it.varianteId)}x${it.cantidad}@${it.loteId ?? ''}`)
+      .map(it => `${claveCosto(it.productoId, it.varianteId, it.loteId)}x${it.cantidad}`)
       .sort()
       .join('|') + `#${modoCosto}`;
     if (firma === firmaCosto.current) return;
@@ -601,7 +605,7 @@ function VentaRapidaInner() {
    */
   const abrirLotePicker = useCallback(async (it: VentaItem) => {
     setLotePickerFor(it.key);
-    if (!costos[claveCosto(it.productoId, it.varianteId)]?.lotesDisponibles) {
+    if (!costos[claveCosto(it.productoId, it.varianteId, it.loteId)]?.lotesDisponibles) {
       await traerCostos([it]);
     }
   }, [costos, traerCostos]);
@@ -1183,7 +1187,7 @@ function VentaRapidaInner() {
                 const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
                 const { titulo, contexto } = tituloYContextoLinea(it);
                 const puedeCosto = puedeVenderseACosto(it);
-                const costosLinea = puedeCosto ? costos[claveCosto(it.productoId, it.varianteId)] : undefined;
+                const costosLinea = puedeCosto ? costos[claveCosto(it.productoId, it.varianteId, it.loteId)] : undefined;
                 // Consultada y sin costo para el modo activo: se queda a
                 // precio de lista, y la línea tiene que DECIRLO.
                 const sinCosto = !!modoCosto && puedeCosto && !aCostoLinea
@@ -1443,7 +1447,7 @@ function VentaRapidaInner() {
         // costo: los montos son por producto, pero lo que se elige es el
         // criterio, y con un ejemplo concreto delante se elige mejor.
         const muestra = linea ?? items.find(it => it.precioModo) ?? items.find(puedeVenderseACosto) ?? null;
-        const cos = muestra ? costos[claveCosto(muestra.productoId, muestra.varianteId)] ?? null : null;
+        const cos = muestra ? costos[claveCosto(muestra.productoId, muestra.varianteId, muestra.loteId)] ?? null : null;
         const org = cos?.origen ?? null;
         return (
           <ModoCostoDialog
@@ -1469,7 +1473,7 @@ function VentaRapidaInner() {
       {lotePickerFor && (() => {
         const linea = items.find(it => it.key === lotePickerFor);
         if (!linea) return null;
-        const cos = costos[claveCosto(linea.productoId, linea.varianteId)];
+        const cos = costos[claveCosto(linea.productoId, linea.varianteId, linea.loteId)];
         return (
           <SelectorLoteDialog
             titulo={tituloYContextoLinea(linea).titulo}

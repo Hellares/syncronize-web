@@ -423,6 +423,17 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
           setDivergenciasStock(data.divergencias);
           return;
         }
+        if (data?.code === 'LOTE_NO_DISPONIBLE' && data?.loteId) {
+          // El lote elegido se agotó (o se dio de baja) entre cotizar y
+          // cobrar. La línea vuelve a automático —nunca se cobra en silencio
+          // un número que el cajero no vio— y el carrito recotiza solo porque
+          // el lote entra en la firma que dispara la cotización.
+          setItems(prev => prev.map(it => (it.loteId === data.loteId
+            ? { ...it, loteId: null, loteCodigo: null }
+            : it)));
+          setError(data.message || 'El lote elegido ya no está disponible — la línea volvió a automático, revisá el precio');
+          return;
+        }
         if (data?.code === 'ORDEN_YA_COBRADA' && Array.isArray(data?.ordenes)) {
           const ids = new Set(data.ordenes.map((o: { ordenServicioId: string }) => o.ordenServicioId));
           setItems(prev => prev.filter(it => !(it.ordenServicioId && ids.has(it.ordenServicioId))));

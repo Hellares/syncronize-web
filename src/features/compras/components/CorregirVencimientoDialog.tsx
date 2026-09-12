@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AxiosError } from 'axios';
 import type { Lote } from '@/core/types/lote';
-import { nombreDeLote } from '@/core/types/lote';
+import { formatearDiaCalendario, nombreDeLote } from '@/core/types/lote';
 import { corregirVencimientoLote } from '@/features/compras/services/lote-service';
 
 const INPUT =
@@ -75,7 +75,7 @@ export default function CorregirVencimientoDialog({ empresaId, lote, onClose, on
           Hoy dice:{' '}
           <b>
             {lote.fechaVencimiento
-              ? new Date(lote.fechaVencimiento).toLocaleDateString('es-PE')
+              ? formatearDiaCalendario(lote.fechaVencimiento)
               : 'sin vencimiento'}
           </b>
         </div>

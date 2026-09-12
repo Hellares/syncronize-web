@@ -536,6 +536,8 @@ export interface LoteVendible {
 export interface CostosDeItem {
   productoId: string | null;
   varianteId: string | null;
+  /** El lote elegido para esa línea, o null si va en automático. Parte de la clave. */
+  loteId: string | null;
   /** Unidades sobre las que se calculó: el costo DEPENDE de cuántas se llevan. */
   cantidad: number;
   costoPromedio: number | null;
@@ -558,8 +560,18 @@ export interface CostosDeItem {
 }
 
 /** Espejo de `CostoVentaService.clave` del backend: la variante MANDA. */
-export function claveCosto(productoId?: string | null, varianteId?: string | null): string {
-  return varianteId ? `v:${varianteId}` : `p:${productoId ?? ''}`;
+export function claveCosto(
+  productoId?: string | null,
+  varianteId?: string | null,
+  /**
+   * 🔴 El lote elegido es parte de la clave (espejo de `claveDeLinea` del
+   * backend): dos líneas del mismo producto con lotes distintos son dos costos
+   * distintos. Sin el lote, la de CETI y la de DELTRON leían el mismo costo.
+   */
+  loteId?: string | null,
+): string {
+  const base = varianteId ? `v:${varianteId}` : `p:${productoId ?? ''}`;
+  return `${base}@${loteId ?? ''}`;
 }
 
 /** El número de ese modo, o null si no se puede resolver (sin compras, sin costo). */

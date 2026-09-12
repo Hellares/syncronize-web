@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import type { EstadoLote, Lote } from '@/core/types/lote';
-import { diasParaVencer, nombreDeLote, situacionDeLote } from '@/core/types/lote';
+import { diasParaVencer, formatearDiaCalendario, nombreDeLote, situacionDeLote } from '@/core/types/lote';
 import * as loteService from '@/features/compras/services/lote-service';
 import BajaLoteDialog from '@/features/compras/components/BajaLoteDialog';
 import CorregirVencimientoDialog from '@/features/compras/components/CorregirVencimientoDialog';
@@ -14,9 +14,6 @@ const INPUT_STD =
 
 const fmt = (n: number) =>
   n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fecha = (f?: string | null) =>
-  f ? new Date(f).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
-
 /** Los filtros rápidos. `vencidos` y `porVencer` se resuelven en el cliente:
  *  el backend filtra por estado, no por "cuánto le falta". */
 type Vista = 'todos' | 'porVencer' | 'vencidos' | 'agotados';
@@ -184,7 +181,7 @@ export default function LotesPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {visibles.map(({ l, s }) => {
-                const dias = diasParaVencer(l);
+                const dias = diasParaVencer(l.fechaVencimiento);
                 const prodId = l.productoStock?.producto?.id;
                 return (
                   <tr key={l.id} className={SITUACION_FILA[s]}>
@@ -208,7 +205,7 @@ export default function LotesPage() {
                     }`}>
                       {l.fechaVencimiento ? (
                         <>
-                          {fecha(l.fechaVencimiento)}
+                          {formatearDiaCalendario(l.fechaVencimiento, { mes: 'short' })}
                           {dias != null && (
                             <span className="ml-1 text-[10px] font-normal">
                               {dias < 0 ? `(hace ${-dias} d)` : `(${dias} d)`}

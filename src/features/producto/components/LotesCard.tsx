@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getTrazabilidad } from '@/features/producto/services/bom-service';
 import type { TrazabilidadProducto } from '@/core/types/bom';
+import { diasParaVencer, formatearDiaCalendario } from '@/core/types/lote';
 
 type Lote = TrazabilidadProducto['lotes'][number];
 
@@ -17,15 +18,6 @@ const fmt = (n: number) =>
 
 const fecha = (f: string) =>
   new Date(f).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' });
-
-/** Días que faltan para la fecha (negativo = ya pasó). */
-function diasHasta(f: string): number {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const d = new Date(f);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - hoy.getTime()) / 86400000);
-}
 
 /**
  * El lote está FÍSICAMENTE en el depósito: cuenta para el stock y el consumo
@@ -101,7 +93,7 @@ export default function LotesCard({ productoId, varianteId }: Props) {
       {enFila.length > 0 ? (
         <div className="mt-3 space-y-1.5">
           {enFila.map((l, i) => {
-            const dias = l.fechaVencimiento ? diasHasta(l.fechaVencimiento) : null;
+            const dias = diasParaVencer(l.fechaVencimiento);
             const vencido = dias != null && dias < 0;
             const porVencer = dias != null && dias >= 0 && dias <= 30;
             return (
@@ -143,8 +135,8 @@ export default function LotesCard({ productoId, varianteId }: Props) {
                     }`}
                   >
                     {vencido
-                      ? `venció el ${fecha(l.fechaVencimiento)}`
-                      : `vence ${fecha(l.fechaVencimiento)} · ${dias} ${dias === 1 ? 'día' : 'días'}`}
+                      ? `venció el ${formatearDiaCalendario(l.fechaVencimiento, { mes: 'short' })}`
+                      : `vence ${formatearDiaCalendario(l.fechaVencimiento, { mes: 'short' })} · ${dias} ${dias === 1 ? 'día' : 'días'}`}
                   </span>
                 ) : (
                   <span className="text-[11px] text-gray-400">sin vencimiento</span>
@@ -182,7 +174,7 @@ export default function LotesCard({ productoId, varianteId }: Props) {
                   <span className="font-mono">{l.codigo}</span>
                   <span>{l.cantidadInicial} entraron</span>
                   {l.precioCosto != null && <span>S/ {fmt(Number(l.precioCosto))} c/u</span>}
-                  {l.fechaVencimiento && <span>vencía {fecha(l.fechaVencimiento)}</span>}
+                  {l.fechaVencimiento && <span>vencía {formatearDiaCalendario(l.fechaVencimiento, { mes: 'short' })}</span>}
                   <span className="ml-auto">{l.estado?.toLowerCase()}</span>
                 </div>
               ))}
