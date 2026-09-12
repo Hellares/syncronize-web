@@ -145,7 +145,7 @@ export default function LotesPage() {
         </div>
         <input className={`${INPUT_STD} w-56`} value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Código de lote o proveedor…" />
+          placeholder="Producto, código de lote o proveedor…" />
         {sedes.filter((s) => s.isActive).length > 1 && (
           <select className={INPUT_STD} value={sedeId} onChange={(e) => setSedeId(e.target.value)}>
             <option value="">Todas las sedes</option>
