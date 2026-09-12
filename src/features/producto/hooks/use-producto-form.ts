@@ -42,8 +42,10 @@ interface FormState {
   tipoVencimiento: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
   /** Sugiere la fecha al recibir (hoy + N). Vacío = no sugiere nada. */
   diasVidaUtil: string;
-  /** Cuántos días antes avisar. Vacío = el default de la empresa. */
+  /** Cuántos días antes avisar. Vacío = 30. */
   diasAlertaVencimiento: string;
+  /** % de descuento de la liquidación automática por vencimiento. Vacío = solo avisa. */
+  descuentoVencimientoPct: string;
   codigoProductoSunat: string;
 }
 
@@ -76,6 +78,7 @@ const INITIAL_STATE: FormState = {
   tipoVencimiento: 'NINGUNO',
   diasVidaUtil: '',
   diasAlertaVencimiento: '',
+  descuentoVencimientoPct: '',
   codigoProductoSunat: '',
 };
 
@@ -113,6 +116,8 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       diasVidaUtil: producto.diasVidaUtil != null ? String(producto.diasVidaUtil) : '',
       diasAlertaVencimiento:
         producto.diasAlertaVencimiento != null ? String(producto.diasAlertaVencimiento) : '',
+      descuentoVencimientoPct:
+        producto.descuentoVencimientoPct != null ? String(producto.descuentoVencimientoPct) : '',
       codigoProductoSunat: producto.codigoProductoSunat || '',
       atributos: (() => {
         const map: Record<string, string> = {};
@@ -196,6 +201,11 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       diasAlertaVencimiento:
         form.tipoVencimiento !== 'NINGUNO' && form.diasAlertaVencimiento
           ? Number(form.diasAlertaVencimiento)
+          : undefined,
+      // 0 viaja como 0 a propósito: es "apagar la liquidación automática".
+      descuentoVencimientoPct:
+        form.tipoVencimiento !== 'NINGUNO' && form.descuentoVencimientoPct !== ''
+          ? Number(form.descuentoVencimientoPct)
           : undefined,
       // null explícito = quitar código en backend (igual que Flutter: ''→null)
       codigoProductoSunat: form.codigoProductoSunat || null,

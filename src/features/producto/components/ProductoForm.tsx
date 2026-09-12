@@ -665,7 +665,7 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                     ? '🔴 Vencido NO se puede vender, ni con autorización. Hay que darlo de baja por merma o corregir la fecha del lote.'
                     : 'Vencido se puede vender, pero pide autorización de un administrador.'}
                 </p>
-                <div className="mt-2 grid grid-cols-2 gap-3">
+                <div className="mt-2 grid grid-cols-3 gap-3">
                   <Field label="Vida útil (días)">
                     <input
                       type="number" min="1" className={inputClass}
@@ -677,15 +677,26 @@ export default function ProductoForm({ empresaId, producto }: Props) {
                   <Field label="Avisar (días antes)">
                     <input
                       type="number" min="0" className={inputClass}
-                      placeholder="ej. 30"
+                      placeholder="30"
                       value={form.diasAlertaVencimiento}
                       onChange={(e) => updateField('diasAlertaVencimiento', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Liquidar solo (% desc.)">
+                    <input
+                      type="number" min="0" max="90" className={inputClass}
+                      placeholder="0 = solo avisa"
+                      value={form.descuentoVencimientoPct}
+                      onChange={(e) => updateField('descuentoVencimientoPct', e.target.value)}
                     />
                   </Field>
                 </div>
                 <p className="mt-1 text-[10px] text-gray-500">
                   La vida útil solo <b>sugiere</b> la fecha al recibir una compra.
                   La que vale es la impresa en el envase, y se tipea en la línea.
+                  {form.descuentoVencimientoPct && Number(form.descuentoVencimientoPct) > 0
+                    ? ` Cuando un lote entre en los últimos ${form.diasAlertaVencimiento || 30} días, el stock de esa sede pasa solo a liquidación con ${form.descuentoVencimientoPct}% de descuento, y sale de liquidación solo cuando ese lote se termina.`
+                    : ' Con "Liquidar solo" en 0, el sistema avisa pero no toca el precio.'}
                 </p>
               </>
             )}

@@ -240,6 +240,12 @@ export interface Producto {
   diasVidaUtil?: number | null;
   /** Cuántos días antes del vencimiento empieza a avisar. */
   diasAlertaVencimiento?: number | null;
+  /**
+   * Liquidación AUTOMÁTICA por vencimiento: % de descuento sobre el precio de
+   * venta que aplica el cron cuando un lote entra en la ventana de alerta.
+   * Null o 0 = solo avisa.
+   */
+  descuentoVencimientoPct?: number | null;
   /** Código producto SUNAT (UNSPSC catálogo 25, 8 dígitos). Solo viaja al XML si está seteado. */
   codigoProductoSunat?: string;
   visibleMarketplace: boolean;
@@ -353,6 +359,7 @@ export interface CreateProductoDto {
   tipoVencimiento?: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
   diasVidaUtil?: number;
   diasAlertaVencimiento?: number;
+  descuentoVencimientoPct?: number;
   /** Código producto SUNAT (catálogo 25, 8 dígitos, de la lista curada). null = quitar. */
   codigoProductoSunat?: string | null;
   visibleMarketplace?: boolean;
