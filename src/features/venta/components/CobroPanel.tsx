@@ -145,7 +145,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // Vencimiento: se abre al REBOTE del backend, no antes — el cliente no sabe
   // de qué lote sale cada unidad.
   const [showAutorizacionVenc, setShowAutorizacionVenc] = useState(false);
-  const [lineasVencidas, setLineasVencidas] = useState<Array<{ descripcion: string; lote: string; vencio: string }>>([]);
+  const [lineasVencidas, setLineasVencidas] = useState<Array<{ descripcion: string; lote: string; vencio: string; unidades?: number }>>([]);
+  // Aviso para quien SÍ puede autorizar: no pide contraseña, pide que mire.
+  const [showAvisoVencido, setShowAvisoVencido] = useState(false);
 
   const esCredito = condicionPago === 'CREDITO';
   /** 🔑 Derivado SIEMPRE: es lo que hace que `plazo ÷ cuotas` le devuelva al
@@ -440,14 +442,15 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
       if (err instanceof AxiosError && err.response?.status === 400) {
         const data = err.response.data;
         if (data?.code === 'VENTA_VENCIDO_NO_AUTORIZADA') {
-          // Si quien cobra YA es gerente/admin, se autoriza a sí mismo y se
-          // reintenta solo: pedirle la contraseña a quien tiene el rol es un
-          // paso de más en el mostrador.
+          setLineasVencidas(Array.isArray(data.lineas) ? data.lineas : []);
+          // 🔑 A quien tiene el rol no se le piden credenciales —autorizarse a
+          // sí mismo es legítimo justamente porque lo tiene— pero SÍ se le
+          // avisa: vender algo pasado de fecha es una decisión, y hacerlo en
+          // silencio sería peor que pedir una contraseña. Confirma y sigue.
           if (esAutorizador && userId && !opts?.vencidoAuthId) {
-            await construirYEnviar({ ...opts, vencidoAuthId: userId });
+            setShowAvisoVencido(true);
             return;
           }
-          setLineasVencidas(Array.isArray(data.lineas) ? data.lineas : []);
           setShowAutorizacionVenc(true);
           return;
         }
@@ -991,6 +994,52 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               <button onClick={() => { setShowBancarizacion(false); construirYEnviar({ aceptaRiesgo: true, bajoCostoAuthId: pendingBajoCosto }); }}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700">
                 Sí, continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Producto pasado de fecha, y quien cobra puede autorizarlo. No se le
+          piden credenciales, pero tiene que VERLO y confirmar: vender algo
+          vencido es una decisión, no un trámite. */}
+      {showAvisoVencido && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-amber-700">
+              ⚠ Producto pasado de su fecha
+            </h3>
+            <p className="mt-2 text-xs text-gray-600">
+              Estás vendiendo mercadería que pasó su fecha de <strong>consumo
+              preferente</strong>. Sigue siendo apta, pero perdió calidad.
+            </p>
+            <div className="mt-3 max-h-48 space-y-1.5 overflow-y-auto rounded-lg bg-amber-50 p-2.5">
+              {lineasVencidas.map((l, i) => (
+                <div key={`${l.lote}-${i}`} className="text-[11px] text-amber-900">
+                  <span className="font-semibold">{l.descripcion}</span>
+                  {l.unidades ? ` · ${l.unidades} ${l.unidades === 1 ? 'unidad' : 'unidades'}` : ''}
+                  <span className="text-amber-700">
+                    {' '}· lote {l.lote} · venció el{' '}
+                    {new Date(l.vencio).toLocaleDateString('es-PE')}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-gray-500">
+              Queda registrado que vos lo autorizaste.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowAvisoVencido(false)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setShowAvisoVencido(false);
+                  construirYEnviar({ vencidoAuthId: userId });
+                }}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700">
+                Vender igual
               </button>
             </div>
           </div>
