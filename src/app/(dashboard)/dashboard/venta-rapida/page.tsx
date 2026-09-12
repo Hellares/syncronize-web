@@ -513,38 +513,84 @@ function VentaRapidaInner() {
    * sale del depósito. Sin el lote, el consumo sacaría de la compra más vieja
    * y le cobraría un costo que no es el suyo.
    */
-  const cargarCompra = useCallback((lineas: LineaDeCompra[]) => {
-    setCompraSheetOpen(false);
-    const nuevos: VentaItem[] = lineas.map((l) => ({
-      key: genKey(),
-      productoId: l.productoId,
-      varianteId: l.varianteId,
-      descripcion: l.descripcion,
-      productoNombre: l.descripcion,
-      cantidad: l.cantidad,
-      // El precio de lista queda en el costo: sin haber cargado el producto
-      // no se conoce, y el que se cobra es el del lote igual. El "margen
-      // resignado" de estas líneas queda en 0, que es honesto: no se sabe.
-      precioBase: l.costo,
-      precioUnitario: l.costo,
-      descuento: 0,
-      porcentajeIGV: 18,
-      precioIncluyeIgv: true,
-      tipoAfectacion: '10',
-      icbper: 0,
-      precioModo: 'COSTO_LOTE',
-      loteId: l.loteId,
-      loteCodigo: l.loteCodigo,
-      niveles: [],
-      enLiquidacion: false,
-      precioCosto: l.costo,
-      stockDisponible: l.cantidad,
+  const cargarCompra = useCallback(async (lineas: LineaDeCompra[]) => {
+    // 🔴 El precio de LISTA no viaja en la compra, y es al que la línea tiene
+    // que volver cuando el cajero la saca del modo costo. Antes se dejaba el
+    // costo ahí, así que "volver a precio de lista" devolvía el costo: el
+    // producto se seguía vendiendo al costo sin que nada lo dijera.
+    const ids = [...new Set(lineas.map(l => l.productoId).filter((x): x is string => !!x))];
+    const productos = new Map<string, Producto>();
+    await Promise.all(ids.map(async (id) => {
+      // Si una ficha no se puede leer, esa línea entra igual al costo: la
+      // venta del encargo no se cae por eso.
+      try { productos.set(id, await productoService.getProducto(id)); } catch { /* al costo */ }
     }));
+
+    const sinPrecio: string[] = [];
+    const nuevos: VentaItem[] = lineas.map((l) => {
+      const prod = l.productoId ? productos.get(l.productoId) : undefined;
+      const variante = l.varianteId
+        ? prod?.variantes?.find(v => v.id === l.varianteId)
+        : undefined;
+      const stock = stockDeSede(l.varianteId ? variante?.stocksPorSede : prod?.stocksPorSede);
+      const lista = stock ? Number(infoPrecioEfectivo(stock) ?? stock.precio ?? 0) : 0;
+      if (lista <= 0) sinPrecio.push(l.descripcion);
+      return {
+        key: genKey(),
+        productoId: l.productoId,
+        varianteId: l.varianteId,
+        descripcion: l.descripcion,
+        productoNombre: prod?.nombre ?? l.descripcion,
+        varianteNombre: variante?.nombre,
+        cantidad: l.cantidad,
+        // Sin precio configurado en la sede queda el costo —no cero, que sería
+        // regalarlo— y abajo se avisa cuáles quedaron así.
+        precioBase: lista > 0 ? lista : l.costo,
+        precioUnitario: l.costo,
+        descuento: 0,
+        porcentajeIGV: prod?.impuestoPorcentaje ?? 18,
+        precioIncluyeIgv: stock?.precioIncluyeIgv ?? true,
+        tipoAfectacion: prod?.tipoAfectacionIgv === 'EXONERADO' ? '20'
+          : prod?.tipoAfectacionIgv === 'INAFECTO' ? '30' : '10',
+        icbper: prod?.aplicaIcbper ? 0.5 : 0,
+        precioModo: 'COSTO_LOTE',
+        loteId: l.loteId,
+        loteCodigo: l.loteCodigo,
+        niveles: [],
+        enLiquidacion: stock ? infoLiquidacionActiva(stock) : false,
+        precioCosto: stock?.precioCosto != null ? Number(stock.precioCosto) : l.costo,
+        // El stock de la SEDE, no lo que queda del lote: si se piden más
+        // unidades que las del lote, el resto sale de otro y los tramos lo
+        // muestran. Poner acá el lote daría un "sin stock" falso.
+        stockDisponible: stock?.cantidad ?? l.cantidad,
+      };
+    });
+
+    setCompraSheetOpen(false);
     // Se AGREGA a lo que haya: el cliente puede llevarse su encargo y algo más.
     setItems(prev => recalcularNivelesEnLote([...prev, ...nuevos]));
     setModoCosto((m) => m ?? 'COSTO_LOTE');
-    setInfo(`${nuevos.length} ${nuevos.length === 1 ? 'línea' : 'líneas'} de la compra, al costo de sus lotes`);
-  }, []);
+    setInfo(sinPrecio.length
+      ? `${nuevos.length} líneas al costo de sus lotes · ${sinPrecio.length} sin precio de venta en esta sede`
+      : `${nuevos.length} ${nuevos.length === 1 ? 'línea' : 'líneas'} de la compra, al costo de sus lotes`);
+
+    // Los niveles después, igual que al agregar a mano: no reprecian la línea
+    // mientras esté a costo, pero tienen que estar cargados para cuando vuelva
+    // al precio de lista (mayoreo incluido).
+    await Promise.all(nuevos.map(async (n) => {
+      try {
+        const niveles = n.varianteId
+          ? await precioNivelService.getNivelesByVariante(n.varianteId)
+          : n.productoId
+            ? await precioNivelService.getNivelesByProducto(n.productoId)
+            : [];
+        if (niveles.length) {
+          setItems(prev => recalcularNivelesEnLote(
+            prev.map(it => (it.key === n.key ? { ...it, niveles } : it))));
+        }
+      } catch { /* sin niveles */ }
+    }));
+  }, [stockDeSede]);
 
   /**
    * Abre el selector de lote de una línea.
