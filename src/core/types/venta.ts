@@ -512,6 +512,27 @@ export interface TramoCosto {
   documentoProveedor: string | null;
 }
 
+/**
+ * Un lote del que se puede sacar esta línea. Espejo de `LoteVendible`.
+ *
+ * Llegan en orden FEFO: el primero es el que sale si nadie elige nada.
+ */
+export interface LoteVendible {
+  loteId: string;
+  codigo: string;
+  /** Lo que QUEDA: el tope de lo que ese lote puede cubrir. */
+  cantidadActual: number;
+  costoUnitario: number;
+  costoUnitarioSinFlete: number | null;
+  fechaIngreso: string;
+  fechaVencimiento: string | null;
+  proveedorNombre: string | null;
+  compraId: string | null;
+  compraCodigo: string | null;
+  documentoProveedor: string | null;
+  cantidadBonificada: number;
+}
+
 export interface CostosDeItem {
   productoId: string | null;
   varianteId: string | null;
@@ -532,6 +553,8 @@ export interface CostosDeItem {
   /** Unidades que ningún lote respalda. > 0 ⇒ el backend rechaza el cobro. */
   sinCubrir: number;
   origen: OrigenCostoLote | null;
+  /** Todos los lotes elegibles, en orden FEFO. Alimenta el selector de lote. */
+  lotesDisponibles: LoteVendible[];
 }
 
 /** Espejo de `CostoVentaService.clave` del backend: la variante MANDA. */

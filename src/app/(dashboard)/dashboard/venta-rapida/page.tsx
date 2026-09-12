@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
-import type { VentaItem, Venta, NivelPrecio, PrecioModoCosto, CostosDeItem } from '@/core/types/venta';
+import type { VentaItem, Venta, NivelPrecio, PrecioModoCosto, CostosDeItem, LoteVendible } from '@/core/types/venta';
 import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea, claveCosto, precioDelModoCosto, puedeVenderseACosto, LABEL_MODO_COSTO, MODOS_COSTO } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { baseFacturableOrden, costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
@@ -18,6 +18,7 @@ import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as empresaService from '@/features/empresa/services/empresa-service';
 import VenderCompraSheet, { type LineaDeCompra } from '@/features/venta/components/VenderCompraSheet';
+import SelectorLoteDialog from '@/features/venta/components/SelectorLoteDialog';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
@@ -101,6 +102,7 @@ function VentaRapidaInner() {
   // de la pantalla para un valor que casi nadie cambia.
   const [modoDefault, setModoDefault] = useState<PrecioModoCosto | null>(null);
   const [compraSheetOpen, setCompraSheetOpen] = useState(false);
+  const [lotePickerFor, setLotePickerFor] = useState<string | null>(null);
   // Producto+cantidad de cada línea elegible, ya cotizado. Corta el bucle del
   // efecto que recotiza: sin esto se re-pediría en cada render.
   const firmaCosto = useRef<string>('');
@@ -542,6 +544,37 @@ function VentaRapidaInner() {
     setItems(prev => recalcularNivelesEnLote([...prev, ...nuevos]));
     setModoCosto((m) => m ?? 'COSTO_LOTE');
     setInfo(`${nuevos.length} ${nuevos.length === 1 ? 'línea' : 'líneas'} de la compra, al costo de sus lotes`);
+  }, []);
+
+  /**
+   * Abre el selector de lote de una línea.
+   *
+   * Los lotes viajan DENTRO de la cotización de costos, así que si la línea
+   * todavía no se cotizó (el modo costo está apagado) se pide acá: elegir un
+   * lote es elegir un costo, y sin el costo delante la elección es a ciegas.
+   */
+  const abrirLotePicker = useCallback(async (it: VentaItem) => {
+    setLotePickerFor(it.key);
+    if (!costos[claveCosto(it.productoId, it.varianteId)]?.lotesDisponibles) {
+      await traerCostos([it]);
+    }
+  }, [costos, traerCostos]);
+
+  /**
+   * Fija (o suelta) el lote de una línea.
+   *
+   * Solo escribe el lote: el efecto que vigila la firma recotiza y reprecia,
+   * porque el `loteId` entra en esa firma. Con el modo costo apagado no hay
+   * precio que mover y el lote solo decide QUÉ mercadería sale.
+   */
+  const elegirLoteLinea = useCallback((key: string, lote: LoteVendible | null) => {
+    setLotePickerFor(null);
+    setItems(prev => prev.map(it => (it.key === key
+      ? { ...it, loteId: lote?.loteId ?? null, loteCodigo: lote?.codigo ?? null }
+      : it)));
+    setInfo(lote
+      ? `Línea atada al lote ${lote.codigo}`
+      : 'Línea de vuelta en automático (sale primero lo que vence antes)');
   }, []);
 
   const cambiarCantidad = (key: string, nueva: number) => {
@@ -1215,6 +1248,21 @@ function VentaRapidaInner() {
                             {aCostoLinea ? 'Volver a precio de lista' : 'Pasar a costo'}
                           </button>
                         )}
+                        {/* De qué lote sale. Se muestra SIEMPRE en las líneas
+                            elegibles: los lotes llegan dentro de la cotización
+                            de costos, así que con el modo apagado todavía no se
+                            sabe cuántos hay, y esconder el botón hasta saberlo
+                            lo volvería inalcanzable. El diálogo los pide al
+                            abrirse. */}
+                        {permissions.canEditarPrecioVenta && puedeCosto && (
+                          <button onClick={() => abrirLotePicker(it)} disabled={costoCargando}
+                            title="Elegir de qué lote sale"
+                            className={`h-8 rounded-full border px-2.5 text-[11px] font-medium disabled:opacity-50 ${it.loteId
+                              ? 'border-[#043261]/30 bg-[#e8f2ff] text-[#043261]'
+                              : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                            {it.loteId ? `Lote ${it.loteCodigo ?? ''}`.trim() : 'Lote'}
+                          </button>
+                        )}
                         {conNivel && it.nivelAplicado && (
                           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">
                             {it.nivelAplicado}
@@ -1370,6 +1418,24 @@ function VentaRapidaInner() {
       {descGlobalOpen && (
         <DescuentoGlobalDialog onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
       )}
+
+      {/* De qué lote sale UNA línea: la mercadería por encargo tiene dueño */}
+      {lotePickerFor && (() => {
+        const linea = items.find(it => it.key === lotePickerFor);
+        if (!linea) return null;
+        const cos = costos[claveCosto(linea.productoId, linea.varianteId)];
+        return (
+          <SelectorLoteDialog
+            titulo={tituloYContextoLinea(linea).titulo}
+            cantidad={linea.cantidad}
+            lotes={cos?.lotesDisponibles}
+            cargando={costoCargando}
+            elegido={linea.loteId ?? null}
+            onElegir={(l) => elegirLoteLinea(linea.key, l)}
+            onClose={() => setLotePickerFor(null)}
+          />
+        );
+      })()}
 
       {compraSheetOpen && (
         <VenderCompraSheet
