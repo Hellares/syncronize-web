@@ -492,12 +492,37 @@ export interface OrigenCostoLote {
   cantidadBonificada: number;
 }
 
+/** Una porción del pedido que sale de un lote concreto. */
+export interface TramoCosto {
+  loteId: string;
+  loteCodigo: string;
+  cantidad: number;
+  costoUnitario: number;
+  fechaVencimiento: string | null;
+  costoUnitarioSinFlete: number | null;
+  proveedorNombre: string | null;
+  documentoProveedor: string | null;
+}
+
 export interface CostosDeItem {
   productoId: string | null;
   varianteId: string | null;
+  /** Unidades sobre las que se calculó: el costo DEPENDE de cuántas se llevan. */
+  cantidad: number;
   costoPromedio: number | null;
+  /**
+   * Lo que costaron LAS UNIDADES QUE VAN A SALIR, por unidad.
+   *
+   * 🔑 Promedio ponderado de los lotes que el consumo FEFO va a tomar, no "el
+   * costo de la última compra": si se venden más unidades de las que trajo esa
+   * compra, las de más costaron otra cosa y el precio lo refleja.
+   */
   costoLote: number | null;
   costoLoteSinFlete: number | null;
+  /** De qué lotes sale, en orden de consumo. */
+  tramos: TramoCosto[];
+  /** Unidades que ningún lote respalda. > 0 ⇒ el backend rechaza el cobro. */
+  sinCubrir: number;
   origen: OrigenCostoLote | null;
 }
 

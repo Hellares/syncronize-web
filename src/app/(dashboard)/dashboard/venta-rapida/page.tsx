@@ -99,6 +99,9 @@ function VentaRapidaInner() {
   // sola vez, la primera vez que se prende: no vale una llamada en cada carga
   // de la pantalla para un valor que casi nadie cambia.
   const [modoDefault, setModoDefault] = useState<PrecioModoCosto | null>(null);
+  // Producto+cantidad de cada línea elegible, ya cotizado. Corta el bucle del
+  // efecto que recotiza: sin esto se re-pediría en cada render.
+  const firmaCosto = useRef<string>('');
 
   // Autorización de descuentos (paridad Flutter: sin canManageDiscounts un admin debe autorizar)
   const [authDescuento, setAuthDescuento] = useState<null | (() => void)>(null);
@@ -324,31 +327,40 @@ function VentaRapidaInner() {
   // =========================================================
 
   /**
-   * Trae los costos que falten en el cache y devuelve el cache completo.
+   * Pide los costos de estas líneas y devuelve el mapa fresco.
    *
-   * Se devuelve en vez de leerse del estado porque quien llama lo necesita EN
-   * EL MISMO tick para aplicar el modo: `setCostos` no actualiza la variable
-   * de este render.
+   * 🔴 NO se cachea por producto: desde que los lotes se consumen, el costo
+   * DEPENDE DE LA CANTIDAD —vender 3 puede salir todo del lote barato y
+   * vender 5 arrastra 2 del caro—, así que un cache por producto serviría un
+   * precio viejo apenas el cajero toca el "+". Se vuelve a pedir; es una
+   * consulta chica y acotada al carrito.
+   *
+   * Se DEVUELVE el mapa en vez de leerlo del estado porque quien llama lo
+   * necesita en el mismo tick: `setCostos` no actualiza la variable de este
+   * render.
    */
-  const asegurarCostos = useCallback(async (
+  const traerCostos = useCallback(async (
     lineas: VentaItem[],
   ): Promise<Record<string, CostosDeItem>> => {
-    const faltan = lineas
-      .filter(puedeVenderseACosto)
-      .filter(it => !costos[claveCosto(it.productoId, it.varianteId)]);
-    if (!faltan.length || !sedeId) return costos;
+    const elegibles = lineas.filter(puedeVenderseACosto);
+    if (!elegibles.length || !sedeId) return costos;
 
     setCostoCargando(true);
     setCostoError('');
     try {
       const res = await productoService.getCostosVenta(
         sedeId,
-        faltan.map(it => ({ productoId: it.productoId, varianteId: it.varianteId })),
+        // 🔑 La cantidad viaja: decide de qué lotes sale la mercadería.
+        elegibles.map(it => ({
+          productoId: it.productoId,
+          varianteId: it.varianteId,
+          cantidad: it.cantidad,
+        })),
       );
-      const merge = { ...costos };
-      for (const c of res) merge[claveCosto(c.productoId, c.varianteId)] = c;
-      setCostos(merge);
-      return merge;
+      const mapa: Record<string, CostosDeItem> = { ...costos };
+      for (const c of res) mapa[claveCosto(c.productoId, c.varianteId)] = c;
+      setCostos(mapa);
+      return mapa;
     } catch (e) {
       const status = e instanceof AxiosError ? e.response?.status : undefined;
       setCostoError(status === 403
@@ -408,16 +420,16 @@ function VentaRapidaInner() {
         setModoDefault(modo);
       } catch { /* sin config: queda COSTO_LOTE */ }
     }
-    const cache = await asegurarCostos(items);
+    const cache = await traerCostos(items);
     setModoCosto(modo);
     setItems(prev => recalcularNivelesEnLote(prev.map(it => aCosto(it, modo, cache))));
-  }, [modoCosto, costos, items, asegurarCostos, empresa?.id, modoDefault]);
+  }, [modoCosto, costos, items, traerCostos, empresa?.id, modoDefault]);
 
   /** Cambia el modo: de todo el carrito, o de una sola línea. */
   const cambiarModoCosto = useCallback(async (modo: PrecioModoCosto, soloKey?: string) => {
     setModoPickerFor(null);
     const objetivo = soloKey ? items.filter(it => it.key === soloKey) : items;
-    const cache = await asegurarCostos(objetivo);
+    const cache = await traerCostos(objetivo);
     if (!soloKey) setModoCosto(modo);
     setItems(prev => recalcularNivelesEnLote(prev.map(it => (
       soloKey
@@ -427,7 +439,7 @@ function VentaRapidaInner() {
         : (it.precioModo ? aCosto(it, modo, cache) : it)
     ))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, asegurarCostos, costos]);
+  }, [items, traerCostos, costos]);
 
   /** Saca o mete UNA línea, desde su propio botón. */
   const toggleLineaACosto = useCallback(async (key: string) => {
@@ -439,50 +451,51 @@ function VentaRapidaInner() {
       return;
     }
     const modo = modoCosto ?? 'COSTO_LOTE';
-    const cache = await asegurarCostos([linea]);
+    const cache = await traerCostos([linea]);
     if (!modoCosto) setModoCosto(modo);
     setItems(prev => recalcularNivelesEnLote(
       prev.map(it => (it.key === key ? aCosto(it, modo, cache) : it))));
-  }, [items, costos, modoCosto, asegurarCostos]);
+  }, [items, costos, modoCosto, traerCostos]);
 
   /**
-   * Con el interruptor prendido, lo que se agrega DESPUÉS también entra a
-   * costo. Si no, el cajero prende el modo, sigue tipeando productos y los
-   * nuevos se cobran a precio de lista sin que nada lo diga.
+   * Mantiene el carrito cotizado mientras el interruptor está prendido.
+   *
+   * Cubre dos cosas que antes se escapaban:
+   *  - Lo que se agrega DESPUÉS de prender entra a costo solo. Si no, el
+   *    cajero prende el modo, sigue tipeando y los nuevos se cobran a precio
+   *    de lista sin que nada lo diga.
+   *  - 🔴 Cambiar la CANTIDAD recotiza. Desde que los lotes se consumen, el
+   *    costo depende de cuántas unidades salen: subir de 3 a 5 puede arrastrar
+   *    unidades de un lote más caro, y el precio tiene que moverse con eso.
+   *
+   * La FIRMA es la condición de corte: producto + cantidad de cada línea
+   * elegible, más el modo. Mientras no cambie, no se vuelve a pedir nada —
+   * sin eso este efecto se dispararía en bucle, porque él mismo escribe
+   * `items` y `costos`.
    */
   useEffect(() => {
-    if (!modoCosto) return;
-    const candidatas = items.filter(it => puedeVenderseACosto(it) && !it.precioModo);
-    if (!candidatas.length) return;
+    if (!modoCosto) { firmaCosto.current = ''; return; }
+    const elegibles = items.filter(puedeVenderseACosto);
+    if (!elegibles.length) return;
 
-    // 🔴 La condición de corte no es "ya tiene precioModo" sino "ya se
-    // consultó su costo": un producto SIN compras nunca va a poder entrar al
-    // modo, y con la otra condición este efecto se re-dispararía para siempre.
-    // Consultado y sin costo ⇒ se queda a precio de lista y la línea lo dice.
-    const sinConsultar = candidatas.filter(it => !costos[claveCosto(it.productoId, it.varianteId)]);
-    const listas = candidatas.filter(it => (
-      precioDelModoCosto(costos[claveCosto(it.productoId, it.varianteId)], modoCosto) != null
-    ));
-
-    if (listas.length) {
-      setItems(prev => recalcularNivelesEnLote(prev.map(it => (
-        listas.some(l => l.key === it.key) ? aCosto(it, modoCosto, costos) : it
-      ))));
-      return;
-    }
-    if (!sinConsultar.length) return;
+    const firma = elegibles
+      .map(it => `${claveCosto(it.productoId, it.varianteId)}x${it.cantidad}`)
+      .sort()
+      .join('|') + `#${modoCosto}`;
+    if (firma === firmaCosto.current) return;
+    firmaCosto.current = firma;
 
     let cancelado = false;
     (async () => {
-      const cache = await asegurarCostos(sinConsultar);
+      const cache = await traerCostos(elegibles);
       if (cancelado) return;
-      setItems(prev => recalcularNivelesEnLote(prev.map(it => (
-        sinConsultar.some(p => p.key === it.key) ? aCosto(it, modoCosto, cache) : it
-      ))));
+      setItems(prev => recalcularNivelesEnLote(
+        prev.map(it => (puedeVenderseACosto(it) ? aCosto(it, modoCosto, cache) : it)),
+      ));
     })();
     return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, modoCosto, costos]);
+  }, [items, modoCosto]);
 
   const cambiarCantidad = (key: string, nueva: number) => {
     if (nueva < 1) return;
@@ -1056,7 +1069,7 @@ function VentaRapidaInner() {
                         {contexto && <p className="truncate text-[10px] text-gray-500">{contexto}</p>}
                         {/* De qué compra salió el número. Sin esto el cajero
                             ve un precio pelado y tiene que confiar. */}
-                        {origen && (
+                        {origen && (costosLinea?.tramos?.length ?? 0) <= 1 && (
                           <p className="truncate text-[10px] text-[#043261]">
                             {[
                               origen.proveedorNombre,
@@ -1064,6 +1077,17 @@ function VentaRapidaInner() {
                               origen.documentoProveedor ?? origen.compraCodigo,
                               origen.cantidadBonificada > 0 ? `${origen.cantidadBonificada} de regalo ya en el costo` : null,
                             ].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {/* 🔑 Sale de VARIOS lotes: se muestra el reparto. Es la
+                            respuesta a "¿qué pasa si vendo más de lo que compré?"
+                            — las unidades de más costaron otra cosa y acá se ve
+                            cuáles y a cuánto. */}
+                        {aCostoLinea && (costosLinea?.tramos?.length ?? 0) > 1 && (
+                          <p className="truncate text-[10px] text-[#043261]">
+                            {costosLinea!.tramos
+                              .map(t => `${t.cantidad} a S/ ${fmt(t.costoUnitario)}`)
+                              .join(' + ')}
                           </p>
                         )}
                       </div>
