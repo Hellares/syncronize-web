@@ -316,7 +316,7 @@ export const SIDEBAR_NODES: SidebarNode[] = [
         { label: 'OC', href: '/dashboard/ordenes-compra', icon: 'documento' },
         { label: 'Recepcion/Compras', href: '/dashboard/compras', icon: 'delivery' },
         // `/dashboard/compras/lotes` lo comería `/dashboard/compras/[id]`.
-        { label: 'Lotes', href: '/dashboard/lotes', icon: 'capas', enConstruccion: true },
+        { label: 'Lotes', href: '/dashboard/lotes', icon: 'capas' },
         { label: 'Cuentas por Pagar', href: '/dashboard/cuentas-pagar', icon: 'pago' },
       ],
     },
