@@ -27,6 +27,12 @@ export interface VentaDetalleDto {
   /** Combos: Flutter los EXPANDE en componentes individuales conservando la referencia */
   origenComboId?: string;
   origenComboNombre?: string;
+  /**
+   * VENDER A COSTO. Si viene, el servidor IGNORA `precioUnitario` y cobra el
+   * costo de esta línea. Exige el granular `venta.editar-precio`; no admite
+   * descuento en la misma línea, ni combos, ni órdenes de servicio.
+   */
+  precioModo?: PrecioModoCosto;
 }
 
 /** Pago individual. YAPE/PLIN requieren referencia; TARJETA/TRANSFERENCIA referencia+banco */
@@ -451,6 +457,68 @@ export function precioConNivel(precioBase: number, nivel: NivelPrecio | null): n
   return precio < precioBase ? precio : precioBase;
 }
 
+// ============ VENDER A COSTO ============
+
+/**
+ * Con qué costo se cobra una línea marcada "a costo".
+ *
+ * 🔴 El precio NO lo manda el cliente: `aplicarPreciosBackendNivel` recalcula
+ * cada línea y rebota la venta con 409 si difiere. Lo que viaja al backend es
+ * el MODO; el número lo pone el servidor. Lo que se muestra acá es una
+ * PREVISUALIZACIÓN del mismo cálculo.
+ */
+export type PrecioModoCosto = 'COSTO_LOTE' | 'COSTO_LOTE_SIN_FLETE' | 'COSTO_PROMEDIO';
+
+export const MODOS_COSTO: PrecioModoCosto[] = ['COSTO_LOTE', 'COSTO_LOTE_SIN_FLETE', 'COSTO_PROMEDIO'];
+
+export const LABEL_MODO_COSTO: Record<PrecioModoCosto, string> = {
+  COSTO_LOTE: 'Última compra, con flete',
+  COSTO_LOTE_SIN_FLETE: 'Última compra, sin flete',
+  COSTO_PROMEDIO: 'Costo promedio del inventario',
+};
+
+/** De qué compra salió el costo del lote (lo que el cajero ve en la línea). */
+export interface OrigenCostoLote {
+  loteId: string;
+  loteCodigo: string;
+  fechaIngreso: string;
+  proveedorNombre: string | null;
+  compraId: string | null;
+  compraCodigo: string | null;
+  documentoProveedor: string | null;
+  monedaCompra: string | null;
+  tipoCambio: number | null;
+  fleteUnitario: number | null;
+  cantidadBonificada: number;
+}
+
+export interface CostosDeItem {
+  productoId: string | null;
+  varianteId: string | null;
+  costoPromedio: number | null;
+  costoLote: number | null;
+  costoLoteSinFlete: number | null;
+  origen: OrigenCostoLote | null;
+}
+
+/** Espejo de `CostoVentaService.clave` del backend: la variante MANDA. */
+export function claveCosto(productoId?: string | null, varianteId?: string | null): string {
+  return varianteId ? `v:${varianteId}` : `p:${productoId ?? ''}`;
+}
+
+/** El número de ese modo, o null si no se puede resolver (sin compras, sin costo). */
+export function precioDelModoCosto(
+  costos: CostosDeItem | undefined,
+  modo: PrecioModoCosto,
+): number | null {
+  if (!costos) return null;
+  const valor = modo === 'COSTO_LOTE' ? costos.costoLote
+    : modo === 'COSTO_LOTE_SIN_FLETE' ? costos.costoLoteSinFlete
+      : costos.costoPromedio;
+  // Un costo en cero es "no cargado", no "gratis".
+  return valor != null && valor > 0 ? valor : null;
+}
+
 // --- Item del carrito POS web (estado local, paridad VentaDetalleInput Flutter) ---
 
 export interface VentaItem {
@@ -488,12 +556,31 @@ export interface VentaItem {
   ordenServicioId?: string;
   esOrdenServicio?: boolean;
   adelantoOrden?: number; // adelanto ya pagado de la orden (para calcular el saldo a cobrar hoy)
+  /**
+   * VENDER A COSTO. SÍ viaja al backend, y es lo único que viaja: el precio de
+   * esta línea lo pone el servidor desde el costo. `precioUnitario` se
+   * actualiza igual para que el carrito muestre lo que se va a cobrar, pero
+   * es una previsualización — el número que manda es el del servidor.
+   */
+  precioModo?: PrecioModoCosto | null;
   // Contexto local (NO viaja al backend)
   niveles: NivelPrecio[];
   nivelAplicado?: string | null;
   enLiquidacion: boolean;
   precioCosto?: number | null;
   stockDisponible?: number | null;
+}
+
+/**
+ * Si esta línea puede venderse a costo. Se excluyen las que no tienen costo de
+ * inventario (servicios, órdenes) y las que ya tienen su propio deal de precio
+ * (un combo y sus componentes) — el backend rechaza las mismas.
+ */
+export function puedeVenderseACosto(it: VentaItem): boolean {
+  return !it.esOrdenServicio
+    && !it.ordenServicioId
+    && !it.origenComboId
+    && !!(it.productoId || it.varianteId);
 }
 
 /**
@@ -523,6 +610,10 @@ export function recalcularPorNiveles(
   cantidad: number,
   cantidadesGrupo?: Map<string, number>,
 ): VentaItem {
+  // 🔴 Una línea a costo NO se reprecia por niveles: su precio sale del costo
+  // de la compra y no depende de cuántas unidades se lleven. Sin esta salida,
+  // subir la cantidad la devolvía al precio de lista sin avisar.
+  if (item.precioModo) return { ...item, cantidad };
   if (item.enLiquidacion) {
     return { ...item, cantidad, precioUnitario: item.precioBase, nivelAplicado: null };
   }

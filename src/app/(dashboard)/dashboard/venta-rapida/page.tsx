@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
-import type { VentaItem, Venta, NivelPrecio } from '@/core/types/venta';
-import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea } from '@/core/types/venta';
+import type { VentaItem, Venta, NivelPrecio, PrecioModoCosto, CostosDeItem } from '@/core/types/venta';
+import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea, claveCosto, precioDelModoCosto, puedeVenderseACosto, LABEL_MODO_COSTO, MODOS_COSTO } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { baseFacturableOrden, costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
@@ -16,6 +16,7 @@ import * as cajaService from '@/features/caja/services/caja-service';
 import type { Caja } from '@/core/types/caja';
 import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
+import * as empresaService from '@/features/empresa/services/empresa-service';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
@@ -79,6 +80,25 @@ function VentaRapidaInner() {
   const [descLineaTarget, setDescLineaTarget] = useState<VentaItem | null>(null);
   const [descGlobalOpen, setDescGlobalOpen] = useState(false);
   const [info, setInfo] = useState('');
+
+  // --- Vender a costo ---
+  // `modoCosto` null = interruptor apagado. Cuando está prendido, es el modo
+  // con el que entran las líneas nuevas y con el que se muestran las que ya
+  // están a costo. Cada línea puede salirse por su cuenta.
+  const [modoCosto, setModoCosto] = useState<PrecioModoCosto | null>(null);
+  // Los tres costos por ítem, cacheados por clave (mismo formato que el
+  // backend). Se piden una vez por producto y se reusan mientras dure el
+  // carrito: el costo no cambia entre que se prende el interruptor y se cobra.
+  const [costos, setCostos] = useState<Record<string, CostosDeItem>>({});
+  const [costoCargando, setCostoCargando] = useState(false);
+  const [costoError, setCostoError] = useState('');
+  // Selector de modo: null cerrado, 'global' para todo el carrito, o la key de
+  // una línea para cambiarla sola.
+  const [modoPickerFor, setModoPickerFor] = useState<string | null>(null);
+  // El modo con el que la empresa quiere que abra el interruptor. Se lee una
+  // sola vez, la primera vez que se prende: no vale una llamada en cada carga
+  // de la pantalla para un valor que casi nadie cambia.
+  const [modoDefault, setModoDefault] = useState<PrecioModoCosto | null>(null);
 
   // Autorización de descuentos (paridad Flutter: sin canManageDiscounts un admin debe autorizar)
   const [authDescuento, setAuthDescuento] = useState<null | (() => void)>(null);
@@ -299,6 +319,171 @@ function VentaRapidaInner() {
     }
   }, [query, altaPrecio, altaCantidad, empresa?.id, sedeId, addItem, search]);
 
+  // =========================================================
+  // VENDER A COSTO
+  // =========================================================
+
+  /**
+   * Trae los costos que falten en el cache y devuelve el cache completo.
+   *
+   * Se devuelve en vez de leerse del estado porque quien llama lo necesita EN
+   * EL MISMO tick para aplicar el modo: `setCostos` no actualiza la variable
+   * de este render.
+   */
+  const asegurarCostos = useCallback(async (
+    lineas: VentaItem[],
+  ): Promise<Record<string, CostosDeItem>> => {
+    const faltan = lineas
+      .filter(puedeVenderseACosto)
+      .filter(it => !costos[claveCosto(it.productoId, it.varianteId)]);
+    if (!faltan.length || !sedeId) return costos;
+
+    setCostoCargando(true);
+    setCostoError('');
+    try {
+      const res = await productoService.getCostosVenta(
+        sedeId,
+        faltan.map(it => ({ productoId: it.productoId, varianteId: it.varianteId })),
+      );
+      const merge = { ...costos };
+      for (const c of res) merge[claveCosto(c.productoId, c.varianteId)] = c;
+      setCostos(merge);
+      return merge;
+    } catch (e) {
+      const status = e instanceof AxiosError ? e.response?.status : undefined;
+      setCostoError(status === 403
+        ? 'No tenés permiso para vender a costo'
+        : 'No se pudieron cargar los costos');
+      return costos;
+    } finally {
+      setCostoCargando(false);
+    }
+  }, [costos, sedeId]);
+
+  /**
+   * Pone (o saca) una línea del modo costo.
+   *
+   * 🔴 Cuando no hay costo para ese modo, la línea NO entra: se queda a precio
+   * de lista y la propia línea lo dice. Caer al precio de lista en silencio
+   * después de prometerle el costo al cliente es el peor final posible.
+   */
+  const aCosto = (
+    it: VentaItem,
+    modo: PrecioModoCosto | null,
+    cache: Record<string, CostosDeItem>,
+  ): VentaItem => {
+    if (modo == null) {
+      if (!it.precioModo) return it;
+      // Al salir del modo, la línea vuelve a su precio vigente; el repricing
+      // por niveles lo hace `recalcularNivelesEnLote` después.
+      return { ...it, precioModo: null, precioUnitario: it.precioBase };
+    }
+    if (!puedeVenderseACosto(it)) return it;
+    const precio = precioDelModoCosto(cache[claveCosto(it.productoId, it.varianteId)], modo);
+    if (precio == null) return it;
+    // El descuento se limpia: un centavo sobre una línea a costo la manda a
+    // pérdida, y el backend la rechaza.
+    return { ...it, precioModo: modo, precioUnitario: precio, nivelAplicado: null, descuento: 0 };
+  };
+
+  /** El interruptor grande: prende o apaga el modo para TODO el carrito. */
+  const toggleModoCosto = useCallback(async () => {
+    if (modoCosto) {
+      setModoCosto(null);
+      setItems(prev => recalcularNivelesEnLote(prev.map(it => aCosto(it, null, costos))));
+      return;
+    }
+    // Con qué costo abre. Sale de la configuración de la empresa; si no se
+    // puede leer, COSTO_LOTE — que es el costo de la factura del proveedor
+    // cuando esa compra no trajo flete, o sea el caso normal.
+    let modo: PrecioModoCosto = 'COSTO_LOTE';
+    if (modoDefault) {
+      modo = modoDefault;
+    } else if (empresa?.id) {
+      try {
+        const cfg = await empresaService.getConfiguracionEmpresa(empresa.id);
+        if (cfg.precioModoCostoDefault && (MODOS_COSTO as string[]).includes(cfg.precioModoCostoDefault)) {
+          modo = cfg.precioModoCostoDefault as PrecioModoCosto;
+        }
+        setModoDefault(modo);
+      } catch { /* sin config: queda COSTO_LOTE */ }
+    }
+    const cache = await asegurarCostos(items);
+    setModoCosto(modo);
+    setItems(prev => recalcularNivelesEnLote(prev.map(it => aCosto(it, modo, cache))));
+  }, [modoCosto, costos, items, asegurarCostos, empresa?.id, modoDefault]);
+
+  /** Cambia el modo: de todo el carrito, o de una sola línea. */
+  const cambiarModoCosto = useCallback(async (modo: PrecioModoCosto, soloKey?: string) => {
+    setModoPickerFor(null);
+    const objetivo = soloKey ? items.filter(it => it.key === soloKey) : items;
+    const cache = await asegurarCostos(objetivo);
+    if (!soloKey) setModoCosto(modo);
+    setItems(prev => recalcularNivelesEnLote(prev.map(it => (
+      soloKey
+        ? (it.key === soloKey ? aCosto(it, modo, cache) : it)
+        // Sin `soloKey` se reaplica solo a las que YA están a costo: cambiar de
+        // modo no debería arrastrar al carrito líneas que el cajero sacó a mano.
+        : (it.precioModo ? aCosto(it, modo, cache) : it)
+    ))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, asegurarCostos, costos]);
+
+  /** Saca o mete UNA línea, desde su propio botón. */
+  const toggleLineaACosto = useCallback(async (key: string) => {
+    const linea = items.find(it => it.key === key);
+    if (!linea) return;
+    if (linea.precioModo) {
+      setItems(prev => recalcularNivelesEnLote(
+        prev.map(it => (it.key === key ? aCosto(it, null, costos) : it))));
+      return;
+    }
+    const modo = modoCosto ?? 'COSTO_LOTE';
+    const cache = await asegurarCostos([linea]);
+    if (!modoCosto) setModoCosto(modo);
+    setItems(prev => recalcularNivelesEnLote(
+      prev.map(it => (it.key === key ? aCosto(it, modo, cache) : it))));
+  }, [items, costos, modoCosto, asegurarCostos]);
+
+  /**
+   * Con el interruptor prendido, lo que se agrega DESPUÉS también entra a
+   * costo. Si no, el cajero prende el modo, sigue tipeando productos y los
+   * nuevos se cobran a precio de lista sin que nada lo diga.
+   */
+  useEffect(() => {
+    if (!modoCosto) return;
+    const candidatas = items.filter(it => puedeVenderseACosto(it) && !it.precioModo);
+    if (!candidatas.length) return;
+
+    // 🔴 La condición de corte no es "ya tiene precioModo" sino "ya se
+    // consultó su costo": un producto SIN compras nunca va a poder entrar al
+    // modo, y con la otra condición este efecto se re-dispararía para siempre.
+    // Consultado y sin costo ⇒ se queda a precio de lista y la línea lo dice.
+    const sinConsultar = candidatas.filter(it => !costos[claveCosto(it.productoId, it.varianteId)]);
+    const listas = candidatas.filter(it => (
+      precioDelModoCosto(costos[claveCosto(it.productoId, it.varianteId)], modoCosto) != null
+    ));
+
+    if (listas.length) {
+      setItems(prev => recalcularNivelesEnLote(prev.map(it => (
+        listas.some(l => l.key === it.key) ? aCosto(it, modoCosto, costos) : it
+      ))));
+      return;
+    }
+    if (!sinConsultar.length) return;
+
+    let cancelado = false;
+    (async () => {
+      const cache = await asegurarCostos(sinConsultar);
+      if (cancelado) return;
+      setItems(prev => recalcularNivelesEnLote(prev.map(it => (
+        sinConsultar.some(p => p.key === it.key) ? aCosto(it, modoCosto, cache) : it
+      ))));
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, modoCosto, costos]);
+
   const cambiarCantidad = (key: string, nueva: number) => {
     if (nueva < 1) return;
     setItems(prev => recalcularNivelesEnLote(
@@ -397,6 +582,9 @@ function VentaRapidaInner() {
   const aplicarDescuentoGlobal = (pct: number) => {
     setDescGlobalOpen(false);
     const aplicar = () => setItems(prev => prev.map(it => {
+      // Las líneas a costo se saltean: un centavo de descuento sobre ellas es
+      // vender bajo costo, y el backend las rechaza.
+      if (it.precioModo) return it;
       const bruto = it.cantidad * it.precioUnitario;
       return { ...it, descuento: Math.min(bruto, bruto * pct / 100) };
     }));
@@ -429,10 +617,17 @@ function VentaRapidaInner() {
    * cliente pregunta ("¿cuánto me estás rebajando?") y no se veía en ningún lado.
    */
   const resumenCarrito = useMemo(() => {
-    let unidades = 0, porNivel = 0, porDescuento = 0;
+    let unidades = 0, porNivel = 0, porDescuento = 0, resignado = 0, aCostoCount = 0;
     for (const it of items) {
       unidades += it.cantidad;
-      porNivel += Math.max(0, it.precioBase - it.precioUnitario) * it.cantidad;
+      // 🔴 Lo que se resigna vendiendo a costo NO es "ahorro por mayoreo": es
+      // plata que no entra. Va en su propia línea y en su propio color.
+      if (it.precioModo) {
+        resignado += Math.max(0, it.precioBase - it.precioUnitario) * it.cantidad;
+        aCostoCount++;
+      } else {
+        porNivel += Math.max(0, it.precioBase - it.precioUnitario) * it.cantidad;
+      }
       porDescuento += it.descuento;
     }
     // Un granel viaja en unidad atómica (gramos): sumarlo con unidades sueltas
@@ -445,6 +640,9 @@ function VentaRapidaInner() {
       ahorro: porNivel + porDescuento,
       ahorroLabel: porNivel > 0 && porDescuento > 0 ? 'Ahorro (mayoreo + desc.)'
         : porNivel > 0 ? 'Ahorro por mayoreo' : 'Descuentos',
+      /** Margen que se está resignando por vender a costo. */
+      resignado,
+      lineasACosto: aCostoCount,
     };
   }, [items]);
 
@@ -592,6 +790,24 @@ function VentaRapidaInner() {
         </div>
         <div className="flex items-center gap-2">
           {info && <p className="text-xs text-green-600">{info}</p>}
+          {costoError && <p className="text-xs font-medium text-red-600">{costoError}</p>}
+          {/* Vender a costo. Solo con el granular `venta.editar-precio`: sin
+              él el endpoint de costos responde 403, así que mostrar el botón
+              sería ofrecer algo que no funciona. */}
+          {permissions.canEditarPrecioVenta && (
+            <button onClick={toggleModoCosto} disabled={costoCargando}
+              title="Cobrar los productos a lo que costaron"
+              /* 🔴 El peso queda FUERA del ternario: cambiarlo al activarse
+                 ensancha el texto y el botón salta, empujando lo de al lado. */
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold disabled:opacity-60 ${modoCosto
+                ? 'border-[#043261] bg-[#043261] text-white hover:bg-[#062f57]'
+                : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              <span className={`relative h-[15px] w-[26px] shrink-0 rounded-full transition-colors ${modoCosto ? 'bg-[#4d90e0]' : 'bg-gray-300'}`}>
+                <span className={`absolute top-[2px] h-[11px] w-[11px] rounded-full bg-white transition-all ${modoCosto ? 'left-[13px]' : 'left-[2px]'}`} />
+              </span>
+              {costoCargando ? 'Buscando costos…' : 'Vender a costo'}
+            </button>
+          )}
           <button onClick={() => setCobrablesOpen(true)}
             className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50">
             🛠 Cobrar orden
@@ -754,6 +970,26 @@ function VentaRapidaInner() {
               )}
             </div>
 
+            {/* Vender a costo: qué costo se está usando y sobre cuántas
+                líneas. El relleno oscuro es el único del carrito — los demás
+                badges son pastel — porque esto no es un nivel de precio más:
+                es un modo autorizado. */}
+            {modoCosto && (
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-[#043261] px-3.5 py-2 text-white">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="rounded bg-white/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wider">MODO COSTO</span>
+                  <span className="truncate text-[11px] text-[#cfe2fb]">
+                    {LABEL_MODO_COSTO[modoCosto]}
+                    {` · ${resumenCarrito.lineasACosto} de ${items.filter(puedeVenderseACosto).length} líneas`}
+                  </span>
+                </div>
+                <button onClick={() => setModoPickerFor('global')}
+                  className="shrink-0 rounded-full border border-white/35 px-2.5 py-0.5 text-[10px] hover:bg-white/10">
+                  Cambiar modo
+                </button>
+              </div>
+            )}
+
             {/* Mayoreo combinado: qué grupo ya aplica y cuál está a una unidad
                 de aplicar. Sin esto el cajero no tiene forma de saberlo. */}
             {tirasMayoreo.map(t => (
@@ -795,12 +1031,20 @@ function VentaRapidaInner() {
                 <p className="px-4 py-14 text-center text-sm text-gray-400">Toca un producto para agregarlo</p>
               ) : itemsVista.map(it => {
                 const c = calcularLinea(it);
-                const conNivel = !it.esOrdenServicio && it.precioUnitario < it.precioBase;
+                const aCostoLinea = !!it.precioModo;
+                const conNivel = !it.esOrdenServicio && !aCostoLinea && it.precioUnitario < it.precioBase;
                 const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
                 const { titulo, contexto } = tituloYContextoLinea(it);
+                const puedeCosto = puedeVenderseACosto(it);
+                const costosLinea = puedeCosto ? costos[claveCosto(it.productoId, it.varianteId)] : undefined;
+                // Consultada y sin costo para el modo activo: se queda a
+                // precio de lista, y la línea tiene que DECIRLO.
+                const sinCosto = !!modoCosto && puedeCosto && !aCostoLinea
+                  && !!costosLinea && precioDelModoCosto(costosLinea, modoCosto) == null;
+                const origen = aCostoLinea ? costosLinea?.origen : null;
                 return (
                   <div key={it.key}
-                    className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : 'hover:bg-gray-50/60'}`}>
+                    className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : aCostoLinea ? 'bg-slate-50' : 'hover:bg-gray-50/60'}`}>
 
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
@@ -810,11 +1054,28 @@ function VentaRapidaInner() {
                           {titulo}
                         </p>
                         {contexto && <p className="truncate text-[10px] text-gray-500">{contexto}</p>}
+                        {/* De qué compra salió el número. Sin esto el cajero
+                            ve un precio pelado y tiene que confiar. */}
+                        {origen && (
+                          <p className="truncate text-[10px] text-[#043261]">
+                            {[
+                              origen.proveedorNombre,
+                              new Date(origen.fechaIngreso).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }),
+                              origen.documentoProveedor ?? origen.compraCodigo,
+                              origen.cantidadBonificada > 0 ? `${origen.cantidadBonificada} de regalo ya en el costo` : null,
+                            ].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-[15px] font-bold leading-tight text-gray-900">S/ {fmt(c.total)}</p>
-                        <p className={`text-[11px] font-medium ${conNivel ? 'text-blue-700' : 'text-gray-500'}`}>
+                        <p className={`text-[11px] font-medium ${aCostoLinea ? 'text-[#043261]' : conNivel ? 'text-blue-700' : 'text-gray-500'}`}>
                           S/ {fmt(it.precioUnitario)} c/u
+                          {/* El precio de lista tachado al lado: es el tamaño
+                              del favor que se está haciendo. */}
+                          {aCostoLinea && it.precioBase > it.precioUnitario && (
+                            <span className="ml-1 font-normal text-gray-400 line-through">{fmt(it.precioBase)}</span>
+                          )}
                         </p>
                       </div>
                       <button onClick={() => quitarItem(it.key)} title="Quitar"
@@ -843,16 +1104,38 @@ function VentaRapidaInner() {
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
                           </button>
                         </div>
-                        <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
-                          /* 🔴 El peso queda FUERA del ternario: cambiarlo al
-                             activarse ensancha el texto y el botón salta de
-                             ancho, empujando lo que tiene al lado. Lo que
-                             marca el estado son el color y el fondo. */
-                          className={`h-8 rounded-full border px-2.5 text-[11px] font-medium ${it.descuento > 0
-                            ? 'border-amber-300 bg-amber-50 text-amber-700'
-                            : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                          {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
-                        </button>
+                        {/* A costo no admite descuento: un centavo la manda a
+                            pérdida y el backend la rechaza. Se esconde el
+                            botón en vez de dejar que falle al cobrar. */}
+                        {!aCostoLinea && (
+                          <button onClick={() => setDescLineaTarget(it)} title="Descuento de línea"
+                            /* 🔴 El peso queda FUERA del ternario: cambiarlo al
+                               activarse ensancha el texto y el botón salta de
+                               ancho, empujando lo que tiene al lado. Lo que
+                               marca el estado son el color y el fondo. */
+                            className={`h-8 rounded-full border px-2.5 text-[11px] font-medium ${it.descuento > 0
+                              ? 'border-amber-300 bg-amber-50 text-amber-700'
+                              : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                            {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
+                          </button>
+                        )}
+                        {aCostoLinea && (
+                          <>
+                            <span className="rounded bg-[#043261] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">COSTO</span>
+                            <button onClick={() => setModoPickerFor(it.key)}
+                              className="h-8 rounded-full border border-[#043261]/30 px-2.5 text-[11px] font-medium text-[#043261] hover:bg-slate-100">
+                              Cambiar
+                            </button>
+                          </>
+                        )}
+                        {/* Mixto por línea: la lista del proveedor a costo y
+                            el accesorio a precio normal, en la misma venta. */}
+                        {permissions.canEditarPrecioVenta && puedeCosto && (
+                          <button onClick={() => toggleLineaACosto(it.key)} disabled={costoCargando}
+                            className="h-8 rounded-full border border-gray-200 px-2.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                            {aCostoLinea ? 'Volver a precio de lista' : 'Pasar a costo'}
+                          </button>
+                        )}
                         {conNivel && it.nivelAplicado && (
                           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">
                             {it.nivelAplicado}
@@ -860,6 +1143,28 @@ function VentaRapidaInner() {
                         )}
                         {it.enLiquidacion && (
                           <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-600">LIQ</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 🔴 Nunca caer al precio de lista en silencio: cobrarle
+                        lista a un cliente al que se le prometió costo es el
+                        peor final posible. Si no hay costo, la línea lo dice. */}
+                    {sinCosto && (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-md bg-amber-50 px-2 py-1.5">
+                        <svg className="h-3 w-3 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" />
+                        </svg>
+                        <span className="flex-1 text-[10px] text-amber-800">
+                          {modoCosto === 'COSTO_PROMEDIO'
+                            ? 'Sin costo cargado: se cobra a precio de lista'
+                            : 'Sin compras registradas en esta sede: se cobra a precio de lista'}
+                        </span>
+                        {modoCosto !== 'COSTO_PROMEDIO' && costosLinea?.costoPromedio != null && costosLinea.costoPromedio > 0 && (
+                          <button onClick={() => cambiarModoCosto('COSTO_PROMEDIO', it.key)}
+                            className="shrink-0 rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-50">
+                            Usar el promedio
+                          </button>
                         )}
                       </div>
                     )}
@@ -899,6 +1204,14 @@ function VentaRapidaInner() {
                     <span>{resumenCarrito.ahorroLabel}</span><span>−S/ {fmt(resumenCarrito.ahorro)}</span>
                   </div>
                 )}
+                {/* En ámbar y no en verde: no es un ahorro del cliente, es
+                    margen que el negocio resigna. Es el número que el dueño
+                    quiere ver antes de confirmar. */}
+                {resumenCarrito.resignado > 0 && (
+                  <div className="mt-0.5 flex justify-between text-[11px] font-semibold text-amber-700">
+                    <span>Margen resignado</span><span>S/ {fmt(resumenCarrito.resignado)}</span>
+                  </div>
+                )}
                 <div className="mt-1.5 flex items-baseline justify-between border-t border-gray-100 pt-1.5">
                   <span className="text-[13px] font-semibold text-gray-700">Total</span>
                   <span className="text-[22px] font-bold tracking-tight text-gray-900">S/ {fmt(totales.total)}</span>
@@ -915,7 +1228,13 @@ function VentaRapidaInner() {
               </svg>
               COBRAR S/ {fmt(totales.total)}
             </span>
-            {items.length > 0 && <span className="text-[11px] font-medium opacity-85">{resumenCarrito.texto}</span>}
+            {items.length > 0 && (
+              <span className="text-[11px] font-medium opacity-85">
+                {resumenCarrito.lineasACosto > 0
+                  ? `${resumenCarrito.lineasACosto} ${resumenCarrito.lineasACosto === 1 ? 'línea' : 'líneas'} a costo · ${items.length - resumenCarrito.lineasACosto} a precio de lista`
+                  : resumenCarrito.texto}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -943,6 +1262,30 @@ function VentaRapidaInner() {
           }}
           onClose={() => setDescLineaTarget(null)} />
       )}
+
+      {/* Con qué costo se cobra: para todo el carrito ('global') o una línea */}
+      {modoPickerFor && (() => {
+        const linea = modoPickerFor === 'global' ? null : items.find(it => it.key === modoPickerFor) ?? null;
+        // Para el selector global se muestran los costos de la PRIMERA línea a
+        // costo: los montos son por producto, pero lo que se elige es el
+        // criterio, y con un ejemplo concreto delante se elige mejor.
+        const muestra = linea ?? items.find(it => it.precioModo) ?? items.find(puedeVenderseACosto) ?? null;
+        const cos = muestra ? costos[claveCosto(muestra.productoId, muestra.varianteId)] ?? null : null;
+        const org = cos?.origen ?? null;
+        return (
+          <ModoCostoDialog
+            titulo={muestra ? tituloYContextoLinea(muestra).titulo : 'Vender a costo'}
+            subtitulo={org
+              ? `Última compra: ${[org.proveedorNombre, new Date(org.fechaIngreso).toLocaleDateString('es-PE'), org.documentoProveedor ?? org.compraCodigo].filter(Boolean).join(' · ')}`
+              : linea ? 'Sin compras registradas en esta sede'
+                : 'Se aplica a las líneas que ya están a costo'}
+            actual={linea ? linea.precioModo ?? null : modoCosto}
+            costos={cos}
+            onPick={(m) => cambiarModoCosto(m, linea?.key)}
+            onClose={() => setModoPickerFor(null)}
+          />
+        );
+      })()}
 
       {/* Descuento global */}
       {descGlobalOpen && (
@@ -1071,6 +1414,71 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar desc.</button>
           <button onClick={aplicar} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">Aplicar</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Con qué costo se cobra. Los tres montos van con su PROCEDENCIA —proveedor,
+ * fecha, factura— para que el cajero elija un hecho y no un número pelado.
+ *
+ * 🔑 Cuando la compra no trajo flete, "con flete" y "sin flete" dan el MISMO
+ * número. No es un error y el pie lo dice: es el caso normal de un mayorista
+ * que no cobra envío.
+ */
+function ModoCostoDialog({ titulo, subtitulo, actual, costos, onPick, onClose }: {
+  titulo: string;
+  subtitulo: string;
+  actual: PrecioModoCosto | null;
+  costos: CostosDeItem | null;
+  onPick: (modo: PrecioModoCosto) => void;
+  onClose: () => void;
+}) {
+  const origen = costos?.origen ?? null;
+  const detalle: Record<PrecioModoCosto, string> = {
+    COSTO_LOTE: origen
+      ? `${origen.loteCodigo}${origen.fleteUnitario != null ? ` · incluye S/ ${fmt(origen.fleteUnitario)} de flete prorrateado` : ''}`
+      : 'Sin compras registradas en esta sede',
+    COSTO_LOTE_SIN_FLETE: origen
+      ? 'Neto de la factura, después del descuento y la bonificación'
+      : 'Sin compras registradas en esta sede',
+    COSTO_PROMEDIO: 'La mezcla de todas las compras — con la que se valora el kardex',
+  };
+  // Los dos primeros coinciden ⇔ esa compra no trajo flete.
+  const sinFlete = costos != null
+    && costos.costoLote != null
+    && costos.costoLoteSinFlete != null
+    && Math.abs(costos.costoLote - costos.costoLoteSinFlete) < 0.005;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="border-b border-gray-100 px-4 py-3">
+          <h3 className="truncate text-sm font-medium text-[#043261]">{titulo}</h3>
+          <p className="truncate text-[10px] text-gray-500">{subtitulo}</p>
+        </div>
+        {MODOS_COSTO.map(m => {
+          const valor = precioDelModoCosto(costos ?? undefined, m);
+          const sel = actual === m;
+          return (
+            <button key={m} onClick={() => valor != null && onPick(m)} disabled={valor == null}
+              className={`flex w-full items-start gap-2.5 border-b border-gray-100 px-4 py-2.5 text-left last:border-b-0 disabled:opacity-45 ${sel ? 'bg-[#f5f9ff]' : 'hover:bg-gray-50'}`}>
+              <span className={`mt-0.5 h-[15px] w-[15px] shrink-0 rounded-full ${sel ? 'border-[5px] border-[#043261]' : 'border-[1.5px] border-gray-300'}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-[#043261]">{LABEL_MODO_COSTO[m]}</span>
+                <span className="block text-[10px] text-gray-500">{detalle[m]}</span>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[13px] font-bold text-gray-900">
+                {valor != null ? `S/ ${fmt(valor)}` : '—'}
+              </span>
+            </button>
+          );
+        })}
+        <p className="bg-gray-50 px-4 py-2 text-[10px] text-gray-500">
+          Los tres son <b>con IGV</b>, igual que el precio de venta.
+          {sinFlete && ' Esta compra no trajo flete: por eso los dos primeros dan lo mismo.'}
+        </p>
       </div>
     </div>
   );

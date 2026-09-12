@@ -1,3 +1,19 @@
+/**
+ * Configuración fiscal/operativa de la empresa (`GET /empresas/:id/configuracion`).
+ *
+ * Solo los campos que la web consume: el endpoint devuelve muchos más (mora,
+ * planilla, crédito) que hoy solo administra el app.
+ */
+export interface ConfiguracionEmpresa {
+  id: string;
+  empresaId: string;
+  impuestoDefaultPorcentaje: number;
+  monedaPrincipal: string;
+  simboloMoneda: string;
+  /** Con qué costo abre el interruptor de "vender a costo" del POS. */
+  precioModoCostoDefault?: string;
+}
+
 export interface EmpresaPermissions {
   canViewUsers: boolean;
   canManageUsers: boolean;

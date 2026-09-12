@@ -6,6 +6,7 @@ import type {
   CreateProductoDto,
   UpdateProductoDto,
 } from '@/core/types/producto';
+import type { CostosDeItem } from '@/core/types/venta';
 
 function buildQueryParams(filtros: ProductoFiltros): string {
   const params = new URLSearchParams();
@@ -66,6 +67,26 @@ export async function altaRapidaVenta(data: {
 }): Promise<Producto> {
   const res = await apiClient.post<Producto>('/productos/alta-rapida', data);
   return res.data;
+}
+
+/**
+ * Los tres costos con los que se puede vender "a lo que me costó", para todas
+ * las líneas del carrito de una.
+ *
+ * 🔑 Es POST porque pregunta por el carrito completo: línea por línea serían N
+ * requests al prender el interruptor. Exige el granular `venta.editar-precio`
+ * (`canEditarPrecioVenta`) — un 403 acá significa que este usuario no puede
+ * vender a costo, no que el endpoint falló.
+ */
+export async function getCostosVenta(
+  sedeId: string,
+  items: Array<{ productoId?: string; varianteId?: string }>,
+): Promise<CostosDeItem[]> {
+  const res = await apiClient.post<{ sedeId: string; items: CostosDeItem[] }>(
+    '/productos/costos-venta',
+    { sedeId, items },
+  );
+  return res.data.items;
 }
 
 export async function updateProducto(id: string, data: UpdateProductoDto): Promise<Producto> {

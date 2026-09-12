@@ -383,6 +383,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               descripcion: it.descripcion,
               cantidad: it.cantidad,
               precioUnitario: it.precioUnitario,
+              // VENDER A COSTO: lo que manda es el MODO. El servidor ignora
+              // `precioUnitario` y pone el costo — mandarlo igual no molesta y
+              // deja el rastro de lo que el cajero vio en pantalla.
+              ...(it.precioModo && { precioModo: it.precioModo }),
               ...(it.descuento > 0 && { descuento: it.descuento }),
               porcentajeIGV: it.porcentajeIGV,
               precioIncluyeIgv: it.precioIncluyeIgv,
