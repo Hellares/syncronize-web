@@ -393,6 +393,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               // `precioUnitario` y pone el costo — mandarlo igual no molesta y
               // deja el rastro de lo que el cajero vio en pantalla.
               ...(it.precioModo && { precioModo: it.precioModo }),
+              // Lote elegido a mano: manda sobre FEFO para el costo y para de
+              // dónde sale la mercadería.
+              ...(it.loteId && { loteId: it.loteId }),
               ...(it.descuento > 0 && { descuento: it.descuento }),
               porcentajeIGV: it.porcentajeIGV,
               precioIncluyeIgv: it.precioIncluyeIgv,

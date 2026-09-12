@@ -17,6 +17,7 @@ import type { Caja } from '@/core/types/caja';
 import * as comboService from '@/features/producto/services/combo-service';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as empresaService from '@/features/empresa/services/empresa-service';
+import VenderCompraSheet, { type LineaDeCompra } from '@/features/venta/components/VenderCompraSheet';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
@@ -99,6 +100,7 @@ function VentaRapidaInner() {
   // sola vez, la primera vez que se prende: no vale una llamada en cada carga
   // de la pantalla para un valor que casi nadie cambia.
   const [modoDefault, setModoDefault] = useState<PrecioModoCosto | null>(null);
+  const [compraSheetOpen, setCompraSheetOpen] = useState(false);
   // Producto+cantidad de cada línea elegible, ya cotizado. Corta el bucle del
   // efecto que recotiza: sin esto se re-pediría en cada render.
   const firmaCosto = useRef<string>('');
@@ -355,6 +357,10 @@ function VentaRapidaInner() {
           productoId: it.productoId,
           varianteId: it.varianteId,
           cantidad: it.cantidad,
+          // 🔴 El lote elegido viaja también acá: sin esto el servidor
+          // cotizaría por FEFO y el efecto que recotiza PISARÍA el precio del
+          // lote que el cajero eligió, en silencio.
+          loteId: it.loteId ?? null,
         })),
       );
       const mapa: Record<string, CostosDeItem> = { ...costos };
@@ -479,7 +485,7 @@ function VentaRapidaInner() {
     if (!elegibles.length) return;
 
     const firma = elegibles
-      .map(it => `${claveCosto(it.productoId, it.varianteId)}x${it.cantidad}`)
+      .map(it => `${claveCosto(it.productoId, it.varianteId)}x${it.cantidad}@${it.loteId ?? ''}`)
       .sort()
       .join('|') + `#${modoCosto}`;
     if (firma === firmaCosto.current) return;
@@ -496,6 +502,47 @@ function VentaRapidaInner() {
     return () => { cancelado = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, modoCosto]);
+
+  /**
+   * Arma el carrito con lo que queda de una compra, al costo de SUS lotes.
+   *
+   * 🔑 Cada línea viaja con su `loteId`, que manda sobre FEFO: el cliente que
+   * encargó esa compra paga lo que costó SU mercadería, y es SU caja la que
+   * sale del depósito. Sin el lote, el consumo sacaría de la compra más vieja
+   * y le cobraría un costo que no es el suyo.
+   */
+  const cargarCompra = useCallback((lineas: LineaDeCompra[]) => {
+    setCompraSheetOpen(false);
+    const nuevos: VentaItem[] = lineas.map((l) => ({
+      key: genKey(),
+      productoId: l.productoId,
+      varianteId: l.varianteId,
+      descripcion: l.descripcion,
+      productoNombre: l.descripcion,
+      cantidad: l.cantidad,
+      // El precio de lista queda en el costo: sin haber cargado el producto
+      // no se conoce, y el que se cobra es el del lote igual. El "margen
+      // resignado" de estas líneas queda en 0, que es honesto: no se sabe.
+      precioBase: l.costo,
+      precioUnitario: l.costo,
+      descuento: 0,
+      porcentajeIGV: 18,
+      precioIncluyeIgv: true,
+      tipoAfectacion: '10',
+      icbper: 0,
+      precioModo: 'COSTO_LOTE',
+      loteId: l.loteId,
+      loteCodigo: l.loteCodigo,
+      niveles: [],
+      enLiquidacion: false,
+      precioCosto: l.costo,
+      stockDisponible: l.cantidad,
+    }));
+    // Se AGREGA a lo que haya: el cliente puede llevarse su encargo y algo más.
+    setItems(prev => recalcularNivelesEnLote([...prev, ...nuevos]));
+    setModoCosto((m) => m ?? 'COSTO_LOTE');
+    setInfo(`${nuevos.length} ${nuevos.length === 1 ? 'línea' : 'líneas'} de la compra, al costo de sus lotes`);
+  }, []);
 
   const cambiarCantidad = (key: string, nueva: number) => {
     if (nueva < 1) return;
@@ -819,6 +866,14 @@ function VentaRapidaInner() {
                 <span className={`absolute top-[2px] h-[11px] w-[11px] rounded-full bg-white transition-all ${modoCosto ? 'left-[13px]' : 'left-[2px]'}`} />
               </span>
               {costoCargando ? 'Buscando costos…' : 'Vender a costo'}
+            </button>
+          )}
+          {/* Vender una compra entera al costo de SUS lotes: el caso de la
+              mercadería comprada por encargo para un cliente. */}
+          {permissions.canEditarPrecioVenta && (
+            <button onClick={() => setCompraSheetOpen(true)}
+              className="rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50">
+              📦 Vender compra
             </button>
           )}
           <button onClick={() => setCobrablesOpen(true)}
@@ -1314,6 +1369,14 @@ function VentaRapidaInner() {
       {/* Descuento global */}
       {descGlobalOpen && (
         <DescuentoGlobalDialog onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
+      )}
+
+      {compraSheetOpen && (
+        <VenderCompraSheet
+          sedeId={sedeId}
+          onClose={() => setCompraSheetOpen(false)}
+          onElegir={(_compra, lineas) => cargarCompra(lineas)}
+        />
       )}
 
       {/* Órdenes de servicio cobrables */}

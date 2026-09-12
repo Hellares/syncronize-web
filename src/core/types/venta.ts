@@ -33,6 +33,14 @@ export interface VentaDetalleDto {
    * descuento en la misma línea, ni combos, ni órdenes de servicio.
    */
   precioModo?: PrecioModoCosto;
+  /**
+   * Vender de ESTE lote, en vez del que elegiría FEFO.
+   *
+   * 🔑 Para mercadería comprada POR ENCARGO: esa caja tiene dueño y su costo
+   * es otro. Sin esto se le cobra el costo del lote más viejo y se descuenta
+   * la mercadería del otro cliente.
+   */
+  loteId?: string;
 }
 
 /** Pago individual. YAPE/PLIN requieren referencia; TARJETA/TRANSFERENCIA referencia+banco */
@@ -588,6 +596,13 @@ export interface VentaItem {
    * es una previsualización — el número que manda es el del servidor.
    */
   precioModo?: PrecioModoCosto | null;
+  /**
+   * Lote elegido a mano. SÍ viaja al backend: manda sobre FEFO tanto para el
+   * costo como para de dónde sale la mercadería.
+   */
+  loteId?: string | null;
+  /** Código del lote elegido, solo para mostrarlo en la línea. */
+  loteCodigo?: string | null;
   // Contexto local (NO viaja al backend)
   niveles: NivelPrecio[];
   nivelAplicado?: string | null;

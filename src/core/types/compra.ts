@@ -68,6 +68,20 @@ export interface CompraDetalleItem {
   factorAplicado?: number | string | null;
   nuevoPrecioVenta?: number | string | null;
   loteId?: string | null;
+  /**
+   * El lote que esta linea creo al confirmar la compra.
+   *
+   * 🔑 `cantidadActual` es lo que QUEDA, no lo que se compro: parte puede
+   * estar vendida. Es lo que "vender esta compra" usa para armar el carrito.
+   */
+  lote?: {
+    id: string;
+    codigo: string;
+    precioCosto: number | string;
+    cantidadActual: number;
+    estado: string;
+    fechaVencimiento?: string | null;
+  } | null;
   /** Flete/gastos que le tocaron a ESTA linea al confirmar. Ya esta sumado al
    *  costo del lote: se muestra para explicar por que el costo subio. */
   gastoProrrateado?: number | string | null;

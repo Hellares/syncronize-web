@@ -80,7 +80,7 @@ export async function altaRapidaVenta(data: {
  */
 export async function getCostosVenta(
   sedeId: string,
-  items: Array<{ productoId?: string; varianteId?: string; cantidad?: number }>,
+  items: Array<{ productoId?: string; varianteId?: string; cantidad?: number; loteId?: string | null }>,
 ): Promise<CostosDeItem[]> {
   const res = await apiClient.post<{ sedeId: string; items: CostosDeItem[] }>(
     '/productos/costos-venta',
