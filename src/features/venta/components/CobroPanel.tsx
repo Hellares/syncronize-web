@@ -142,6 +142,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [divergenciasStock, setDivergenciasStock] = useState<Array<{ descripcion: string; productoId?: string; varianteId?: string; cantidadSolicitada: number; stockDisponible: number }> | null>(null);
   const [showBancarizacion, setShowBancarizacion] = useState(false);
   const [showAutorizacionBC, setShowAutorizacionBC] = useState(false);
+  // Vencimiento: se abre al REBOTE del backend, no antes — el cliente no sabe
+  // de qué lote sale cada unidad.
+  const [showAutorizacionVenc, setShowAutorizacionVenc] = useState(false);
+  const [lineasVencidas, setLineasVencidas] = useState<Array<{ descripcion: string; lote: string; vencio: string }>>([]);
 
   const esCredito = condicionPago === 'CREDITO';
   /** 🔑 Derivado SIEMPRE: es lo que hace que `plazo ÷ cuotas` le devuelva al
@@ -341,7 +345,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     && totalEfectivo > 0 && totalBancarizado < UMBRAL_BANCARIZACION_PEN;
 
   // --- Cobrar ---
-  const construirYEnviar = useCallback(async (opts?: { aceptaRiesgo?: boolean; bajoCostoAuthId?: string }) => {
+  const construirYEnviar = useCallback(async (opts?: { aceptaRiesgo?: boolean; bajoCostoAuthId?: string; vencidoAuthId?: string }) => {
     setIsSubmitting(true);
     setError('');
     try {
@@ -397,6 +401,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             }),
         ...(opts?.aceptaRiesgo && { aceptaRiesgoBancarizacion: true }),
         ...(opts?.bajoCostoAuthId && { ventaBajoCostoAutorizadaPorId: opts.bajoCostoAuthId }),
+        // 🔴 Campo APARTE del de bajo costo: son dos decisiones distintas, y
+        // reusar uno haría que autorizar un precio bajo autorizara además
+        // vender mercadería pasada de fecha.
+        ...(opts?.vencidoAuthId && { ventaVencidaAutorizadaPorId: opts.vencidoAuthId }),
       });
       onSuccess(venta);
     } catch (err) {
@@ -425,12 +433,36 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         setError(data?.message || 'Conflicto al cobrar — reintenta');
         return;
       }
+      // ── Vencimientos ──
+      // A diferencia del bajo costo, esto NO se puede anticipar en el cliente:
+      // de qué lote sale cada unidad lo sabe el servidor. Por eso se resuelve
+      // al rebote.
+      if (err instanceof AxiosError && err.response?.status === 400) {
+        const data = err.response.data;
+        if (data?.code === 'VENTA_VENCIDO_NO_AUTORIZADA') {
+          // Si quien cobra YA es gerente/admin, se autoriza a sí mismo y se
+          // reintenta solo: pedirle la contraseña a quien tiene el rol es un
+          // paso de más en el mostrador.
+          if (esAutorizador && userId && !opts?.vencidoAuthId) {
+            await construirYEnviar({ ...opts, vencidoAuthId: userId });
+            return;
+          }
+          setLineasVencidas(Array.isArray(data.lineas) ? data.lineas : []);
+          setShowAutorizacionVenc(true);
+          return;
+        }
+        if (data?.code === 'VENTA_PRODUCTO_VENCIDO') {
+          // CADUCIDAD: no hay diálogo porque no hay autorización posible.
+          setError(data.message || 'Hay producto vencido en el carrito');
+          return;
+        }
+      }
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Error al cobrar la venta');
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, setItems, pagos, sedeId, userId, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, evidenciaIds, onSuccess]);
+  }, [items, setItems, pagos, sedeId, userId, esAutorizador, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, evidenciaIds, onSuccess]);
 
   const handleCobrar = () => {
     setError('');
@@ -1015,6 +1047,25 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         descripcion="Hay líneas con margen negativo (precio < costo) fuera de liquidación. Requiere autorización de un administrador o gerente."
         onAuthorized={(auth) => { setShowAutorizacionBC(false); preCobro(auth.autorizadoPorId); }}
         onClose={() => setShowAutorizacionBC(false)}
+      />
+
+      {/* Autorización para vender algo pasado de su fecha de consumo
+          preferente. Solo aparece para quien NO es gerente/admin: al que
+          tiene el rol se lo autoriza solo y ni se entera. */}
+      <AutorizacionDialog
+        isOpen={showAutorizacionVenc}
+        operacion="VENTA_BAJO_COSTO"
+        titulo="Autorizar venta de producto pasado de fecha"
+        descripcion={
+          lineasVencidas.length
+            ? `${lineasVencidas.map(l => `${l.descripcion} (lote ${l.lote})`).join(', ')} pasó su fecha de consumo preferente. Requiere autorización de un administrador o gerente.`
+            : 'Hay producto pasado de su fecha de consumo preferente. Requiere autorización de un administrador o gerente.'
+        }
+        onAuthorized={(auth) => {
+          setShowAutorizacionVenc(false);
+          construirYEnviar({ vencidoAuthId: auth.autorizadoPorId });
+        }}
+        onClose={() => setShowAutorizacionVenc(false)}
       />
     </div>
   );
