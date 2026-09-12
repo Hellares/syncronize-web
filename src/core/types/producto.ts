@@ -228,6 +228,18 @@ export interface Producto {
   descuentoMaximo?: number;
   tipoAfectacionIgv?: 'GRAVADO' | 'EXONERADO' | 'INAFECTO';
   aplicaIcbper?: boolean;
+  /**
+   * Qué significa el vencimiento de este producto: decide si se puede vender
+   * vencido y con qué permiso.
+   *
+   * 🔑 La FECHA no está acá — vive en el LOTE (`Lote.fechaVencimiento`), porque
+   * un producto no vence: vence cada entrega.
+   */
+  tipoVencimiento?: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
+  /** Vida útil en días: SUGIERE la fecha al recibir una compra. */
+  diasVidaUtil?: number | null;
+  /** Cuántos días antes del vencimiento empieza a avisar. */
+  diasAlertaVencimiento?: number | null;
   /** Código producto SUNAT (UNSPSC catálogo 25, 8 dígitos). Solo viaja al XML si está seteado. */
   codigoProductoSunat?: string;
   visibleMarketplace: boolean;
@@ -337,6 +349,10 @@ export interface CreateProductoDto {
   descuentoMaximo?: number;
   tipoAfectacionIgv?: string;
   aplicaIcbper?: boolean;
+  /** Política de vencimiento. La FECHA va en el lote, no acá. */
+  tipoVencimiento?: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
+  diasVidaUtil?: number;
+  diasAlertaVencimiento?: number;
   /** Código producto SUNAT (catálogo 25, 8 dígitos, de la lista curada). null = quitar. */
   codigoProductoSunat?: string | null;
   visibleMarketplace?: boolean;

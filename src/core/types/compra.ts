@@ -209,6 +209,9 @@ export interface CrearCompraLinea {
   /** Unidades de REGALO dentro de `cantidad`, en la MISMA unidad que ella
    *  (con `usaUnidadCompra`, en sacos/paquetes: el backend las convierte). */
   cantidadBonificada?: number;
+  /** Vencimiento de ESTA entrega (ISO). Al confirmar viaja al Lote y es lo que
+   *  le permite al consumo FEFO sacar primero lo que caduca antes. */
+  fechaVencimiento?: string;
   /** Descuento de la línea en PLATA (nunca en %). */
   descuento?: number;
   /** Solo al EDITAR: sin el, el backend recalcula con el 18 por defecto y una

@@ -32,6 +32,18 @@ interface FormState {
   configuracionPrecioId: string;
   tipoAfectacionIgv: string;
   aplicaIcbper: boolean;
+  /**
+   * Qué significa el vencimiento de este producto.
+   *
+   * 🔑 La FECHA no vive acá: vive en el LOTE. Un producto no vence, vence cada
+   * lote — dos compras de la misma leche vencen distinto. Acá va la política,
+   * y la fecha se tipea al cargar la línea de compra.
+   */
+  tipoVencimiento: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
+  /** Sugiere la fecha al recibir (hoy + N). Vacío = no sugiere nada. */
+  diasVidaUtil: string;
+  /** Cuántos días antes avisar. Vacío = el default de la empresa. */
+  diasAlertaVencimiento: string;
   codigoProductoSunat: string;
 }
 
@@ -61,6 +73,9 @@ const INITIAL_STATE: FormState = {
   configuracionPrecioId: '',
   tipoAfectacionIgv: 'GRAVADO',
   aplicaIcbper: false,
+  tipoVencimiento: 'NINGUNO',
+  diasVidaUtil: '',
+  diasAlertaVencimiento: '',
   codigoProductoSunat: '',
 };
 
@@ -94,6 +109,10 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       configuracionPrecioId: producto.configuracionPrecioId || '',
       tipoAfectacionIgv: producto.tipoAfectacionIgv || 'GRAVADO',
       aplicaIcbper: producto.aplicaIcbper || false,
+      tipoVencimiento: (producto.tipoVencimiento as FormState['tipoVencimiento']) ?? 'NINGUNO',
+      diasVidaUtil: producto.diasVidaUtil != null ? String(producto.diasVidaUtil) : '',
+      diasAlertaVencimiento:
+        producto.diasAlertaVencimiento != null ? String(producto.diasAlertaVencimiento) : '',
       codigoProductoSunat: producto.codigoProductoSunat || '',
       atributos: (() => {
         const map: Record<string, string> = {};
@@ -167,6 +186,17 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
       configuracionPrecioId: form.configuracionPrecioId || undefined,
       tipoAfectacionIgv: form.tipoAfectacionIgv,
       aplicaIcbper: form.aplicaIcbper || undefined,
+      tipoVencimiento: form.tipoVencimiento,
+      // Solo viajan si el producto controla vencimiento: mandarlos con
+      // NINGUNO sería guardar una vida útil que no se usa para nada.
+      diasVidaUtil:
+        form.tipoVencimiento !== 'NINGUNO' && form.diasVidaUtil
+          ? Number(form.diasVidaUtil)
+          : undefined,
+      diasAlertaVencimiento:
+        form.tipoVencimiento !== 'NINGUNO' && form.diasAlertaVencimiento
+          ? Number(form.diasAlertaVencimiento)
+          : undefined,
       // null explícito = quitar código en backend (igual que Flutter: ''→null)
       codigoProductoSunat: form.codigoProductoSunat || null,
       atributosEstructurados: (() => {

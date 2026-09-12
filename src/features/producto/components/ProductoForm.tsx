@@ -640,6 +640,57 @@ export default function ProductoForm({ empresaId, producto }: Props) {
             onChange={(codigo) => updateField('codigoProductoSunat', codigo)}
           />
 
+          {/* ─── Vencimiento ───
+              🔑 Acá va la POLÍTICA, no la fecha: un producto no vence, vence
+              cada lote. La fecha se tipea al cargar la línea de compra. */}
+          <div className="mt-2 rounded-lg bg-[#f7fafd] p-3 ring-1 ring-blue-400/25">
+            <Field label="¿Este producto vence?">
+              <select
+                className={selectClass}
+                value={form.tipoVencimiento}
+                onChange={(e) => updateField('tipoVencimiento', e.target.value as typeof form.tipoVencimiento)}
+              >
+                <option value="NINGUNO">No vence</option>
+                <option value="CONSUMO_PREFERENTE">Consumo preferente — &ldquo;mejor antes de&rdquo;</option>
+                <option value="CADUCIDAD">Caducidad — &ldquo;no consumir después de&rdquo;</option>
+              </select>
+            </Field>
+
+            {form.tipoVencimiento !== 'NINGUNO' && (
+              <>
+                {/* Que el cajero sepa qué va a pasar en el mostrador ANTES de
+                    elegir, y no el día que la venta se frene. */}
+                <p className={`mt-2 text-[11px] ${form.tipoVencimiento === 'CADUCIDAD' ? 'text-red-700' : 'text-amber-800'}`}>
+                  {form.tipoVencimiento === 'CADUCIDAD'
+                    ? '🔴 Vencido NO se puede vender, ni con autorización. Hay que darlo de baja por merma o corregir la fecha del lote.'
+                    : 'Vencido se puede vender, pero pide autorización de un administrador.'}
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <Field label="Vida útil (días)">
+                    <input
+                      type="number" min="1" className={inputClass}
+                      placeholder="ej. 180"
+                      value={form.diasVidaUtil}
+                      onChange={(e) => updateField('diasVidaUtil', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Avisar (días antes)">
+                    <input
+                      type="number" min="0" className={inputClass}
+                      placeholder="ej. 30"
+                      value={form.diasAlertaVencimiento}
+                      onChange={(e) => updateField('diasAlertaVencimiento', e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <p className="mt-1 text-[10px] text-gray-500">
+                  La vida útil solo <b>sugiere</b> la fecha al recibir una compra.
+                  La que vale es la impresa en el envase, y se tipea en la línea.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* ICBPER */}
           <label className="flex items-center gap-2 text-sm mt-2">
             <input type="checkbox" checked={form.aplicaIcbper || false} onChange={(e) => updateField('aplicaIcbper', e.target.checked)}

@@ -167,6 +167,16 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       descripcion: p.nombre,
       cantidad: '1',
       precioUnitario: '',
+      // Política del producto: decide si se pide la fecha de vencimiento.
+      // La fecha se SUGIERE con la vida útil (hoy + N) pero se puede pisar:
+      // la que vale es la impresa en el envase.
+      ...(p.tipoVencimiento && p.tipoVencimiento !== 'NINGUNO' ? {
+        tipoVencimiento: p.tipoVencimiento,
+        diasVidaUtil: p.diasVidaUtil ?? undefined,
+        fechaVencimiento: p.diasVidaUtil
+          ? new Date(Date.now() + p.diasVidaUtil * 86400000).toISOString().slice(0, 10)
+          : '',
+      } : {}),
       // Empaque variable disponible solo si el producto tiene unidad de compra + factor
       ...(conEmpaque ? {
         unidadCompraNombre: nombreUnidad(p.unidadCompra) ?? 'paquete',
@@ -681,6 +691,8 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           // Con empaque: cantidad/precio van en unidad de COMPRA y el backend convierte con el factor
           cantidad: fAplanado > 1 ? cantidadFinal : Math.round(cant),
           ...(bonifFinal > 0 ? { cantidadBonificada: bonifFinal } : {}),
+          // Al confirmar, el backend la copia al Lote que crea.
+          ...(l.fechaVencimiento ? { fechaVencimiento: l.fechaVencimiento } : {}),
           precioUnitario: precioFinal,
           ...(usaEmpaque ? { usaUnidadCompra: true, factorCompra: factorLinea } : {}),
           // 🔴 Tambien por unidad de VENTA aunque el campo se escriba en
@@ -1284,6 +1296,28 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
                             value={l.precioUnitario} onChange={(e) => actualizar(i, 'precioUnitario', e.target.value)} />
                           <p className="mt-1 text-[10px] text-gray-400">{sim(moneda)} por {simboloCarga}</p>
                         </div>
+                        {/* Vencimiento: solo si el producto lo controla. Es la
+                            fecha de ESTA entrega — la del envase—, no una del
+                            producto: dos compras de lo mismo vencen distinto.
+                            Con vida útil configurada viene sugerida. */}
+                        {l.tipoVencimiento && l.tipoVencimiento !== 'NINGUNO' && (
+                          <div>
+                            <label className={LABEL}>
+                              Vence
+                              {l.tipoVencimiento === 'CADUCIDAD' && (
+                                <span className="ml-1 text-red-600">·  caduca</span>
+                              )}
+                            </label>
+                            <input type="date" className={INPUT_STD}
+                              value={l.fechaVencimiento ?? ''}
+                              onChange={(e) => actualizar(i, 'fechaVencimiento', e.target.value)} />
+                            <p className="mt-1 text-[10px] text-gray-400">
+                              {l.diasVidaUtil
+                                ? `sugerido: ${l.diasVidaUtil} días`
+                                : 'la del envase'}
+                            </p>
+                          </div>
+                        )}
                         {promo && (
                           <>
                             <div>

@@ -28,6 +28,18 @@ export type LineaForm = {
   /** Unidades de REGALO dentro de `cantidad`, en la MISMA unidad en que se
    *  escribe la cantidad (sacos si el empaque esta prendido). */
   cantidadBonificada?: string;
+  /**
+   * Fecha de vencimiento impresa en el envase de ESTA entrega (yyyy-mm-dd).
+   *
+   * 🔑 Va en la LÍNEA y no en el producto porque cada entrega vence distinto.
+   * Al confirmar la compra viaja al Lote, y es lo que le permite al consumo
+   * FEFO sacar primero lo que caduca antes.
+   */
+  fechaVencimiento?: string;
+  /** Política del producto: decide si se pide la fecha y con qué aviso. */
+  tipoVencimiento?: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD';
+  /** Vida útil del producto en días: SUGIERE la fecha al cargar la línea. */
+  diasVidaUtil?: number;
   /** Rebaja en PLATA. Texto como el resto: con `parseFloat(x) || 0` el campo
    *  no se puede borrar. */
   descuento?: string;
