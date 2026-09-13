@@ -405,9 +405,17 @@ function VentaRapidaInner() {
     if (!puedeVenderseACosto(it)) return it;
     const precio = precioDelModoCosto(cache[claveCosto(it.productoId, it.varianteId, it.loteId)], modo);
     if (precio == null) return it;
+    // 🔴 NUNCA por encima del precio público vigente. `precioBase` ya es el
+    // efectivo de la sede —liquidación u oferta si están activas—, así que un
+    // producto liquidado por debajo del costo se sigue cobrando a la
+    // liquidación: prender el interruptor no puede SUBIRLE el precio al
+    // cliente. El servidor vuelve a topar con el precio que le toca a ESE
+    // cliente (niveles y VIP incluidos), así que esto puede quedar por encima
+    // de lo que se termine cobrando, nunca por debajo.
+    const topado = it.precioBase > 0 ? Math.min(precio, it.precioBase) : precio;
     // El descuento se limpia: un centavo sobre una línea a costo la manda a
     // pérdida, y el backend la rechaza.
-    return { ...it, precioModo: modo, precioUnitario: precio, nivelAplicado: null, descuento: 0 };
+    return { ...it, precioModo: modo, precioUnitario: topado, nivelAplicado: null, descuento: 0 };
   };
 
   /** El interruptor grande: prende o apaga el modo para TODO el carrito. */
@@ -1193,6 +1201,13 @@ function VentaRapidaInner() {
                 const sinCosto = !!modoCosto && puedeCosto && !aCostoLinea
                   && !!costosLinea && precioDelModoCosto(costosLinea, modoCosto) == null;
                 const origen = aCostoLinea ? costosLinea?.origen : null;
+                // El costo quedaba POR ENCIMA del precio vigente y se topó. La
+                // línea tiene que decirlo: si no, el cajero cree que le está
+                // cobrando el costo y en realidad le cobra la liquidación.
+                const costoCrudo = aCostoLinea && it.precioModo
+                  ? precioDelModoCosto(costosLinea, it.precioModo)
+                  : null;
+                const costoTopado = costoCrudo != null && costoCrudo > it.precioUnitario + 0.005;
                 return (
                   <div key={it.key}
                     className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : aCostoLinea ? 'bg-slate-50' : 'hover:bg-gray-50/60'}`}>
@@ -1343,6 +1358,17 @@ function VentaRapidaInner() {
                             Usar el promedio
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {costoTopado && (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-md bg-[#e8f2ff] px-2 py-1.5">
+                        <svg className="h-3 w-3 shrink-0 text-[#004A94]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" />
+                        </svg>
+                        <span className="flex-1 text-[10px] text-[#043261]">
+                          A costo son S/ {fmt(costoCrudo as number)}, más caro que el precio vigente: se cobra S/ {fmt(it.precioUnitario)}
+                        </span>
                       </div>
                     )}
 
