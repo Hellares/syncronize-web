@@ -206,7 +206,14 @@ export default function ComprasPage() {
                   </td>
                   <td className="px-3 py-2 text-gray-800">{c.nombreProveedor}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaRecepcion)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right text-[13px] font-semibold text-[#004A94]">{sim(c.moneda)} {num(c.total).toFixed(2)}</td>
+                  {/* La columna del dinero va sobre banda azul, el mismo
+                      #e8f2ff que el dashboard usa de relleno: la cifra se
+                      sigue de arriba abajo sin recorrer la fila.
+                      🔴 `font-medium` y no `font-semibold`: Amazon Ember manda
+                      600-1000 a la MISMA cara Bold, así que a 13px se empasta
+                      —y el peso no estaba haciendo la jerarquía, la hace el
+                      azul de marca y ahora también la banda—. */}
+                  <td className="whitespace-nowrap bg-[#e8f2ff] px-3 py-2 text-right text-[13px] font-medium text-[#004A94]">{sim(c.moneda)} {num(c.total).toFixed(2)}</td>
                   <td className="px-3 py-2 text-center">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${ESTADO_STYLE[c.estado]}`}>{c.estado}</span>
                   </td>
