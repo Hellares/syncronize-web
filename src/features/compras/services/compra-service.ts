@@ -14,16 +14,55 @@ import type {
 const emp = () => getTenantId() ?? '';
 const BASE = () => `/empresas/${emp()}/compras`;
 
-export async function listarCompras(filtros: ComprasFiltros = {}): Promise<CompraListItem[]> {
+/** Una tanda de compras y por dónde sigue la próxima. */
+export interface ComprasPagina {
+  items: CompraListItem[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  /** Cuántas hay en total con esos filtros, no cuántas vinieron. */
+  total: number;
+}
+
+/**
+ * Una página de compras, para las listas que NO pueden traerse todo.
+ *
+ * El endpoint pagina por CURSOR —`cursor` es el id de la última fila que ya
+ * llegó— y responde `{ data, meta: { total, limit, hasNext, nextCursor } }`;
+ * el array pelado se aguanta por si alguna vez vuelve la forma vieja.
+ *
+ * 🔴 `hasNext` del backend es `data.length === limit`: la última tanda que
+ * calza justo lo deja en `true`, así que una tanda vacía lo apaga acá y el
+ * "ver más" no queda ofreciendo algo que no existe.
+ */
+export async function listarComprasPagina(
+  filtros: ComprasFiltros = {},
+  cursor?: string | null,
+): Promise<ComprasPagina> {
   const q = new URLSearchParams();
   if (filtros.estado) q.set('estado', filtros.estado);
   if (filtros.proveedorId) q.set('proveedorId', filtros.proveedorId);
   if (filtros.sedeId) q.set('sedeId', filtros.sedeId);
   if (filtros.search) q.set('search', filtros.search);
-  q.set('limit', String(filtros.limit ?? 50));
+  q.set('limit', String(filtros.limit ?? 10));
+  if (cursor) q.set('cursor', cursor);
   const res = await apiClient.get(`${BASE()}?${q.toString()}`);
-  // Cursor-paginado: { data, total, ... } o array directo.
-  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+  const body = res.data;
+  if (Array.isArray(body)) {
+    return { items: body, hasMore: false, nextCursor: null, total: body.length };
+  }
+  const items: CompraListItem[] = Array.isArray(body?.data) ? body.data : [];
+  const meta = body?.meta ?? body;
+  return {
+    items,
+    hasMore: items.length > 0 && !!(meta?.hasNext ?? meta?.hasMore),
+    nextCursor: meta?.nextCursor ?? null,
+    total: Number(meta?.total ?? items.length),
+  };
+}
+
+export async function listarCompras(filtros: ComprasFiltros = {}): Promise<CompraListItem[]> {
+  const { items } = await listarComprasPagina({ ...filtros, limit: filtros.limit ?? 50 });
+  return items;
 }
 
 export async function crearCompra(dto: CrearCompraInput): Promise<CompraDetalle> {
