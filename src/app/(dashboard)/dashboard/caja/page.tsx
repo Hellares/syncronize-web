@@ -47,7 +47,13 @@ const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm o
 const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
 
 function fmtMoney(n: number | undefined | null): string {
-  return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `S/ ${monto(n)}`;
+}
+
+/** El número pelado, sin moneda: para las columnas de una tabla, donde repetir
+ *  "S/" en cada celda solo gasta ancho. */
+function monto(n: number | undefined | null): string {
+  return Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtHora(iso?: string): string {
@@ -230,20 +236,36 @@ export default function CajaPage() {
           {/* Desglose por método + categorías */}
           {resumen && (
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className={`${BLOQUE_STD} p-4`}>
-                <h2 className={`${TITULO_BLOQUE} mb-2`}>Por método de pago</h2>
-                <div className="space-y-1">
-                  {(resumen.detalles ?? []).map((d) => (
-                    <div key={d.metodoPago} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
-                      <span className="font-medium text-gray-700">{METODO_PAGO_LABEL[d.metodoPago] ?? d.metodoPago}</span>
-                      <span className="text-gray-600">
-                        <span className="text-green-700">+{fmtMoney(d.totalIngresos)}</span>
-                        {' '}<span className="text-orange-700">−{fmtMoney(d.totalEgresos)}</span>
-                        {' = '}<strong className="text-gray-800">{fmtMoney(d.saldo)}</strong>
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <div className={`${BLOQUE_STD} px-4 pb-4 pt-0.5`}>
+                <h2 className={`${TITULO_BLOQUE} mb-1.5`}>Por método de pago</h2>
+                {/* La cuenta a la vista: cada fila es ingresos − egresos = total,
+                    y el encabezado dice qué se le está restando a qué. Antes eso
+                    viajaba apretado en una sola línea por método, donde las
+                    cifras de dos filas distintas no caían una debajo de la otra.
+
+                    🔴 Sin "S/" por celda: `fmtMoney` lo antepone siempre y aquí
+                    multiplicaría por doce el ancho gastado en decir tres veces
+                    lo mismo. `tabular-nums` alinea las unidades en columna. */}
+                <table className="w-full text-left text-[11px] tabular-nums">
+                  <thead>
+                    <tr className="border-b border-[#d1e5ff]">
+                      <th className="py-1 font-medium text-gray-500">Método</th>
+                      <th className="py-1 text-right font-medium text-green-700">Ingresos</th>
+                      <th className="py-1 text-right font-medium text-orange-700">Egresos</th>
+                      <th className="py-1 text-right font-medium text-[#004A94]">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(resumen.detalles ?? []).map((d) => (
+                      <tr key={d.metodoPago}>
+                        <td className="py-1 text-gray-700">{METODO_PAGO_LABEL[d.metodoPago] ?? d.metodoPago}</td>
+                        <td className="py-1 text-right text-green-700">{monto(d.totalIngresos)}</td>
+                        <td className="py-1 text-right text-orange-700">−{monto(d.totalEgresos)}</td>
+                        <td className="py-1 text-right font-medium text-gray-900">{monto(d.saldo)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
               <div className={`${BLOQUE_STD} p-4`}>
                 <h2 className={`${TITULO_BLOQUE} mb-2`}>Egresos por categoría</h2>
