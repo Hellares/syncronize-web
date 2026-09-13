@@ -190,29 +190,35 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
     <div className="mx-auto max-w-4xl space-y-4">
       {/* Hero: identidad de la venta + total protagonista */}
       <div className="overflow-hidden rounded-xl shadow-md ring-1 ring-blue-400/40">
-        <div className="bg-gradient-to-r from-[#004A94] via-[#0f5cae] to-[#2f6fd8] px-5 py-4 text-white">
+        {/* 🔴 Las alturas de línea van EXPLÍCITAS (`leading-*`) en todo lo que
+            usa un tamaño arbitrario: `text-[11px]` no trae la suya y hereda la
+            del contenedor, así que sin esto la cabecera crece sola y los 20px
+            que se le sacan al padding vuelven por la ventana. Con estas: 16 +
+            2 + 28 + 4 + 16 de contenido y 20 de padding = 86px, contra los
+            106 de antes. */}
+        <div className="bg-gradient-to-r from-[#004A94] via-[#0f5cae] to-[#2f6fd8] px-5 py-2.5 text-white">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
-              <Link href="/dashboard/ventas" className="text-xs text-blue-200 transition-colors hover:text-white">← Ventas</Link>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-bold tracking-tight">{venta.codigo}</h1>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium">
+              <Link href="/dashboard/ventas" className="text-[11px] leading-4 text-blue-200 transition-colors hover:text-white">← Ventas</Link>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight">{venta.codigo}</h1>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium">
                   <span className={`h-1.5 w-1.5 rounded-full ${dotEstado}`} />
                   {cfg?.label ?? venta.estado}
                 </span>
                 {venta.esCredito && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium">📅 Crédito</span>}
                 {venta.cotizacionCodigo && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px]">{venta.cotizacionCodigo}</span>}
               </div>
-              <p className="mt-1.5 text-xs text-blue-100/90">
+              <p className="mt-1 text-[11px] leading-4 text-blue-100/90">
                 {fmtFecha(venta.fechaVenta ?? venta.creadoEn)} · {venta.sedeNombre ?? ''} · {(venta.vendedorAlias || venta.vendedorNombre) ?? ''}
                 {venta.cajeroNombre ? ` · cobró ${venta.cajeroNombre}` : ''}
               </p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-blue-200">Total</p>
-              <p className={`text-3xl font-bold leading-tight ${venta.estado === 'ANULADA' ? 'line-through opacity-60' : ''}`}>{fmt(venta.total)}</p>
+              <p className="text-[10px] leading-3 font-medium uppercase tracking-wider text-blue-200">Total</p>
+              <p className={`text-[26px] font-bold leading-8 ${venta.estado === 'ANULADA' ? 'line-through opacity-60' : ''}`}>{fmt(venta.total)}</p>
               {saldo > 0.005 && venta.estado !== 'ANULADA' && (
-                <p className="text-[11px] font-medium text-amber-300">Saldo pendiente {fmt(saldo)}</p>
+                <p className="text-[10px] leading-3 font-medium text-amber-300">Saldo pendiente {fmt(saldo)}</p>
               )}
             </div>
           </div>
