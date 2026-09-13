@@ -89,17 +89,25 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
         )}
       </div>
 
-      {/* Contenido */}
+      {/* Contenido
+          🔴 Las tres filas RESERVAN su espacio aunque estén vacías. En una
+          grilla, todas las tarjetas de una fila se estiran a la más alta: con
+          la marca y la pastilla apareciendo y desapareciendo, un solo producto
+          con variantes estiraba la fila entera y a los demás les quedaba un
+          hueco abajo. El nombre ya lo hacía con `min-h-[1.8rem]`; faltaban las
+          otras dos. Así la tarjeta mide lo mismo SIEMPRE. */}
       <div className="px-1.5 pb-1 pt-3">
-        {marca && <p className="truncate text-[9px] font-bold uppercase tracking-wide text-gray-400">{marca}</p>}
+        <p className="h-3 truncate text-[9px] font-bold uppercase leading-3 tracking-wide text-gray-400">{marca ?? ''}</p>
         <p className="line-clamp-2 text-[11px] font-medium leading-tight text-gray-800 min-h-[1.8rem]">{p.nombre}</p>
-        {p.tieneVariantes ? (
-          <span className="mt-0.5 inline-block rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 ring-1 ring-blue-200">Variantes →</span>
-        ) : p.esCombo && precio == null ? (
-          <p className="mt-0.5 text-[11px] font-bold text-purple-700">Calculado</p>
-        ) : precio == null ? (
-          <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Sin precio</p>
-        ) : null}
+        <div className="mt-0.5 flex h-[18px] items-center">
+          {p.tieneVariantes ? (
+            <span className="inline-block rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 ring-1 ring-blue-200">Variantes →</span>
+          ) : p.esCombo && precio == null ? (
+            <p className="text-[11px] font-bold text-purple-700">Calculado</p>
+          ) : precio == null ? (
+            <p className="text-[11px] font-semibold text-gray-400">Sin precio</p>
+          ) : null}
+        </div>
       </div>
     </>
   );
