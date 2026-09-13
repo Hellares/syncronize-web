@@ -21,7 +21,13 @@ const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'AD
 const METODOS_PAGO: MetodoPagoVenta[] = ['EFECTIVO', 'TARJETA', 'YAPE', 'PLIN', 'TRANSFERENCIA'];
 
 function fmt(n: number | undefined | null): string {
-  return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `S/ ${monto(n)}`;
+}
+
+/** El número pelado, sin moneda: para las columnas de una tabla, donde repetir
+ *  "S/" en cada celda tapa la cifra. La moneda se dice una vez, en el total. */
+function monto(n: number | undefined | null): string {
+  return Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtFecha(iso?: string | null): string {
@@ -183,18 +189,18 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       {/* Hero: identidad de la venta + total protagonista */}
-      <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-md">
+      <div className="overflow-hidden rounded-xl shadow-md ring-1 ring-blue-400/40">
         <div className="bg-gradient-to-r from-[#004A94] via-[#0f5cae] to-[#2f6fd8] px-5 py-4 text-white">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
               <Link href="/dashboard/ventas" className="text-xs text-blue-200 transition-colors hover:text-white">← Ventas</Link>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold tracking-tight">{venta.codigo}</h1>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium">
                   <span className={`h-1.5 w-1.5 rounded-full ${dotEstado}`} />
                   {cfg?.label ?? venta.estado}
                 </span>
-                {venta.esCredito && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold">📅 Crédito</span>}
+                {venta.esCredito && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium">📅 Crédito</span>}
                 {venta.cotizacionCodigo && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px]">{venta.cotizacionCodigo}</span>}
               </div>
               <p className="mt-1.5 text-xs text-blue-100/90">
@@ -203,10 +209,10 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-200">Total</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-blue-200">Total</p>
               <p className={`text-3xl font-bold leading-tight ${venta.estado === 'ANULADA' ? 'line-through opacity-60' : ''}`}>{fmt(venta.total)}</p>
               {saldo > 0.005 && venta.estado !== 'ANULADA' && (
-                <p className="text-[11px] font-bold text-amber-300">Saldo pendiente {fmt(saldo)}</p>
+                <p className="text-[11px] font-medium text-amber-300">Saldo pendiente {fmt(saldo)}</p>
               )}
             </div>
           </div>
@@ -214,19 +220,19 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
         {/* Barra de acciones */}
         <div className="flex flex-wrap items-center gap-2 bg-white px-4 py-2.5">
           <Link href={`/dashboard/ventas/${id}/ticket`}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">
+            className="inline-flex h-[30px] items-center rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 hover:bg-gray-50">
             🖨 Ticket
           </Link>
           {!venta.codigoComprobante && venta.estado === 'PAGADA_COMPLETA' && permissions.canManageVentas && (
             <button onClick={() => setShowComprobante(true)}
-              className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
+              className="inline-flex h-[30px] items-center rounded-md border border-[#437EFF] px-3 text-[10px] font-medium text-[#437EFF] hover:bg-[#437EFF]/5">
               Generar Comprobante
             </button>
           )}
           {/* Delivery: solo venta pagada al 100% y sin delivery vigente (paridad moto Flutter) */}
           {venta.estado === 'PAGADA_COMPLETA' && !tieneDeliveryActivo(venta) && permissions.canManageVentas && (
             <button onClick={() => setShowSolicitarDelivery(true)}
-              className="rounded-lg border border-orange-400 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50">
+              className="inline-flex h-[30px] items-center rounded-md border border-orange-400 px-3 text-[10px] font-medium text-orange-600 hover:bg-orange-50">
               🛵 Solicitar delivery
             </button>
           )}
@@ -236,25 +242,25 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
             // directo asienta siempre en la caja del cajero, que solo es
             // correcto para el saldo de una venta al contado.
             <button onClick={() => venta.esCredito ? setShowAbono(true) : setShowPago(true)}
-              className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white hover:bg-green-700">
+              className="inline-flex h-[30px] items-center rounded-md bg-green-600 px-3 text-[10px] font-medium text-white hover:bg-green-700">
               {venta.esCredito ? 'Registrar Abono' : 'Registrar Pago'}
             </button>
           )}
           {puedeAnularVenta(venta) && permissions.canManageVentas && (
             <button onClick={() => { setMotivoAnulacion(''); setShowAnular(true); }}
-              className="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50">
+              className="inline-flex h-[30px] items-center rounded-md border border-red-300 px-3 text-[10px] font-medium text-red-600 hover:bg-red-50">
               Anular
             </button>
           )}
           {puedeAnularVenta(venta) && permissions.canManageDevoluciones && !reversion && (
             <Link href={`/dashboard/devoluciones/nueva?ventaId=${id}`}
-              className="rounded-lg border border-orange-300 px-3 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50">
+              className="inline-flex h-[30px] items-center rounded-md border border-orange-300 px-3 text-[10px] font-medium text-orange-600 hover:bg-orange-50">
               Devolver
             </Link>
           )}
           {venta.comprobanteAnulado && !reversion && permissions.canManageDevoluciones && (
             <button onClick={() => { setMotivoReversion(''); setShowReversion(true); }}
-              className="rounded-lg border border-purple-300 px-3 py-2 text-xs font-bold text-purple-600 hover:bg-purple-50">
+              className="inline-flex h-[30px] items-center rounded-md border border-purple-300 px-3 text-[10px] font-medium text-purple-600 hover:bg-purple-50">
               Reversión total
             </button>
           )}
@@ -280,20 +286,20 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Cliente + comprobante */}
         <div className="space-y-4 lg:col-span-1">
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
             <div className="mb-2.5 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">👤</span>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Cliente</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Cliente</p>
             </div>
-            <p className="text-sm font-semibold text-gray-900">{venta.nombreCliente ?? '—'}</p>
+            <p className="text-[13px] font-medium text-gray-900">{venta.nombreCliente ?? '—'}</p>
             {venta.documentoCliente && <p className="mt-0.5 font-mono text-xs text-gray-500">{venta.documentoCliente}</p>}
             {(venta as { telefonoCliente?: string }).telefonoCliente && <p className="mt-0.5 text-xs text-gray-500">📞 {(venta as { telefonoCliente?: string }).telefonoCliente}</p>}
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
             <div className="mb-2.5 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-[13px]">🧾</span>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Comprobante</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Comprobante</p>
             </div>
             {venta.codigoComprobante ? (
               <>
@@ -343,11 +349,11 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
             const dcfg = ESTADO_DELIVERY_CONFIG[d.estado] ?? { label: d.estado, color: 'text-gray-600', bg: 'bg-gray-100' };
             const coords = d.coordenadas;
             return (
-              <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+              <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-orange-300/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[13px]">🛵</span>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Delivery</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Delivery</p>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${dcfg.color} ${dcfg.bg}`}>
                     {d.estado === 'SOLICITADO' && d.esInterno ? 'Por salir (interno)' : dcfg.label}
@@ -406,10 +412,10 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           })()}
 
           {/* Pago */}
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
             <div className="mb-2.5 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-[13px]">💳</span>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Pago{esMixto ? ' (MIXTO)' : ''}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Pago{esMixto ? ' (MIXTO)' : ''}</p>
             </div>
             {(venta.pagos ?? []).length === 0 ? (
               <p className="text-xs text-gray-400">{venta.esCredito ? 'Crédito — sin pagos aún' : 'Sin pagos registrados'}</p>
@@ -432,10 +438,10 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* Cuotas crédito */}
           {venta.esCredito && (venta.cuotas ?? []).length > 0 && (
-            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
               <div className="mb-2.5 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-[13px]">📅</span>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Cuotas ({venta.cuotas!.length})</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Cuotas ({venta.cuotas!.length})</p>
               </div>
               <div className="space-y-1">
                 {venta.cuotas!.map((c, i) => (
@@ -457,68 +463,100 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-            <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-blue-400/40">
+            {/* 🔴 `font-medium` (500) y no `font-bold`: Amazon Ember mapea
+                600-1000 a la MISMA cara Bold, así que a 13px se empasta. Y
+                entre 400 y 500 tampoco hay diferencia —los dos son Medium—,
+                de modo que en los tamaños chicos la jerarquía sale del COLOR y
+                del TAMAÑO, nunca del peso. */}
+            <div className="flex items-center gap-2 border-b border-[#cfe0f5] px-4 py-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">🛒</span>
-              <p className="text-sm font-bold text-gray-800">Items</p>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{(venta.detalles ?? []).length}</span>
+              <p className="text-[13px] font-medium text-gray-800">Items</p>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{(venta.detalles ?? []).length}</span>
             </div>
-            <div className="divide-y divide-gray-50">
-              {(venta.detalles ?? []).map(d => {
-                const gratuita = esLineaGratuita(d);
-                return (
-                  <div key={d.id} className={`flex items-center justify-between gap-3 px-4 py-2.5 ${d.origenComboId ? 'bg-purple-50/40' : ''}`}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        {d.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[8px] font-bold text-purple-700">COMBO {d.origenComboNombre}</span>}
-                        {d.ordenServicioId && <span className="mr-1 rounded bg-blue-100 px-1 text-[8px] font-bold text-blue-700">OS</span>}
-                        {gratuita && <span className="mr-1 rounded bg-violet-100 px-1 text-[8px] font-bold text-violet-700" title="Operación gratuita (regalo/bonificación) — precio de lista como referencial SUNAT">GRATUITA</span>}
-                        {d.descripcion}
-                      </p>
-                      <p className="text-[10px] text-gray-400">
-                        {Number(d.cantidad)} × {fmt(d.precioUnitario)}
-                        {!gratuita && Number(d.descuento ?? 0) > 0 && <span className="text-amber-600"> · desc {fmt(d.descuento)}</span>}
-                        {d.nivelAplicadoSnapshot && <span className="ml-1 rounded bg-blue-100 px-1 text-blue-700">{d.nivelAplicadoSnapshot}</span>}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 text-sm font-semibold ${gratuita ? 'text-violet-600' : 'text-gray-800'}`}>{gratuita ? 'S/ 0.00' : fmt(d.total)}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="space-y-0.5 border-t border-gray-100 bg-gray-50/60 px-4 py-3 text-sm">
-              {venta.codigoComprobante ? (
-                // Desglose fiscal SUNAT (paridad footer Flutter): el descuento fiscal excluye
-                // el "descuento" de líneas gratuitas (esas van como Op. Gratuitas referenciales)
-                (() => {
-                  const descGratuitas = (venta.detalles ?? []).filter(esLineaGratuita).reduce((a, d) => a + Number(d.descuento ?? 0), 0);
-                  const descuentoFiscal = Math.max(0, Number(venta.descuento ?? 0) - descGratuitas);
+            {/* Cantidad y precio unitario dejan de ser una línea gris debajo
+                del nombre y pasan a ser COLUMNAS: alineadas a la derecha se
+                comparan de un vistazo y la venta se lee en diagonal. Misma
+                firma que las tablas del resto de la web: cabecera #eaf2fd
+                sobre #cfe0f5 y 12px.
+                🔴 Sin "S/" por fila: `fmt` lo antepone siempre y repetirlo en
+                cada celda tapa el número. La moneda se dice una vez, abajo. */}
+            <table className="w-full text-left text-[12px]">
+              <thead className="border-b border-[#cfe0f5] bg-[#eaf2fd]">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium text-[#004A94]">Producto</th>
+                  <th className="w-px whitespace-nowrap px-2 py-2.5 text-right font-medium text-[#004A94]">Cant.</th>
+                  <th className="w-px whitespace-nowrap px-2 py-2.5 text-right font-medium text-[#004A94]">P. Unit</th>
+                  <th className="w-px whitespace-nowrap px-4 py-2.5 text-right font-medium text-[#004A94]">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {(venta.detalles ?? []).map(d => {
+                  const gratuita = esLineaGratuita(d);
                   return (
-                    <>
-                      {Number(venta.comprobanteGravada ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Gravada</span><span>{fmt(venta.comprobanteGravada)}</span></div>}
-                      {Number(venta.comprobanteExonerada ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Exonerada</span><span>{fmt(venta.comprobanteExonerada)}</span></div>}
-                      {Number(venta.comprobanteInafecta ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Inafecta</span><span>{fmt(venta.comprobanteInafecta)}</span></div>}
-                      {Number(venta.comprobanteGratuitas ?? 0) > 0 && (
-                        <div className="flex justify-between text-xs text-violet-600" title="Valor referencial de regalos/bonificaciones — no suma al total">
-                          <span>Op. Gratuitas</span><span>{fmt(venta.comprobanteGratuitas)}</span>
-                        </div>
-                      )}
-                      {descuentoFiscal > 0.005 && <div className="flex justify-between text-xs text-amber-600"><span>Descuento</span><span>−{fmt(descuentoFiscal)}</span></div>}
-                      <div className="flex justify-between text-xs text-gray-500"><span>IGV</span><span>{fmt(venta.comprobanteIgv ?? venta.impuestos)}</span></div>
-                      {Number(venta.comprobanteIcbper ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>ICBPER</span><span>{fmt(venta.comprobanteIcbper)}</span></div>}
-                    </>
+                    <tr key={d.id} className={d.origenComboId ? 'bg-purple-50/40' : ''}>
+                      {/* La única columna que puede crecer: los badges viajan
+                          con el nombre y envuelven con él. */}
+                      <td className="px-4 py-2 leading-snug text-gray-800">
+                        {d.origenComboId && <span className="mr-1 rounded bg-purple-100 px-1 text-[9px] font-medium text-purple-700">COMBO {d.origenComboNombre}</span>}
+                        {d.ordenServicioId && <span className="mr-1 rounded bg-blue-100 px-1 text-[9px] font-medium text-blue-700">OS</span>}
+                        {gratuita && <span className="mr-1 rounded bg-violet-100 px-1 text-[9px] font-medium text-violet-700" title="Operación gratuita (regalo/bonificación) — precio de lista como referencial SUNAT">GRATUITA</span>}
+                        {d.descripcion}
+                        {d.nivelAplicadoSnapshot && <span className="ml-1 rounded bg-blue-100 px-1 text-[9px] font-medium text-blue-700">{d.nivelAplicadoSnapshot}</span>}
+                        {!gratuita && Number(d.descuento ?? 0) > 0 && (
+                          <span className="block text-[10px] text-amber-600">desc. {fmt(d.descuento)}</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right text-gray-600">{Number(d.cantidad)}</td>
+                      {/* Una línea gratuita se cobra en cero, pero el precio de
+                          lista SIGUE siendo el referencial que se declara a
+                          SUNAT: se muestra tachado en vez de esconderse. */}
+                      <td className={`whitespace-nowrap px-2 py-2 text-right ${gratuita ? 'text-gray-400 line-through' : 'text-gray-600'}`}>{monto(d.precioUnitario)}</td>
+                      <td className={`whitespace-nowrap px-4 py-2 text-right font-medium ${gratuita ? 'text-violet-600' : 'text-gray-900'}`}>{gratuita ? monto(0) : monto(d.total)}</td>
+                    </tr>
                   );
-                })()
-              ) : (
-                <>
-                  <div className="flex justify-between text-xs text-gray-500"><span>Subtotal</span><span>{fmt(venta.subtotal)}</span></div>
-                  {Number(venta.descuento ?? 0) > 0 && <div className="flex justify-between text-xs text-amber-600"><span>Descuento</span><span>−{fmt(venta.descuento)}</span></div>}
-                  <div className="flex justify-between text-xs text-gray-500"><span>IGV</span><span>{fmt(venta.impuestos)}</span></div>
-                </>
-              )}
-              <div className="mt-1 flex items-center justify-between border-t border-gray-200 pt-2">
-                <span className="text-sm font-bold text-gray-700">Total</span>
-                <span className="text-xl font-bold text-[#004A94]">{fmt(venta.total)}</span>
+                })}
+              </tbody>
+            </table>
+            {/* El desglose se alinea con la columna Total de la tabla, no a lo
+                ancho de la tarjeta: las cifras quedan una debajo de la otra. */}
+            <div className="flex justify-end border-t border-gray-200 bg-gray-50/60 px-4 py-3">
+              <div className="w-[248px] space-y-0.5">
+                {venta.codigoComprobante ? (
+                  // Desglose fiscal SUNAT (paridad footer Flutter): el descuento fiscal excluye
+                  // el "descuento" de líneas gratuitas (esas van como Op. Gratuitas referenciales)
+                  (() => {
+                    const descGratuitas = (venta.detalles ?? []).filter(esLineaGratuita).reduce((a, d) => a + Number(d.descuento ?? 0), 0);
+                    const descuentoFiscal = Math.max(0, Number(venta.descuento ?? 0) - descGratuitas);
+                    return (
+                      <>
+                        {Number(venta.comprobanteGravada ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Gravada</span><span>{fmt(venta.comprobanteGravada)}</span></div>}
+                        {Number(venta.comprobanteExonerada ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Exonerada</span><span>{fmt(venta.comprobanteExonerada)}</span></div>}
+                        {Number(venta.comprobanteInafecta ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>Op. Inafecta</span><span>{fmt(venta.comprobanteInafecta)}</span></div>}
+                        {Number(venta.comprobanteGratuitas ?? 0) > 0 && (
+                          <div className="flex justify-between text-xs text-violet-600" title="Valor referencial de regalos/bonificaciones — no suma al total">
+                            <span>Op. Gratuitas</span><span>{fmt(venta.comprobanteGratuitas)}</span>
+                          </div>
+                        )}
+                        {descuentoFiscal > 0.005 && <div className="flex justify-between text-xs text-amber-600"><span>Descuento</span><span>−{fmt(descuentoFiscal)}</span></div>}
+                        <div className="flex justify-between text-xs text-gray-500"><span>IGV</span><span>{fmt(venta.comprobanteIgv ?? venta.impuestos)}</span></div>
+                        {Number(venta.comprobanteIcbper ?? 0) > 0 && <div className="flex justify-between text-xs text-gray-500"><span>ICBPER</span><span>{fmt(venta.comprobanteIcbper)}</span></div>}
+                      </>
+                    );
+                  })()
+                ) : (
+                  <>
+                    <div className="flex justify-between text-xs text-gray-500"><span>Subtotal</span><span>{fmt(venta.subtotal)}</span></div>
+                    {Number(venta.descuento ?? 0) > 0 && <div className="flex justify-between text-xs text-amber-600"><span>Descuento</span><span>−{fmt(venta.descuento)}</span></div>}
+                    <div className="flex justify-between text-xs text-gray-500"><span>IGV</span><span>{fmt(venta.impuestos)}</span></div>
+                  </>
+                )}
+                <div className="mt-1.5 flex items-baseline justify-between border-t border-gray-200 pt-2">
+                  <span className="text-xs font-medium text-gray-600">Total</span>
+                  {/* 20px y el azul de marca cargan el énfasis; en Bold, a este
+                      tamaño, Amazon Ember se empasta. */}
+                  <span className="text-xl font-medium text-[#004A94]">{fmt(venta.total)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -528,10 +566,10 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           <EvidenciaVentaGaleria ventaId={venta.id} />
 
           {venta.observaciones && (
-            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 text-[13px]">📝</span>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Observaciones</p>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Observaciones</p>
               </div>
               <p className="text-sm text-gray-600">{venta.observaciones}</p>
             </div>

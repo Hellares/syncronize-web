@@ -1,0 +1,30 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 960, "h": 1000 },
+    { "file": "Items.dc.html", "x": 1080, "y": 0, "w": 900, "h": 880 }
+  ],
+  "annotations": [
+    {
+      "id": "tabla",
+      "x": 1080,
+      "y": -150,
+      "w": 420,
+      "text": "La seccion de items, ahora tabla.\n\nCant. y P. Unit dejan de ser una linea gris debajo del nombre y pasan a ser columnas alineadas a la derecha: se pueden comparar de un vistazo y se leen en diagonal.\n\nLos badges (combo, gratuita, O/S, nivel) se quedan pegados al nombre, que es la unica columna que puede crecer."
+    },
+    {
+      "id": "botones",
+      "x": 0,
+      "y": -150,
+      "w": 420,
+      "text": "Botones a 30 px de alto, 10 px de texto, peso 500 y radio 6 px: exactamente los de Productos.\n\nAntes eran px-3 py-2 text-xs font-bold, o sea ~34 px y en Bold.\n\nLas tarjetas cambian el borde gris por el ring azul y radio 12, que es la firma que ya usan las tablas del resto de la web: sobre el #f5f7fa del dashboard el gris no se ve."
+    },
+    {
+      "id": "pesos",
+      "x": 1080,
+      "y": 920,
+      "w": 420,
+      "text": "El peso: Amazon Ember solo trae Light, Medium y Bold, y el CSS mapea 600-1000 a la MISMA cara Bold.\n\nPor eso font-semibold y font-bold se ven identicos, y a 11-14 px se empastan. Tampoco hay diferencia entre 400 y 500: los dos son Medium.\n\nO sea que en los tamanos chicos la jerarquia NO puede venir del peso: viene del color y del tamano. Items, el nombre del cliente y Total bajan a 500, y el Total se apoya en el #004A94 y en los 20 px."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
