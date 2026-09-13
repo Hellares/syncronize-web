@@ -457,7 +457,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                       {/* Costo. Un producto con variantes no tiene el suyo: su
                           stock --y por lo tanto su costo-- vive en cada variante. */}
                       {puedeVerCosto && (
-                        <td className={`w-px whitespace-nowrap bg-[#DAC1E9] px-3 text-right ${D.celda}`}>
+                        <td className={`w-px whitespace-nowrap bg-[#EDE0F4] px-3 text-right ${D.celda}`}>
                           {p.tieneVariantes || stock.precioCosto == null ? (
                             <span className="text-xs text-gray-400">—</span>
                           ) : (
