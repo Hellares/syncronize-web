@@ -1021,7 +1021,12 @@ function VentaRapidaInner() {
             ) : null}
           </div>
           {/* Máximo 6 columnas con respiro entre cards */}
-          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-15rem)] overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 pt-1.5 content-start">
+          {/* 210px y no `15rem` (240): 30px menos de descuento es 30px MÁS de
+              alto para la grilla, que es el espacio que sobraba abajo. Va en px
+              y no en rem a propósito — lo que se descuenta son barras y
+              cabeceras de alto fijo, así que si algún día cambia el tamaño de
+              fuente raíz este número no tiene por qué moverse con él. */}
+          <div className="grid gap-y-2.5 gap-x-[15px] grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 max-h-[calc(100vh-210px)] overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 pt-1.5 content-start">
             {productos.map(p => (
               // La esquina superior derecha de la tarjeta acompaña la de la
               // imagen (`rounded-tr-[1.6rem]` en ProductCard). 1.85rem y no
