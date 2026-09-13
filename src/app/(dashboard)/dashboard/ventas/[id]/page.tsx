@@ -469,8 +469,8 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                 entre 400 y 500 tampoco hay diferencia —los dos son Medium—,
                 de modo que en los tamaños chicos la jerarquía sale del COLOR y
                 del TAMAÑO, nunca del peso. */}
-            <div className="flex items-center gap-2 border-b border-[#cfe0f5] px-4 py-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">🛒</span>
+            <div className="flex items-center gap-2 border-b border-[#cfe0f5] px-4 py-1">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-[13px]">🛒</span>
               <p className="text-[13px] font-medium text-gray-800">Items</p>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">{(venta.detalles ?? []).length}</span>
             </div>
