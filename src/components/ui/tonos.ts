@@ -42,7 +42,10 @@ export const TONOS = {
  * ~120px: en un bloque alto se estira sobre demasiada superficie y la esquina
  * inferior derecha llega saturada justo donde hay listas y texto.
  */
-export const TARJETA_CIFRA = 'rounded-xl bg-gradient-to-br p-4 shadow-lg transition-shadow hover:shadow-xl';
+export const TARJETA_CIFRA_BASE = 'rounded-xl bg-gradient-to-br shadow-lg transition-shadow hover:shadow-xl';
+
+/** La de siempre, con el padding del Dashboard. */
+export const TARJETA_CIFRA = `${TARJETA_CIFRA_BASE} p-4`;
 
 /**
  * Los bloques grandes (Este mes, Ventas por día, Necesita atención, Lo más

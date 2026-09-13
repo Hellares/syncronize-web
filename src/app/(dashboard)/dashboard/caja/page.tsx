@@ -10,7 +10,7 @@ import NuevoMovimientoDialog from '@/features/caja/components/NuevoMovimientoDia
 import ArqueoDialog from '@/features/caja/components/ArqueoDialog';
 import AnularMovimientoDialog from '@/features/caja/components/AnularMovimientoDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
-import { TONOS, TARJETA_CIFRA, BLOQUE_STD, TITULO_BLOQUE, type Tono } from '@/components/ui/tonos';
+import { TONOS, TARJETA_CIFRA_BASE, BLOQUE_STD, TITULO_BLOQUE, type Tono } from '@/components/ui/tonos';
 
 /**
  * Una cifra del turno.
@@ -30,14 +30,14 @@ function TarjetaCifra({ tono, titulo, icono, pie, children }: {
 }) {
   const t = TONOS[tono];
   return (
-    <div className={`${TARJETA_CIFRA} ${t.fondo}`} style={{ '--tono-cifra': t.cifra } as React.CSSProperties}>
+    <div className={`${TARJETA_CIFRA_BASE} p-3 ${t.fondo}`} style={{ '--tono-cifra': t.cifra } as React.CSSProperties}>
       <div className="flex items-center gap-2">
-        <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${t.chip}`}>{icono}</span>
+        <span className={`flex h-[22px] w-[22px] items-center justify-center rounded-lg ${t.chip}`}>{icono}</span>
         {/* 🔴 Peso 500: a 11px Amazon Ember manda cualquier 600 a la cara Bold
             y se empasta. La jerarquía la hace el color de la cifra. */}
         <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{titulo}</span>
       </div>
-      <p className="mt-2.5 text-[28px] font-bold leading-none tracking-tight text-[color:var(--tono-cifra,#111827)]">{children}</p>
+      <p className="mt-2 text-[24px] font-bold leading-none tracking-tight text-[color:var(--tono-cifra,#111827)]">{children}</p>
       {pie && <p className="mt-1.5 text-[10px] leading-3 text-gray-500">{pie}</p>}
     </div>
   );
@@ -236,7 +236,7 @@ export default function CajaPage() {
           {/* Desglose por método + categorías */}
           {resumen && (
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className={`${BLOQUE_STD} px-4 pb-4 pt-0.5`}>
+              <div className={`${BLOQUE_STD} px-4 pb-4 pt-[7px]`}>
                 <h2 className={`${TITULO_BLOQUE} mb-1.5`}>Por método de pago</h2>
                 {/* La cuenta a la vista: cada fila es ingresos − egresos = total,
                     y el encabezado dice qué se le está restando a qué. Antes eso
@@ -255,7 +255,7 @@ export default function CajaPage() {
                       <th className="py-1 text-right font-medium text-[#004A94]">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-[#d1e5ff]">
                     {(resumen.detalles ?? []).map((d) => (
                       <tr key={d.metodoPago}>
                         <td className="py-1 text-gray-700">{METODO_PAGO_LABEL[d.metodoPago] ?? d.metodoPago}</td>
@@ -299,7 +299,7 @@ export default function CajaPage() {
             {movimientos.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-gray-400">Sin movimientos aún</p>
             ) : (
-              <div className="divide-y divide-gray-50 max-h-[28rem] overflow-y-auto">
+              <div className="divide-y divide-[#d1e5ff] max-h-[28rem] overflow-y-auto">
                 {groupMovimientosByVenta(movimientos).map((g) => g.items.length > 1 ? (
                   /* Venta multi-pago (MIXTO): 1 card con chips por método — paridad Flutter */
                   <div key={g.items[0].id} className="px-4 py-2.5">
