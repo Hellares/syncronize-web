@@ -10,6 +10,38 @@ import NuevoMovimientoDialog from '@/features/caja/components/NuevoMovimientoDia
 import ArqueoDialog from '@/features/caja/components/ArqueoDialog';
 import AnularMovimientoDialog from '@/features/caja/components/AnularMovimientoDialog';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
+import { TONOS, TARJETA_CIFRA, BLOQUE_STD, TITULO_BLOQUE, type Tono } from '@/components/ui/tonos';
+
+/**
+ * Una cifra del turno.
+ *
+ * 🔴 El color de la cifra viaja como custom property `--tono-cifra` y no como
+ * clase: Tailwind no genera utilidades para un color que sale de un objeto en
+ * tiempo de ejecución, así que `text-[${t.cifra}]` compilaría a nada y la
+ * cifra saldría negra sin que el build dijera una palabra.
+ */
+function TarjetaCifra({ tono, titulo, icono, pie, children }: {
+  tono: Tono;
+  titulo: string;
+  icono: React.ReactNode;
+  /** La línea chica de abajo. Se omite cuando no hay nada que aclarar. */
+  pie?: string;
+  children: React.ReactNode;
+}) {
+  const t = TONOS[tono];
+  return (
+    <div className={`${TARJETA_CIFRA} ${t.fondo}`} style={{ '--tono-cifra': t.cifra } as React.CSSProperties}>
+      <div className="flex items-center gap-2">
+        <span className={`flex h-[26px] w-[26px] items-center justify-center rounded-lg ${t.chip}`}>{icono}</span>
+        {/* 🔴 Peso 500: a 11px Amazon Ember manda cualquier 600 a la cara Bold
+            y se empasta. La jerarquía la hace el color de la cifra. */}
+        <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{titulo}</span>
+      </div>
+      <p className="mt-2.5 text-[28px] font-bold leading-none tracking-tight text-[color:var(--tono-cifra,#111827)]">{children}</p>
+      {pie && <p className="mt-1.5 text-[10px] leading-3 text-gray-500">{pie}</p>}
+    </div>
+  );
+}
 
 const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] focus:ring-1 focus:ring-[#437EFF]/20";
 const selectClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] bg-white";
@@ -108,8 +140,8 @@ export default function CajaPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Mi Caja</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-lg font-medium text-gray-900">Mi caja</h1>
+          <p className="mt-0.5 text-[11px] leading-4 text-gray-500">
             {caja
               ? <>Caja <span className="font-mono">{caja.codigo ?? caja.id.slice(0, 8)}</span> · {caja.sede?.nombre ?? (caja as { sedeNombre?: string }).sedeNombre ?? ''} · abierta {fmtHora(caja.fechaApertura)}</>
               : 'No tienes una caja abierta'}
@@ -118,18 +150,18 @@ export default function CajaPage() {
         <div className="flex items-center gap-2">
           {permissions.canViewCaja && (
             <>
-              <Link href="/dashboard/caja/historial" className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">Historial</Link>
-              <Link href="/dashboard/caja/monitor" className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50">Monitor</Link>
+              <Link href="/dashboard/caja/historial" className="inline-flex h-[30px] items-center rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 hover:bg-gray-50">Historial</Link>
+              <Link href="/dashboard/caja/monitor" className="inline-flex h-[30px] items-center rounded-md border border-gray-200 px-3 text-[10px] font-medium text-gray-600 hover:bg-gray-50">Monitor</Link>
             </>
           )}
           {caja && permissions.canManageCaja && (
             <>
               <button onClick={() => setArqueoOpen(true)}
-                className="rounded-lg border border-[#437EFF] px-3 py-2 text-xs font-bold text-[#437EFF] hover:bg-[#437EFF]/5">
+                className="inline-flex h-[30px] items-center rounded-md border border-[#437EFF] px-3 text-[10px] font-medium text-[#437EFF] hover:bg-[#437EFF]/5">
                 Arqueo
               </button>
               <Link href="/dashboard/caja/cerrar"
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700">
+                className="inline-flex h-[30px] items-center rounded-md bg-red-600 px-3 text-[10px] font-medium text-white hover:bg-red-700">
                 Cerrar Caja
               </Link>
             </>
@@ -148,52 +180,73 @@ export default function CajaPage() {
         />
       ) : (
         <>
-          {/* Resumen */}
+          {/* Las cuatro cifras del turno, con el mismo lenguaje que las del
+              Dashboard: degradado del blanco al tono, chip de 26px y la cifra
+              teñida de SU tono. El color sale de `TONOS`, la misma tabla que
+              usa el Dashboard —así las dos pantallas no pueden quedar con
+              paletas distintas—.
+
+              Los tonos no son decorativos:
+              · Apertura, NEUTRO. Es un dato del pasado; no se mueve en todo el
+                turno y no tiene por qué competir.
+              · Ingresos, VERDE, y Egresos, NARANJA. `TONOS` no trae rojo, y el
+                naranja ya es el color de la pérdida en el resto de la web.
+              · Efectivo esperado, AZUL de marca: es la única de las cuatro que
+                decide algo —es la que se compara contra el cajón—.
+
+              🔴 Y va ACÁ, fuera de la rama: un comentario JSX como primer hijo
+              de un `&&` no es un hijo sino una segunda expresión, y el parser
+              corta ahí con "')' expected". */}
           {resumen && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="text-[10px] uppercase text-gray-400">Apertura</p>
-                <p className="text-lg font-bold text-gray-900">{fmtMoney(caja.montoApertura)}</p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="text-[10px] uppercase text-gray-400">Ingresos</p>
-                <p className="text-lg font-bold text-green-600">+{fmtMoney(resumen.totalIngresos)}</p>
-                {(resumen.egresoAnulacionVenta ?? 0) > 0 && (
-                  <p className="text-[10px] text-red-400">(−{fmtMoney(resumen.egresoAnulacionVenta)} anulados)</p>
-                )}
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="text-[10px] uppercase text-gray-400">Egresos</p>
-                <p className="text-lg font-bold text-red-500">−{fmtMoney(resumen.totalEgresos)}</p>
-              </div>
-              <div className="rounded-xl border border-[#437EFF]/30 bg-[#437EFF]/5 p-4">
-                <p className="text-[10px] uppercase text-gray-400">Efectivo esperado</p>
-                <p className="text-lg font-bold text-[#004A94]">{fmtMoney(resumen.saldoEfectivo)}</p>
-                <p className="text-[10px] text-gray-400">Saldo total: {fmtMoney(resumen.saldo)}</p>
-              </div>
+              <TarjetaCifra tono="neutro" titulo="Apertura" icono={
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="12" cy="12" r="3" /></svg>
+              }>
+                {fmtMoney(caja.montoApertura)}
+              </TarjetaCifra>
+
+              <TarjetaCifra tono="verde" titulo="Ingresos" icono={
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+              } pie={(resumen.egresoAnulacionVenta ?? 0) > 0
+                ? `−${fmtMoney(resumen.egresoAnulacionVenta)} de ventas anuladas, ya descontados`
+                : undefined}>
+                {fmtMoney(resumen.totalIngresos)}
+              </TarjetaCifra>
+
+              <TarjetaCifra tono="naranja" titulo="Egresos" icono={
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>
+              }>
+                {fmtMoney(resumen.totalEgresos)}
+              </TarjetaCifra>
+
+              <TarjetaCifra tono="azul" titulo="Efectivo esperado" icono={
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg>
+              } pie={`Saldo total ${fmtMoney(resumen.saldo)}`}>
+                {fmtMoney(resumen.saldoEfectivo)}
+              </TarjetaCifra>
             </div>
           )}
 
           {/* Desglose por método + categorías */}
           {resumen && (
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="text-sm font-semibold text-gray-800 mb-2">Por método de pago</p>
+              <div className={`${BLOQUE_STD} p-4`}>
+                <h2 className={`${TITULO_BLOQUE} mb-2`}>Por método de pago</h2>
                 <div className="space-y-1">
                   {(resumen.detalles ?? []).map((d) => (
                     <div key={d.metodoPago} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
                       <span className="font-medium text-gray-700">{METODO_PAGO_LABEL[d.metodoPago] ?? d.metodoPago}</span>
                       <span className="text-gray-600">
-                        <span className="text-green-600">+{fmtMoney(d.totalIngresos)}</span>
-                        {' '}<span className="text-red-400">−{fmtMoney(d.totalEgresos)}</span>
+                        <span className="text-green-700">+{fmtMoney(d.totalIngresos)}</span>
+                        {' '}<span className="text-orange-700">−{fmtMoney(d.totalEgresos)}</span>
                         {' = '}<strong className="text-gray-800">{fmtMoney(d.saldo)}</strong>
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
-                <p className="text-sm font-semibold text-gray-800 mb-2">Egresos por categoría</p>
+              <div className={`${BLOQUE_STD} p-4`}>
+                <h2 className={`${TITULO_BLOQUE} mb-2`}>Egresos por categoría</h2>
                 {(resumen.egresosPorCategoria?.length ?? 0) === 0 ? (
                   <p className="text-xs text-gray-400">Sin egresos registrados</p>
                 ) : (
@@ -201,7 +254,7 @@ export default function CajaPage() {
                     {resumen.egresosPorCategoria!.map((e, i) => (
                       <div key={i} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
                         <span className="text-gray-700">{e.label ?? CATEGORIA_MOVIMIENTO_LABEL[e.categoria] ?? e.categoria} <span className="text-gray-400">({e.cantidad})</span></span>
-                        <span className="font-medium text-red-500">−{fmtMoney(e.total)}</span>
+                        <span className="font-medium text-orange-700">−{fmtMoney(e.total)}</span>
                       </div>
                     ))}
                   </div>
@@ -211,12 +264,12 @@ export default function CajaPage() {
           )}
 
           {/* Movimientos */}
-          <div className="rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-              <p className="text-sm font-semibold text-gray-800">Movimientos ({movimientos.length})</p>
+          <div className={BLOQUE_STD}>
+            <div className="flex items-center justify-between border-b border-[#d1e5ff] px-4 py-2.5">
+              <h2 className={TITULO_BLOQUE}>Movimientos <span className="text-gray-500">({movimientos.length})</span></h2>
               {permissions.canManageCaja && (
                 <button onClick={() => setNuevoMovOpen(true)}
-                  className="rounded-lg bg-[#004A94] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#003570]">
+                  className="inline-flex h-[30px] items-center rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white hover:bg-[#003570]">
                   + Ingreso / Egreso
                 </button>
               )}
@@ -250,7 +303,7 @@ export default function CajaPage() {
                           {fmtHora(g.items[0].fechaMovimiento)}{g.items[0].registradoPorNombre ? ` · ${g.items[0].registradoPorNombre}` : ''}
                         </p>
                       </div>
-                      <span className={`shrink-0 text-sm font-bold ${g.items[0].tipo === 'INGRESO' ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`shrink-0 text-sm font-medium ${g.items[0].tipo === 'INGRESO' ? 'text-green-700' : 'text-orange-700'}`}>
                         {g.items[0].tipo === 'INGRESO' ? '+' : '−'}{fmtMoney(g.items.reduce((s, m) => s + Number(m.monto), 0))}
                       </span>
                     </div>
@@ -275,7 +328,7 @@ export default function CajaPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className={`text-sm font-bold ${m.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-500'} ${m.anulado ? 'line-through' : ''}`}>
+                      <span className={`text-sm font-medium ${m.tipo === 'INGRESO' ? 'text-green-700' : 'text-orange-700'} ${m.anulado ? 'line-through' : ''}`}>
                         {m.tipo === 'INGRESO' ? '+' : '−'}{fmtMoney(m.monto)}
                       </span>
                       {permissions.canManageCaja && m.esManual && !m.anulado && (

@@ -1,0 +1,37 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "A · Cuatro cifras", "x": 0, "y": 0, "w": 1100, "h": 940 },
+    { "file": "OpcionB.dc.html", "title": "B · Alineada con el app", "x": 1220, "y": 0, "w": 1100, "h": 880 }
+  ],
+  "annotations": [
+    {
+      "id": "opcion-a",
+      "x": 0,
+      "y": -230,
+      "w": 480,
+      "text": "A · CUATRO CIFRAS\n\nLas 4 tarjetas que ya tenes, con el lenguaje del dashboard: degradado del blanco al tono, chip de 26 px, rotulo de 11 px y la cifra de 28 px en el color de SU tono.\n\nLos tonos salen de la tabla TONOS, sin inventar ninguno:\n· Apertura -> neutro (gris). Es un dato del pasado, no cambia en todo el turno.\n· Ingresos -> verde.\n· Egresos -> naranja. TONOS no tiene rojo, y el naranja ya es el color de perdida en el resto de la web.\n· Efectivo esperado -> azul de marca. Es la cifra que se compara contra el cajon al cerrar.\n\nA favor: cuatro cifras se comparan de un golpe.\nEn contra: las cuatro pesan igual, y en la practica solo una decide algo."
+    },
+    {
+      "id": "opcion-b",
+      "x": 1220,
+      "y": -230,
+      "w": 480,
+      "text": "B · ALINEADA CON EL APP\n\nEl app NO muestra cuatro tarjetas: muestra UNA (ResumenCajaCard) con filas etiquetadas --Monto Apertura, Total Ingresos, Total Egresos, Saldo Efectivo-- cada una con su color. Esta opcion lleva eso a la web.\n\nEfectivo esperado se separa como protagonista en azul, con las dos acciones que se usan sobre el (Arqueo y Nuevo movimiento) pegadas abajo. El resto del turno queda en un bloque de filas al lado, con el desglose por metodo adentro en vez de en un bloque aparte.\n\nA favor: hay UNA cifra que manda, que es la verdad de la caja; y web y app cuentan la misma historia.\nEn contra: se pierde la lectura de un golpe de las cuatro."
+    },
+    {
+      "id": "colores",
+      "x": 0,
+      "y": 990,
+      "w": 480,
+      "text": "El degradado y el color de la cifra salen de TONOS tal cual esta hoy en dashboard/page.tsx, asi que si algun dia se toca esa tabla, Mi caja se mueve con el dashboard y no hay dos paletas.\n\nUn detalle: el rotulo va en peso 500, no en el `font-semibold` que usa hoy la tarjeta del dashboard. A 11 px Amazon Ember manda 600 a la cara Bold y se empasta. Si te gusta, conviene corregirlo tambien alla para que no queden distintos."
+    },
+    {
+      "id": "movimientos",
+      "x": 1220,
+      "y": 930,
+      "w": 480,
+      "text": "La lista de movimientos es igual en las dos: lo unico que cambia es que en B tiene filtros (Todos / Ingresos / Egresos) arriba a la derecha, que hoy no existen en ninguno de los dos lados.\n\nDatos reales de CAJA-00000102 en beta, incluida la venta 915 que fue MIXTA (efectivo 200 + Yape 54): es la fila que mas puede romper el diseño."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
