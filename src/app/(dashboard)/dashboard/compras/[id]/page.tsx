@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { documentoDeCompra } from '@/core/types/compra';
 import type { CompraDetalle, PagoContadoCompra } from '@/core/types/compra';
 import { getCompra, confirmarCompra, anularCompra, eliminarCompra } from '@/features/compras/services/compra-service';
 import ConfirmarPagoDialog from '@/features/compras/components/ConfirmarPagoDialog';
@@ -98,9 +99,9 @@ export default function CompraDetallePage() {
             {c.diasCredito ? ` (${c.diasCredito} días)` : ''} · {c.estado}
             {c.estado === 'CONFIRMADA' && (c.pagoPendiente ? ' · CxP pendiente' : ' · pagada')}
           </p>
-          {(c.serieDocumentoProveedor || c.numeroDocumentoProveedor) && (
+          {documentoDeCompra(c) && (
             <p className="text-xs text-gray-400">
-              {c.tipoDocumentoProveedor ?? 'Doc.'} {c.serieDocumentoProveedor ?? ''}{c.serieDocumentoProveedor && c.numeroDocumentoProveedor ? '-' : ''}{c.numeroDocumentoProveedor ?? ''}
+              {documentoDeCompra(c)}
               {c.sede?.nombre ? ` · ${c.sede.nombre}` : ''}
             </p>
           )}

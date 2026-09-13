@@ -9,7 +9,12 @@ export interface CompraListItem {
   id: string;
   codigo: string;
   nombreProveedor: string;
+  /** 🔴 El RUC/DNI del PROVEEDOR, no el comprobante. Ver `documentoDeCompra`. */
   documentoProveedor?: string | null;
+  /** El comprobante del proveedor. Viene también en el listado. */
+  tipoDocumentoProveedor?: string | null;
+  serieDocumentoProveedor?: string | null;
+  numeroDocumentoProveedor?: string | null;
   total: number | string;
   moneda: string;
   estado: EstadoCompra;
@@ -27,6 +32,29 @@ export interface CompraListItem {
   fechaRecepcion: string;
   sede?: { id: string; nombre: string } | null;
   proveedor?: { id: string; nombre: string; codigo: string } | null;
+}
+
+/**
+ * El comprobante del proveedor tal como se lee: "FACTURA F010-4825".
+ * `null` cuando la compra se registró sin comprobante.
+ *
+ * 🔴 NO es `documentoProveedor`: ese es el RUC del proveedor —el documento de
+ * QUIÉN vendió, no el de la venta—.
+ *
+ * 🔴 Los tres campos llegan VACÍOS, no null, cuando el formulario se mandó sin
+ * comprobante, así que se descartan por CONTENIDO y no por nullish: con `??`
+ * una compra sin factura mostraba "Doc. -".
+ */
+export function documentoDeCompra(c: {
+  tipoDocumentoProveedor?: string | null;
+  serieDocumentoProveedor?: string | null;
+  numeroDocumentoProveedor?: string | null;
+}): string | null {
+  const serie = c.serieDocumentoProveedor?.trim() ?? '';
+  const numero = c.numeroDocumentoProveedor?.trim() ?? '';
+  if (!serie && !numero) return null;
+  const tipo = c.tipoDocumentoProveedor?.trim() || 'Doc.';
+  return `${tipo} ${[serie, numero].filter(Boolean).join('-')}`;
 }
 
 /** Lo que el detalle trae del producto/variante de la linea. Alcanza para
@@ -117,9 +145,6 @@ export interface CompraDetalle extends CompraListItem {
   subtotal: number | string;
   descuento: number | string;
   impuestos: number | string;
-  tipoDocumentoProveedor?: string | null;
-  serieDocumentoProveedor?: string | null;
-  numeroDocumentoProveedor?: string | null;
   diasCredito?: number | null;
   fechaVencimientoPago?: string | null;
   observaciones?: string | null;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { documentoDeCompra } from '@/core/types/compra';
 import type { CompraListItem, EstadoCompra } from '@/core/types/compra';
 import type { Proveedor } from '@/core/types/proveedor';
 import { listarCompras } from '@/features/compras/services/compra-service';
@@ -181,6 +182,10 @@ export default function ComprasPage() {
             <thead className="sticky top-0 z-20 border-b border-[#cfe0f5] bg-[#eaf2fd]">
               <tr>
                 <th className="px-3 py-3 font-medium text-[#004A94]">Código</th>
+                {/* La factura del PROVEEDOR: es por la que pregunta el
+                    contador, y la que hay que cruzar con el físico al
+                    recepcionar. */}
+                <th className="whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Documento</th>
                 <th className="px-3 py-3 font-medium text-[#004A94]">Proveedor</th>
                 <th className="whitespace-nowrap px-3 py-3 font-medium text-[#004A94]">Fecha</th>
                 <th className="whitespace-nowrap px-3 py-3 text-right font-medium text-[#004A94]">Total</th>
@@ -193,6 +198,9 @@ export default function ComprasPage() {
               {items.map((c) => (
                 <tr key={c.id} className="cursor-pointer transition-colors hover:bg-gray-50/50" onClick={() => router.push(`/dashboard/compras/${c.id}`)}>
                   <td className="px-3 py-2 text-[11px] tracking-tight text-gray-500">{c.codigo}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-[11px] text-gray-600">
+                    {documentoDeCompra(c) ?? <span className="text-gray-300">—</span>}
+                  </td>
                   <td className="px-3 py-2 text-gray-800">{c.nombreProveedor}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{fmtFecha(c.fechaRecepcion)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-[13px] font-semibold text-[#004A94]">{sim(c.moneda)} {num(c.total).toFixed(2)}</td>
