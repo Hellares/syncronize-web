@@ -457,7 +457,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                       {/* Costo. Un producto con variantes no tiene el suyo: su
                           stock --y por lo tanto su costo-- vive en cada variante. */}
                       {puedeVerCosto && (
-                        <td className={`w-px whitespace-nowrap bg-yellow-100 px-3 text-right ${D.celda}`}>
+                        <td className={`w-px whitespace-nowrap bg-[#DAC1E9] px-3 text-right ${D.celda}`}>
                           {p.tieneVariantes || stock.precioCosto == null ? (
                             <span className="text-xs text-gray-400">—</span>
                           ) : (
@@ -467,7 +467,7 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
                       )}
 
                       {/* Precio (prioridad: liquidación > oferta > base, igual que Flutter) */}
-                      {/* Banda verde: es lo que entra. La azul de al lado es lo que
+                      {/* Banda verde: es lo que entra. La lila de al lado es lo que
                           costó, y juntas se leen como un par sin tener que ir al
                           encabezado. */}
                       <td className={`w-px whitespace-nowrap bg-green-100 px-3 text-right ${D.celda}`}>
