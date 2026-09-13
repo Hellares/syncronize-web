@@ -57,14 +57,14 @@ export default function EnvioVentaCard({ venta, canManage, onUpdated }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-purple-300/50">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-[13px]">🚚</span>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Envío</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Envío</p>
         </div>
         {envio?.rotuloImpresoEn && (
-          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[9px] font-bold text-purple-700"
+          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[9px] font-medium text-purple-700"
             title={new Date(envio.rotuloImpresoEn).toLocaleString('es-PE')}>
             🖨 IMPRESO
           </span>
@@ -73,7 +73,7 @@ export default function EnvioVentaCard({ venta, canManage, onUpdated }: Props) {
 
       {envio ? (
         <div className="space-y-1 text-xs text-gray-700">
-          <p className="text-sm font-semibold text-gray-900">{envio.destinatarioNombre}</p>
+          <p className="text-[13px] font-medium text-gray-900">{envio.destinatarioNombre}</p>
           {(envio.destinatarioDni || envio.destinatarioCelular) && (
             <p className="text-gray-500">
               {envio.destinatarioDni && `DNI ${envio.destinatarioDni}`}

@@ -75,15 +75,15 @@ export default function EvidenciaVentaGaleria({ ventaId }: { ventaId: string }) 
   return (
     <div
       {...propsZona}
-      className={`rounded-2xl border bg-white p-4 shadow-sm transition-colors ${
-        arrastrando ? 'border-[#437EFF] bg-[#437EFF]/5' : 'border-gray-100'
+      className={`rounded-xl bg-white p-4 shadow-sm ring-1 transition-colors ${
+        arrastrando ? 'bg-[#437EFF]/5 ring-[#437EFF]' : 'ring-blue-400/40'
       }`}
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-50 text-[13px]">📷</span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Fotos de la venta</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Fotos de la venta</p>
             <p className="text-[10px] text-gray-400">Uso interno. No se le envían al cliente.</p>
           </div>
         </div>
