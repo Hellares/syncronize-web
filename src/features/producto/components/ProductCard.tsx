@@ -53,7 +53,13 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
     <>
       {/* Imagen + badges + price tag flotante */}
       <div className="relative">
-        <div className="relative h-24 w-full overflow-hidden rounded-lg rounded-tr-[1.6rem] bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* 🔴 PROPORCIÓN, no altura fija. Con `h-24` la caja medía 96px
+            pasara lo que pasara con el ancho: en una grilla de 5 columnas a
+            pantalla ancha la tarjeta llega a ~200px y la foto quedaba en una
+            franja de 2:1 —con `object-cover`, una tajada horizontal del
+            producto—. Con `aspect-[4/3]` el alto sigue al ancho y la foto se
+            ve entera en cualquier tamaño de pantalla. */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg rounded-tr-[1.6rem] bg-gradient-to-br from-gray-50 to-gray-100">
           {img ? (
             <img src={img} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
