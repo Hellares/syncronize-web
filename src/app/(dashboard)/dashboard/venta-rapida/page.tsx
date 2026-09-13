@@ -1270,14 +1270,14 @@ function VentaRapidaInner() {
                       </p>
                     ) : (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <div className="flex h-8 items-center overflow-hidden rounded-full border border-gray-200">
+                        <div className="flex h-7 items-center overflow-hidden rounded-full border border-gray-200">
                           <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)}
-                            className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
+                            className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
                           </button>
                           <span className="min-w-[26px] text-center text-[13px] font-medium text-[#043261]">{it.cantidad}</span>
                           <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)}
-                            className="flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100">
+                            className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
                           </button>
                         </div>
@@ -1290,7 +1290,7 @@ function VentaRapidaInner() {
                                activarse ensancha el texto y el botón salta de
                                ancho, empujando lo que tiene al lado. Lo que
                                marca el estado son el color y el fondo. */
-                            className={`h-8 rounded-full border px-2.5 text-[11px] font-medium ${it.descuento > 0
+                            className={`h-7 rounded-full border px-2.5 text-[11px] font-medium ${it.descuento > 0
                               ? 'border-amber-300 bg-amber-50 text-amber-700'
                               : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                             {it.descuento > 0 ? `−S/ ${fmt(it.descuento)}` : '% desc'}
@@ -1300,7 +1300,7 @@ function VentaRapidaInner() {
                           <>
                             <span className="rounded bg-[#043261] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">COSTO</span>
                             <button onClick={() => setModoPickerFor(it.key)}
-                              className="h-8 rounded-full border border-[#043261]/30 px-2.5 text-[11px] font-medium text-[#043261] hover:bg-slate-100">
+                              className="h-7 rounded-full border border-[#043261]/30 px-2.5 text-[11px] font-medium text-[#043261] hover:bg-slate-100">
                               Cambiar
                             </button>
                           </>
@@ -1309,7 +1309,7 @@ function VentaRapidaInner() {
                             el accesorio a precio normal, en la misma venta. */}
                         {permissions.canEditarPrecioVenta && puedeCosto && (
                           <button onClick={() => toggleLineaACosto(it.key)} disabled={costoCargando}
-                            className="h-8 rounded-full border border-gray-200 px-2.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                            className="h-7 rounded-full border border-gray-200 px-2.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
                             {aCostoLinea ? 'Volver a precio de lista' : 'Pasar a costo'}
                           </button>
                         )}
@@ -1322,7 +1322,7 @@ function VentaRapidaInner() {
                         {permissions.canEditarPrecioVenta && puedeCosto && (
                           <button onClick={() => abrirLotePicker(it)} disabled={costoCargando}
                             title="Elegir de qué lote sale"
-                            className={`h-8 rounded-full border px-2.5 text-[11px] font-medium disabled:opacity-50 ${it.loteId
+                            className={`h-7 rounded-full border px-2.5 text-[11px] font-medium disabled:opacity-50 ${it.loteId
                               ? 'border-[#043261]/30 bg-[#e8f2ff] text-[#043261]'
                               : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                             {it.loteId ? `Lote ${it.loteCodigo ?? ''}`.trim() : 'Lote'}
