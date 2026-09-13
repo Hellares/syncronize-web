@@ -286,26 +286,26 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Cliente + comprobante */}
         <div className="space-y-4 lg:col-span-1">
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[13px]">👤</span>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Cliente</p>
+          <div className="rounded-xl bg-white px-4 pb-4 pt-2 shadow-sm ring-1 ring-blue-400/40">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-[11px]">👤</span>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-500">Cliente</p>
             </div>
-            <p className="text-[13px] font-medium text-gray-900">{venta.nombreCliente ?? '—'}</p>
-            {venta.documentoCliente && <p className="mt-0.5 font-mono text-xs text-gray-500">{venta.documentoCliente}</p>}
-            {(venta as { telefonoCliente?: string }).telefonoCliente && <p className="mt-0.5 text-xs text-gray-500">📞 {(venta as { telefonoCliente?: string }).telefonoCliente}</p>}
+            <p className="text-[11px] font-medium text-gray-900">{venta.nombreCliente ?? '—'}</p>
+            {venta.documentoCliente && <p className="mt-0.5 font-mono text-[10px] text-gray-500">{venta.documentoCliente}</p>}
+            {(venta as { telefonoCliente?: string }).telefonoCliente && <p className="mt-0.5 text-[10px] text-gray-500">📞 {(venta as { telefonoCliente?: string }).telefonoCliente}</p>}
           </div>
 
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-[13px]">🧾</span>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Comprobante</p>
+          <div className="rounded-xl bg-white px-4 pb-4 pt-2 shadow-sm ring-1 ring-blue-400/40">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-[11px]">🧾</span>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-500">Comprobante</p>
             </div>
             {venta.codigoComprobante ? (
               <>
-                <p className="font-mono text-sm font-medium text-gray-900">{venta.tipoComprobante} {venta.codigoComprobante}</p>
+                <p className="font-mono text-xs font-medium text-gray-900">{venta.tipoComprobante} {venta.codigoComprobante}</p>
                 {venta.comprobanteSunatStatus && (
-                  <span className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
+                  <span className={`mt-1 inline-block rounded px-2 py-0.5 text-[8px] font-medium ${
                     venta.comprobanteSunatStatus === 'ACEPTADO' ? 'bg-green-100 text-green-700'
                     : venta.comprobanteSunatStatus === 'RECHAZADO' ? 'bg-red-100 text-red-700'
                     : 'bg-amber-100 text-amber-700'}`}>
@@ -313,28 +313,28 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                   </span>
                 )}
                 {venta.comprobanteSunatStatus === 'RECHAZADO' && venta.comprobanteErrorProveedor && (
-                  <p className="mt-1 text-[10px] text-red-600">{venta.comprobanteErrorProveedor}</p>
+                  <p className="mt-1 text-[8px] text-red-600">{venta.comprobanteErrorProveedor}</p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {venta.comprobanteSunatPdfUrl && <a href={venta.comprobanteSunatPdfUrl} target="_blank" rel="noreferrer" className="text-[11px] text-[#437EFF] hover:underline">PDF</a>}
-                  {venta.comprobanteSunatXmlUrl && <a href={venta.comprobanteSunatXmlUrl} target="_blank" rel="noreferrer" className="text-[11px] text-[#437EFF] hover:underline">XML</a>}
-                  {venta.comprobanteEnlaceProveedor && <a href={venta.comprobanteEnlaceProveedor} target="_blank" rel="noreferrer" className="text-[11px] text-[#437EFF] hover:underline">Ver online</a>}
+                  {venta.comprobanteSunatPdfUrl && <a href={venta.comprobanteSunatPdfUrl} target="_blank" rel="noreferrer" className="text-[9px] text-[#437EFF] hover:underline">PDF</a>}
+                  {venta.comprobanteSunatXmlUrl && <a href={venta.comprobanteSunatXmlUrl} target="_blank" rel="noreferrer" className="text-[9px] text-[#437EFF] hover:underline">XML</a>}
+                  {venta.comprobanteEnlaceProveedor && <a href={venta.comprobanteEnlaceProveedor} target="_blank" rel="noreferrer" className="text-[9px] text-[#437EFF] hover:underline">Ver online</a>}
                   {/* Reintentar solo PENDIENTE/ERROR_COMUNICACION (paridad app); RECHAZADOS se reenvían desde Facturación */}
                   {(venta.comprobanteSunatStatus === 'PENDIENTE' || venta.comprobanteSunatStatus === 'ERROR_COMUNICACION') && venta.comprobanteId && permissions.canManageVentas && (
                     <button onClick={reintentarSunat} disabled={isSubmitting}
-                      className="text-[11px] font-semibold text-blue-600 hover:underline disabled:opacity-50">
+                      className="text-[9px] font-medium text-blue-600 hover:underline disabled:opacity-50">
                       ↻ Reintentar envío
                     </button>
                   )}
                   {venta.comprobanteSunatStatus === 'RECHAZADO' && (
-                    <Link href="/dashboard/facturacion" className="text-[11px] font-semibold text-red-500 hover:underline">
+                    <Link href="/dashboard/facturacion" className="text-[9px] font-medium text-red-500 hover:underline">
                       Reenviar desde Facturación →
                     </Link>
                   )}
                 </div>
               </>
             ) : (
-              <p className="text-xs text-gray-400">{venta.tipoComprobante ?? 'TICKET'} interno (sin comprobante electrónico)</p>
+              <p className="text-[10px] text-gray-400">{venta.tipoComprobante ?? 'TICKET'} interno (sin comprobante electrónico)</p>
             )}
           </div>
 
@@ -412,24 +412,24 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
           })()}
 
           {/* Pago */}
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-blue-400/40">
-            <div className="mb-2.5 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-[13px]">💳</span>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Pago{esMixto ? ' (MIXTO)' : ''}</p>
+          <div className="rounded-xl bg-white px-4 pb-4 pt-2 shadow-sm ring-1 ring-blue-400/40">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-50 text-[11px]">💳</span>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-gray-500">Pago{esMixto ? ' (MIXTO)' : ''}</p>
             </div>
             {(venta.pagos ?? []).length === 0 ? (
-              <p className="text-xs text-gray-400">{venta.esCredito ? 'Crédito — sin pagos aún' : 'Sin pagos registrados'}</p>
+              <p className="text-[10px] text-gray-400">{venta.esCredito ? 'Crédito — sin pagos aún' : 'Sin pagos registrados'}</p>
             ) : (
               <div className="space-y-1">
                 {venta.pagos!.map(p => (
-                  <div key={p.id} className="flex justify-between rounded-md bg-gray-50 px-2 py-1.5 text-xs">
+                  <div key={p.id} className="flex justify-between rounded-md bg-gray-50 px-2 py-1.5 text-[10px]">
                     <span className="text-gray-600">{METODO_PAGO_LABEL[p.metodoPago] ?? p.metodoPago}{p.banco ? ` · ${p.banco}` : ''}{p.referencia ? ` · ${p.referencia}` : ''}</span>
                     <strong>{fmt(p.monto)}</strong>
                   </div>
                 ))}
               </div>
             )}
-            <div className="mt-2 space-y-0.5 border-t border-gray-100 pt-2 text-xs">
+            <div className="mt-2 space-y-0.5 border-t border-gray-100 pt-2 text-[10px]">
               <div className="flex justify-between"><span className="text-gray-500">Pagado</span><strong>{fmt(totalPagado)}</strong></div>
               {Number(venta.montoCambio ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Vuelto</span><strong>{fmt(venta.montoCambio)}</strong></div>}
               {saldo > 0.005 && venta.estado !== 'ANULADA' && <div className="flex justify-between text-amber-600"><span>Saldo pendiente</span><strong>{fmt(saldo)}</strong></div>}
