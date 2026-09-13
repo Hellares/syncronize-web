@@ -161,7 +161,7 @@ export default function ComprasPage() {
         </select>
         <input
           className={`${INPUT_STD} ml-auto w-full max-w-xs`}
-          placeholder="Buscar por código o proveedor…"
+          placeholder="Buscar por código, proveedor o documento…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -198,7 +198,10 @@ export default function ComprasPage() {
               {items.map((c) => (
                 <tr key={c.id} className="cursor-pointer transition-colors hover:bg-gray-50/50" onClick={() => router.push(`/dashboard/compras/${c.id}`)}>
                   <td className="px-3 py-2 text-[11px] tracking-tight text-gray-500">{c.codigo}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-[11px] text-gray-600">
+                  {/* Solo el dato. El tipo va en el title: en una columna donde
+                      casi todo es FACTURA, repetirlo tapa lo que se busca. */}
+                  <td className="whitespace-nowrap px-3 py-2 text-[11px] text-gray-600"
+                    title={c.tipoDocumentoProveedor?.trim() || undefined}>
                     {documentoDeCompra(c) ?? <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-3 py-2 text-gray-800">{c.nombreProveedor}</td>

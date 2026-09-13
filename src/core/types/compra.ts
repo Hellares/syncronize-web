@@ -35,8 +35,12 @@ export interface CompraListItem {
 }
 
 /**
- * El comprobante del proveedor tal como se lee: "FACTURA F010-4825".
+ * El comprobante del proveedor tal como se lee en la factura: "F010-4825".
  * `null` cuando la compra se registró sin comprobante.
+ *
+ * Va SIN la palabra "FACTURA": en una columna donde casi todo es factura, el
+ * tipo repetido en cada fila tapa el dato que se busca. Con `conTipo` se
+ * antepone, para el detalle, donde sí hay lugar y hace de etiqueta.
  *
  * 🔴 NO es `documentoProveedor`: ese es el RUC del proveedor —el documento de
  * QUIÉN vendió, no el de la venta—.
@@ -45,16 +49,21 @@ export interface CompraListItem {
  * comprobante, así que se descartan por CONTENIDO y no por nullish: con `??`
  * una compra sin factura mostraba "Doc. -".
  */
-export function documentoDeCompra(c: {
-  tipoDocumentoProveedor?: string | null;
-  serieDocumentoProveedor?: string | null;
-  numeroDocumentoProveedor?: string | null;
-}): string | null {
+export function documentoDeCompra(
+  c: {
+    tipoDocumentoProveedor?: string | null;
+    serieDocumentoProveedor?: string | null;
+    numeroDocumentoProveedor?: string | null;
+  },
+  opts?: { conTipo?: boolean },
+): string | null {
   const serie = c.serieDocumentoProveedor?.trim() ?? '';
   const numero = c.numeroDocumentoProveedor?.trim() ?? '';
   if (!serie && !numero) return null;
+  const dato = [serie, numero].filter(Boolean).join('-');
+  if (!opts?.conTipo) return dato;
   const tipo = c.tipoDocumentoProveedor?.trim() || 'Doc.';
-  return `${tipo} ${[serie, numero].filter(Boolean).join('-')}`;
+  return `${tipo} ${dato}`;
 }
 
 /** Lo que el detalle trae del producto/variante de la linea. Alcanza para

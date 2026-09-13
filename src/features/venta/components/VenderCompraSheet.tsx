@@ -155,7 +155,7 @@ export default function VenderCompraSheet({ sedeId, onClose, onElegir }: Props) 
           <input
             className="mt-2 h-[30px] w-full rounded-[6px] bg-zinc-100 px-3 text-xs text-[#004A94] shadow-md outline-none ring-1 ring-blue-400 placeholder:text-zinc-500 placeholder:opacity-60"
             value={buscando} onChange={(e) => setBuscando(e.target.value)} autoFocus
-            placeholder="Código o proveedor…" />
+            placeholder="Código, proveedor o documento…" />
         </div>
 
         {error && <p className="px-4 py-2 text-[11px] font-medium text-red-600">{error}</p>}

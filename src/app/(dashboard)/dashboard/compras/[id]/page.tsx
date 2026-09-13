@@ -101,7 +101,7 @@ export default function CompraDetallePage() {
           </p>
           {documentoDeCompra(c) && (
             <p className="text-xs text-gray-400">
-              {documentoDeCompra(c)}
+              {documentoDeCompra(c, { conTipo: true })}
               {c.sede?.nombre ? ` · ${c.sede.nombre}` : ''}
             </p>
           )}
