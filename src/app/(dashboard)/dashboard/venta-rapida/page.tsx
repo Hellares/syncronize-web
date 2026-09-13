@@ -1270,7 +1270,12 @@ function VentaRapidaInner() {
                       </p>
                     ) : (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <div className="flex h-7 items-center overflow-hidden rounded-full border border-gray-200">
+                        {/* 🔴 El borde NO puede ser `gray-200`: sobre el blanco
+                            de la línea un trazo de 1px en ese gris no se ve, y
+                            esta cápsula es el control que más se usa de toda la
+                            pantalla. Va el mismo `#043261/30` del botón Cambiar
+                            —un valor que ya vive acá— en vez de inventar otro. */}
+                        <div className="flex h-7 items-center overflow-hidden rounded-full border border-[#043261]/30">
                           <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)}
                             className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
