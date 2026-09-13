@@ -136,58 +136,25 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
   /** Cambiar cualquier control guarda los tres. */
   const guardar = (parcial: Partial<Preferencias>) => guardarPreferencias({ ...prefs, ...parcial });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (productos.length === 0) {
-    // Dos situaciones distintas: sin filtros el catalogo esta vacio y hay que
-    // crear; con filtros hay productos pero ninguno coincide, y lo que hace
-    // falta es SACAR el filtro. Un solo mensaje dejaba al usuario mirando una
-    // lista vacia sin enterarse de que seguia filtrando.
-    return (
-      <div className="rounded-xl bg-white py-16 text-center ring-1 ring-blue-400/40 shadow-sm">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-300">
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-            {hayFiltros
-              ? <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>
-              : <path d="M3 8l9-5 9 5-9 5-9-5zM3 8v8l9 5 9-5V8" />}
-          </svg>
-        </div>
-        <p className="mt-3 text-sm font-semibold text-gray-700">
-          {hayFiltros ? 'Ningun producto coincide con el filtro' : 'Todavia no hay productos'}
-        </p>
-        <p className="mx-auto mt-1 max-w-xs text-xs text-gray-400">
-          {hayFiltros
-            ? 'Proba con otro termino o saca algun filtro para ver mas.'
-            : 'Cuando cargues el primero va a aparecer aca.'}
-        </p>
-        <div className="mt-4">
-          {hayFiltros
-            ? onLimpiarFiltros && (
-                <button
-                  onClick={onLimpiarFiltros}
-                  className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
-                >
-                  Limpiar filtros
-                </button>
-              )
-            : puedeCrear && (
-                <Link
-                  href="/dashboard/productos/nuevo"
-                  className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
-                >
-                  Crear el primero
-                </Link>
-              )}
-        </div>
-      </div>
-    );
-  }
+  /**
+   * 🔴 Ni el spinner ni el vacío pueden reemplazar al componente ENTERO.
+   *
+   * El buscador llega como `encabezadoIzquierda` y se dibuja acá adentro, así
+   * que un `return` temprano lo DESMONTA del DOM: el input que vuelve cuando
+   * llegan los datos es otro elemento, y el usuario pierde el foco y el cursor
+   * en mitad de la palabra. Con la búsqueda sin resultados era peor —se quedaba
+   * sin buscador donde corregir lo que escribió—.
+   *
+   * El encabezado se dibuja SIEMPRE y estos dos estados ocupan solo el lugar de
+   * las filas.
+   */
+  const cargandoPrimeraVez = isLoading && productos.length === 0;
+  /**
+   * Mientras vuelve una búsqueda se dejan las filas VIEJAS en pantalla. Sin
+   * esto la tabla parpadea en cada consulta y el layout salta. Mismo criterio
+   * que la pantalla de Lotes, que es la que se siente fluida.
+   */
+  const sinResultados = !isLoading && productos.length === 0;
 
   const D = DENSIDADES[densidad];
   // Lo que se apaga a mano se suma a lo que ya se apagaba por ancho: la columna
@@ -265,6 +232,10 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {encabezadoIzquierda}
+        {isLoading && !cargandoPrimeraVez && (
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent"
+            title="Buscando…" />
+        )}
         <div className="ml-auto">
         <ProductoTablaControles
           vista={vista}
@@ -277,7 +248,52 @@ export default function ProductoTable({ productos, meta, isLoading, sedeId, canM
         </div>
       </div>
 
-      {vista === 'tarjetas' ? (
+      {cargandoPrimeraVez ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#437EFF] border-t-transparent" />
+        </div>
+      ) : sinResultados ? (
+        // Dos situaciones distintas: sin filtros el catalogo esta vacio y hay
+        // que crear; con filtros hay productos pero ninguno coincide, y lo que
+        // hace falta es SACAR el filtro. Un solo mensaje dejaba al usuario
+        // mirando una lista vacia sin enterarse de que seguia filtrando.
+        <div className="rounded-xl bg-white py-16 text-center ring-1 ring-blue-400/40 shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-300">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              {hayFiltros
+                ? <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>
+                : <path d="M3 8l9-5 9 5-9 5-9-5zM3 8v8l9 5 9-5V8" />}
+            </svg>
+          </div>
+          <p className="mt-3 text-sm font-semibold text-gray-700">
+            {hayFiltros ? 'Ningun producto coincide con el filtro' : 'Todavia no hay productos'}
+          </p>
+          <p className="mx-auto mt-1 max-w-xs text-xs text-gray-400">
+            {hayFiltros
+              ? 'Proba con otro termino o saca algun filtro para ver mas.'
+              : 'Cuando cargues el primero va a aparecer aca.'}
+          </p>
+          <div className="mt-4">
+            {hayFiltros
+              ? onLimpiarFiltros && (
+                  <button
+                    onClick={onLimpiarFiltros}
+                    className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
+                  >
+                    Limpiar filtros
+                  </button>
+                )
+              : puedeCrear && (
+                  <Link
+                    href="/dashboard/productos/nuevo"
+                    className="inline-flex h-[34px] items-center rounded-lg bg-[#004A94] px-4 text-xs font-bold text-white transition-colors hover:bg-[#003570]"
+                  >
+                    Crear el primero
+                  </Link>
+                )}
+          </div>
+        </div>
+      ) : vista === 'tarjetas' ? (
         // La misma card de Venta Rápida y del grid de Cotización: un producto
         // se tiene que ver igual en toda la web.
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
