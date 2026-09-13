@@ -407,8 +407,12 @@ function AperturaForm({ sedes, canManage, onOpened }: {
 
   const handleAbrir = async () => {
     setError('');
-    const m = parseFloat(monto);
-    if (monto === '' || isNaN(m) || m < 0) { setError('Ingresa el monto de apertura (≥ 0)'); return; }
+    // 🔴 El campo VACÍO es cero, no un error. Abrir sin efectivo en el cajón
+    // es el caso normal de quien cobra todo por Yape o tarjeta, y el app ya lo
+    // permite: su `CurrencyTextField` arranca en 0.00, así que ahí se aprieta
+    // Abrir y listo. La web rebotaba el vacío y obligaba a tipear un 0.
+    const m = monto.trim() === '' ? 0 : parseFloat(monto);
+    if (isNaN(m) || m < 0) { setError('El monto de apertura no puede ser negativo'); return; }
     if (!sedeId) { setError('Selecciona la sede'); return; }
     setIsSubmitting(true);
     try {
@@ -453,9 +457,10 @@ function AperturaForm({ sedes, canManage, onOpened }: {
           </div>
         )}
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Monto de apertura (efectivo) *</label>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Monto de apertura (efectivo)</label>
           <input className={inputClass} type="number" step="0.01" min="0" value={monto}
             onChange={e => setMonto(e.target.value)} placeholder="0.00" autoFocus />
+          <p className="mt-1 text-[10px] text-gray-400">Si lo dejás en blanco, la caja abre en S/ 0.00</p>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">Observaciones</label>
