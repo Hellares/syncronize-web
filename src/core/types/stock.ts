@@ -434,6 +434,8 @@ export interface AjustarStockDto {
   observaciones?: string;
   tipoDocumento?: string;
   numeroDocumento?: string;
+  /** Lote del que sale TODO (solo en una salida). Ver `LoteSalidaSelect`. */
+  loteId?: string;
 }
 
 // Auditoría de cambios de precio (enum TipoCambioPrecioSede del backend)

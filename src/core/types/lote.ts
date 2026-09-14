@@ -105,3 +105,27 @@ export function situacionDeLote(l: Lote, diasAlerta = 30): SituacionLote {
   if (dias < 0) return 'vencido';
   return dias <= diasAlerta ? 'por-vencer' : 'ok';
 }
+
+/**
+ * Un lote del que puede SALIR un ajuste manual
+ * (`GET /producto-stock/:id/lotes-salida`). Llegan en orden FEFO: el primero
+ * es el que el motor tomaría.
+ */
+export interface LoteSalida {
+  id: string;
+  codigo: string;
+  cantidadActual: number;
+  cantidadInicial: number;
+  precioCosto: number;
+  fechaIngreso: string;
+  fechaVencimiento: string | null;
+  estado: EstadoLote;
+  nombreProveedor: string | null;
+  compraCodigo: string | null;
+}
+
+/** Con el motor de lotes apagado `lotes` llega vacío y no se ofrece elegir. */
+export interface LotesSalidaResponse {
+  motorActivo: boolean;
+  lotes: LoteSalida[];
+}

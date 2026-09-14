@@ -27,6 +27,7 @@ import type {
   VerificacionPreciosResponse,
   MonitorResponse,
 } from '@/core/types/stock';
+import type { LotesSalidaResponse } from '@/core/types/lote';
 
 function buildStockParams(filtros: StockFiltros): string {
   const params = new URLSearchParams();
@@ -89,6 +90,12 @@ export async function getStockTodasSedes(productoId: string, varianteId?: string
 
 export async function ajustarStock(id: string, data: AjustarStockDto): Promise<ProductoStock> {
   const res = await apiClient.put<ProductoStock>(STOCK_ENDPOINTS.AJUSTAR(id), data);
+  return res.data;
+}
+
+/** Lotes de los que puede salir un ajuste, en orden FEFO. Vacío con el motor apagado. */
+export async function getLotesSalida(id: string): Promise<LotesSalidaResponse> {
+  const res = await apiClient.get<LotesSalidaResponse>(STOCK_ENDPOINTS.LOTES_SALIDA(id));
   return res.data;
 }
 

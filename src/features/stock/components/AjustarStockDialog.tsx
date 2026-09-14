@@ -5,6 +5,7 @@ import { AxiosError } from 'axios';
 import type { ProductoStock, AjustarStockDto, TipoMovimientoStock } from '@/core/types/stock';
 import { nombreProductoStock, stockDisponibleVenta } from '@/core/types/stock';
 import { getGroupedAdjustmentTypes } from './movement-types';
+import LoteSalidaSelect from './LoteSalidaSelect';
 import * as stockService from '../services/stock-service';
 
 interface Props {
@@ -37,6 +38,8 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
   const [tipoDocumento, setTipoDocumento] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [observaciones, setObservaciones] = useState('');
+  // Lote del que sale entero, o null = automatico. Solo cuenta en una salida.
+  const [loteId, setLoteId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -59,6 +62,8 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
         ...(observaciones && { observaciones }),
         ...(tipoDocumento && { tipoDocumento }),
         ...(numeroDocumento && { numeroDocumento }),
+        // Una entrada crea su propio lote: el elegido solo viaja en una salida.
+        ...(loteId && !selectedInfo?.isEntry && { loteId }),
       };
       await stockService.ajustarStock(stock.id, data);
       handleClose();
@@ -80,6 +85,7 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
     setTipoDocumento('');
     setNumeroDocumento('');
     setObservaciones('');
+    setLoteId(null);
     setError('');
     onClose();
   };
@@ -116,6 +122,18 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
             <label className={LABEL}>Cantidad *</label>
             <input className={INPUT_STD} type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="0" />
           </div>
+
+          {/* De que lote sale. Solo en una salida; sin motor de lotes no se dibuja. */}
+          {selectedInfo && !selectedInfo.isEntry && (
+            <LoteSalidaSelect
+              productoStockId={stock.id}
+              cantidad={cantidadNum}
+              value={loteId}
+              onChange={setLoteId}
+              inputClassName={INPUT_STD}
+              labelClassName={LABEL}
+            />
+          )}
 
           {/* Preview */}
           {cantidadNum > 0 && selectedInfo && (

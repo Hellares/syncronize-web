@@ -73,6 +73,7 @@ export const STOCK_ENDPOINTS = {
   BY_VARIANTE_SEDE: (varianteId: string, sedeId: string) => `/producto-stock/variante/${varianteId}/sede/${sedeId}`,
   TODAS_SEDES: (productoId: string) => `/producto-stock/producto/${productoId}/todas-sedes`,
   AJUSTAR: (id: string) => `/producto-stock/${id}/ajustar`,
+  LOTES_SALIDA: (id: string) => `/producto-stock/${id}/lotes-salida`,
   UPDATE_PRECIOS: (id: string) => `/producto-stock/${id}/precios`,
   MOVIMIENTOS: (id: string) => `/producto-stock/${id}/movimientos`,
   ALERTAS_BAJO_MINIMO: '/producto-stock/alertas/bajo-minimo',
