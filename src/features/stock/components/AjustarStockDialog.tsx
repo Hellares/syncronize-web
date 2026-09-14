@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AxiosError } from 'axios';
 import type { ProductoStock, AjustarStockDto, TipoMovimientoStock } from '@/core/types/stock';
 import { nombreProductoStock, stockDisponibleVenta } from '@/core/types/stock';
 import { getGroupedAdjustmentTypes } from './movement-types';
@@ -62,8 +63,11 @@ export default function AjustarStockDialog({ isOpen, stock, onSuccess, onClose }
       await stockService.ajustarStock(stock.id, data);
       handleClose();
       onSuccess();
-    } catch {
-      setError('Error al ajustar el stock');
+    } catch (err) {
+      // El backend explica POR QUÉ rechaza (tipo con flujo propio, signo,
+      // stock insuficiente): taparlo con un mensaje genérico no deja corregir.
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setError((Array.isArray(msg) ? msg.join(', ') : msg) || 'Error al ajustar el stock');
     } finally {
       setIsSubmitting(false);
     }

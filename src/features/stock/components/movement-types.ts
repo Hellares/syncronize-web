@@ -46,11 +46,18 @@ export const MOVEMENT_TYPES: MovementTypeInfo[] = [
   { value: 'SALIDA_DONACION', label: 'Donación', category: 'Otros', color: 'bg-pink-100 text-pink-700', isEntry: false },
 ];
 
-// Types suitable for manual adjustments (exclude system-generated ones)
-export const ADJUSTMENT_TYPES = MOVEMENT_TYPES.filter(t =>
-  ['Ajustes', 'Compras', 'Garantía'].includes(t.category) ||
-  t.value === 'SALIDA_DONACION'
-);
+// Lo que se puede registrar a mano. Espejo de `TIPOS_AJUSTE_MANUAL` del backend
+// (`producto-stock/tipos-ajuste-manual.ts`), que rechaza el resto con 400.
+//
+// 🔴 Antes entraban las categorias Compras y Garantia enteras. El ajuste solo
+// mueve `stockActual`: "Entrada Compra" sin compra detras entraba stock SIN
+// lote, y Garantia/Reparacion registraban como ajuste lo que en su modulo mueve
+// el danado o la garantia. Cada uno tiene su propio flujo.
+const TIPOS_AJUSTE: TipoMovimientoStock[] = [
+  'AJUSTE_ENTRADA', 'AJUSTE_ENCONTRADO',
+  'AJUSTE_SALIDA', 'AJUSTE_MERMA', 'AJUSTE_PERDIDA', 'SALIDA_BAJA', 'SALIDA_DONACION',
+];
+export const ADJUSTMENT_TYPES = MOVEMENT_TYPES.filter(t => TIPOS_AJUSTE.includes(t.value));
 
 export function getMovementTypeInfo(tipo: TipoMovimientoStock): MovementTypeInfo {
   return MOVEMENT_TYPES.find(t => t.value === tipo) ?? {
@@ -58,11 +65,14 @@ export function getMovementTypeInfo(tipo: TipoMovimientoStock): MovementTypeInfo
   };
 }
 
+// Agrupados por lo que le hacen al stock, no por categoria: la lista ya es toda
+// de ajustes, y "Donacion" caia sola en un grupo "Otros".
 export function getGroupedAdjustmentTypes(): Record<string, MovementTypeInfo[]> {
   const grouped: Record<string, MovementTypeInfo[]> = {};
   for (const t of ADJUSTMENT_TYPES) {
-    if (!grouped[t.category]) grouped[t.category] = [];
-    grouped[t.category].push(t);
+    const grupo = t.isEntry ? 'Entradas' : 'Salidas';
+    if (!grouped[grupo]) grouped[grupo] = [];
+    grouped[grupo].push(t);
   }
   return grouped;
 }
