@@ -14,7 +14,7 @@ import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
 import EvidenciaVentaCard from './EvidenciaVentaCard';
-import CobroYapeModal from './CobroYapeModal';
+import CobroYapeModal, { tramosPorMetodo, type TramoYape } from './CobroYapeModal';
 import Numpad from './Numpad';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
@@ -172,7 +172,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   // 409 VENTA_REPETIDA: la misma cajera cobró lo mismo hace menos de 3 min.
   const [ventaRepetida, setVentaRepetida] = useState<VentaRepetida | null>(null);
   // Cobro Yape con QR abierto: la venta ya existe y espera el pago.
-  const [cobroYape, setCobroYape] = useState<{ ventaId: string; codigo: string; monto: number; metodo: 'YAPE' | 'PLIN' } | null>(null);
+  const [cobroYape, setCobroYape] = useState<{ ventaId: string; codigo: string; montoTotal: number; tramos: TramoYape[]; yaCobrado: number } | null>(null);
   const ultimoIntento = useRef<OpcionesCobro>({});
 
   const esCredito = condicionPago === 'CREDITO';
@@ -443,29 +443,50 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         ...(opts.ventaRepetidaConfirmada && { ventaRepetidaConfirmada: true }),
       };
 
-      // Cobro Yape/Plin con QR y validación (fase 1, como la hoja del app):
-      // 100% Yape o 100% Plin, sin combos (el registro diferido no los
-      // soporta) y hasta el límite por transacción. Lo demás —mixto, tramos—
-      // sigue cobrándose directo como siempre.
-      const metodoYape = pagos[0]?.metodoPago;
-      const viaQr = yapeQrHabilitado && !esCredito && pagos.length > 0
-        && (metodoYape === 'YAPE' || metodoYape === 'PLIN')
-        && pagos.every(p => p.metodoPago === metodoYape)
-        && !items.some(it => it.origenComboId)
-        && totalPagado <= yapeMaxPorTransaccion + TOLERANCIA;
-      if (viaQr) {
-        const venta = await ventaService.crearVentaYapeDiferida({
-          ...payload,
-          // Sin pagos: la venta nace pendiente y el pago lo registra el cobro.
-          metodoPago: metodoYape as MetodoPagoVenta,
-          montoRecibido: undefined,
-          pagos: undefined,
-        });
+      // Cobro Yape/Plin con QR y validación (como la hoja del app): la porción
+      // Yape/Plin se cobra en el modal, en tramos hasta el límite por
+      // transacción; lo demás (efectivo, tarjeta…) se registra al crear.
+      const pagosQr = pagos.filter(p => p.metodoPago === 'YAPE' || p.metodoPago === 'PLIN');
+      const pagosOtros = pagos.filter(p => p.metodoPago !== 'YAPE' && p.metodoPago !== 'PLIN');
+      const montoOtros = pagosOtros.reduce((a, p) => a + p.monto, 0);
+      // Solo lo que falta tras los otros medios: si se cargó de más en Yape,
+      // al cliente no se le cobra de más.
+      const montoQr = Math.round(
+        Math.min(pagosQr.reduce((a, p) => a + p.monto, 0), totalACobrar - montoOtros) * 100,
+      ) / 100;
+      if (yapeQrHabilitado && !esCredito && montoQr > TOLERANCIA) {
+        const tramos = tramosPorMetodo(pagosQr, montoQr);
+        // Registro DIFERIDO (comprobante al pagar; cancelar la borra) solo
+        // para 100% Yape/Plin sin combos, como el app. Mixto o con combos:
+        // se crea con los otros medios ya cobrados y el modal cobra el resto.
+        const diferida = pagosOtros.length === 0 && !items.some(it => it.origenComboId);
+        const venta = diferida
+          ? await ventaService.crearVentaYapeDiferida({
+              ...payload,
+              // Sin pagos: la venta nace pendiente y el cobro registra cada tramo.
+              metodoPago: tramos[0].metodo,
+              montoRecibido: undefined,
+              pagos: undefined,
+            })
+          : await ventaService.crearYCobrar({
+              ...payload,
+              ...(pagosOtros.length > 0
+                ? {
+                    metodoPago: pagosOtros[0].metodoPago as MetodoPagoVenta,
+                    montoRecibido: montoOtros,
+                    pagos: pagosOtros as PagoVentaDto[],
+                    // La bancarización ya se validó contando la porción Yape
+                    // como medio de pago: el backend solo ve lo no-Yape.
+                    aceptaRiesgoBancarizacion: true,
+                  }
+                : { metodoPago: tramos[0].metodo, montoRecibido: undefined, pagos: undefined }),
+            });
         setCobroYape({
           ventaId: venta.id,
           codigo: venta.codigo,
-          monto: Math.round(Math.min(totalPagado, totalACobrar) * 100) / 100,
-          metodo: metodoYape,
+          montoTotal: montoQr,
+          tramos,
+          yaCobrado: montoOtros,
         });
         return;
       }
@@ -543,7 +564,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, setItems, pagos, sedeId, userId, esAutorizador, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, totalACobrar, evidenciaIds, onSuccess, yapeQrHabilitado, yapeMaxPorTransaccion]);
+  }, [items, setItems, pagos, sedeId, userId, esAutorizador, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, totalACobrar, evidenciaIds, onSuccess, yapeQrHabilitado]);
 
   const handleCobrar = () => {
     setError('');
@@ -1172,8 +1193,10 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         <CobroYapeModal
           ventaId={cobroYape.ventaId}
           codigo={cobroYape.codigo}
-          monto={cobroYape.monto}
-          metodo={cobroYape.metodo}
+          montoTotal={cobroYape.montoTotal}
+          tramos={cobroYape.tramos}
+          maxPorTransaccion={yapeMaxPorTransaccion}
+          yaCobradoOtrosMedios={cobroYape.yaCobrado}
           onPagada={(venta) => {
             setCobroYape(null);
             onSuccess(venta);

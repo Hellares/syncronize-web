@@ -157,7 +157,7 @@ export async function anularVenta(id: string, data: { autorizadoPorId: string; m
 /** Pago de venta a crédito (cuotaVentaId opcional para cuota específica).
  *  También aprueba a mano un cobro Yape: con `yapePagoId` (un Yape del buzón
  *  elegido en el cobro) el backend lo verifica y guarda su referencia real. */
-export async function procesarPago(id: string, data: { metodoPago: MetodoPagoVenta; monto: number; referencia?: string; cuotaVentaId?: string; yapePagoId?: string }): Promise<Venta> {
+export async function procesarPago(id: string, data: { metodoPago: MetodoPagoVenta; monto: number; referencia?: string; banco?: string; cuotaVentaId?: string; yapePagoId?: string; aceptaRiesgoBancarizacion?: boolean }): Promise<Venta> {
   const res = await apiClient.post<Venta>(`/ventas/${id}/pago`, data);
   return res.data;
 }
