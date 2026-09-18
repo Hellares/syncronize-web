@@ -1,5 +1,5 @@
 import { apiClient } from '@/core/api/client';
-import type { CrearYCobrarVentaDto, Venta, VentaFiltros, VentaEnvio, VentaEnvioDto, ClienteResueltoDni, ClienteResueltoRuc, MetodoPagoVenta } from '@/core/types/venta';
+import type { CrearYCobrarVentaDto, Venta, VentaFiltros, VentaEnvio, VentaEnvioDto, ClienteResueltoDni, ClienteResueltoRuc, MetodoPagoVenta, CobroYapeTramo, YapePrevio } from '@/core/types/venta';
 
 /** Aplana relaciones anidadas a los campos planos que usa la UI
  *  (paridad VentaModel.fromJson de Flutter: comprobante.codigoGenerado, sede.nombre, etc.) */
@@ -51,6 +51,43 @@ export async function crearYCobrar(data: CrearYCobrarVentaDto): Promise<Venta> {
 export async function getVenta(id: string): Promise<Venta> {
   const res = await apiClient.get(`/ventas/${id}`);
   return normalizeVenta(res.data);
+}
+
+// --- Cobro Yape/Plin con QR y validación (paridad con la hoja del app) ---
+
+/** Crea la venta Yape/Plin con registro DIFERIDO: nace CONFIRMADA con el stock
+ *  descontado y SIN comprobante (se emite al confirmarse el pago). Si se
+ *  cancela o expira sin pagar, se borra y el stock vuelve. Sin combos. */
+export async function crearVentaYapeDiferida(data: CrearYCobrarVentaDto): Promise<Venta> {
+  const res = await apiClient.post('/ventas/cobrar-yape', data);
+  return normalizeVenta(res.data);
+}
+
+/** Genera el cobro en api-yape por `monto` y devuelve el monto único a pagar
+ *  (con los céntimos de ruteo si hay otro cobro igual pendiente) y el QR. */
+export async function cobroYape(ventaId: string, monto: number): Promise<CobroYapeTramo> {
+  const res = await apiClient.post<CobroYapeTramo>(`/ventas/${ventaId}/cobro-yape`, { monto });
+  return {
+    ...res.data,
+    payAmount: res.data.payAmount != null ? Number(res.data.payAmount) : undefined,
+  };
+}
+
+/** Yapes que YA entraron al buzón por `monto` y siguen sin usar: el cliente
+ *  pagó ANTES de la venta. La cajera elige uno; nunca se aplica solo. */
+export async function pagosYapePrevios(ventaId: string, monto: number): Promise<YapePrevio[]> {
+  const res = await apiClient.get<{ pagos: YapePrevio[] }>(
+    `/ventas/${ventaId}/cobro-yape/pagos-previos`,
+    { params: { monto } },
+  );
+  return res.data?.pagos ?? [];
+}
+
+/** Cancela el cobro Yape pendiente: sin pagos BORRA la venta (el stock vuelve);
+ *  `yaPagada` si el pago entró justo antes (carrera con el webhook). */
+export async function cancelarCobroYape(ventaId: string): Promise<{ yaPagada: boolean; anulada: boolean; devuelto?: number }> {
+  const res = await apiClient.post(`/ventas/${ventaId}/cancelar-cobro-yape`);
+  return res.data;
 }
 
 // --- Gestión de ventas (V3) ---
@@ -117,8 +154,10 @@ export async function anularVenta(id: string, data: { autorizadoPorId: string; m
   return res.data;
 }
 
-/** Pago de venta a crédito (cuotaVentaId opcional para cuota específica) */
-export async function procesarPago(id: string, data: { metodoPago: MetodoPagoVenta; monto: number; referencia?: string; cuotaVentaId?: string }): Promise<Venta> {
+/** Pago de venta a crédito (cuotaVentaId opcional para cuota específica).
+ *  También aprueba a mano un cobro Yape: con `yapePagoId` (un Yape del buzón
+ *  elegido en el cobro) el backend lo verifica y guarda su referencia real. */
+export async function procesarPago(id: string, data: { metodoPago: MetodoPagoVenta; monto: number; referencia?: string; cuotaVentaId?: string; yapePagoId?: string }): Promise<Venta> {
   const res = await apiClient.post<Venta>(`/ventas/${id}/pago`, data);
   return res.data;
 }

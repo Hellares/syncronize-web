@@ -161,4 +161,8 @@ export interface EmpresaContext {
   permissions: EmpresaPermissions;
   statistics: EmpresaStatistics;
   planLimits?: Record<string, unknown>;
+  /** Features premium vigentes (ej. YAPE_QR: cobro Yape con QR y validación). */
+  caracteristicas?: Record<string, boolean>;
+  /** Límites de la cuenta Yape/Plin (el cobro con QR va hasta el máximo por transacción). */
+  yapeLimites?: { maxPorTransaccion: number; maxPorDia: number };
 }

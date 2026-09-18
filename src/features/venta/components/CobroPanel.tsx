@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { AxiosError } from 'axios';
-import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta } from '@/core/types/venta';
+import type { VentaItem, Venta, PagoVentaDto, DivergenciaPrecio, MetodoPagoVenta, CrearYCobrarVentaDto, VentaRepetida } from '@/core/types/venta';
 import { requiereAutorizacionBajoCosto, recalcularNivelesEnLote, UMBRAL_BANCARIZACION_PEN, FRECUENCIAS, CUOTAS_OPCIONES, labelFrecuencia } from '@/core/types/venta';
 import type { Emisor } from '@/core/types/facturacion';
 import * as facturacionService from '@/features/facturacion/services/facturacion-service';
@@ -14,6 +14,7 @@ import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
 import EvidenciaVentaCard from './EvidenciaVentaCard';
+import CobroYapeModal from './CobroYapeModal';
 import Numpad from './Numpad';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
@@ -36,7 +37,22 @@ function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function haceTanto(segundos?: number): string {
+  if (segundos == null) return 'Hace un momento';
+  return segundos < 60 ? `Hace ${segundos} s` : `Hace ${Math.floor(segundos / 60)} min`;
+}
+
 interface InitialCliente { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
+
+/** Lo que el cajero ya confirmó en este cobro. Los reintentos (vencido,
+ *  venta repetida) EXTIENDEN el último intento: si lo reemplazaran, se
+ *  perdería una confirmación anterior y volvería a preguntar en bucle. */
+interface OpcionesCobro {
+  aceptaRiesgo?: boolean;
+  bajoCostoAuthId?: string;
+  vencidoAuthId?: string;
+  ventaRepetidaConfirmada?: boolean;
+}
 
 interface Props {
   items: VentaItem[];
@@ -53,8 +69,13 @@ interface Props {
 
 export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess, adelantoAplicado = 0, initialCliente }: Props) {
   const { state: authState } = useAuth();
-  const { userRoles, empresa } = useEmpresa();
+  const { userRoles, empresa, state: empresaState } = useEmpresa();
   const empresaId = empresa?.id ?? '';
+  // Cobro Yape con QR y validación: característica premium, igual que en el
+  // app. Sin ella, Yape se cobra como un pago manual más (como siempre).
+  const empresaCtx = empresaState.status === 'loaded' ? empresaState.context : null;
+  const yapeQrHabilitado = empresaCtx?.caracteristicas?.YAPE_QR === true;
+  const yapeMaxPorTransaccion = empresaCtx?.yapeLimites?.maxPorTransaccion ?? 500;
   const userId = authState.status === 'authenticated' ? authState.user.id : '';
   const esAutorizador = useMemo(() => userRoles.some(r => r.isActive && ROLES_AUTORIZADORES.includes(r.rol)), [userRoles]);
 
@@ -148,6 +169,11 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [lineasVencidas, setLineasVencidas] = useState<Array<{ descripcion: string; lote: string; vencio: string; unidades?: number }>>([]);
   // Aviso para quien SÍ puede autorizar: no pide contraseña, pide que mire.
   const [showAvisoVencido, setShowAvisoVencido] = useState(false);
+  // 409 VENTA_REPETIDA: la misma cajera cobró lo mismo hace menos de 3 min.
+  const [ventaRepetida, setVentaRepetida] = useState<VentaRepetida | null>(null);
+  // Cobro Yape con QR abierto: la venta ya existe y espera el pago.
+  const [cobroYape, setCobroYape] = useState<{ ventaId: string; codigo: string; monto: number; metodo: 'YAPE' | 'PLIN' } | null>(null);
+  const ultimoIntento = useRef<OpcionesCobro>({});
 
   const esCredito = condicionPago === 'CREDITO';
   /** 🔑 Derivado SIEMPRE: es lo que hace que `plazo ÷ cuotas` le devuelva al
@@ -347,11 +373,12 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     && totalEfectivo > 0 && totalBancarizado < UMBRAL_BANCARIZACION_PEN;
 
   // --- Cobrar ---
-  const construirYEnviar = useCallback(async (opts?: { aceptaRiesgo?: boolean; bajoCostoAuthId?: string; vencidoAuthId?: string }) => {
+  const construirYEnviar = useCallback(async (opts: OpcionesCobro = {}) => {
+    ultimoIntento.current = opts;
     setIsSubmitting(true);
     setError('');
     try {
-      const venta = await ventaService.crearYCobrar({
+      const payload: CrearYCobrarVentaDto = {
         canalVenta: 'POS',
         sedeId,
         ...(evidenciaIds.length > 0 && { evidenciaIds }),
@@ -410,11 +437,48 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         // reusar uno haría que autorizar un precio bajo autorizara además
         // vender mercadería pasada de fecha.
         ...(opts?.vencidoAuthId && { ventaVencidaAutorizadaPorId: opts.vencidoAuthId }),
-      });
+        // Esta pantalla sabe mostrar el aviso de venta repetida (el backend
+        // solo lo controla si se le pide).
+        avisarVentaRepetida: true,
+        ...(opts.ventaRepetidaConfirmada && { ventaRepetidaConfirmada: true }),
+      };
+
+      // Cobro Yape/Plin con QR y validación (fase 1, como la hoja del app):
+      // 100% Yape o 100% Plin, sin combos (el registro diferido no los
+      // soporta) y hasta el límite por transacción. Lo demás —mixto, tramos—
+      // sigue cobrándose directo como siempre.
+      const metodoYape = pagos[0]?.metodoPago;
+      const viaQr = yapeQrHabilitado && !esCredito && pagos.length > 0
+        && (metodoYape === 'YAPE' || metodoYape === 'PLIN')
+        && pagos.every(p => p.metodoPago === metodoYape)
+        && !items.some(it => it.origenComboId)
+        && totalPagado <= yapeMaxPorTransaccion + TOLERANCIA;
+      if (viaQr) {
+        const venta = await ventaService.crearVentaYapeDiferida({
+          ...payload,
+          // Sin pagos: la venta nace pendiente y el pago lo registra el cobro.
+          metodoPago: metodoYape as MetodoPagoVenta,
+          montoRecibido: undefined,
+          pagos: undefined,
+        });
+        setCobroYape({
+          ventaId: venta.id,
+          codigo: venta.codigo,
+          monto: Math.round(Math.min(totalPagado, totalACobrar) * 100) / 100,
+          metodo: metodoYape,
+        });
+        return;
+      }
+
+      const venta = await ventaService.crearYCobrar(payload);
       onSuccess(venta);
     } catch (err) {
       if (err instanceof AxiosError && err.response?.status === 409) {
         const data = err.response.data;
+        if (data?.code === 'VENTA_REPETIDA' && data?.venta) {
+          setVentaRepetida(data.venta);
+          return;
+        }
         if (data?.code === 'PRECIO_DESACTUALIZADO' && data?.divergencias) {
           setDivergenciasPrecio(data.divergencias);
           return;
@@ -479,7 +543,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     } finally {
       setIsSubmitting(false);
     }
-  }, [items, setItems, pagos, sedeId, userId, esAutorizador, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, evidenciaIds, onSuccess]);
+  }, [items, setItems, pagos, sedeId, userId, esAutorizador, clienteId, clienteEmpresaId, clienteNombre, documento, tipoComprobante, emisorSel, esCredito, plazoDias, numeroCuotas, totalPagado, totalACobrar, evidenciaIds, onSuccess, yapeQrHabilitado, yapeMaxPorTransaccion]);
 
   const handleCobrar = () => {
     setError('');
@@ -1050,7 +1114,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               <button
                 onClick={() => {
                   setShowAvisoVencido(false);
-                  construirYEnviar({ vencidoAuthId: userId });
+                  construirYEnviar({ ...ultimoIntento.current, vencidoAuthId: userId });
                 }}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700">
                 Vender igual
@@ -1058,6 +1122,67 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             </div>
           </div>
         </div>
+      )}
+
+      {/* 409 VENTA_REPETIDA (caso 814/815: la cajera rehizo una venta ya
+          cobrada para agregarle cliente y envío, y el stock salió dos veces).
+          No bloquea: dos clientes pueden llevar lo mismo. La anterior se abre
+          en otra pestaña para no perder el carrito. */}
+      {ventaRepetida && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-amber-700">⚠ ¿Es otra venta?</h3>
+            <p className="mt-2 text-xs text-gray-600">
+              {haceTanto(ventaRepetida.segundos)} cobraste una venta con los <strong>mismos productos</strong>:
+            </p>
+            <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-900">
+              {[
+                ventaRepetida.codigo,
+                ventaRepetida.nombreCliente,
+                ventaRepetida.total != null ? `S/ ${fmt(ventaRepetida.total)}` : null,
+              ].filter(Boolean).join(' · ')}
+            </div>
+            <p className="mt-2 text-[11px] text-gray-500">
+              Si querías agregarle el cliente o el envío, hacelo sobre esa venta: no hace falta cobrar de nuevo.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button onClick={() => setVentaRepetida(null)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button onClick={() => window.open(`/dashboard/ventas/${ventaRepetida.id}`, '_blank', 'noopener')}
+                className="rounded-lg border border-amber-300 px-3 py-2 text-xs text-amber-800 hover:bg-amber-50">
+                Ver la anterior ↗
+              </button>
+              <button
+                onClick={() => {
+                  setVentaRepetida(null);
+                  construirYEnviar({ ...ultimoIntento.current, ventaRepetidaConfirmada: true });
+                }}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700">
+                Es otra, cobrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cobro Yape/Plin con QR: la venta ya existe y espera el pago. */}
+      {cobroYape && (
+        <CobroYapeModal
+          ventaId={cobroYape.ventaId}
+          codigo={cobroYape.codigo}
+          monto={cobroYape.monto}
+          metodo={cobroYape.metodo}
+          onPagada={(venta) => {
+            setCobroYape(null);
+            onSuccess(venta);
+          }}
+          onCancelada={(mensaje) => {
+            setCobroYape(null);
+            setError(mensaje);
+          }}
+        />
       )}
 
       {/* Alta del cliente cuando la fuente oficial no lo tiene. Al crearlo
@@ -1126,7 +1251,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         }
         onAuthorized={(auth) => {
           setShowAutorizacionVenc(false);
-          construirYEnviar({ vencidoAuthId: auth.autorizadoPorId });
+          construirYEnviar({ ...ultimoIntento.current, vencidoAuthId: auth.autorizadoPorId });
         }}
         onClose={() => setShowAutorizacionVenc(false)}
       />

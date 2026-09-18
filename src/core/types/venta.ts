@@ -99,6 +99,43 @@ export interface CrearYCobrarVentaDto {
   descuentoAutorizadoPorId?: string;
   /** Requerido si alguna línea tiene margen negativo y NO está en liquidación */
   ventaBajoCostoAutorizadaPorId?: string;
+  /** Quién autorizó vender producto pasado de su fecha de consumo preferente */
+  ventaVencidaAutorizadaPorId?: string;
+  /** Este cliente sabe mostrar el aviso de venta repetida (409 VENTA_REPETIDA) */
+  avisarVentaRepetida?: boolean;
+  /** La cajera vio el aviso de venta repetida y confirmó que es OTRA venta */
+  ventaRepetidaConfirmada?: boolean;
+}
+
+/** Venta que la misma cajera cobró hace menos de 3 min con los mismos
+ *  productos (409 VENTA_REPETIDA). */
+export interface VentaRepetida {
+  id: string;
+  codigo: string;
+  nombreCliente?: string | null;
+  total?: number;
+  estado?: string;
+  segundos?: number;
+}
+
+/** Yape que ya entró al buzón por el monto del cobro ANTES de la venta. */
+export interface YapePrevio {
+  id: string;
+  senderName: string | null;
+  amount: number;
+  provider: string | null;
+  receivedAt: string;
+  /** El remitente calza con el cliente de la venta */
+  calzaNombre: boolean;
+}
+
+/** Respuesta de POST /ventas/:id/cobro-yape (sin api-yape: habilitado false). */
+export interface CobroYapeTramo {
+  habilitado: boolean;
+  payAmount?: number;
+  chargeId?: string;
+  qrYapeUrl: string | null;
+  qrPlinUrl: string | null;
 }
 
 /** 409 de recálculo seguro: divergencias precio cliente vs server */
