@@ -6,6 +6,7 @@ import type { CampoServicio, TipoCampoServicio, CategoriaCampo, SubCampoObjeto, 
 import {
   TIPOS_CAMPO, TIPO_CAMPO_LABEL, TIPOS_CAMPO_CON_OPCIONES,
   CATEGORIAS_CAMPO, CATEGORIA_CAMPO_LABEL, SUB_CAMPO_TIPO_LABEL, opcionesAStrings,
+  leerArbolDependiente, textoAArbol, arbolATexto, profundidadArbol,
 } from '@/core/types/servicio-catalogo';
 import * as service from '@/features/ordenes-servicio/services/configuracion-campos-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
@@ -140,11 +141,23 @@ function CampoFormDialog({ campo, onClose, onSaved }: { campo: CampoServicio | n
         }))
       : []
   );
+  // Selección en cascada: los niveles por coma y el árbol como texto
+  // indentado (2 espacios por nivel). Se edita como texto porque así se PEGA
+  // una lista de modelos, que es como se cargan estas tablas de verdad.
+  const cascadaInicial = campo?.tipoCampo === 'OPCION_DEPENDIENTE'
+    ? leerArbolDependiente(campo.opciones)
+    : null;
+  const [nivelesTxt, setNivelesTxt] = useState(cascadaInicial?.niveles.join(', ') ?? '');
+  const [arbolTxt, setArbolTxt] = useState(cascadaInicial ? arbolATexto(cascadaInicial.arbol) : '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const usaOpciones = TIPOS_CAMPO_CON_OPCIONES.includes(tipoCampo);
   const esObjeto = tipoCampo === 'OBJETO';
+  const esCascada = tipoCampo === 'OPCION_DEPENDIENTE';
+  const niveles = nivelesTxt.split(',').map(s => s.trim()).filter(Boolean);
+  const arbolCascada = textoAArbol(arbolTxt);
+  const profCascada = profundidadArbol(arbolCascada);
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
 
   const submit = async () => {
@@ -152,8 +165,20 @@ function CampoFormDialog({ campo, onClose, onSaved }: { campo: CampoServicio | n
     if (!nombre.trim()) { setError('Ingresa el nombre del campo'); return; }
     if (esObjeto && subCampos.filter(s => s.nombre.trim()).length === 0) { setError('Agrega al menos un sub-campo'); return; }
 
+    if (esCascada) {
+      if (niveles.length === 0) { setError('Ponele nombre a los niveles (ej: Fabricante, Familia, Modelo)'); return; }
+      if (arbolCascada.length === 0) { setError('Cargá al menos una opción del primer nivel'); return; }
+      // El backend rechaza lo mismo: acá se avisa antes de mandar.
+      if (profCascada > niveles.length) {
+        setError(`Hay opciones indentadas más allá del último nivel ("${niveles[niveles.length - 1]}")`);
+        return;
+      }
+    }
+
     let opciones: unknown = undefined;
-    if (usaOpciones) {
+    if (esCascada) {
+      opciones = { niveles, arbol: arbolCascada };
+    } else if (usaOpciones) {
       opciones = opcionesTxt.split(',').map(s => s.trim()).filter(Boolean);
     } else if (esObjeto) {
       opciones = subCampos
@@ -221,6 +246,29 @@ function CampoFormDialog({ campo, onClose, onSaved }: { campo: CampoServicio | n
               {CATEGORIAS_CAMPO.map(c => <option key={c} value={c}>{CATEGORIA_CAMPO_LABEL[c]}</option>)}
             </select>
           </div>
+
+          {esCascada && (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Niveles (separados por coma)</label>
+                <input className={inputClass} value={nivelesTxt} onChange={e => setNivelesTxt(e.target.value)} placeholder="Fabricante, Familia, Modelo" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">Opciones (una por línea, indentá con 2 espacios)</label>
+                <textarea className={`${inputClass} resize-y font-mono`} rows={8} value={arbolTxt} onChange={e => setArbolTxt(e.target.value)}
+                  placeholder={'QUALCOMM\n  SNAPDRAGON\n    8 Gen 3\n    888\nINTEL\n  CORE\n    i5-12400'} />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Cada sangría es el nivel siguiente: lo que cuelga de QUALCOMM solo aparece si se eligió QUALCOMM.
+                </p>
+                {arbolCascada.length > 0 && (
+                  <p className={`mt-1 text-[10px] ${profCascada > niveles.length && niveles.length > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {arbolCascada.length} en el primer nivel · {profCascada} {profCascada === 1 ? 'nivel' : 'niveles'} de profundidad
+                    {niveles.length > 0 && ` · declarados ${niveles.length}`}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           {usaOpciones && (
             <>

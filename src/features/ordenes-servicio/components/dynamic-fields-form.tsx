@@ -8,7 +8,9 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { CampoServicio, TipoCampoServicio } from '@/core/types/servicio-catalogo';
-import { opcionesAStrings } from '@/core/types/servicio-catalogo';
+import {
+  opcionesAStrings, leerArbolDependiente, hijosDeRuta, SEP_DEPENDIENTE,
+} from '@/core/types/servicio-catalogo';
 
 // Estilo estándar de la web (ver feedback_web_estilo_input_std): 30px, r6,
 // fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra.
@@ -95,6 +97,17 @@ export function validarCamposRequeridos(campos: CampoServicio[], datos: Record<s
     // desde la app o el detalle de la orden.
     if (TIPOS_SOLO_APP[c.tipoCampo] !== undefined || c.tipoCampo === 'TABLA') continue;
     if (c.esRequerido && esVacio(datos[c.nombre])) return `El campo "${c.nombre}" es requerido`;
+    // Cascada a medias: no está vacía pero la rama no llegó al final, y el
+    // backend la rechaza. Mejor decirlo acá, con el nivel que falta.
+    if (c.tipoCampo === 'OPCION_DEPENDIENTE' && !esVacio(datos[c.nombre])) {
+      const arbol = leerArbolDependiente(c.opciones);
+      if (arbol) {
+        const ruta = String(datos[c.nombre]).split('/').map((t) => t.trim()).filter(Boolean);
+        if (hijosDeRuta(arbol, ruta).length > 0) {
+          return `Falta elegir "${arbol.niveles[ruta.length] ?? 'el último nivel'}" en el campo "${c.nombre}"`;
+        }
+      }
+    }
   }
   return null;
 }
@@ -254,6 +267,9 @@ function CampoInput({ campo, value, onChange }: {
     case 'OPCION_SIMPLES':
       return wrap(<OpcionSimple campo={campo} value={value} onChange={onChange} />);
 
+    case 'OPCION_DEPENDIENTE':
+      return wrap(<CascadaDependiente campo={campo} value={value} onChange={onChange} />);
+
     case 'OPCION_MULTIPLE':
     case 'CHECKBOX_MULTIPLE':
       return wrap(<MultiSelect campo={campo} value={value} onChange={onChange} />);
@@ -318,6 +334,57 @@ function inputTypeOf(tipo: TipoCampoServicio): string {
 }
 
 // ───────────────────────── opción simple (con "Otro") ─────────────────────────
+
+/**
+ * Selección en CASCADA: un combo por nivel, cada uno filtrado por el
+ * anterior. El valor que se guarda es la ruta unida por " / ".
+ *
+ * 🔴 Elegir de nuevo un nivel de arriba BORRA los de abajo: si no, quedaba
+ * "INTEL / SNAPDRAGON / 888", una rama que no existe y que el backend
+ * rechaza al guardar la orden.
+ */
+function CascadaDependiente({ campo, value, onChange }: { campo: CampoServicio; value: unknown; onChange: (v: unknown) => void }) {
+  const arbol = leerArbolDependiente(campo.opciones);
+  if (!arbol) {
+    return (
+      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+        Este campo no tiene la cascada configurada. Se arregla en Campos de servicio.
+      </p>
+    );
+  }
+  const ruta = String(value ?? '')
+    .split('/')
+    .map((t) => t.trim())
+    .filter((t) => t !== '');
+
+  const elegir = (nivel: number, v: string) => {
+    const nueva = ruta.slice(0, nivel);
+    if (v) nueva.push(v);
+    onChange(nueva.join(SEP_DEPENDIENTE));
+  };
+
+  return (
+    <div className="space-y-1.5">
+      {arbol.niveles.map((nombreNivel, i) => {
+        const opciones = hijosDeRuta(arbol, ruta.slice(0, i));
+        // Un nivel sin opciones no se pinta salvo que sea el primero: la
+        // rama puede terminar antes que los niveles declarados.
+        if (opciones.length === 0 && i > 0) return null;
+        return (
+          <div key={nombreNivel}>
+            <label className="mb-0.5 block text-[10px] text-gray-400">{nombreNivel}</label>
+            <select className={selectClass} value={ruta[i] ?? ''}
+              disabled={i > 0 && !ruta[i - 1]}
+              onChange={(e) => elegir(i, e.target.value)}>
+              <option value="">Seleccionar...</option>
+              {opciones.map((o) => <option key={o.valor} value={o.valor}>{o.valor}</option>)}
+            </select>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function OpcionSimple({ campo, value, onChange }: { campo: CampoServicio; value: unknown; onChange: (v: unknown) => void }) {
   const ops = opcionesAStrings(campo.opciones);
