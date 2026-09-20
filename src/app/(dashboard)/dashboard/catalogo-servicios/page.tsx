@@ -5,8 +5,12 @@ import { AxiosError } from 'axios';
 import type { Servicio, CreateServicioDto, PlantillaServicio } from '@/core/types/servicio-catalogo';
 import type { TipoServicio } from '@/core/types/orden-servicio';
 import { TIPOS_SERVICIO, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
+import type { CampoServicio } from '@/core/types/servicio-catalogo';
+import { TIPO_CAMPO_LABEL } from '@/core/types/servicio-catalogo';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
+import * as camposService from '@/features/ordenes-servicio/services/configuracion-campos-service';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { CampoFormDialog } from '@/features/ordenes-servicio/components/campo-form-dialog';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -137,7 +141,36 @@ function ServicioFormDialog({ servicio, onClose, onSuccess }: { servicio?: Servi
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Los campos viven en la PLANTILLA, no en el servicio: se recargan las
+  // plantillas (que ya traen sus campos) despues de cada cambio.
+  // La carga inicial queda con `.then` y no con un `await` dentro del efecto:
+  // el lint de React marca el segundo como setState sincrónico en un efecto.
   useEffect(() => { catalogoService.getPlantillas().then(setPlantillas).catch(() => {}); }, []);
+  const cargarPlantillas = async () => {
+    try { setPlantillas(await catalogoService.getPlantillas()); } catch { /* el error de la accion ya se muestra */ }
+  };
+
+  const [campoDialog, setCampoDialog] = useState<{ open: boolean; campo?: CampoServicio | null }>({ open: false });
+  const plantillaSel = plantillas.find(p => p.id === plantillaServicioId) ?? null;
+  const campos = [...(plantillaSel?.campos ?? [])].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+  const quitarCampo = async (c: CampoServicio) => {
+    if (!confirm(`¿Quitar el campo "${c.nombre}" de la plantilla?`)) return;
+    try { await camposService.eliminarCampo(c.id); await cargarPlantillas(); }
+    catch { setError('No se pudo quitar el campo'); }
+  };
+
+  // Reordenar con flechas y no arrastrando: el app usa drag porque es
+  // tactil; acá dentro de un diálogo con scroll el arrastre pelea con el
+  // scroll del panel.
+  const moverCampo = async (i: number, delta: number) => {
+    const destino = i + delta;
+    if (destino < 0 || destino >= campos.length) return;
+    const ids = campos.map(c => c.id);
+    [ids[i], ids[destino]] = [ids[destino], ids[i]];
+    try { await camposService.reordenarCampos(ids); await cargarPlantillas(); }
+    catch { setError('No se pudo guardar el nuevo orden'); }
+  };
 
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
   const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
@@ -193,6 +226,42 @@ function ServicioFormDialog({ servicio, onClose, onSuccess }: { servicio?: Servi
             </select>
             <p className="mt-0.5 text-[10px] text-gray-400">Define los campos personalizados que se piden al crear una orden con este servicio.</p>
           </div>
+
+          {/* Campos de la plantilla, como en el app: acá se ven, se agregan
+              y se quitan sin tener que ir a otra pantalla. */}
+          {plantillaSel && (
+            <div className="rounded-lg border border-gray-200 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-gray-700">Campos de “{plantillaSel.nombre}”</span>
+                <button type="button" onClick={() => setCampoDialog({ open: true, campo: null })}
+                  className="rounded-lg border border-[#437EFF] px-2.5 py-1 text-[11px] font-medium text-[#437EFF] hover:bg-[#437EFF]/5">+ Campo</button>
+              </div>
+              {campos.length === 0 ? (
+                <p className="text-[11px] text-gray-400">Sin campos todavía. Con “+ Campo” se agregan a la plantilla.</p>
+              ) : (
+                <div className="space-y-1">
+                  {campos.map((c, i) => (
+                    <div key={c.id} className="flex items-center gap-2 rounded-lg bg-[#437EFF]/5 px-2.5 py-1.5">
+                      <span className="w-4 shrink-0 text-[10px] text-gray-400">{i + 1}</span>
+                      <button type="button" onClick={() => setCampoDialog({ open: true, campo: c })}
+                        className="min-w-0 flex-1 truncate text-left text-[11px] text-[#004A94]">
+                        {c.nombre}
+                        <span className="text-gray-400"> · {TIPO_CAMPO_LABEL[c.tipoCampo as keyof typeof TIPO_CAMPO_LABEL] ?? c.tipoCampo}</span>
+                        {c.esRequerido && <span className="text-red-500"> *</span>}
+                      </button>
+                      <button type="button" onClick={() => moverCampo(i, -1)} disabled={i === 0}
+                        className="px-1 text-[11px] text-gray-400 hover:text-[#437EFF] disabled:opacity-30" title="Subir">↑</button>
+                      <button type="button" onClick={() => moverCampo(i, 1)} disabled={i === campos.length - 1}
+                        className="px-1 text-[11px] text-gray-400 hover:text-[#437EFF] disabled:opacity-30" title="Bajar">↓</button>
+                      <button type="button" onClick={() => quitarCampo(c)}
+                        className="px-1 text-[11px] text-gray-400 hover:text-red-600" title="Quitar">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1.5 text-[10px] text-gray-400">Los campos son de la plantilla: se comparten con los demás servicios que la usen.</p>
+            </div>
+          )}
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
         </div>
         <div className="mt-4 flex justify-end gap-2">
@@ -203,6 +272,15 @@ function ServicioFormDialog({ servicio, onClose, onSuccess }: { servicio?: Servi
           </button>
         </div>
       </div>
+
+      {campoDialog.open && plantillaSel && (
+        <CampoFormDialog
+          campo={campoDialog.campo}
+          plantillaId={campoDialog.campo ? undefined : plantillaSel.id}
+          onClose={() => setCampoDialog({ open: false })}
+          onSaved={() => { setCampoDialog({ open: false }); cargarPlantillas(); }}
+        />
+      )}
     </div>
   );
 }

@@ -2,15 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AxiosError } from 'axios';
-import type { PlantillaServicio, TipoCampoServicio, SubCampoTipo, SubCampoObjeto, ConfiguracionCampoDto, CatalogoPlantilla } from '@/core/types/servicio-catalogo';
-import {
-  TIPOS_CAMPO, TIPO_CAMPO_LABEL, TIPOS_CAMPO_CON_OPCIONES,
-  textoAArbol, profundidadArbol,
-  CATEGORIAS_CAMPO, CATEGORIA_CAMPO_LABEL, SUB_CAMPO_TIPO_LABEL,
-} from '@/core/types/servicio-catalogo';
+import type { PlantillaServicio, TipoCampoServicio, CatalogoPlantilla } from '@/core/types/servicio-catalogo';
+import { TIPO_CAMPO_LABEL } from '@/core/types/servicio-catalogo';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
 import { CATALOGO_PLANTILLAS } from '@/features/ordenes-servicio/data/catalogo-plantillas';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
+import { CampoFormDialog } from '@/features/ordenes-servicio/components/campo-form-dialog';
 
 export default function PlantillasServicioPage() {
   const permissions = usePermissions();
@@ -94,7 +91,7 @@ export default function PlantillasServicioPage() {
         <PlantillaFormDialog plantilla={editando} onClose={() => setFormOpen(false)} onSaved={() => { setFormOpen(false); cargar(); }} />
       )}
       {campoEnPlantilla && (
-        <CampoFormDialog plantilla={campoEnPlantilla} onClose={() => setCampoEnPlantilla(null)} onSaved={() => { setCampoEnPlantilla(null); cargar(); }} />
+        <CampoFormDialog plantillaId={campoEnPlantilla.id} onClose={() => setCampoEnPlantilla(null)} onSaved={() => { setCampoEnPlantilla(null); cargar(); }} />
       )}
       {catalogoOpen && (
         <CatalogoDialog onClose={() => setCatalogoOpen(false)} onCreated={() => { setCatalogoOpen(false); cargar(); }} />
@@ -183,146 +180,6 @@ function PlantillaFormDialog({ plantilla, onClose, onSaved }: { plantilla: Plant
   );
 }
 
-/* --- Agregar campo a una plantilla --- */
-function CampoFormDialog({ plantilla, onClose, onSaved }: { plantilla: PlantillaServicio; onClose: () => void; onSaved: () => void }) {
-  const [nombre, setNombre] = useState('');
-  const [tipoCampo, setTipoCampo] = useState<TipoCampoServicio>('TEXTO');
-  const [categoria, setCategoria] = useState('');
-  const [placeholder, setPlaceholder] = useState('');
-  const [esRequerido, setEsRequerido] = useState(false);
-  const [permiteOtro, setPermiteOtro] = useState(false);
-  const [opcionesTxt, setOpcionesTxt] = useState('');
-  // Cascada: niveles por coma y el árbol como texto indentado, igual que
-  // en Campos de servicio y que las dos hojas del app.
-  const [nivelesTxt, setNivelesTxt] = useState('');
-  const [arbolTxt, setArbolTxt] = useState('');
-  const [subCampos, setSubCampos] = useState<SubCampoObjeto[]>([]);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const usaOpciones = TIPOS_CAMPO_CON_OPCIONES.includes(tipoCampo);
-  const esObjeto = tipoCampo === 'OBJETO';
-  const esCascada = tipoCampo === 'OPCION_DEPENDIENTE';
-  const niveles = nivelesTxt.split(',').map(s => s.trim()).filter(Boolean);
-  const arbolCascada = textoAArbol(arbolTxt);
-  const profCascada = profundidadArbol(arbolCascada);
-  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
-
-  const submit = async () => {
-    setError('');
-    if (!nombre.trim()) { setError('Ingresa el nombre del campo'); return; }
-    if (esObjeto && subCampos.filter(s => s.nombre.trim()).length === 0) { setError('Agrega al menos un sub-campo'); return; }
-    if (esCascada) {
-      if (niveles.length === 0) { setError('Ponele nombre a los niveles (ej: Fabricante, Familia, Modelo)'); return; }
-      if (arbolCascada.length === 0) { setError('Cargá al menos una opción del primer nivel'); return; }
-      if (profCascada > niveles.length) {
-        setError(`Hay opciones indentadas más allá del último nivel ("${niveles[niveles.length - 1]}")`);
-        return;
-      }
-    }
-    let opciones: unknown;
-    if (esCascada) opciones = { niveles, arbol: arbolCascada };
-    else if (usaOpciones) opciones = opcionesTxt.split(',').map(s => s.trim()).filter(Boolean);
-    else if (esObjeto) opciones = subCampos.filter(s => s.nombre.trim()).map(s => {
-      const e: Record<string, unknown> = { nombre: s.nombre.trim(), tipo: s.tipo };
-      if (s.tipo === 'OPCION_SIMPLES' && s.opciones?.length) e.opciones = s.opciones;
-      return e;
-    });
-    const data: ConfiguracionCampoDto = {
-      nombre: nombre.trim(), tipoCampo, categoria: categoria || null,
-      placeholder: placeholder.trim() || null, esRequerido,
-      permiteOtro: usaOpciones ? permiteOtro : false, opciones,
-    };
-    setSaving(true);
-    try { await catalogoService.addCampoPlantilla(plantilla.id, data); onSaved(); }
-    catch (err) {
-      const m = err instanceof AxiosError ? err.response?.data?.message : undefined;
-      setError(Array.isArray(m) ? m.join(', ') : m || 'No se pudo agregar el campo');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-gray-900">Agregar campo</h3>
-        <p className="text-[11px] text-gray-500">{plantilla.nombre}</p>
-        <div className="mt-3 space-y-3">
-          <div><label className="mb-1 block text-xs font-medium text-gray-600">Nombre del campo *</label><input className={inputClass} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Número de serie, IMEI..." autoFocus /></div>
-          <div><label className="mb-1 block text-xs font-medium text-gray-600">Tipo de campo</label>
-            <select className={`${inputClass} bg-white`} value={tipoCampo} onChange={e => setTipoCampo(e.target.value as TipoCampoServicio)}>
-              {TIPOS_CAMPO.map(t => <option key={t} value={t}>{TIPO_CAMPO_LABEL[t]}</option>)}
-            </select>
-          </div>
-          <div><label className="mb-1 block text-xs font-medium text-gray-600">Categoría (opcional)</label>
-            <select className={`${inputClass} bg-white`} value={categoria} onChange={e => setCategoria(e.target.value)}>
-              <option value="">Sin categoría</option>
-              {CATEGORIAS_CAMPO.map(c => <option key={c} value={c}>{CATEGORIA_CAMPO_LABEL[c]}</option>)}
-            </select>
-          </div>
-          {esCascada && (
-            <>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Niveles (separados por coma)</label>
-                <input className={inputClass} value={nivelesTxt} onChange={e => setNivelesTxt(e.target.value)} placeholder="Fabricante, Familia, Modelo" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Opciones (una por línea, indentá con 2 espacios)</label>
-                <textarea className={`${inputClass} resize-y font-mono`} rows={8} value={arbolTxt} onChange={e => setArbolTxt(e.target.value)}
-                  placeholder={'QUALCOMM\n  SNAPDRAGON\n    8 Gen 3\nINTEL\n  CORE\n    i5-12400'} />
-                {arbolCascada.length > 0 && (
-                  <p className={`mt-1 text-[10px] ${profCascada > niveles.length && niveles.length > 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                    {arbolCascada.length} en el primer nivel · {profCascada} de profundidad
-                    {niveles.length > 0 && ` · declarados ${niveles.length}`}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-          {usaOpciones && (
-            <>
-              <div><label className="mb-1 block text-xs font-medium text-gray-600">Opciones (separadas por coma)</label><input className={inputClass} value={opcionesTxt} onChange={e => setOpcionesTxt(e.target.value)} placeholder="Opción 1, Opción 2, Opción 3" /></div>
-              <label className="flex items-center justify-between"><span className="text-xs font-medium text-gray-700">Permitir &quot;Otro&quot;</span><input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={permiteOtro} onChange={e => setPermiteOtro(e.target.checked)} /></label>
-            </>
-          )}
-          <input className={inputClass} value={placeholder} onChange={e => setPlaceholder(e.target.value)} placeholder="Placeholder (opcional)" />
-          <label className="flex items-center justify-between"><span className="text-xs font-medium text-gray-700">Campo requerido</span><input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={esRequerido} onChange={e => setEsRequerido(e.target.checked)} /></label>
-
-          {esObjeto && (
-            <div className="rounded-lg border border-gray-200 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-700">Sub-campos</span>
-                <button type="button" onClick={() => setSubCampos([...subCampos, { nombre: '', tipo: 'TEXTO' }])} className="text-[11px] font-semibold text-[#437EFF] hover:underline">+ Agregar</button>
-              </div>
-              {subCampos.length === 0 && <p className="text-[11px] text-gray-400">Agrega sub-campos con el botón +.</p>}
-              <div className="space-y-2">
-                {subCampos.map((sub, i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <input className={`${inputClass} flex-1`} value={sub.nombre} placeholder="Nombre" onChange={e => setSubCampos(subCampos.map((s, j) => j === i ? { ...s, nombre: e.target.value } : s))} />
-                      <select className={`${inputClass} w-28 bg-white`} value={sub.tipo} onChange={e => setSubCampos(subCampos.map((s, j) => j === i ? { ...s, tipo: e.target.value as SubCampoTipo, opciones: undefined } : s))}>
-                        {(Object.keys(SUB_CAMPO_TIPO_LABEL) as SubCampoTipo[]).map(t => <option key={t} value={t}>{SUB_CAMPO_TIPO_LABEL[t]}</option>)}
-                      </select>
-                      <button type="button" onClick={() => setSubCampos(subCampos.filter((_, j) => j !== i))} className="px-1 text-red-400 hover:text-red-600">✕</button>
-                    </div>
-                    {sub.tipo === 'OPCION_SIMPLES' && (
-                      <input className={`${inputClass} text-xs`} placeholder="Opciones separadas por coma" value={(sub.opciones ?? []).join(', ')} onChange={e => setSubCampos(subCampos.map((s, j) => j === i ? { ...s, opciones: e.target.value.split(',').map(x => x.trim()).filter(Boolean) } : s))} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} disabled={saving} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
-          <button onClick={submit} disabled={saving} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">{saving ? 'Agregando...' : 'Agregar'}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* --- Catálogo de plantillas predefinidas --- */
 function CatalogoDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
