@@ -9,6 +9,13 @@ import * as osService from '../services/orden-servicio-service';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
 
+// Estilo estandar de la web (ver feedback_web_estilo_input_std): 30px, r6,
+// fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
+const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
+
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -37,7 +44,7 @@ export function ComponenteDetailDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="font-sans max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-gray-900">{nombreComponente(c)}</h3>
@@ -113,7 +120,7 @@ function EditComponenteForm({
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+  const inputClass = INPUT_STD;
 
   const submit = async () => {
     setError('');
@@ -143,25 +150,25 @@ function EditComponenteForm({
   return (
     <div className="mt-3 space-y-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">Acción a realizar</label>
-        <select className={`${inputClass} bg-white`} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
+        <label className={LABEL}>Acción a realizar</label>
+        <select className={inputClass} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
           {TIPOS_ACCION.map(a => <option key={a} value={a}>{TIPO_ACCION_LABEL[a]}</option>)}
         </select>
       </div>
       <input className={inputClass} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción (opcional)" />
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="mb-1 block text-[10px] text-gray-400">Costo acción (M.O.)</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
-        <div><label className="mb-1 block text-[10px] text-gray-400">Tiempo (min)</label><input className={inputClass} type="number" step="1" min="0" value={tiempoAccion} onChange={e => setTiempoAccion(e.target.value)} /></div>
+        <div><label className={LABEL_MINI}>Costo acción (M.O.)</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
+        <div><label className={LABEL_MINI}>Tiempo (min)</label><input className={inputClass} type="number" step="1" min="0" value={tiempoAccion} onChange={e => setTiempoAccion(e.target.value)} /></div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="mb-1 block text-[10px] text-gray-400">Repuestos / compra</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
-        <div><label className="mb-1 block text-[10px] text-gray-400">Garantía (meses)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
+        <div><label className={LABEL_MINI}>Repuestos / compra</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
+        <div><label className={LABEL_MINI}>Garantía (meses)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
       </div>
       <input className={inputClass} value={resultado} onChange={e => setResultado(e.target.value)} placeholder="Resultado (opcional)" />
       <input className={inputClass} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)" />
       <label className="flex items-center justify-between">
         <span className="text-xs font-medium text-gray-700">Prueba realizada</span>
-        <input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={pruebaRealizada} onChange={e => setPruebaRealizada(e.target.checked)} />
+        <input type="checkbox" className="h-5 w-5 accent-[#004A94]" checked={pruebaRealizada} onChange={e => setPruebaRealizada(e.target.checked)} />
       </label>
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
       <div className="flex justify-end gap-2">

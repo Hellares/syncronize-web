@@ -25,6 +25,22 @@ import AdelantosOrdenWidget from '@/features/ordenes-servicio/components/adelant
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 import { CARD_BASE } from '@/components/ui/Card';
 
+// Estilo estándar de la web (ver feedback_web_estilo_input_std): 30px, r6,
+// fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra. Los
+// selects usan la misma constante que los inputs, como en `servicios/nueva`:
+// un `bg-white` encima no gana por estar después en la cadena, lo decide el
+// CSS compilado.
+const INPUT_STD =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
+const INPUT_STD_TA =
+  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200 resize-none';
+/** Contenedor con el mismo lenguaje que los inputs; el fondo lo pone cada uso. */
+const CAJA_STD = 'w-full ring-1 ring-blue-400 rounded-[6px] shadow-md transition-all duration-300';
+const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
+const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
+/** Panel de diálogo: `font-sans` explícito para que no lo pise otra familia. */
+const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl';
+
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -450,12 +466,12 @@ function FechaPrometidaDialog({ actual, onSave, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="font-sans w-full max-w-sm rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-gray-900">F. Solución</h3>
         <p className="mt-1 text-[11px] text-gray-500">
           Para cuándo se le prometió el equipo al cliente. Si se pasa y todavía no se entregó, la orden aparece como atrasada.
         </p>
-        <input className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+        <input className={`${INPUT_STD} mt-3`}
           type="date" value={fecha} onChange={e => setFecha(e.target.value)} autoFocus />
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} disabled={busy}
@@ -499,10 +515,10 @@ function TecnicoDialog({ ordenId, actualId, onClose, onSuccess }: { ordenId: str
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="flex max-h-[80vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="font-sans flex max-h-[80vh] w-full max-w-sm flex-col rounded-xl bg-white shadow-xl" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <div className="border-b border-gray-100 p-4">
           <h3 className="text-sm font-medium text-gray-900">Asignar técnico</h3>
-          <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+          <input className={`${INPUT_STD} mt-2`}
             value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." autoFocus />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
@@ -616,10 +632,13 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
     return () => { active = false; };
   }, [tipoComponenteId, crearNuevoTipo]);
 
-  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
-  // Combos (tipo de componente / acción) con fuente 2px más chica.
-  const comboClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-[12px] outline-none focus:border-[#437EFF] bg-white';
-  const linkClass = 'mt-1 text-[11px] font-semibold text-[#437EFF] hover:underline';
+  const inputClass = INPUT_STD;
+  // Los combos ya no necesitan fuente aparte: el estándar es text-xs (12px),
+  // que es justo lo que tenían.
+  const comboClass = INPUT_STD;
+  // `font-medium`: en Amazon Ember `font-semibold` cae en la MISMA cara Bold,
+  // así que no aliviana nada.
+  const linkClass = 'mt-1 text-[11px] font-medium text-[#437EFF] hover:underline';
 
   const nombreComp = (c: Componente) =>
     [c.tipoComponente?.nombre ?? c.marca, c.modelo, c.numeroSerie].filter(Boolean).join(' · ') || c.codigo || 'Componente';
@@ -698,7 +717,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className={DIALOG_PANEL} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-gray-900">Agregar componente</h3>
         {loadingTipos ? (
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
@@ -706,7 +725,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
           <div className="mt-3 space-y-3">
             {/* 1. Tipo de componente: elegir existente o crear nuevo */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tipo de componente *</label>
+              <label className={LABEL}>Tipo de componente *</label>
               {!crearNuevoTipo && tipos.length > 0 ? (
                 <>
                   <select className={comboClass} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
@@ -717,7 +736,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
               ) : (
                 <>
                   <input className={inputClass} value={nombreTipo} onChange={e => setNombreTipo(e.target.value)} placeholder="Ej: Pantalla, Disco duro, Teclado..." autoFocus />
-                  <select className={`${inputClass} mt-2 bg-white`} value={categoriaTipo} onChange={e => setCategoriaTipo(e.target.value as osService.CategoriaComponente)}>
+                  <select className={`${inputClass} mt-2`} value={categoriaTipo} onChange={e => setCategoriaTipo(e.target.value as osService.CategoriaComponente)}>
                     {CATEGORIAS_COMP.map(c => <option key={c.v} value={c.v}>{c.label}</option>)}
                   </select>
                   {tipos.length > 0 && (
@@ -729,7 +748,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 
             {/* 2. Componente: reutilizar registrado o registrar nuevo (sin duplicar) */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Componente *</label>
+              <label className={LABEL}>Componente *</label>
               {crearNuevoTipo ? (
                 nuevoCompForm
               ) : cargandoComp ? (
@@ -737,14 +756,14 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
               ) : mostrarFormNuevo ? (
                 nuevoCompForm
               ) : componenteSel ? (
-                <div className="rounded-lg border border-[#437EFF] bg-[#437EFF]/5 px-3 py-2">
-                  <p className="text-xs font-semibold text-[#004A94]">{nombreComp(componenteSel)}</p>
+                <div className={`${CAJA_STD} bg-[#437EFF]/5 px-3 py-2`}>
+                  <p className="text-xs font-medium text-[#004A94]">{nombreComp(componenteSel)}</p>
                   <button type="button" className={linkClass} onClick={() => setComponenteSel(null)}>↺ Elegir otro componente</button>
                 </div>
               ) : (
                 <>
                   <input className={inputClass} value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por marca, modelo o serie..." />
-                  <div className="mt-1.5 max-h-44 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                  <div className={`${CAJA_STD} mt-1.5 max-h-44 overflow-y-auto bg-white divide-y divide-gray-100`}>
                     {compsFiltrados.length === 0 ? (
                       <p className="px-3 py-2 text-[11px] text-gray-400">Sin coincidencias. Registra uno nuevo.</p>
                     ) : compsFiltrados.map(c => (
@@ -762,22 +781,22 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 
             {/* 3. Acción sobre el componente */}
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Acción *</label>
+              <label className={LABEL}>Acción *</label>
               <select className={comboClass} value={tipoAccion} onChange={e => setTipoAccion(e.target.value as TipoAccionComponente)}>
                 {TIPOS_ACCION.map(a => <option key={a} value={a}>{TIPO_ACCION_LABEL[a]}</option>)}
               </select>
             </div>
             <input className={inputClass} value={descripcionAccion} onChange={e => setDescripcionAccion(e.target.value)} placeholder="Descripción de la acción (opcional)" />
             <div className="grid grid-cols-2 gap-2">
-              <div><label className="mb-1 block text-[10px] text-gray-400">Costo M.O.</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
-              <div><label className="mb-1 block text-[10px] text-gray-400">Tiempo (min)</label><input className={inputClass} type="number" step="1" min="0" value={tiempoAccion} onChange={e => setTiempoAccion(e.target.value)} /></div>
-              <div><label className="mb-1 block text-[10px] text-gray-400">Repuestos</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
-              <div><label className="mb-1 block text-[10px] text-gray-400">Garantía (m)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
+              <div><label className={LABEL_MINI}>Costo M.O.</label><input className={inputClass} type="number" step="0.01" min="0" value={costoAccion} onChange={e => setCostoAccion(e.target.value)} /></div>
+              <div><label className={LABEL_MINI}>Tiempo (min)</label><input className={inputClass} type="number" step="1" min="0" value={tiempoAccion} onChange={e => setTiempoAccion(e.target.value)} /></div>
+              <div><label className={LABEL_MINI}>Repuestos</label><input className={inputClass} type="number" step="0.01" min="0" value={costoRepuestos} onChange={e => setCostoRepuestos(e.target.value)} /></div>
+              <div><label className={LABEL_MINI}>Garantía (m)</label><input className={inputClass} type="number" step="1" min="0" value={garantiaMeses} onChange={e => setGarantiaMeses(e.target.value)} /></div>
             </div>
             <p className="text-[10px] text-gray-400">Mano de obra y repuestos se suman al total al cliente.</p>
             <input className={inputClass} value={resultadoAccion} onChange={e => setResultadoAccion(e.target.value)} placeholder="Resultado (opcional)" />
             <input className={inputClass} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones (opcional)" />
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 p-2.5">
+            <label className={`${CAJA_STD} flex cursor-pointer items-start gap-2 bg-white p-2.5`}>
               <input type="checkbox" className="mt-0.5 accent-[#004A94]" checked={pruebaRealizada} onChange={e => setPruebaRealizada(e.target.checked)} />
               <span className="text-[11px] text-gray-600">
                 <span className="font-medium text-gray-800">Prueba realizada</span><br />
@@ -863,42 +882,42 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
     }
   };
 
-  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+  const inputClass = INPUT_STD;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className={DIALOG_PANEL} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-gray-900">Cambiar estado</h3>
         <div className="mt-3 space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Nuevo estado</label>
-            <select className={`${inputClass} bg-white`} value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as EstadoOrdenServicio)}>
+            <label className={LABEL}>Nuevo estado</label>
+            <select className={inputClass} value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as EstadoOrdenServicio)}>
               {transiciones.map(e => <option key={e} value={e}>{ESTADO_OS_CONFIG[e]?.label ?? e}</option>)}
             </select>
           </div>
 
           {esReingreso && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Motivo de reingreso *</label>
+              <label className={LABEL}>Motivo de reingreso *</label>
               <input className={inputClass} value={motivoReingreso} onChange={e => setMotivoReingreso(e.target.value)} />
             </div>
           )}
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Notas {esCancelar ? '*' : ''}</label>
-            <textarea className={`${inputClass} resize-none`} rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder={esCancelar ? 'Motivo de cancelación' : 'Observaciones (opcional)'} />
+            <label className={LABEL}>Notas {esCancelar ? '*' : ''}</label>
+            <textarea className={INPUT_STD_TA} rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder={esCancelar ? 'Motivo de cancelación' : 'Observaciones (opcional)'} />
           </div>
 
           {/* Costos editables */}
           {showCostos && (
           <div className="grid grid-cols-3 gap-2">
-            <div><label className="mb-1 block text-[10px] text-gray-400">Costo total</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
-            <div><label className="mb-1 block text-[10px] text-gray-400">Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
-            <div><label className="mb-1 block text-[10px] text-gray-400">+ Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} placeholder="0" /></div>
+            <div><label className={LABEL_MINI}>Costo total</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
+            <div><label className={LABEL_MINI}>Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
+            <div><label className={LABEL_MINI}>+ Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} placeholder="0" /></div>
           </div>
           )}
           {showCostos && parseFloat(adelanto || '0') > 0 && (
-            <select className={`${inputClass} bg-white`} value={metodoPagoAdelanto} onChange={e => setMetodoPagoAdelanto(e.target.value as MetodoPagoVenta)}>
+            <select className={inputClass} value={metodoPagoAdelanto} onChange={e => setMetodoPagoAdelanto(e.target.value as MetodoPagoVenta)}>
               {METODOS.map(m => <option key={m} value={m}>Adelanto: {METODO_PAGO_LABEL[m]}</option>)}
             </select>
           )}
