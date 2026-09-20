@@ -38,10 +38,10 @@ const INPUT_STD_TA =
 const CAJA_STD = 'w-full ring-1 ring-blue-400 rounded-[6px] shadow-md transition-all duration-300';
 const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
 const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
-/** Panel de diálogo: `font-sans` explícito para que no lo pise otra familia. */
-const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl';
 /**
- * Igual, con ALTORRELIEVE en el borde de arriba: una línea celeste por DENTRO
+ * Panel de diálogo. `font-sans` explícito para que no lo pise otra familia.
+ *
+ * Con ALTORRELIEVE en el borde de arriba: una línea celeste por DENTRO
  * (3px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
  * sombra exterior: el panel parece levantado, no flotando más alto.
  *
@@ -911,9 +911,11 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className={DIALOG_PANEL} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-medium text-gray-900">Cambiar estado</h3>
-        <div className="mt-3 space-y-3">
+      <div className={DIALOG_PANEL_RELIEVE} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        {/* Cabecera fija */}
+        <h3 className="shrink-0 px-5 pt-3 pb-2 text-sm font-medium text-gray-900">Cambiar estado</h3>
+        {/* Lo unico que scrollea (`min-h-0`, si no el scroll se escapa al panel) */}
+        <div className="scroll-panel min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-1">
           <div>
             <label className={LABEL}>Nuevo estado</label>
             <select className={inputClass} value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as EstadoOrdenServicio)}>
@@ -949,12 +951,13 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
 
           <label className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-700">Comunicar al cliente</span>
-            <input type="checkbox" className="h-5 w-5 accent-[#437EFF]" checked={comunicarCliente} onChange={e => setComunicarCliente(e.target.checked)} />
+            <input type="checkbox" className="h-5 w-5 accent-[#004A94]" checked={comunicarCliente} onChange={e => setComunicarCliente(e.target.checked)} />
           </label>
 
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
         </div>
-        <div className="mt-4 flex justify-end gap-2">
+        {/* Pie fijo: Cancelar y Confirmar siempre a la vista. */}
+        <div className="shrink-0 flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
           <button onClick={submit} disabled={isSubmitting}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
