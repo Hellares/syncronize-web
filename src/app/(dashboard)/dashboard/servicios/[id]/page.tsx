@@ -699,18 +699,29 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   // Form de "nuevo componente" (marca con chips de marcas conocidas + modelo + serie).
   const nuevoCompForm = (
     <div className="space-y-2">
-      <div>
-        <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Marca (Samsung, HP, Microsoft...)" />
-        {marcas.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {marcas.map(m => (
-              <button key={m} type="button" onClick={() => setMarca(m)}
-                className="rounded border border-[#437EFF]/30 bg-[#437EFF]/5 px-2 py-0.5 text-[10px] text-[#437EFF] hover:bg-[#437EFF]/10">{m}</button>
-            ))}
-          </div>
-        )}
+      {/* Marca y nombre en una fila: son los dos datos que identifican al
+          componente y se cargan juntos. Con media caja el placeholder largo
+          no entra, asi que cada uno lleva su rotulo arriba. */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={LABEL_MINI}>Marca</label>
+          <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Microsoft, HP..." />
+        </div>
+        <div>
+          <label className={LABEL_MINI}>Nombre o modelo</label>
+          <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} placeholder="365, Galaxy S24..." />
+        </div>
       </div>
-      <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} placeholder="Nombre o modelo (365, 2019, Galaxy S24...)" />
+      {/* Las marcas conocidas van ABAJO de la fila, a lo ancho: apretadas en
+          media caja entraban dos y se cortaban. */}
+      {marcas.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {marcas.map(m => (
+            <button key={m} type="button" onClick={() => setMarca(m)}
+              className="rounded border border-[#437EFF]/30 bg-[#437EFF]/5 px-2 py-0.5 text-[10px] text-[#437EFF] hover:bg-[#437EFF]/10">{m}</button>
+          ))}
+        </div>
+      )}
       <input className={inputClass} value={serie} onChange={e => setSerie(e.target.value)} placeholder="N° de serie (opcional — crea registro único)" />
       {!crearNuevoTipo && componentes.length > 0 && (
         <button type="button" className={linkClass} onClick={() => { setMostrarFormNuevo(false); setMarca(''); setModelo(''); setSerie(''); }}>← Ver componentes registrados</button>
