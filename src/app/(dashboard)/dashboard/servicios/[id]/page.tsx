@@ -317,11 +317,17 @@ export default function OrdenDetailPage() {
           </div>
         </div>
 
-        {/* Problema / notas */}
-        {(orden.descripcionProblema || orden.notas) && (
+        {/* Problema reportado.
+            🔴 `orden.notas` NO va acá: cada cambio de estado PISA ese campo con
+            la nota que se escribió en el diálogo (`orden-servicio.service.ts`,
+            `updateData.notas = dto.notas`) y la guarda además en el historial.
+            Mostrarla como card repetía abajo lo mismo, y encima como si fuera
+            una nota de la orden y no de la última transición. El app solo la
+            muestra dentro del historial; acá va igual. */}
+        {orden.descripcionProblema && (
           <div className={`${CARD_BASE} p-4`}>
-            {orden.descripcionProblema && <><p className="text-[10px] uppercase text-gray-400">Problema reportado</p><p className="text-sm text-gray-700">{orden.descripcionProblema}</p></>}
-            {orden.notas && <p className="mt-1 text-xs text-gray-500">{orden.notas}</p>}
+            <p className="text-[10px] uppercase text-gray-400">Problema reportado</p>
+            <p className="text-sm text-gray-700">{orden.descripcionProblema}</p>
           </div>
         )}
 
