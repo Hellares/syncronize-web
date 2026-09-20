@@ -40,6 +40,18 @@ const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
 const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
 /** Panel de diálogo: `font-sans` explícito para que no lo pise otra familia. */
 const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl';
+/**
+ * Igual, con ALTORRELIEVE en el borde de arriba: una línea celeste por DENTRO
+ * (2px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
+ * sombra exterior: el panel parece levantado, no flotando más alto.
+ *
+ * 🔴 Va todo en UNA sola utilidad `shadow-[...]`: `shadow-xl` y un
+ * `shadow-[inset_...]` escriben la MISMA variable, así que no se pueden
+ * encadenar — gana el que el CSS ponga último, no el que va después en la
+ * cadena. Las cuatro capas son, en orden: línea celeste, degradé bajo la
+ * línea, y las dos sombras de `shadow-xl`.
+ */
+const DIALOG_PANEL_RELIEVE = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-[inset_0_2px_0_0_#bcd9f7,inset_0_7px_10px_-7px_rgb(67_126_255_/_0.30),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -717,7 +729,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className={DIALOG_PANEL} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+      <div className={DIALOG_PANEL_RELIEVE} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-gray-900">Agregar componente</h3>
         {loadingTipos ? (
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
