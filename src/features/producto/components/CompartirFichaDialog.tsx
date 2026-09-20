@@ -13,6 +13,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProductoVariante } from '@/core/types/producto';
 import { fotosDe, infoPrecioEfectivo } from '@/core/types/producto';
+import {
+  DIALOG_BODY,
+  DIALOG_FOOT,
+  DIALOG_PANEL_RELIEVE_MD,
+} from '@/components/ui/dialogo';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import * as productoService from '@/features/producto/services/producto-service';
 import { resolverMarca } from '@/features/configuracion-documentos/marca';
@@ -214,88 +219,98 @@ export default function CompartirFichaDialog({
           role="dialog"
           aria-modal="true"
           aria-label="Compartir ficha del producto"
-          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 font-sans shadow-xl"
+          className={DIALOG_PANEL_RELIEVE_MD}
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 className="text-lg font-bold text-gray-900">Compartir producto</h3>
-          <p className="mt-0.5 text-xs text-gray-500">
-            Esto es exactamente la imagen que va a recibir el cliente
-            {sedeNombre ? ` · precio de ${sedeNombre}` : ''}
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-3">
-            {(
-              [
-                ['Precio', incluirPrecio, setIncluirPrecio],
-                ['Características', incluirCaracteristicas, setIncluirCaracteristicas],
-                ['Código', incluirCodigo, setIncluirCodigo],
-                // Con una sola foto no hay tira que prender ni apagar.
-                ...(fotos.length > 1
-                  ? ([['Otras fotos', incluirOtrasFotos, setIncluirOtrasFotos]] as const)
-                  : []),
-              ] as const
-            ).map(([etiqueta, valor, set]) => (
-              <label
-                key={etiqueta}
-                className="flex cursor-pointer items-center gap-1 text-[11px] text-gray-600"
-              >
-                <input
-                  type="checkbox"
-                  checked={valor}
-                  onChange={(e) => set(e.target.checked)}
-                  className="accent-[#004A94]"
-                />
-                {etiqueta}
-              </label>
-            ))}
+          <div className="shrink-0 px-5 pt-2.5 pb-2">
+            <h3 className="text-lg font-bold text-[#004A94]">Compartir producto</h3>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Esto es exactamente la imagen que va a recibir el cliente
+              {sedeNombre ? ` · precio de ${sedeNombre}` : ''}
+            </p>
           </div>
 
-          {fotos.length > 1 && (
-            <div className="mt-3">
-              <p className="mb-1 text-[11px] font-medium text-gray-600">
-                Cuál foto va grande
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {fotos.map((url) => (
-                  <button
-                    key={url}
-                    onClick={() => setDatos((d) => (d ? { ...d, fotoUrl: url } : d))}
-                    className={`h-12 w-12 overflow-hidden rounded ring-2 transition-all ${
-                      datos?.fotoUrl === url
-                        ? 'ring-[#004A94]'
-                        : 'opacity-50 ring-gray-200 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-[10px] text-gray-400">
-                {incluirOtrasFotos
-                  ? 'Las demás van en la tira de abajo, en la misma imagen: entran 4 y, si hay más, la última dice cuántas faltan.'
-                  : 'Con “Otras fotos” apagado se manda solo la grande.'}
-              </p>
+          <div className={DIALOG_BODY}>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {(
+                [
+                  ['Precio', incluirPrecio, setIncluirPrecio],
+                  ['Características', incluirCaracteristicas, setIncluirCaracteristicas],
+                  ['Código', incluirCodigo, setIncluirCodigo],
+                  // Con una sola foto no hay tira que prender ni apagar.
+                  ...(fotos.length > 1
+                    ? ([['Otras fotos', incluirOtrasFotos, setIncluirOtrasFotos]] as const)
+                    : []),
+                ] as const
+              ).map(([etiqueta, valor, set]) => (
+                <label
+                  key={etiqueta}
+                  className="flex cursor-pointer items-center gap-1 text-[11px] text-gray-600"
+                >
+                  <input
+                    type="checkbox"
+                    checked={valor}
+                    onChange={(e) => set(e.target.checked)}
+                    className="accent-[#004A94]"
+                  />
+                  {etiqueta}
+                </label>
+              ))}
             </div>
-          )}
 
-          <div className="mt-3 flex justify-center rounded-[6px] bg-gray-100 p-3">
-            {cargando ? (
-              <p className="py-20 text-xs text-gray-400">Preparando la ficha…</p>
-            ) : (
-              <canvas ref={lienzo} className="rounded shadow-md" />
+            {fotos.length > 1 && (
+              <div className="mt-3">
+                <p className="mb-1 text-[11px] font-medium text-gray-600">
+                  Cuál foto va grande
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {fotos.map((url) => (
+                    <button
+                      key={url}
+                      onClick={() => setDatos((d) => (d ? { ...d, fotoUrl: url } : d))}
+                      className={`h-12 w-12 overflow-hidden rounded ring-2 transition-all ${
+                        datos?.fotoUrl === url
+                          ? 'ring-[#004A94]'
+                          : 'opacity-50 ring-gray-200 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  {incluirOtrasFotos
+                    ? 'Las demás van en la tira de abajo, en la misma imagen: entran 4 y, si hay más, la última dice cuántas faltan.'
+                    : 'Con “Otras fotos” apagado se manda solo la grande.'}
+                </p>
+              </div>
             )}
+
+            <div className="mt-3 flex justify-center rounded-[6px] bg-gray-100 p-3">
+              {cargando ? (
+                <p className="py-20 text-xs text-gray-400">Preparando la ficha…</p>
+              ) : (
+                <canvas ref={lienzo} className="rounded shadow-md" />
+              )}
+            </div>
+
+            {error && <p className="mt-2 mb-1 text-xs text-red-600">{error}</p>}
           </div>
 
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-
-          <div className="mt-4 flex justify-end gap-2">
+          {/* `flex-wrap` encima del pie estándar: acá son cinco cosas —Cerrar,
+              el rótulo, PNG, PDF y WhatsApp— y en una pantalla angosta, sin
+              envolver, `justify-end` empuja "Cerrar" fuera del panel. No pisa
+              nada del pie: `DIALOG_FOOT` no trae ningún `flex-wrap`. */}
+          <div className={`${DIALOG_FOOT} flex-wrap`}>
             <button
               onClick={onClose}
               className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Cerrar
             </button>
-            <span className="self-center text-[11px] text-gray-400">Descargar</span>
+            <span className="hidden self-center text-[11px] text-gray-400 sm:inline">
+              Descargar
+            </span>
             {(['png', 'pdf'] as const).map((formato) => (
               <button
                 key={formato}

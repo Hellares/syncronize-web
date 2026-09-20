@@ -51,6 +51,18 @@ export const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
 export const DIALOG_PANEL_RELIEVE =
   'font-sans flex max-h-[88vh] w-full max-w-sm flex-col overflow-hidden rounded-xl bg-white shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
 
+/**
+ * El MISMO panel para un diálogo que necesita más ancho, como el de compartir
+ * la ficha: el lienzo son 360 px fijos y con `max-w-sm` (384) no entra con el
+ * padding.
+ *
+ * 🔴 La cadena va completa de nuevo, con `max-w-md` en lugar de `max-w-sm`:
+ * agregarle `max-w-md` encima a la otra constante NO gana por ir después —
+ * entre dos `max-w-*` decide el CSS compilado, no el orden del string.
+ */
+export const DIALOG_PANEL_RELIEVE_MD =
+  'font-sans flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
+
 /** Cabecera fija del diálogo (no scrollea). */
 export const DIALOG_HEAD = 'shrink-0 px-5 pt-3 pb-2';
 
