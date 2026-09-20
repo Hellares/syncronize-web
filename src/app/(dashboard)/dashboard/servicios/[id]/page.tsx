@@ -91,8 +91,17 @@ export default function OrdenDetailPage() {
   const [editandoPrometida, setEditandoPrometida] = useState(false);
   const [componenteDetalle, setComponenteDetalle] = useState<OrdenServicioComponente | null>(null);
 
-  const cargar = useCallback(async () => {
-    setIsLoading(true);
+  /**
+   * Trae la orden y su historial.
+   *
+   * `silencioso` NO prende el spinner de pantalla completa: la pagina no se
+   * desmonta, solo se reemplazan los datos. Sin eso, agregar o quitar un
+   * componente volaba TODA la pantalla a un spinner y volvia a montarla
+   * —perdiendo la posicion del scroll— por un cambio de una sola tarjeta.
+   * El primer load sigue con spinner.
+   */
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setIsLoading(true);
     setError(null);
     try {
       const [o, h] = await Promise.all([osService.getOrden(id), osService.getHistorial(id).catch(() => [])]);
@@ -107,7 +116,7 @@ export default function OrdenDetailPage() {
     } catch {
       setError('No se pudo cargar la orden');
     } finally {
-      setIsLoading(false);
+      if (!silencioso) setIsLoading(false);
     }
   }, [id]);
 
@@ -117,7 +126,7 @@ export default function OrdenDetailPage() {
 
   const eliminarComponente = async (componenteId: string) => {
     if (!confirm('¿Quitar este componente de la orden?')) return;
-    try { await osService.deleteComponente(id, componenteId); flash('Componente eliminado'); cargar(); }
+    try { await osService.deleteComponente(id, componenteId); flash('Componente eliminado'); cargar(true); }
     catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se pudo eliminar el componente');
@@ -174,7 +183,7 @@ export default function OrdenDetailPage() {
       });
       setEditandoPrometida(false);
       flash('Fecha pactada actualizada');
-      cargar();
+      cargar(true);
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se pudo actualizar la fecha pactada');
@@ -187,7 +196,7 @@ export default function OrdenDetailPage() {
     try {
       await osService.registrarEntrega(orden.id);
       flash('Entrega registrada');
-      cargar();
+      cargar(true);
     } catch (err) {
       const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
       setError(msg || 'No se pudo registrar la entrega');
@@ -418,11 +427,11 @@ export default function OrdenDetailPage() {
         <div className="lg:col-span-1">
           <div className="space-y-4 lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:p-1">
             {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
-            <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+            <ResumenCostosCard orden={orden} canManage={permissions.canManageOrders} onChanged={() => cargar(true)} />
 
             {/* Libro de adelantos (modelo acumulativo 07-07) */}
             {(permissions.canManageOrders || (orden.adelantos ?? []).length > 0) && (
-              <AdelantosOrdenWidget orden={orden} canManage={permissions.canManageOrders} onChanged={cargar} />
+              <AdelantosOrdenWidget orden={orden} canManage={permissions.canManageOrders} onChanged={() => cargar(true)} />
             )}
           </div>
         </div>
@@ -434,13 +443,13 @@ export default function OrdenDetailPage() {
           orden={orden}
           transiciones={transiciones}
           onClose={() => setTransicionOpen(false)}
-          onSuccess={() => { setTransicionOpen(false); flash('Estado actualizado'); cargar(); }}
+          onSuccess={() => { setTransicionOpen(false); flash('Estado actualizado'); cargar(true); }}
         />
       )}
       {tecnicoOpen && (
         <TecnicoDialog ordenId={id} actualId={orden.tecnicoId ?? null}
           onClose={() => setTecnicoOpen(false)}
-          onSuccess={() => { setTecnicoOpen(false); flash('Técnico asignado'); cargar(); }} />
+          onSuccess={() => { setTecnicoOpen(false); flash('Técnico asignado'); cargar(true); }} />
       )}
       {editandoPrometida && (
         <FechaPrometidaDialog actual={orden.fechaPrometida}
@@ -450,7 +459,7 @@ export default function OrdenDetailPage() {
       {componenteOpen && (
         <ComponenteDialog ordenId={id}
           onClose={() => setComponenteOpen(false)}
-          onSuccess={() => { setComponenteOpen(false); flash('Componente agregado'); cargar(); }} />
+          onSuccess={() => { setComponenteOpen(false); flash('Componente agregado'); cargar(true); }} />
       )}
       {componenteDetalle && (
         <ComponenteDetailDialog
@@ -459,7 +468,7 @@ export default function OrdenDetailPage() {
           componente={componenteDetalle}
           canManage={permissions.canManageOrders && puedeModificarComponentes}
           onClose={() => setComponenteDetalle(null)}
-          onChanged={() => { setComponenteDetalle(null); flash('Componente actualizado'); cargar(); }}
+          onChanged={() => { setComponenteDetalle(null); flash('Componente actualizado'); cargar(true); }}
         />
       )}
     </div>
