@@ -680,6 +680,7 @@ function VentaRapidaInner() {
       ordenServicioId: o.id,
       esOrdenServicio: true,
       adelantoOrden: Number(o.adelanto ?? 0),
+      descuentoOrden: Number(o.descuento ?? 0),
       niveles: [],
       enLiquidacion: false,
       precioCosto: null,
@@ -726,6 +727,14 @@ function VentaRapidaInner() {
 
   const adelantoAplicado = useMemo(
     () => Math.round(items.filter(it => it.esOrdenServicio).reduce((s, it) => s + Number(it.adelantoOrden ?? 0), 0) * 100) / 100,
+    [items],
+  );
+
+  // Descuento que el admin le hizo a las órdenes del carrito. No resta: las
+  // líneas ya entran netas. Se muestra para que el cajero sepa por qué cobra
+  // menos que el costo del servicio.
+  const descuentoOrdenes = useMemo(
+    () => Math.round(items.filter(it => it.esOrdenServicio).reduce((s, it) => s + Number(it.descuentoOrden ?? 0), 0) * 100) / 100,
     [items],
   );
 
@@ -900,6 +909,7 @@ function VentaRapidaInner() {
         sedeId={sedeId}
         total={totales.total}
         adelantoAplicado={adelantoAplicado}
+        descuentoOrdenes={descuentoOrdenes}
         initialCliente={ordenCliente ?? undefined}
         onBack={() => setMode('carrito')}
         onSuccess={handleVentaOk}
@@ -1272,6 +1282,7 @@ function VentaRapidaInner() {
                     {it.esOrdenServicio ? (
                       <p className="mt-1.5 text-[10px] text-blue-600">
                         Servicio · comprobante por el total
+                        {(it.descuentoOrden ?? 0) > 0 && <span className="text-amber-600"> · desc. S/ {fmt(it.descuentoOrden ?? 0)}</span>}
                         {(it.adelantoOrden ?? 0) > 0 && <span className="text-gray-400"> · adelanto S/ {fmt(it.adelantoOrden ?? 0)}</span>}
                       </p>
                     ) : (
@@ -1612,6 +1623,7 @@ function CobrablesSheet({ sedeId, onPick, onClose }: { sedeId?: string; onPick: 
                     <div className="shrink-0 text-right">
                       <p className="text-xs font-bold text-amber-600">S/ {fmt(Number(o.saldoPendiente))}</p>
                       {Number(o.adelanto) > 0 && <p className="text-[9px] text-gray-400">adel. {fmt(Number(o.adelanto))}</p>}
+                      {Number(o.descuento) > 0 && <p className="text-[9px] text-amber-600">desc. {fmt(Number(o.descuento))}</p>}
                     </div>
                   </button>
                 );

@@ -662,6 +662,13 @@ export interface VentaItem {
   esOrdenServicio?: boolean;
   adelantoOrden?: number; // adelanto ya pagado de la orden (para calcular el saldo a cobrar hoy)
   /**
+   * Descuento que el admin le hizo a la orden. NO resta nada acá: el precio de
+   * la línea ya entra NETO (costo − descuento). Está para poder MOSTRÁRSELO al
+   * cajero, que cobra sin haberlo aplicado y si no lo ve no puede explicar por
+   * qué el total no es el costo del servicio.
+   */
+  descuentoOrden?: number;
+  /**
    * VENDER A COSTO. SÍ viaja al backend, y es lo único que viaja: el precio de
    * esta línea lo pone el servidor desde el costo. `precioUnitario` se
    * actualiza igual para que el carrito muestre lo que se va a cobrar, pero

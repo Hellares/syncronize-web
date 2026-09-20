@@ -63,11 +63,17 @@ interface Props {
   onSuccess: (venta: Venta) => void;
   /** Adelantos ya pagados de órdenes de servicio en el carrito: hoy se cobra total − adelanto. */
   adelantoAplicado?: number;
+  /**
+   * Descuento que el admin le hizo a esas órdenes. NO se resta: las líneas ya
+   * entran netas. Se muestra porque quien cobra no es quien lo aplicó, y sin
+   * el número no puede explicar por qué el total no es el costo del servicio.
+   */
+  descuentoOrdenes?: number;
   /** Cliente pre-cargado (ej. desde una orden de servicio). */
   initialCliente?: InitialCliente;
 }
 
-export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess, adelantoAplicado = 0, initialCliente }: Props) {
+export default function CobroPanel({ items, setItems, sedeId, total, onBack, onSuccess, adelantoAplicado = 0, descuentoOrdenes = 0, initialCliente }: Props) {
   const { state: authState } = useAuth();
   const { userRoles, empresa, state: empresaState } = useEmpresa();
   const empresaId = empresa?.id ?? '';
@@ -664,9 +670,13 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
         {/* El total se fue de acá al display del panel de cobro: lo que decide
             si la venta se puede cerrar es el FALTANTE, y tenerlo a un lado de
             la pantalla y las teclas al otro obligaba a cruzar la vista. */}
-        {adelantoAplicado > 0 && (
+        {(adelantoAplicado > 0 || descuentoOrdenes > 0) && (
           <p className="text-[11px] text-gray-500">
-            Adelanto −S/ {fmt(adelantoAplicado)} · <span className="font-medium text-green-600">a cobrar hoy S/ {fmt(totalACobrar)}</span>
+            {descuentoOrdenes > 0 && <span className="text-amber-600">Descuento −S/ {fmt(descuentoOrdenes)}</span>}
+            {descuentoOrdenes > 0 && adelantoAplicado > 0 && ' · '}
+            {adelantoAplicado > 0 && <>Adelanto −S/ {fmt(adelantoAplicado)}</>}
+            {' · '}
+            <span className="font-medium text-green-600">a cobrar hoy S/ {fmt(totalACobrar)}</span>
           </p>
         )}
       </div>
