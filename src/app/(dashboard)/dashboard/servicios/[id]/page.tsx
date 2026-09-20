@@ -45,13 +45,16 @@ const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rou
  * (3px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
  * sombra exterior: el panel parece levantado, no flotando más alto.
  *
+ * El padding va por lados (`px-5 pt-3 pb-5`) y no como `p-5 pt-3`: dos `p-*`
+ * en la misma cadena las resuelve el CSS compilado, no el orden del string.
+ *
  * 🔴 Va todo en UNA sola utilidad `shadow-[...]`: `shadow-xl` y un
  * `shadow-[inset_...]` escriben la MISMA variable, así que no se pueden
  * encadenar — gana el que el CSS ponga último, no el que va después en la
  * cadena. Las cuatro capas son, en orden: línea celeste, degradé bajo la
  * línea, y las dos sombras de `shadow-xl`.
  */
-const DIALOG_PANEL_RELIEVE = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
+const DIALOG_PANEL_RELIEVE = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white px-5 pt-3 pb-5 shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
