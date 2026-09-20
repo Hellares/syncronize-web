@@ -7,7 +7,7 @@ import type { OrdenServicio, HistorialOS, EstadoOrdenServicio, TipoComponente, C
 import {
   ESTADO_OS_CONFIG, TIPO_SERVICIO_LABEL, PRIORIDAD_LABEL, PRIORIDAD_CONFIG,
   TRANSICIONES_VALIDAS, ESTADOS_OS_COBRABLES, TIPOS_ACCION, TIPO_ACCION_LABEL, TIPO_ACCION_COLOR,
-  saldoPendienteOrden, estaCobradaOrden,
+  saldoPendienteOrden, estaCobradaOrden, nombreComponente,
 } from '@/core/types/orden-servicio';
 import type { MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL } from '@/core/types/caja';
@@ -342,7 +342,7 @@ export default function OrdenDetailPage() {
                   return (
                     <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
                       <button onClick={() => setComponenteDetalle(c)} className="min-w-0 flex-1 text-left hover:opacity-70">
-                        <span className="text-gray-700">{c.componente?.tipoComponente?.nombre ?? c.componente?.marca ?? 'Componente'}{c.componente?.modelo ? ` ${c.componente.modelo}` : ''} · <span className={TIPO_ACCION_COLOR[accion] ?? 'text-teal-600'}>{TIPO_ACCION_LABEL[accion] ?? c.tipoAccion}</span></span>
+                        <span className="text-gray-700">{nombreComponente(c.componente)} · <span className={TIPO_ACCION_COLOR[accion] ?? 'text-teal-600'}>{TIPO_ACCION_LABEL[accion] ?? c.tipoAccion}</span></span>
                         {c.descripcionAccion && <p className="text-[10px] text-gray-400">{c.descripcionAccion}</p>}
                         {total > 0 && <p className="text-[10px] text-gray-400">M.O. {fmt(c.costoAccion)} · Repuesto/compra {fmt(c.costoRepuestos)}</p>}
                       </button>
@@ -643,8 +643,8 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   // así que no aliviana nada.
   const linkClass = 'mt-1 text-[11px] font-medium text-[#437EFF] hover:underline';
 
-  const nombreComp = (c: Componente) =>
-    [c.tipoComponente?.nombre ?? c.marca, c.modelo, c.numeroSerie].filter(Boolean).join(' · ') || c.codigo || 'Componente';
+  // Con serie: acá se elige la UNIDAD física entre las registradas.
+  const nombreComp = (c: Componente) => nombreComponente(c, { conSerie: true });
   const compsFiltrados = componentes.filter(c => {
     const q = buscar.trim().toLowerCase();
     if (!q) return true;

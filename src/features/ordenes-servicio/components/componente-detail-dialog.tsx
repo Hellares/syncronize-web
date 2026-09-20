@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AxiosError } from 'axios';
 import { useImagenPegada } from '../hooks/use-imagen-pegada';
 import type { OrdenServicioComponente, TipoAccionComponente, UpdateServicioComponenteDto } from '@/core/types/orden-servicio';
-import { TIPOS_ACCION, TIPO_ACCION_LABEL } from '@/core/types/orden-servicio';
+import { TIPOS_ACCION, TIPO_ACCION_LABEL, nombreComponente } from '@/core/types/orden-servicio';
 import * as osService from '../services/orden-servicio-service';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
@@ -14,11 +14,9 @@ function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function nombreComponente(c: OrdenServicioComponente): string {
-  const tipo = c.componente?.tipoComponente?.nombre;
-  const marca = c.componente?.marca;
-  const modelo = c.componente?.modelo;
-  return [tipo ?? marca ?? 'Componente', modelo].filter(Boolean).join(' ');
+/** Tipo · marca · modelo (ver `nombreComponente` en los tipos: la marca va). */
+function nombreDelComponente(c: OrdenServicioComponente): string {
+  return nombreComponente(c.componente);
 }
 
 /** Detalle de un componente de la orden: info, costos, edición de acción e imágenes de evidencia. */
@@ -41,7 +39,7 @@ export function ComponenteDetailDialog({
       <div className="font-sans max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900">{nombreComponente(c)}</h3>
+            <h3 className="text-sm font-semibold text-gray-900">{nombreDelComponente(c)}</h3>
             {c.componente?.codigo && <p className="text-[11px] text-gray-400">{c.componente.codigo}</p>}
           </div>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-600">✕</button>

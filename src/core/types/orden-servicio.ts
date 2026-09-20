@@ -492,6 +492,28 @@ export interface OrdenCobrable {
   clienteEmpresa?: { clienteEmpresaId: string; razonSocial: string; ruc?: string | null; email?: string | null; direccion?: string | null } | null;
 }
 
+/**
+ * Cómo se nombra un componente en pantalla: tipo · marca · modelo (· serie).
+ *
+ * 🔴 La MARCA va SIEMPRE. Se venía haciendo `tipoComponente?.nombre ?? marca`
+ * en tres lugares, y como la lista de componentes se filtra POR TIPO el tipo
+ * existe siempre: la marca no se mostraba nunca y dos PERNO de marcas
+ * distintas quedaban idénticos justo en la pantalla donde hay que elegir uno.
+ * Paridad con `Componente.displayName` del app (tipo - marca - modelo).
+ *
+ * `conSerie` solo donde hay que distinguir la UNIDAD física (la lista de
+ * "elegir componente registrado"); en las filas compactas alarga de más.
+ */
+export function nombreComponente(
+  c: Componente | null | undefined,
+  { conSerie = false }: { conSerie?: boolean } = {},
+): string {
+  if (!c) return 'Componente';
+  const partes = [c.tipoComponente?.nombre, c.marca, c.modelo];
+  if (conSerie) partes.push(c.numeroSerie);
+  return partes.filter(Boolean).join(' · ') || c.codigo || 'Componente';
+}
+
 export function nombreClienteOrden(o: OrdenServicio): string {
   if (o.clienteEmpresa?.razonSocial) return o.clienteEmpresa.razonSocial;
   const p = o.cliente?.persona;
