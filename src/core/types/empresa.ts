@@ -23,6 +23,12 @@ export interface EmpresaPermissions {
   canManageServices: boolean;
   canViewClients: boolean;
   canManageClients: boolean;
+  /**
+   * Solo dar de alta un cliente nuevo y buscarlo por DNI/RUC. Editar y
+   * eliminar siguen pidiendo `canManageClients`. Lo tiene todo el que puede
+   * gestionar clientes, mas el tecnico con el granular `cotizacion.crear`.
+   */
+  canCrearClientes: boolean;
   canViewDiscounts: boolean;
   canManageDiscounts: boolean;
   canAssignDiscounts: boolean;
@@ -43,6 +49,21 @@ export interface EmpresaPermissions {
   canViewReports: boolean;
   canManageInvoices: boolean;
   canManageOrders: boolean;
+  /**
+   * Repartir el trabajo. El tecnico queda asignado a las ordenes que el mismo
+   * recibe y no se las pasa a otro: eso lo hace el admin.
+   */
+  canAsignarTecnico: boolean;
+  /**
+   * La plata de la orden: costo acordado, descuento y adelantos. El costo de
+   * cada repuesto y cada accion NO entra aca — eso lo carga el tecnico, que
+   * es lo que reparo.
+   *
+   * 🔴 El backend tira 403 si estos campos llegan de quien no los maneja
+   * (`validarCostosPermitidos`): esconder el input no alcanza, tampoco hay
+   * que MANDARLOS.
+   */
+  canGestionarCostosOrden: boolean;
   canViewStatistics: boolean;
   canManageSettings: boolean;
   canManagePaymentMethods: boolean;

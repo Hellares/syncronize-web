@@ -104,6 +104,11 @@ export default function OrdenDetailPage() {
 
   const cfg = ESTADO_OS_CONFIG[orden.estado];
   const prio = PRIORIDAD_CONFIG[orden.prioridad];
+  // La plata de la orden —costo acordado, descuento, adelantos y el cobro— es
+  // del admin. El técnico sigue cargando el costo de cada repuesto y cada
+  // acción en Componentes: eso es lo que reparó, no es cobrar. Misma regla
+  // que el app (`_puedeCostosOrden` en orden_servicio_detail_page.dart).
+  const puedeCostos = permissions.canGestionarCostosOrden;
   const cobrada = estaCobradaOrden(orden);
   const saldo = saldoPendienteOrden(orden) ?? 0;
   const forceShowImagenes = !!orden.datosPersonalizados && Object.values(orden.datosPersonalizados).some(v => v === true);
@@ -182,7 +187,7 @@ export default function OrdenDetailPage() {
         {sinRetirar && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-semibold text-orange-700">Sin retirar</span>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <OrdenServicioPrintMenu orden={orden} />
-          {permissions.canManageOrders && esCobrable && (
+          {puedeCostos && esCobrable && (
             <button onClick={cobrar}
               className="rounded-lg bg-green-600 px-4 py-2 text-xs font-bold text-white hover:bg-green-700">
               Cobrar {saldo > 0.005 ? fmt(saldo) : ''}
@@ -229,7 +234,10 @@ export default function OrdenDetailPage() {
         <div>
           <p className="text-[10px] uppercase text-gray-400">Técnico</p>
           <p className="text-xs font-medium text-gray-700">{tecnicoNombre ?? 'Sin asignar'}</p>
-          {permissions.canManageOrders && permissions.canViewUsers && (
+          {/* Repartir el trabajo es del admin: el técnico queda asignado a lo
+              que él mismo recibe y no se pasa órdenes con otro. Además el
+              diálogo lista usuarios, que él tampoco puede ver. */}
+          {permissions.canAsignarTecnico && permissions.canViewUsers && (
             <button onClick={() => setTecnicoOpen(true)} className="text-[10px] font-semibold text-[#437EFF] hover:underline">
               {tecnicoNombre ? 'Cambiar' : 'Asignar'}
             </button>
@@ -241,7 +249,10 @@ export default function OrdenDetailPage() {
           la derecha la plata, que es lo que se consulta a cada rato y no
           tiene por qué obligar a scrollear hasta el medio de la página. */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+        {/* Sin columna de plata el trabajo ocupa el ancho entero: si no, queda
+            un tercio vacío a la derecha. Las dos clases van completas porque
+            una armada en runtime no existe en el CSS compilado. */}
+        <div className={puedeCostos ? 'space-y-4 lg:col-span-2' : 'space-y-4 lg:col-span-3'}>
         <div className="grid gap-4 md:grid-cols-2">
           {/* Cliente */}
           <div className={`${CARD_BASE} p-4`}>
@@ -363,6 +374,7 @@ export default function OrdenDetailPage() {
         </div>
 
         {/* ── Columna de la plata ── */}
+        {puedeCostos && (
         <div className="lg:col-span-1">
           <div className="space-y-4 lg:sticky lg:top-4 lg:-m-1 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:p-1">
             {/* Resumen de costos (incluye desglose de componentes, paridad Flutter) */}
@@ -374,6 +386,7 @@ export default function OrdenDetailPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {transicionOpen && (
@@ -787,9 +800,19 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
 }
 
 /* --- Transición de estado --- */
+/**
+ * Estados en los que el cambio ofrece tocar la plata (mismos que el app, ver
+ * `showCostos` en orden_servicio_detail_page.dart). En el resto, el costo se
+ * edita con "✎ Editar" del resumen de costos, que no transiciona nada.
+ */
+const ESTADOS_CON_COSTOS: EstadoOrdenServicio[] = [
+  'ESPERANDO_APROBACION', 'EN_REPARACION', 'REPARADO', 'LISTO_ENTREGA', 'ENTREGADO',
+];
+
 function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
   orden: OrdenServicio; transiciones: EstadoOrdenServicio[]; onClose: () => void; onSuccess: () => void;
 }) {
+  const permissions = usePermissions();
   const [nuevoEstado, setNuevoEstado] = useState<EstadoOrdenServicio>(transiciones[0]);
   const [notas, setNotas] = useState('');
   const [comunicarCliente, setComunicarCliente] = useState(false);
@@ -803,14 +826,19 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
 
   const esReingreso = nuevoEstado === 'EN_DIAGNOSTICO' && (orden.estado === 'ENTREGADO' || orden.estado === 'FINALIZADO');
   const esCancelar = nuevoEstado === 'CANCELADO';
+  // Al técnico el diálogo le deja el estado, las notas y el aviso al cliente.
+  // 🔴 Los campos de plata no se esconden nomás: si VIAJAN, el backend
+  // rechaza el cambio de estado entero con 403.
+  const showCostos =
+    permissions.canGestionarCostosOrden && ESTADOS_CON_COSTOS.includes(nuevoEstado);
 
   const submit = async () => {
     setError('');
     if (esCancelar && !notas.trim()) { setError('El motivo de cancelación es obligatorio'); return; }
     if (esReingreso && !motivoReingreso.trim()) { setError('El motivo de reingreso es obligatorio'); return; }
-    const costo = costoTotal ? parseFloat(costoTotal) : undefined;
-    const desc = descuento ? parseFloat(descuento) : undefined;
-    const adel = adelanto ? parseFloat(adelanto) : undefined;
+    const costo = showCostos && costoTotal ? parseFloat(costoTotal) : undefined;
+    const desc = showCostos && descuento ? parseFloat(descuento) : undefined;
+    const adel = showCostos && adelanto ? parseFloat(adelanto) : undefined;
     if (costo != null && (adel ?? 0) + (desc ?? 0) > costo + Number(orden.adelanto ?? 0)) {
       setError('Adelanto + descuento no puede superar el costo total');
       return;
@@ -862,12 +890,14 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
           </div>
 
           {/* Costos editables */}
+          {showCostos && (
           <div className="grid grid-cols-3 gap-2">
             <div><label className="mb-1 block text-[10px] text-gray-400">Costo total</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
             <div><label className="mb-1 block text-[10px] text-gray-400">Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
             <div><label className="mb-1 block text-[10px] text-gray-400">+ Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} placeholder="0" /></div>
           </div>
-          {parseFloat(adelanto || '0') > 0 && (
+          )}
+          {showCostos && parseFloat(adelanto || '0') > 0 && (
             <select className={`${inputClass} bg-white`} value={metodoPagoAdelanto} onChange={e => setMetodoPagoAdelanto(e.target.value as MetodoPagoVenta)}>
               {METODOS.map(m => <option key={m} value={m}>Adelanto: {METODO_PAGO_LABEL[m]}</option>)}
             </select>

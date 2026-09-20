@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { TONOS, TARJETA_CIFRA, BLOQUE_STD, TITULO_BLOQUE } from '@/components/ui/tonos';
 import { useAuth } from '@/core/auth/auth-context';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
+import { ACCESOS_RAPIDOS, tienePermiso } from '@/components/layout/sidebar-config';
 import * as ventaService from '@/features/venta/services/venta-service';
 import * as cajaService from '@/features/caja/services/caja-service';
 import type { VentaAnalyticsDashboard, AnalyticsResumen } from '@/core/types/venta-analytics';
@@ -27,6 +28,18 @@ import { METODO_PAGO_LABEL, type Caja, type ResumenCaja } from '@/core/types/caj
 
 const RANGOS = [7, 14, 30] as const;
 const AZUL = '#437EFF';
+
+/**
+ * Las pantallas de trabajo que se ofrecen a quien no ve estadísticas. Los
+ * permisos de cada una salen de `ACCESOS_RAPIDOS`, no se repiten acá: el
+ * técnico tiene que ver Cotizaciones y Órdenes, nunca las de ventas.
+ */
+const HREFS_SIN_STATS: string[] = [
+  '/dashboard/venta-rapida',
+  '/dashboard/ventas',
+  '/dashboard/cotizaciones',
+  '/dashboard/servicios',
+];
 
 function soles(n: number, decimales = 2): string {
   return `S/ ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: decimales, maximumFractionDigits: decimales })}`;
@@ -150,6 +163,19 @@ export default function DashboardPage() {
   const [mes, setMes] = useState<AnalyticsResumen | null>(null);
 
   const verStats = permissions.canViewStatistics;
+
+  // Atajos del panel de "sin estadísticas". Salen de la MISMA lista y los
+  // MISMOS permisos que la cabecera y el menú: hardcodeados ofrecían Venta
+  // Rápida y Ventas a un técnico, que solo llegan a un 403.
+  const atajosSinStats = useMemo(() => {
+    const ocultos = new Set(permissions.accesosRapidosOcultos ?? []);
+    return ACCESOS_RAPIDOS.filter(
+      (a) =>
+        HREFS_SIN_STATS.includes(a.href) &&
+        tienePermiso(permissions, a.permission) &&
+        !(a.ocultableId && ocultos.has(a.ocultableId)),
+    );
+  }, [permissions]);
 
   // Dos llamadas al MISMO endpoint: una para el día (tarjetas, alertas, medios
   // de pago) y otra para el rango del gráfico. El resumen que devuelve es del
@@ -606,12 +632,23 @@ export default function DashboardPage() {
       {!verStats && (
         <div className="rounded-xl border border-[#e8ecf1] bg-white p-6 text-center">
           <p className="text-sm font-semibold text-gray-700">Tu cuenta no tiene acceso a las estadísticas</p>
-          <p className="mt-1 text-xs text-gray-500">Podés seguir vendiendo con normalidad desde acá.</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <Link href="/dashboard/venta-rapida" className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">Venta Rápida</Link>
-            <Link href="/dashboard/ventas" className="rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Ventas</Link>
-            <Link href="/dashboard/cotizaciones" className="rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cotizaciones</Link>
-          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            {atajosSinStats.length > 0
+              ? 'Podés seguir con tu trabajo desde acá.'
+              : 'Entrá por el menú a las pantallas de tu trabajo.'}
+          </p>
+          {atajosSinStats.length > 0 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {atajosSinStats.map((a, i) => (
+                <Link key={a.href} href={a.href}
+                  className={i === 0
+                    ? 'rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]'
+                    : 'rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50'}>
+                  {a.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

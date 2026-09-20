@@ -95,6 +95,11 @@ export default function NuevaOrdenPage() {
   const { empresa, sedes } = useEmpresa();
   const empresaId = empresa?.id ?? '';
   const permissions = usePermissions();
+  // La plata de la orden es del admin (paridad con el app: el técnico carga
+  // el costo de cada repuesto, no el costo acordado ni los adelantos).
+  // 🔴 No alcanza con esconder los inputs: si estos campos VIAJAN, el backend
+  // rechaza la orden entera con 403 (`validarCostosPermitidos`).
+  const puedeCostos = permissions.canGestionarCostosOrden;
 
   const [cliente, setCliente] = useState<ClienteSel | null>(null);
   const [clienteSearch, setClienteSearch] = useState('');
@@ -206,7 +211,9 @@ export default function NuevaOrdenPage() {
     setCampos([]);
     const sv = servicios.find(s => s.id === id);
     if (sv?.tipoServicio) setTipoServicio(sv.tipoServicio);
-    if (sv?.precio != null && !costoTotal) setCostoTotal(String(sv.precio));
+    // El precio del catálogo NO se autocompleta a quien no maneja la plata:
+    // sería un costo invisible viajando en el DTO → 403 al crear.
+    if (puedeCostos && sv?.precio != null && !costoTotal) setCostoTotal(String(sv.precio));
     if (id) {
       try {
         const cs = await catalogoService.getCamposPorServicio(id);
@@ -227,9 +234,9 @@ export default function NuevaOrdenPage() {
 
   const handleSubmit = async () => {
     setError('');
-    const costo = costoTotal ? parseFloat(costoTotal) : undefined;
-    const desc = descuento ? parseFloat(descuento) : undefined;
-    const adel = adelanto ? parseFloat(adelanto) : undefined;
+    const costo = puedeCostos && costoTotal ? parseFloat(costoTotal) : undefined;
+    const desc = puedeCostos && descuento ? parseFloat(descuento) : undefined;
+    const adel = puedeCostos && adelanto ? parseFloat(adelanto) : undefined;
     if (costo != null && (adel ?? 0) + (desc ?? 0) > costo) {
       setError('Adelanto + descuento no puede superar el costo total');
       return;
@@ -462,7 +469,8 @@ export default function NuevaOrdenPage() {
             </div>
           </Bloque>
 
-          {/* COSTOS Y ADELANTO */}
+          {/* COSTOS Y ADELANTO — solo para quien maneja la plata de la orden */}
+          {puedeCostos && (
           <Bloque titulo="COSTOS Y ADELANTO" icon={<IconTarjeta />}>
             <div className={`grid gap-2.5 ${totales.adel > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
               <div><label className={LABEL}>Costo total</label><input className={`${INPUT_STD} text-right`} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} placeholder="0.00" /></div>
@@ -483,6 +491,7 @@ export default function NuevaOrdenPage() {
               </p>
             )}
           </Bloque>
+          )}
 
           {/* NOTAS — plegado: casi siempre queda vacío y ocupaba lo mismo que
               lo obligatorio. */}
@@ -525,20 +534,26 @@ export default function NuevaOrdenPage() {
         {/* ── Ticket: la plata primero, el detalle después ── */}
         <div className="lg:col-span-1">
           <div className="sticky top-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-bold tracking-wide text-gray-400">
-              {totales.adel > 0 ? 'SALDO AL ENTREGAR' : 'TOTAL'}
-            </p>
-            <p className="mt-0.5 text-[30px] font-bold leading-none tracking-tight text-[#004A94] tabular-nums">
-              S/ {(totales.adel > 0 ? totales.saldo : totales.neto).toFixed(2)}
-            </p>
+            {/* Sin permiso de costos el ticket no muestra plata: serían tres
+                ceros que el técnico no puede cambiar. */}
+            {puedeCostos && (
+              <>
+                <p className="text-[10px] font-bold tracking-wide text-gray-400">
+                  {totales.adel > 0 ? 'SALDO AL ENTREGAR' : 'TOTAL'}
+                </p>
+                <p className="mt-0.5 text-[30px] font-bold leading-none tracking-tight text-[#004A94] tabular-nums">
+                  S/ {(totales.adel > 0 ? totales.saldo : totales.neto).toFixed(2)}
+                </p>
 
-            <div className="mt-3.5 space-y-1.5 border-t border-gray-100 pt-3 text-[11px]">
-              <div className="flex justify-between"><span className="text-gray-400">Costo</span><span className="tabular-nums text-gray-700">S/ {totales.costo.toFixed(2)}</span></div>
-              {totales.desc > 0 && <div className="flex justify-between"><span className="text-gray-400">Descuento</span><span className="tabular-nums text-red-500">− S/ {totales.desc.toFixed(2)}</span></div>}
-              {totales.adel > 0 && <div className="flex justify-between"><span className="text-gray-400">Adelanto</span><span className="tabular-nums text-green-600">− S/ {totales.adel.toFixed(2)}</span></div>}
-            </div>
+                <div className="mt-3.5 space-y-1.5 border-t border-gray-100 pt-3 text-[11px]">
+                  <div className="flex justify-between"><span className="text-gray-400">Costo</span><span className="tabular-nums text-gray-700">S/ {totales.costo.toFixed(2)}</span></div>
+                  {totales.desc > 0 && <div className="flex justify-between"><span className="text-gray-400">Descuento</span><span className="tabular-nums text-red-500">− S/ {totales.desc.toFixed(2)}</span></div>}
+                  {totales.adel > 0 && <div className="flex justify-between"><span className="text-gray-400">Adelanto</span><span className="tabular-nums text-green-600">− S/ {totales.adel.toFixed(2)}</span></div>}
+                </div>
+              </>
+            )}
 
-            <div className="mt-3.5 space-y-1.5 border-t border-gray-100 pt-3">
+            <div className={puedeCostos ? 'mt-3.5 space-y-1.5 border-t border-gray-100 pt-3' : 'space-y-1.5'}>
               <p className="text-[10px] font-bold tracking-wide text-gray-400">LO QUE SE REGISTRA</p>
               <ResumenFila etiqueta="Cliente" valor={cliente?.nombre ?? 'Sin cliente'} />
               <ResumenFila etiqueta="Equipo" valor={[tipoEquipo, marcaEquipo].filter(Boolean).join(' ') || '—'} />
