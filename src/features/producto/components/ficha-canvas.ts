@@ -428,17 +428,61 @@ export async function dibujarFicha(
   ctx.stroke();
 
   const tel = datos.marca.telefono?.trim();
+  let finDelTel = PAD;
   if (tel) {
+    // El ícono a la izquierda del número, como en el app.
+    const tam = 12;
+    iconoTelefono(ctx, PAD, yPie + 23 - tam, tam, marca);
+    const xTel = PAD + tam + 5;
     ctx.font = `600 11.5px ${FUENTE}`;
     ctx.fillStyle = '#374151';
-    ctx.fillText(tel, PAD, yPie + 23);
+    ctx.fillText(tel, xTel, yPie + 23);
+    finDelTel = xTel + ctx.measureText(tel).width;
   }
   const cierre = datos.marca.textoPie?.trim() || 'Consulte disponibilidad';
   ctx.font = `400 9.5px ${FUENTE}`;
   ctx.fillStyle = '#9ca3af';
   ctx.textAlign = tel ? 'right' : 'left';
-  ctx.fillText(cierre, tel ? ANCHO - PAD : PAD, yPie + 23);
+  // 🔴 El pie lo escribe la empresa: uno largo se montaba sobre el teléfono, y
+  // acá el desborde viaja adentro del PNG que recibe el cliente.
+  ctx.fillText(
+    recortar(ctx, cierre, ANCHO - PAD - finDelTel - 8),
+    tel ? ANCHO - PAD : PAD,
+    yPie + 23,
+  );
   ctx.textAlign = 'left';
+}
+
+/**
+ * El ícono de teléfono (el `phone` de Material, en su caja de 24×24) dibujado
+ * a mano con un `Path2D`.
+ *
+ * 🔴 No va como texto: un emoji ☎ lo dibuja cada sistema a su manera y una
+ * fuente de íconos puede no haber cargado cuando se captura. El trazo siempre
+ * sale igual, que es lo que importa en una imagen que se le manda a alguien.
+ *
+ * [x], [y] son la esquina superior izquierda y [tam] el lado de la caja.
+ */
+function iconoTelefono(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tam: number,
+  color: string,
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(tam / 24, tam / 24);
+  ctx.fillStyle = color;
+  ctx.fill(
+    new Path2D(
+      'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24' +
+        ' 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17' +
+        ' 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02' +
+        'l-2.2 2.2z',
+    ),
+  );
+  ctx.restore();
 }
 
 /**
