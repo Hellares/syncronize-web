@@ -17,6 +17,10 @@ import * as osService from '../services/orden-servicio-service';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
 import { CARD_BASE } from '@/components/ui/Card';
+import {
+  INPUT_STD, LABEL_MINI, CAJA_STD,
+  DIALOG_PANEL_RELIEVE, DIALOG_HEAD, DIALOG_BODY, DIALOG_FOOT,
+} from '@/components/ui/dialogo';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -167,7 +171,7 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
   const adel = parseFloat(adelanto || '0');
   const costoFinalCalc = compCost + costo - desc; // total al cliente = repuestos + servicio − descuento
   const saldoCalc = costoFinalCalc - adel;
-  const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]';
+  const inputClass = INPUT_STD;
 
   const submit = async () => {
     setError('');
@@ -192,19 +196,24 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-medium text-[#004A94]">Costos del servicio</h3>
-        <p className="text-[11px] text-gray-500">Editar precios y pagos</p>
-        <div className="mt-3 space-y-2">
+      <div className={DIALOG_PANEL_RELIEVE} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        {/* Cabecera fija */}
+        <div className={DIALOG_HEAD}>
+          <h3 className="text-sm font-medium text-[#004A94]">Costos del servicio</h3>
+          <p className="text-[11px] text-gray-500">Editar precios y pagos</p>
+        </div>
+        {/* Lo único que scrollea */}
+        <div className={DIALOG_BODY}>
+        <div className="space-y-2">
           {compCost > 0 && (
             <div className="rounded-lg bg-gray-50 px-3 py-2 text-[11px] text-gray-500">Repuestos / componentes: <b className="text-gray-700">{fmt(compCost)}</b> <span className="text-gray-400">(se suman al total)</span></div>
           )}
-          <div><label className="mb-1 block text-[10px] text-gray-400">Costo del servicio (mano de obra / diagnóstico)</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
-          <div><label className="mb-1 block text-[10px] text-gray-400">Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
+          <div><label className={LABEL_MINI}>Costo del servicio (mano de obra / diagnóstico)</label><input className={inputClass} type="number" step="0.01" min="0" value={costoTotal} onChange={e => setCostoTotal(e.target.value)} /></div>
+          <div><label className={LABEL_MINI}>Descuento</label><input className={inputClass} type="number" step="0.01" min="0" value={descuento} onChange={e => setDescuento(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-2">
-            <div><label className="mb-1 block text-[10px] text-gray-400">Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} /></div>
-            <div><label className="mb-1 block text-[10px] text-gray-400">Medio pago</label>
-              <select className={`${inputClass} bg-white`} value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPagoVenta)}>
+            <div><label className={LABEL_MINI}>Adelanto</label><input className={inputClass} type="number" step="0.01" min="0" value={adelanto} onChange={e => setAdelanto(e.target.value)} /></div>
+            <div><label className={LABEL_MINI}>Medio pago</label>
+              <select className={inputClass} value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPagoVenta)}>
                 <option value="">—</option>
                 {METODOS.map(m => <option key={m} value={m}>{METODO_PAGO_LABEL[m]}</option>)}
               </select>
@@ -213,7 +222,7 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
         </div>
 
         {(costo > 0 || compCost > 0) && (
-          <div className="mt-3 rounded-lg border border-[#437EFF]/30 bg-[#437EFF]/5 p-2.5">
+          <div className={`${CAJA_STD} mt-3 bg-[#437EFF]/5 p-2.5`}>
             {compCost > 0 && <CostoRow label="Repuestos / componentes" valor={compCost} />}
             {costo > 0 && <CostoRow label="Costo del servicio" valor={costo} />}
             {desc > 0 && <CostoRow label="Descuento" valor={-desc} color="text-green-700" showSign />}
@@ -225,7 +234,9 @@ function EditarCostosDialog({ orden, onClose, onSaved }: { orden: OrdenServicio;
         )}
 
         {error && <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
-        <div className="mt-4 flex justify-end gap-2">
+        </div>
+        {/* Pie fijo: Guardar siempre a la vista */}
+        <div className={DIALOG_FOOT}>
           <button onClick={onClose} disabled={saving} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
           <button onClick={submit} disabled={saving} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
             {saving ? 'Guardando...' : 'Guardar costos'}

@@ -8,13 +8,7 @@ import { TIPOS_ACCION, TIPO_ACCION_LABEL } from '@/core/types/orden-servicio';
 import * as osService from '../services/orden-servicio-service';
 import * as storageService from '@/features/storage/services/storage-service';
 import type { ArchivoResponse } from '@/features/storage/services/storage-service';
-
-// Estilo estandar de la web (ver feedback_web_estilo_input_std): 30px, r6,
-// fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra.
-const INPUT_STD =
-  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
-const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
-const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
+import { INPUT_STD, LABEL, LABEL_MINI } from '@/components/ui/dialogo';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

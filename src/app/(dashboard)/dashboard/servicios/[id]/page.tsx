@@ -24,40 +24,10 @@ import { ResumenCostosCard, OrdenImagenesSection } from '@/features/ordenes-serv
 import AdelantosOrdenWidget from '@/features/ordenes-servicio/components/adelantos-orden-widget';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
 import { CARD_BASE } from '@/components/ui/Card';
-
-// Estilo estándar de la web (ver feedback_web_estilo_input_std): 30px, r6,
-// fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra. Los
-// selects usan la misma constante que los inputs, como en `servicios/nueva`:
-// un `bg-white` encima no gana por estar después en la cadena, lo decide el
-// CSS compilado.
-const INPUT_STD =
-  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
-const INPUT_STD_TA =
-  'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200 resize-none';
-/** Contenedor con el mismo lenguaje que los inputs; el fondo lo pone cada uso. */
-const CAJA_STD = 'w-full ring-1 ring-blue-400 rounded-[6px] shadow-md transition-all duration-300';
-const LABEL = 'mb-1 block text-[11px] font-medium text-gray-600';
-const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
-/**
- * Panel de diálogo. `font-sans` explícito para que no lo pise otra familia.
- *
- * Con ALTORRELIEVE en el borde de arriba: una línea celeste por DENTRO
- * (3px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
- * sombra exterior: el panel parece levantado, no flotando más alto.
- *
- * Es una COLUMNA que no scrollea: el padding y el scroll viven adentro
- * (cabecera y pie fijos, el medio con `overflow-y-auto`). Con el scroll en el
- * panel, la barra corría por todo el alto y en pantallas chicas se montaba
- * sobre el borde redondeado de arriba y la línea del relieve. `overflow-hidden`
- * la recorta a las esquinas.
- *
- * 🔴 Va todo en UNA sola utilidad `shadow-[...]`: `shadow-xl` y un
- * `shadow-[inset_...]` escriben la MISMA variable, así que no se pueden
- * encadenar — gana el que el CSS ponga último, no el que va después en la
- * cadena. Las cuatro capas son, en orden: línea celeste, degradé bajo la
- * línea, y las dos sombras de `shadow-xl`.
- */
-const DIALOG_PANEL_RELIEVE = 'font-sans flex max-h-[88vh] w-full max-w-sm flex-col overflow-hidden rounded-xl bg-white shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
+import {
+  INPUT_STD, INPUT_STD_TA, CAJA_STD, LABEL, LABEL_MINI,
+  DIALOG_PANEL_RELIEVE, DIALOG_HEAD, DIALOG_BODY, DIALOG_FOOT,
+} from '@/components/ui/dialogo';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -752,11 +722,11 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className={DIALOG_PANEL_RELIEVE} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         {/* Cabecera fija: el título no se va con el scroll. */}
-        <h3 className="shrink-0 px-5 pt-3 pb-2 text-sm font-medium text-gray-900">Agregar componente</h3>
+        <h3 className={`${DIALOG_HEAD} text-sm font-medium text-gray-900`}>Agregar componente</h3>
         {/* Lo ÚNICO que scrollea. `min-h-0` es obligatorio: sin eso el hijo de
             un flex column no se encoge y el scroll se va al panel entero, que
             es lo que hacía que la barra pasara por encima del borde de arriba. */}
-        <div className="scroll-panel min-h-0 flex-1 overflow-y-auto px-5 pb-1">
+        <div className={DIALOG_BODY}>
         {loadingTipos ? (
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
         ) : (
@@ -846,7 +816,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
         )}
         </div>
         {/* Pie fijo: Cancelar y Agregar siempre a la vista. */}
-        <div className="shrink-0 flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
+        <div className={DIALOG_FOOT}>
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
           <button onClick={submit} disabled={isSubmitting || loadingTipos}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
@@ -928,9 +898,9 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className={DIALOG_PANEL_RELIEVE} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
         {/* Cabecera fija */}
-        <h3 className="shrink-0 px-5 pt-3 pb-2 text-sm font-medium text-gray-900">Cambiar estado</h3>
+        <h3 className={`${DIALOG_HEAD} text-sm font-medium text-gray-900`}>Cambiar estado</h3>
         {/* Lo unico que scrollea (`min-h-0`, si no el scroll se escapa al panel) */}
-        <div className="scroll-panel min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-1">
+        <div className={`${DIALOG_BODY} space-y-3`}>
           <div>
             <label className={LABEL}>Nuevo estado</label>
             <select className={inputClass} value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value as EstadoOrdenServicio)}>
@@ -972,7 +942,7 @@ function TransicionEstadoDialog({ orden, transiciones, onClose, onSuccess }: {
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2.5"><p className="text-xs text-red-600">{error}</p></div>}
         </div>
         {/* Pie fijo: Cancelar y Confirmar siempre a la vista. */}
-        <div className="shrink-0 flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
+        <div className={DIALOG_FOOT}>
           <button onClick={onClose} disabled={isSubmitting} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
           <button onClick={submit} disabled={isSubmitting}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-50">
