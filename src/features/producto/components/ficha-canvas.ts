@@ -31,6 +31,14 @@ export interface DatosFicha {
   /** La descripción del producto. Vacía o ausente = no se dibuja nada. */
   descripcion?: string | null;
   fotoUrl?: string | null;
+  /**
+   * Las OTRAS fotos, sin la principal: van en una tira debajo de la grande.
+   *
+   * 🔴 Cuando un producto tiene varias, suelen ser DISEÑOS o COLORES del mismo
+   * artículo al mismo precio, y el cliente los quiere ver todos. Mandar una
+   * sola obliga a mandar la ficha N veces.
+   */
+  fotosExtra?: string[];
   precio: number;
   /** El de lista, solo si hay rebaja vigente: sirve para tacharlo. */
   precioAnterior?: number | null;
@@ -43,6 +51,8 @@ export interface OpcionesFicha {
   incluirPrecio?: boolean;
   incluirCaracteristicas?: boolean;
   incluirCodigo?: boolean;
+  /** La tira con las otras fotos. Sin ella la ficha es la de siempre. */
+  incluirOtrasFotos?: boolean;
 }
 
 /**
@@ -56,6 +66,12 @@ const PAD = 14;
 const ALTO_CABECERA = 46;
 const ALTO_FOTO = 260;
 const ALTO_PIE = 38;
+
+/** La tira de las otras fotos: alto de cada celda y aire entre ellas. */
+const ALTO_MINIATURA = 56;
+const GAP_MINIATURA = 6;
+/** Cuántas celdas entran; pasado eso, la última dice "+N". */
+const MAX_MINIATURAS = 4;
 
 const TINTA = '#111827';
 const GRIS_TEXTO = '#6b7280';
@@ -135,15 +151,23 @@ export async function dibujarFicha(
     incluirPrecio = true,
     incluirCaracteristicas = true,
     incluirCodigo = true,
+    incluirOtrasFotos = true,
   } = opciones;
 
   // 🔴 Antes de medir NADA: con la fuente sin cargar, el ancho de cada línea es
   // el de otra tipografía y el texto termina cortado donde no va.
   if (document.fonts?.ready) await document.fonts.ready;
 
-  const [foto, logo] = await Promise.all([
+  // La tira entra entera hasta MAX_MINIATURAS; si sobran, la última celda es
+  // un "+N" y esas fotos ni se bajan.
+  const otras = (incluirOtrasFotos ? (datos.fotosExtra ?? []) : []).filter(Boolean);
+  const enTira = otras.length > MAX_MINIATURAS ? otras.slice(0, MAX_MINIATURAS - 1) : otras;
+  const sobran = otras.length - enTira.length;
+
+  const [foto, logo, ...miniaturas] = await Promise.all([
     cargarBitmap(datos.fotoUrl),
     cargarBitmap(datos.marca.logoUrl),
+    ...enTira.map((url) => cargarBitmap(url)),
   ]);
 
   const ctx = canvas.getContext('2d');
@@ -164,7 +188,9 @@ export async function dibujarFicha(
     ? envolver(ctx, textoDescripcion, anchoTexto, 5)
     : [];
 
-  let alto = ALTO_CABECERA + ALTO_FOTO + 12;
+  const altoTira = enTira.length ? GAP_MINIATURA + ALTO_MINIATURA : 0;
+
+  let alto = ALTO_CABECERA + ALTO_FOTO + altoTira + 12;
   alto += lineasTitulo.length * 21;
   if (incluirCodigo && datos.codigo) alto += 22;
   if (incluirPrecio) alto += 40;
@@ -233,7 +259,53 @@ export async function dibujarFicha(
     ctx.textAlign = 'left';
   }
 
-  let y = ALTO_CABECERA + ALTO_FOTO + 24;
+  // La tira con las otras fotos, pegada debajo de la grande.
+  if (altoTira) {
+    const celdas = enTira.length + (sobran > 0 ? 1 : 0);
+    const anchoCelda = (anchoTexto - (celdas - 1) * GAP_MINIATURA) / celdas;
+    const yTira = ALTO_CABECERA + ALTO_FOTO + GAP_MINIATURA;
+    for (let i = 0; i < celdas; i++) {
+      const x = PAD + i * (anchoCelda + GAP_MINIATURA);
+      ctx.fillStyle = GRIS_FONDO;
+      ctx.beginPath();
+      ctx.roundRect(x, yTira, anchoCelda, ALTO_MINIATURA, 6);
+      ctx.fill();
+
+      const mini = miniaturas[i];
+      if (i < enTira.length) {
+        // Una que no se pudo bajar deja su celda gris: la ficha sale igual.
+        if (!mini) continue;
+        // `contain` también acá. Con `cover`, dos diseños recortados por el
+        // centro se ven iguales y la tira deja de decir nada.
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, yTira, anchoCelda, ALTO_MINIATURA, 6);
+        ctx.clip();
+        const escala = Math.min(
+          (anchoCelda - 6) / mini.width,
+          (ALTO_MINIATURA - 6) / mini.height,
+        );
+        const w = mini.width * escala;
+        const h = mini.height * escala;
+        ctx.drawImage(
+          mini,
+          x + (anchoCelda - w) / 2,
+          yTira + (ALTO_MINIATURA - h) / 2,
+          w,
+          h,
+        );
+        ctx.restore();
+      } else {
+        ctx.fillStyle = GRIS_TEXTO;
+        ctx.font = `700 13px ${FUENTE}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`+${sobran}`, x + anchoCelda / 2, yTira + ALTO_MINIATURA / 2 + 5);
+        ctx.textAlign = 'left';
+      }
+    }
+  }
+
+  let y = ALTO_CABECERA + ALTO_FOTO + altoTira + 24;
 
   ctx.fillStyle = TINTA;
   ctx.font = `700 17px ${FUENTE}`;

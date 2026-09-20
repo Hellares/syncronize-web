@@ -52,10 +52,11 @@ export default function CompartirFichaDialog({
 
   const [datos, setDatos] = useState<DatosFicha | null>(null);
   /**
-   * Todas las fotos del producto y cuál se manda.
+   * Todas las fotos del producto y cuál va GRANDE.
    *
    * 🔴 Con varias, cada una suele ser un COLOR o un DIBUJO distinto del mismo
-   * artículo. Antes se mandaba la primera sin preguntar y el resto no existía.
+   * artículo. Van todas en la misma ficha —la elegida arriba y el resto en una
+   * tira abajo—, así el cliente ve los diseños sin recibir N imágenes.
    */
   const [fotos, setFotos] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -63,6 +64,7 @@ export default function CompartirFichaDialog({
   const [incluirPrecio, setIncluirPrecio] = useState(true);
   const [incluirCaracteristicas, setIncluirCaracteristicas] = useState(true);
   const [incluirCodigo, setIncluirCodigo] = useState(true);
+  const [incluirOtrasFotos, setIncluirOtrasFotos] = useState(true);
   const [enviando, setEnviando] = useState(false);
 
   // 🔴 La fila del listado NO trae atributos: se pide la ficha completa, igual
@@ -125,17 +127,31 @@ export default function CompartirFichaDialog({
   useEffect(() => {
     if (!datos || !lienzo.current) return;
     let cancelado = false;
-    dibujarFicha(lienzo.current, datos, {
-      incluirPrecio,
-      incluirCaracteristicas,
-      incluirCodigo,
-    }).catch(() => {
+    // Las otras fotos salen de la lista completa, sin la que está de principal:
+    // cambiar cuál va grande reacomoda la tira sola.
+    dibujarFicha(
+      lienzo.current,
+      { ...datos, fotosExtra: fotos.filter((f) => f !== datos.fotoUrl) },
+      {
+        incluirPrecio,
+        incluirCaracteristicas,
+        incluirCodigo,
+        incluirOtrasFotos,
+      },
+    ).catch(() => {
       if (!cancelado) setError('No se pudo dibujar la ficha.');
     });
     return () => {
       cancelado = true;
     };
-  }, [datos, incluirPrecio, incluirCaracteristicas, incluirCodigo]);
+  }, [
+    datos,
+    fotos,
+    incluirPrecio,
+    incluirCaracteristicas,
+    incluirCodigo,
+    incluirOtrasFotos,
+  ]);
 
   const descargar = async () => {
     if (!lienzo.current) return;
@@ -205,6 +221,10 @@ export default function CompartirFichaDialog({
                 ['Precio', incluirPrecio, setIncluirPrecio],
                 ['Características', incluirCaracteristicas, setIncluirCaracteristicas],
                 ['Código', incluirCodigo, setIncluirCodigo],
+                // Con una sola foto no hay tira que prender ni apagar.
+                ...(fotos.length > 1
+                  ? ([['Otras fotos', incluirOtrasFotos, setIncluirOtrasFotos]] as const)
+                  : []),
               ] as const
             ).map(([etiqueta, valor, set]) => (
               <label
@@ -225,7 +245,7 @@ export default function CompartirFichaDialog({
           {fotos.length > 1 && (
             <div className="mt-3">
               <p className="mb-1 text-[11px] font-medium text-gray-600">
-                Cuál foto se manda
+                Cuál foto va grande
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {fotos.map((url) => (
@@ -243,7 +263,9 @@ export default function CompartirFichaDialog({
                 ))}
               </div>
               <p className="mt-1 text-[10px] text-gray-400">
-                Para mandar varios diseños de una, armá un catálogo: ahí sale una tarjeta por foto.
+                {incluirOtrasFotos
+                  ? 'Las demás van en la tira de abajo, en la misma imagen: entran 4 y, si hay más, la última dice cuántas faltan.'
+                  : 'Con “Otras fotos” apagado se manda solo la grande.'}
               </p>
             </div>
           )}
