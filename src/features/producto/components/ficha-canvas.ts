@@ -441,6 +441,27 @@ export async function dibujarFicha(
   ctx.textAlign = 'left';
 }
 
+/**
+ * La misma ficha en un PDF de UNA sola hoja.
+ *
+ * 🔴 La hoja NO es A4: una ficha centrada en A4 le llega al cliente como un
+ * documento casi vacío con una estampilla en el medio. La página se corta a la
+ * proporción exacta de la imagen, así el PDF se ve igual que el PNG.
+ *
+ * Va a 100 mm de ancho: el lienzo son 1080 px, o sea ~274 dpi, que imprime
+ * limpio.
+ */
+export async function fichaAPdf(canvas: HTMLCanvasElement): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf');
+  const anchoMm = 100;
+  const altoMm = (anchoMm * canvas.height) / canvas.width;
+  // Siempre 'p': la ficha siempre es más alta que ancha (cabecera + foto ya
+  // pasan los 360 de ancho), y en landscape jsPDF da vuelta el formato.
+  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [anchoMm, altoMm] });
+  doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, anchoMm, altoMm);
+  return doc.output('blob');
+}
+
 /** El PNG listo para mandar. */
 export function fichaABlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {

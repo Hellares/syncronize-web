@@ -17,7 +17,7 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import * as productoService from '@/features/producto/services/producto-service';
 import { resolverMarca } from '@/features/configuracion-documentos/marca';
 import EnviarPorWhatsappDialog from '@/features/whatsapp/components/EnviarPorWhatsappDialog';
-import { dibujarFicha, fichaABlob, type DatosFicha } from './ficha-canvas';
+import { dibujarFicha, fichaABlob, fichaAPdf, type DatosFicha } from './ficha-canvas';
 
 interface Props {
   /** Un producto, por id: la fila del listado no trae la ficha completa. */
@@ -153,13 +153,21 @@ export default function CompartirFichaDialog({
     incluirOtrasFotos,
   ]);
 
-  const descargar = async () => {
+  /**
+   * Descarga la ficha. El PDF es la MISMA imagen en una hoja a su medida: sirve
+   * para imprimirla o para mandarla como documento, que es lo que piden cuando
+   * la ficha va a un catálogo impreso.
+   */
+  const descargar = async (formato: 'png' | 'pdf') => {
     if (!lienzo.current) return;
-    const blob = await fichaABlob(lienzo.current);
+    const blob =
+      formato === 'pdf'
+        ? await fichaAPdf(lienzo.current)
+        : await fichaABlob(lienzo.current);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${(datos?.titulo ?? 'ficha').slice(0, 40).replace(/[^\w\s-]/g, '')}.png`;
+    a.download = `${(datos?.titulo ?? 'ficha').slice(0, 40).replace(/[^\w\s-]/g, '')}.${formato}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
@@ -287,13 +295,17 @@ export default function CompartirFichaDialog({
             >
               Cerrar
             </button>
-            <button
-              onClick={descargar}
-              disabled={cargando || !!error}
-              className="rounded-lg border border-[#004A94] px-4 py-2 text-sm font-medium text-[#004A94] hover:bg-blue-50 disabled:opacity-50"
-            >
-              Descargar
-            </button>
+            <span className="self-center text-[11px] text-gray-400">Descargar</span>
+            {(['png', 'pdf'] as const).map((formato) => (
+              <button
+                key={formato}
+                onClick={() => descargar(formato)}
+                disabled={cargando || !!error}
+                className="rounded-lg border border-[#004A94] px-3 py-2 text-sm font-medium uppercase text-[#004A94] hover:bg-blue-50 disabled:opacity-50"
+              >
+                {formato}
+              </button>
+            ))}
             <button
               onClick={() => setEnviando(true)}
               disabled={cargando || !!error}
