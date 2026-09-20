@@ -554,6 +554,30 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* Scroll DENTRO de un panel claro (el cuerpo de un diálogo).
+   `.custom-scrollbar` es para fondos oscuros: su pulgar es blanco al 15% y
+   sobre blanco no se ve. Acá va fino, con pista transparente y pulgar
+   azul-gris. `scrollbar-gutter: stable` reserva el canal siempre, así el
+   contenido no salta cuando la barra aparece al agrandar el formulario. */
+.scroll-panel {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #c3d4ea transparent;
+}
+.scroll-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-panel::-webkit-scrollbar-thumb {
+  background: #c3d4ea;
+  border-radius: 10px;
+}
+.scroll-panel::-webkit-scrollbar-thumb:hover {
+  background: #9fbbde;
+}
+
 body {
   background: #f5f7fa;
   color: var(--foreground);
