@@ -42,7 +42,7 @@ const LABEL_MINI = 'mb-1 block text-[10px] font-medium text-gray-400';
 const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl';
 /**
  * Igual, con ALTORRELIEVE en el borde de arriba: una línea celeste por DENTRO
- * (2px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
+ * (3px) y un degradé corto debajo, como si la luz pegara desde arriba. No es
  * sombra exterior: el panel parece levantado, no flotando más alto.
  *
  * 🔴 Va todo en UNA sola utilidad `shadow-[...]`: `shadow-xl` y un
@@ -51,7 +51,7 @@ const DIALOG_PANEL = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rou
  * cadena. Las cuatro capas son, en orden: línea celeste, degradé bajo la
  * línea, y las dos sombras de `shadow-xl`.
  */
-const DIALOG_PANEL_RELIEVE = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-[inset_0_2px_0_0_#bcd9f7,inset_0_7px_10px_-7px_rgb(67_126_255_/_0.30),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
+const DIALOG_PANEL_RELIEVE = 'font-sans max-h-[88vh] w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
 
 function fmt(n: number | undefined | null): string {
   return `S/ ${Number(n ?? 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
