@@ -509,7 +509,12 @@ export function nombreComponente(
   { conSerie = false }: { conSerie?: boolean } = {},
 ): string {
   if (!c) return 'Componente';
-  const partes = [c.tipoComponente?.nombre, c.marca, c.modelo];
+  // El tipo es la CATEGORÍA y el modelo es el nombre concreto: van juntos y
+  // se leen como una cosa sola ("OFFICE 365"), con la marca detrás. Leerlo
+  // como "OFFICE · MICROSOFT · 365" fue lo que llevó a crear un tipo llamado
+  // "OFFICE 365", que es justo lo que la categoría viene a evitar.
+  const queEs = [c.tipoComponente?.nombre, c.modelo].filter(Boolean).join(' ');
+  const partes = [queEs, c.marca];
   if (conSerie) partes.push(c.numeroSerie);
   return partes.filter(Boolean).join(' · ') || c.codigo || 'Componente';
 }

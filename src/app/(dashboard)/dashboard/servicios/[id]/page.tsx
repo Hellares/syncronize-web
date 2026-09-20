@@ -700,7 +700,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
   const nuevoCompForm = (
     <div className="space-y-2">
       <div>
-        <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Marca (Samsung, HP...)" />
+        <input className={inputClass} value={marca} onChange={e => setMarca(e.target.value)} placeholder="Marca (Samsung, HP, Microsoft...)" />
         {marcas.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {marcas.map(m => (
@@ -710,7 +710,7 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
           </div>
         )}
       </div>
-      <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} placeholder="Modelo (Galaxy S24...)" />
+      <input className={inputClass} value={modelo} onChange={e => setModelo(e.target.value)} placeholder="Nombre o modelo (365, 2019, Galaxy S24...)" />
       <input className={inputClass} value={serie} onChange={e => setSerie(e.target.value)} placeholder="N° de serie (opcional — crea registro único)" />
       {!crearNuevoTipo && componentes.length > 0 && (
         <button type="button" className={linkClass} onClick={() => { setMostrarFormNuevo(false); setMarca(''); setModelo(''); setSerie(''); }}>← Ver componentes registrados</button>
@@ -731,24 +731,29 @@ function ComponenteDialog({ ordenId, onClose, onSuccess }: { ordenId: string; on
           <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#437EFF] border-t-transparent" /></div>
         ) : (
           <div className="space-y-3">
-            {/* 1. Tipo de componente: elegir existente o crear nuevo */}
+            {/* 1. Categoría (TipoComponente): agrupa, se reutiliza. El nombre
+                   concreto del componente NO va acá — va en "Nombre o modelo". */}
             <div>
-              <label className={LABEL}>Tipo de componente *</label>
+              <label className={LABEL}>Categoría del componente *</label>
+              <p className="mb-1 text-[10px] text-gray-400">
+                Agrupa los que se repiten: Pantalla, Batería, Office, Perno. El nombre concreto va abajo.
+              </p>
               {!crearNuevoTipo && tipos.length > 0 ? (
                 <>
                   <select className={comboClass} value={tipoComponenteId} onChange={e => setTipoComponenteId(e.target.value)}>
                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}{t.categoria ? ` (${t.categoria})` : ''}</option>)}
                   </select>
-                  <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(true)}>+ Crear nuevo tipo</button>
+                  <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(true)}>+ Crear nueva categoría</button>
                 </>
               ) : (
                 <>
-                  <input className={inputClass} value={nombreTipo} onChange={e => setNombreTipo(e.target.value)} placeholder="Ej: Pantalla, Disco duro, Teclado..." autoFocus />
-                  <select className={`${inputClass} mt-2`} value={categoriaTipo} onChange={e => setCategoriaTipo(e.target.value as osService.CategoriaComponente)}>
+                  <input className={inputClass} value={nombreTipo} onChange={e => setNombreTipo(e.target.value)} placeholder="Ej: Pantalla, Batería, Office, Perno..." autoFocus />
+                  <p className="mt-2 mb-1 text-[10px] text-gray-400">Clasificación</p>
+                  <select className={inputClass} value={categoriaTipo} onChange={e => setCategoriaTipo(e.target.value as osService.CategoriaComponente)}>
                     {CATEGORIAS_COMP.map(c => <option key={c.v} value={c.v}>{c.label}</option>)}
                   </select>
                   {tipos.length > 0 && (
-                    <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(false)}>Elegir tipo existente</button>
+                    <button type="button" className={linkClass} onClick={() => setCrearNuevoTipo(false)}>Elegir categoría existente</button>
                   )}
                 </>
               )}
