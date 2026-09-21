@@ -302,9 +302,14 @@ export default function CompartirFichaDialog({
               envolver, `justify-end` empuja "Cerrar" fuera del panel. No pisa
               nada del pie: `DIALOG_FOOT` no trae ningún `flex-wrap`. */}
           <div className={`${DIALOG_FOOT} flex-wrap`}>
+            {/* 🔴 Los tres botones a la misma altura (~28 px, la del input
+                estándar) y en Medium: Amazon Ember solo tiene tres pesos y a
+                este tamaño el Bold se ve empastado. La jerarquía la hace el
+                COLOR —verde lleno contra borde azul contra borde gris—, no el
+                peso. */}
             <button
               onClick={onClose}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
               Cerrar
             </button>
@@ -316,7 +321,7 @@ export default function CompartirFichaDialog({
                 key={formato}
                 onClick={() => descargar(formato)}
                 disabled={cargando || !!error}
-                className="rounded-lg border border-[#004A94] px-3 py-2 text-sm font-medium uppercase text-[#004A94] hover:bg-blue-50 disabled:opacity-50"
+                className="rounded-lg border border-[#004A94] px-3 py-1.5 text-xs font-medium uppercase text-[#004A94] hover:bg-blue-50 disabled:opacity-50"
               >
                 {formato}
               </button>
@@ -324,7 +329,7 @@ export default function CompartirFichaDialog({
             <button
               onClick={() => setEnviando(true)}
               disabled={cargando || !!error}
-              className="rounded-lg bg-[#25D366] px-4 py-2 text-sm font-bold text-white hover:bg-[#1da851] disabled:opacity-50"
+              className="rounded-lg bg-[#25D366] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#1da851] disabled:opacity-50"
             >
               WhatsApp
             </button>
