@@ -146,6 +146,26 @@ export default function CompraDetallePage() {
               <tr key={d.id}>
                 <td className="px-3 py-2 text-gray-800">
                   {d.descripcion}
+                  {/* Cómo venía en la factura del proveedor. Es el dato con el
+                      que se coteja contra el papel cuando algo no cuadra. */}
+                  {(d.codigoProveedor || d.garantiaMeses != null) && (
+                    <span className="mt-0.5 block text-[10px] text-gray-400">
+                      {d.codigoProveedor && (
+                        <span className="font-medium text-gray-500">
+                          Cód. proveedor: {d.codigoProveedor}
+                        </span>
+                      )}
+                      {d.codigoProveedor && d.garantiaMeses != null && ' · '}
+                      {d.garantiaMeses != null && (
+                        <span>
+                          Garantía:{' '}
+                          {d.garantiaMeses === 0
+                            ? 'sin garantía'
+                            : `${d.garantiaMeses} ${d.garantiaMeses === 1 ? 'mes' : 'meses'}`}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {/* Doble vista empaque: lo comprado en unidad de compra vs lo que entra en unidad base */}
                   {d.usaUnidadCompra && d.cantidadOriginal != null && (
                     <span className="block text-[10px] text-gray-400">

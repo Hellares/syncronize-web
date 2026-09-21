@@ -706,6 +706,16 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           // quedaria sin su linea recibida.
           // Plata: NO se divide por el factor como el precio unitario.
           ...(dcto > 0 ? { descuento: dcto } : {}),
+          // Cómo venía la línea en la factura del proveedor. Ninguno de los
+          // dos se convierte por empaque: no son cantidades.
+          ...(l.codigoProveedor?.trim()
+            ? { codigoProveedor: l.codigoProveedor.trim() }
+            : {}),
+          // 🔴 Se manda si hay ALGO escrito, aunque sea 0: "0 meses" es "sin
+          // garantía", que es una afirmación distinta de dejarlo vacío.
+          ...(l.garantiaMeses?.trim()
+            ? { garantiaMeses: Math.max(0, Math.round(numVal(l.garantiaMeses))) }
+            : {}),
           ...(l.porcentajeIGV != null ? { porcentajeIGV: l.porcentajeIGV } : {}),
           ...(l.ordenCompraDetalleId
             ? { ordenCompraDetalleId: l.ordenCompraDetalleId }
@@ -1206,11 +1216,37 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
               <div className="rounded-xl border border-gray-100 bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <input
-                      className={`${INPUT_STD} h-[34px] text-sm font-semibold`}
-                      value={l.descripcion}
-                      onChange={(e) => actualizar(i, 'descripcion', e.target.value)}
-                      placeholder="Descripción de la línea" />
+                    {/* La identidad de la línea: cómo se llama, cómo la
+                        codifica ÉL y qué garantía da. Los tres son datos de la
+                        FACTURA, y van juntos y arriba, separados de la fila de
+                        plata. En pantalla angosta bajan solos. */}
+                    <div className="flex flex-wrap items-start gap-2">
+                      <div className="min-w-[150px] flex-1">
+                        <input
+                          className={`${INPUT_STD} h-[34px] text-sm font-semibold`}
+                          value={l.descripcion}
+                          onChange={(e) => actualizar(i, 'descripcion', e.target.value)}
+                          placeholder="Descripción de la línea" />
+                      </div>
+                      <div className="w-[118px]">
+                        <input
+                          className={`${INPUT_STD} h-[34px] text-sm uppercase`}
+                          value={l.codigoProveedor ?? ''}
+                          onChange={(e) => actualizar(i, 'codigoProveedor', e.target.value)}
+                          title="El código con el que el proveedor identifica este ítem en su factura. Al confirmar se aprende, y la próxima compra lo encuentra tipeándolo."
+                          placeholder="Cód. prov." />
+                      </div>
+                      <div className="w-[96px]">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className={`${INPUT_STD} h-[34px] text-sm text-right`}
+                          value={l.garantiaMeses ?? ''}
+                          onChange={(e) => actualizar(i, 'garantiaMeses', e.target.value)}
+                          title="Garantía del proveedor por esta compra, en MESES. Vacío = no sabemos cuánta es (el 'consult' de la factura); 0 = sin garantía."
+                          placeholder="Garantía m." />
+                      </div>
+                    </div>
                     {l.varianteId && (
                       <p className="mt-1.5">
                         <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-[#004A94]">VARIANTE</span>

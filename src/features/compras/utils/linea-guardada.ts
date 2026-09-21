@@ -43,6 +43,13 @@ export type LineaForm = {
   /** Rebaja en PLATA. Texto como el resto: con `parseFloat(x) || 0` el campo
    *  no se puede borrar. */
   descuento?: string;
+  /** Código con el que el PROVEEDOR identifica el ítem en su factura. Al
+   *  confirmar se aprende, y desde ahí el buscador encuentra el producto por
+   *  ese código. */
+  codigoProveedor?: string;
+  /** Garantía del proveedor por esta compra, en MESES. Texto como el resto:
+   *  vacío = no sabemos, que no es lo mismo que 0 = sin garantía. */
+  garantiaMeses?: string;
   /** Solo UI: el bloque de bonificacion/descuento esta desplegado. */
   promoAbierta?: boolean;
   /** IGV con el que se guardo la linea. Viaja de vuelta al editar o el backend
@@ -166,6 +173,11 @@ export function lineaDesdeDetalleGuardado(
       ? { cantidadBonificada: txt(d.cantidadBonificada / (porEmpaque ? factorAplicado || 1 : fCarga)) }
       : {}),
     ...(num(d.descuento) > 0 ? { descuento: txt(num(d.descuento)) } : {}),
+    // Los dos vuelven tal cual: no se convierten por empaque ni por
+    // presentación —no son cantidades—, y guardar REEMPLAZA los detalles, así
+    // que lo que no vuelva se pierde.
+    ...(d.codigoProveedor ? { codigoProveedor: d.codigoProveedor } : {}),
+    ...(d.garantiaMeses != null ? { garantiaMeses: String(d.garantiaMeses) } : {}),
     ...(d.cantidadBonificada || num(d.descuento) > 0 ? { promoAbierta: true } : {}),
     porcentajeIGV: num(d.porcentajeIGV),
     unidadCompraNombre: d.unidadOriginalSimbolo ?? nombreUnidad(producto?.unidadCompra),

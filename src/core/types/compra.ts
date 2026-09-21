@@ -93,6 +93,16 @@ export interface CompraDetalleItem {
   precioUnitario: number | string;
   /** Rebaja en PLATA sobre lo que sí se paga. Convive con la bonificación. */
   descuento?: number | string;
+  /**
+   * Cómo venía la línea en la factura del proveedor: el código con el que ÉL
+   * identifica el ítem ("MMTE9072") y la garantía que da, en MESES.
+   *
+   * 🔑 El código es un SNAPSHOT de lo que decía el papel. La equivalencia
+   * "ese código = este producto" vive aparte, en `ProveedorProducto`, y se
+   * puede corregir sin tocar compras viejas.
+   */
+  codigoProveedor?: string | null;
+  garantiaMeses?: number | null;
   porcentajeIGV?: number | string;
   subtotal: number | string;
   total: number | string;
