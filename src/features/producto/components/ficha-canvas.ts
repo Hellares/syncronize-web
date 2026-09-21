@@ -502,7 +502,13 @@ export async function fichaAPdf(canvas: HTMLCanvasElement): Promise<Blob> {
   // Siempre 'p': la ficha siempre es más alta que ancha (cabecera + foto ya
   // pasan los 360 de ancho), y en landscape jsPDF da vuelta el formato.
   const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [anchoMm, altoMm] });
-  doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, anchoMm, altoMm);
+  // 🔴 El 'MEDIUM' del final NO es opcional: sin pasar compresión, jsPDF mete
+  // los píxeles CRUDOS (se comporta igual que 'NONE') y el PDF pesa ancho ×
+  // alto × 3 bytes pase lo que pase —medido: 5,1 MB fijos contra 0,42 MB con
+  // esto, con el mismo PNG de 897 KB—. Sigue siendo sin pérdida: solo cambia
+  // el filtro de fila y el nivel de zlib. 'SLOW' bajaba a 0,40 MB pero tardaba
+  // el doble; no vale la pena.
+  doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, anchoMm, altoMm, undefined, 'MEDIUM');
   return doc.output('blob');
 }
 
