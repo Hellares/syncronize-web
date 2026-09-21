@@ -9,7 +9,7 @@ import type { CompraDetalle, CrearCompraLinea } from '@/core/types/compra';
 import { TIPOS_DOC_PROVEEDOR } from '@/core/types/compra';
 import { getStockByProductoSede } from '@/features/stock/services/stock-service';
 import { listarProveedores } from '@/features/proveedores/services/proveedor-service';
-import { actualizarCompra, crearCompra, getHistorialComprasProducto } from '@/features/compras/services/compra-service';
+import { actualizarCompra, crearCompra, getHistorialComprasProducto, getProveedoresDeProducto } from '@/features/compras/services/compra-service';
 import { getProductos } from '@/features/producto/services/producto-service';
 import type { Producto, ProductoVariante } from '@/core/types/producto';
 import { nombreUnidad, simboloUnidad } from '@/core/types/producto';
@@ -231,6 +231,29 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         setLineas(ls => ls.map((x, i2) => i2 === idx && x.productoId === p.id ? { ...x, historial: hist } : x));
       })
       .catch(() => {});
+
+    // El código con el que ESTE proveedor lo codifica, si ya se le conoce uno.
+    // Así la segunda compra no hay que volver a tipearlo, y de paso confirma
+    // que el producto elegido es el de la factura.
+    //
+    // 🔴 Nunca pisa lo tecleado: si la línea ya trae un código, ese gana —
+    // puede ser el de una factura nueva, y el aprendizaje lo va a actualizar.
+    if (proveedorId) {
+      getProveedoresDeProducto(p.id)
+        .then(provs => {
+          const suyo = provs.find(
+            (pr) => pr.proveedorId === proveedorId && !pr.varianteId && pr.codigoProveedor,
+          );
+          if (!suyo?.codigoProveedor) return;
+          setLineas(ls => ls.map((x, i2) =>
+            i2 === idx && x.productoId === p.id && !x.codigoProveedor?.trim()
+              ? { ...x, codigoProveedor: suyo.codigoProveedor as string }
+              : x));
+        })
+        // Sin `VIEW_COMPRAS` esto responde 403: el campo queda vacío y se
+        // tipea a mano, que es exactamente lo de antes.
+        .catch(() => {});
+    }
   };
 
   const agregarProducto = async (p: Producto) => {

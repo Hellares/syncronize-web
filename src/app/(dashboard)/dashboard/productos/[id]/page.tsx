@@ -3,7 +3,7 @@
 import { use, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useProductoDetail } from '@/features/producto/hooks/use-producto-detail';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import StockBadge from '@/features/producto/components/StockBadge';
 import VarianteList from '@/features/producto/components/variantes/VarianteList';
 import ImageGallery from '@/features/producto/components/ImageGallery';
@@ -11,6 +11,7 @@ import OfertaCountdown from '@/features/producto/components/OfertaCountdown';
 import PrecioNivelSection from '@/features/producto/components/precios/PrecioNivelSection';
 import FichaTecnicaAtributos from '@/features/producto/components/FichaTecnicaAtributos';
 import HistorialComprasCard from '@/features/producto/components/HistorialComprasCard';
+import ProveedoresCodigosCard from '@/features/producto/components/ProveedoresCodigosCard';
 import LotesCard from '@/features/producto/components/LotesCard';
 import UpdatePreciosDialog from '@/features/stock/components/UpdatePreciosDialog';
 import NivelesVarianteInline from '@/features/producto/components/variantes/NivelesVarianteInline';
@@ -26,6 +27,7 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { producto, isLoading, error, reload } = useProductoDetail(id);
   const { empresa } = useEmpresa();
+  const permissions = usePermissions();
 
   /**
    * Variante elegida en la tabla. Igual que el app: se selecciona INLINE y la
@@ -339,6 +341,15 @@ export default function ProductoDetailPage({ params }: { params: Promise<{ id: s
             productoId={producto.id}
             factorPresentacion={producto.factorPresentacion}
             simboloPresentacion={producto.unidadPresentacionSimbolo}
+          />
+
+          {/* Con que codigo lo identifica cada proveedor. Se monta siempre y
+              la card se esconde sola si el producto no tiene ninguno — o si
+              el usuario no puede ver compras, porque ahi viajan precios de
+              COMPRA. */}
+          <ProveedoresCodigosCard
+            productoId={producto.id}
+            puedeEditar={permissions.canManageCompras}
           />
 
           {/* Qué lotes hay y CUÁL SALE PRIMERO. Sigue a la variante elegida,

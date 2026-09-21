@@ -9,6 +9,7 @@ import type {
   CrearCompraInput,
   ActualizarCompraInput,
   HistorialComprasProducto,
+  ProveedorDeProducto,
 } from '@/core/types/compra';
 
 const emp = () => getTenantId() ?? '';
@@ -118,4 +119,42 @@ export async function getBancos(): Promise<BancoEmpresa[]> {
   const res = await apiClient.get('/empresa-banco');
   const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
   return list.filter((b: BancoEmpresa) => b.isActive !== false);
+}
+
+/**
+ * A quién se le compra un producto: el código con el que cada proveedor lo
+ * identifica, cómo lo llama y a cuánto salió la última vez.
+ *
+ * Sale de `ProveedorProducto`, el diccionario que se aprende solo al confirmar
+ * una compra. 🔴 Pide `VIEW_COMPRAS` —acá viajan precios de COMPRA—, así que
+ * quien no lo tenga recibe 403: la pantalla tiene que tolerarlo, no romperse.
+ */
+export async function getProveedoresDeProducto(
+  productoId: string,
+): Promise<ProveedorDeProducto[]> {
+  const res = await apiClient.get(`/productos/${productoId}/proveedores`);
+  return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+}
+
+/**
+ * Guarda/corrige cómo un proveedor codifica y nombra tus productos.
+ *
+ * Es la misma puerta que usa el mapeo de guías; acá sirve para CORREGIR a mano
+ * lo que se aprendió solo al confirmar una compra.
+ *
+ * 🔴 `codigoProveedor: null` BORRA el código; omitirlo lo deja como está. Y si
+ * el código ya es de otro producto de ese proveedor, el backend responde 400
+ * con el motivo: hay que mostrarlo, no tragárselo.
+ */
+export async function guardarAliasProveedor(
+  proveedorId: string,
+  items: Array<{
+    productoId: string;
+    varianteId?: string | null;
+    codigoProveedor?: string | null;
+    descripcionProveedor?: string;
+  }>,
+): Promise<{ ok: boolean; guardados: number }> {
+  const res = await apiClient.post(`${BASE()}/proveedor-alias`, { proveedorId, items });
+  return res.data;
 }

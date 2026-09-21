@@ -78,6 +78,29 @@ export interface DetalleProductoRef {
   unidadMedida?: UnidadMedidaRef | null;
 }
 
+/**
+ * Un proveedor de un producto: cómo lo codifica, cómo lo llama y a cuánto
+ * salió la última vez.
+ *
+ * 🔑 `codigoProveedor` es la equivalencia VIVA —se corrige sin tocar compras
+ * viejas—, a diferencia del código que queda congelado en cada línea.
+ */
+export interface ProveedorDeProducto {
+  id: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  varianteId?: string | null;
+  varianteNombre?: string | null;
+  codigoProveedor?: string | null;
+  descripcionProveedor?: string | null;
+  precioCompra?: number | null;
+  /** Lo que salió la ÚLTIMA vez de verdad; `precioCompra` es el acordado. */
+  ultimoPrecio?: number | null;
+  ultimaMoneda?: string | null;
+  ultimaCompraAt?: string | null;
+  esPreferido?: boolean;
+}
+
 export interface CompraDetalleItem {
   id: string;
   productoId?: string | null;
