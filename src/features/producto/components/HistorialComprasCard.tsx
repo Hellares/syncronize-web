@@ -84,7 +84,7 @@ export default function HistorialComprasCard({ productoId, factorPresentacion, s
         >
           <path d="M9 6l6 6-6 6" />
         </svg>
-        <h3 className="shrink-0 text-sm font-semibold text-gray-900">Historial de compras</h3>
+        <h3 className="shrink-0 text-sm font-medium text-gray-900">Historial de compras</h3>
 
         {/* Plegado, el resumen viaja en el encabezado: el ultimo costo es el
             dato que se consulta a diario y no merece un clic. */}

@@ -98,7 +98,7 @@ export default function ProveedoresCodigosCard({ productoId, puedeEditar = false
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       <div className="flex items-baseline gap-2">
-        <h3 className="text-sm font-semibold text-gray-900">Proveedores y códigos</h3>
+        <h3 className="text-sm font-medium text-gray-900">Proveedores y códigos</h3>
         <span className="ml-auto text-[11px] text-gray-400">
           {filas.length} {filas.length === 1 ? 'proveedor' : 'proveedores'}
         </span>
