@@ -288,7 +288,20 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       const destino = existente < i ? existente : existente - 1;
       setLineas(ls => ls
         .filter((_, idx) => idx !== i)
-        .map((x, idx) => (idx === destino ? { ...x, cantidad: String(suma) } : x)));
+        .map((x, idx) => (idx === destino
+          ? {
+              ...x,
+              cantidad: String(suma),
+              // Si la línea que queda no traía código y la manual sí, se
+              // adopta: es el mismo producto y el dato salió de la factura.
+              ...(!x.codigoProveedor && manual.codigoProveedor
+                ? { codigoProveedor: manual.codigoProveedor }
+                : {}),
+              ...(!x.garantiaMeses && manual.garantiaMeses
+                ? { garantiaMeses: manual.garantiaMeses }
+                : {}),
+            }
+          : x)));
       setSeleccionada(destino);
       return;
     }
@@ -297,6 +310,12 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       ...lineaDeProducto(p),
       cantidad: manual.cantidad || '1',
       precioUnitario: manual.precioUnitario || '',
+      // 🔴 Lo que se tipeó mirando la FACTURA sobrevive al canje: se escribió
+      // cuando el producto todavía no existía en el catálogo, y
+      // `lineaDeProducto` arma una línea nueva que no sabe nada de eso.
+      // Perderlo es silencioso: la compra se confirma igual, sin el código.
+      ...(manual.codigoProveedor ? { codigoProveedor: manual.codigoProveedor } : {}),
+      ...(manual.garantiaMeses ? { garantiaMeses: manual.garantiaMeses } : {}),
     } : x)));
     enriquecerLinea(i, p);
   };
