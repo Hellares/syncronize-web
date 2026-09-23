@@ -195,7 +195,7 @@ export async function getDashboardEstadisticas(params: { fechaDesde?: string; fe
 }
 
 export async function getTecnicos(): Promise<Tecnico[]> {
-  const res = await apiClient.get('/usuarios?limit=200');
+  const res = await apiClient.get('/usuarios?limit=100');
   const body = res.data as { data?: unknown[] } | unknown[];
   const list = (Array.isArray(body) ? body : body.data ?? []) as Array<Record<string, unknown>>;
   return list.map((u) => {
@@ -203,6 +203,6 @@ export async function getTecnicos(): Promise<Tecnico[]> {
     const nombre = persona
       ? [persona.nombres, persona.apellidos].filter(Boolean).join(' ')
       : [u.nombres, u.apellidos].filter(Boolean).join(' ') || String(u.email ?? u.id);
-    return { id: String(u.id), nombre, rol: (u.rol ?? u.rolGlobal) as string | undefined };
+    return { id: String(u.id), nombre, rol: (u.rolEnEmpresa ?? u.rol ?? u.rolGlobal) as string | undefined };
   });
 }

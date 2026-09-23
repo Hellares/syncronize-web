@@ -50,11 +50,12 @@ export default function ArqueoDialog({ isOpen, cajaId, resumen, onSuccess, onClo
   // Usuarios para el relevo de turno
   useEffect(() => {
     if (!isOpen || tipo !== 'RELEVO' || usuarios.length > 0) return;
-    apiClient.get('/usuarios?limit=200').then(res => {
-      const list = (Array.isArray(res.data) ? res.data : res.data?.data ?? []) as Array<{ id: string; persona?: { nombres?: string; apellidos?: string }; email?: string }>;
+    apiClient.get('/usuarios?limit=100').then(res => {
+      // `GET /usuarios` devuelve el nombre plano (`nombreCompleto`), no una `persona` anidada.
+      const list = (Array.isArray(res.data) ? res.data : res.data?.data ?? []) as Array<{ id: string; nombreCompleto?: string; persona?: { nombres?: string; apellidos?: string }; email?: string }>;
       setUsuarios(list.map(u => ({
         id: u.id,
-        nombre: u.persona ? `${u.persona.nombres ?? ''} ${u.persona.apellidos ?? ''}`.trim() : (u.email ?? u.id),
+        nombre: u.nombreCompleto || (u.persona ? `${u.persona.nombres ?? ''} ${u.persona.apellidos ?? ''}`.trim() : (u.email ?? u.id)),
       })));
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
