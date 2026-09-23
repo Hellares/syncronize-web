@@ -9,6 +9,7 @@ import { apiClient } from '@/core/api/client';
 import { generarTicketVenta } from '@/features/impresion/escpos';
 import { getImpresoraConfig, imprimirEnPrincipal } from '@/features/impresion/qz-service';
 import ImpresoraConfigDialog from '@/features/impresion/ImpresoraConfigDialog';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 const POLLING_INTERVAL_MS = 2000;
 const MAX_POLLING_ATTEMPTS = 8;
@@ -205,14 +206,21 @@ export default function VentaTicketPage({ params }: { params: Promise<{ id: stri
             </tr>
           </thead>
           <tbody>
-            {(venta.detalles ?? []).map(d => (
-              <tr key={d.id}>
-                <td className="py-0.5 pr-1">{d.descripcion}</td>
-                <td className="py-0.5 text-center">{Number(d.cantidad)}</td>
-                <td className="py-0.5 text-right">{fmt(d.precioUnitario)}</td>
-                <td className="py-0.5 text-right">{fmt(d.total)}</td>
-              </tr>
-            ))}
+            {(venta.detalles ?? []).map(d => {
+              // Un granel se guarda en gramos: sin la presentación salía
+              // "3000 × 0.01" en vez de "3 kg × 8.00/kg".
+              const pres = presentacionPlana(d);
+              return (
+                <tr key={d.id}>
+                  <td className="py-0.5 pr-1">{d.descripcion}</td>
+                  <td className="whitespace-nowrap py-0.5 text-center">{pres.cantidadTexto(Number(d.cantidad))}</td>
+                  <td className="whitespace-nowrap py-0.5 text-right">
+                    {fmt(pres.precio(Number(d.precioUnitario)))}{pres.activa && `/${pres.simbolo}`}
+                  </td>
+                  <td className="py-0.5 text-right">{fmt(d.total)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

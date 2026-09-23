@@ -101,7 +101,9 @@ function sinCerosSobrantes(v: number, maxDecimales: number): string {
 
 /** Lo que trae cualquier payload que mande la presentación aplanada. */
 export interface PresentacionPlana {
-  factorPresentacion?: number | null;
+  /** Un Decimal de Prisma llega como string ("1000.0000"): el `Number()` de
+   *  abajo lo resuelve. */
+  factorPresentacion?: number | string | null;
   unidadPresentacionSimbolo?: string | null;
 }
 

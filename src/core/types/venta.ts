@@ -261,6 +261,10 @@ export interface VentaDetalle {
   origenComboId?: string | null;
   origenComboNombre?: string | null;
   nivelAplicadoSnapshot?: string | null;
+  /** Snapshot de la unidad en la que se cobró. Un granel llega como 3000 g @
+   *  S/0.008: con esto se muestra 3 kg @ S/8.00/kg. Ver `presentacionPlana`. */
+  factorPresentacion?: number | string | null;
+  unidadPresentacionSimbolo?: string | null;
   [key: string]: unknown;
 }
 

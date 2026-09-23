@@ -8,6 +8,7 @@ import {
   nombreClienteOrden, subtotalComponentesOrden, costoFinalOrden, saldoPendienteOrden,
 } from '@/core/types/orden-servicio';
 import type { TipoServicio, PrioridadServicio, TipoAccionComponente } from '@/core/types/orden-servicio';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -148,9 +149,13 @@ export function generarTicketVenta(venta: Venta, empresa: EmpresaInfo, paperWidt
   b.hr();
 
   // --- Items (anchos paridad Flutter: 58mm 4/18/7/7+separadores=42; 80mm 5/32/9/9=64) ---
+  // Con algún ítem pesado (granel en kg) CANT y P.U. crecen a costa de la
+  // descripción, que envuelve en vez de recortar: "1.237" y "8.00(kg)" tienen
+  // que entrar enteros (paridad Flutter `_ColAnchos.forPaper(conUnidad:)`).
+  const hayPesados = (venta.detalles ?? []).some(d => presentacionPlana(d).activa);
   const w = paperWidth === 58
-    ? { cant: 4, desc: 20, pu: 8, total: 10 }
-    : { cant: 5, desc: 38, pu: 9, total: 12 };
+    ? (hayPesados ? { cant: 6, desc: 16, pu: 10, total: 10 } : { cant: 4, desc: 20, pu: 8, total: 10 })
+    : (hayPesados ? { cant: 7, desc: 34, pu: 11, total: 12 } : { cant: 5, desc: 38, pu: 9, total: 12 });
   b.row([
     { text: 'CANT', width: w.cant },
     { text: 'DESCRIPCION', width: w.desc },
@@ -163,10 +168,21 @@ export function generarTicketVenta(venta: Venta, empresa: EmpresaInfo, paperWidt
     // Wrap de descripción por bloques del ancho de columna
     const chunks: string[] = [];
     for (let i = 0; i < desc.length; i += w.desc) chunks.push(desc.slice(i, i + w.desc));
+    // Cantidad y P.U. en la unidad en la que se cobró: un granel se guarda en
+    // gramos y sin esto la línea salía "3000 ... 0.01".
+    const u = presentacionPlana(d);
+    const qty = u.activa ? u.cantidadTexto(Number(d.cantidad), false) : String(Number(d.cantidad));
+    // `row` recorta sin avisar: una cantidad que no entra va a la sub-línea
+    // de abajo en vez de imprimirse truncada (un número que no se cobró).
+    // El `<` deja al menos un espacio antes de la columna siguiente.
+    const qtyCol = u.activa && qty.length >= w.cant ? '' : qty;
+    const puPelado = fmt(u.precio(Number(d.precioUnitario)));
+    const puConUnidad = `${puPelado}(${u.simbolo})`;
+    const unidadEnPu = u.activa && puConUnidad.length < w.pu;
     b.row([
-      { text: String(Number(d.cantidad)), width: w.cant },
+      { text: qtyCol, width: w.cant },
       { text: chunks[0] ?? '', width: w.desc },
-      { text: fmt(d.precioUnitario), width: w.pu, align: 'right' },
+      { text: unidadEnPu ? puConUnidad : puPelado, width: w.pu, align: 'right' },
       { text: fmt(d.total), width: w.total, align: 'right' },
     ]);
     for (const extra of chunks.slice(1)) {
@@ -177,6 +193,11 @@ export function generarTicketVenta(venta: Venta, empresa: EmpresaInfo, paperWidt
         { text: '', width: w.total },
       ]);
     }
+    // Sub-líneas de respaldo: solo aparecen cuando algo no entró en su columna.
+    // Etiquetadas y no como "3 kg x 8.00": esa forma se lee como que los 3 kg
+    // costaron 8.00.
+    if (u.activa && !qtyCol) b.text(`  Cantidad: ${u.cantidadTexto(Number(d.cantidad))}`);
+    if (u.activa && !unidadEnPu) b.text(`  Precio por ${u.simbolo}: S/${puPelado}`);
     if (Number(d.descuento ?? 0) > 0) {
       b.row([
         { text: '', width: w.cant },

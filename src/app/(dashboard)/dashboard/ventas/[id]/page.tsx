@@ -17,6 +17,7 @@ import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-c
 import { useAuth } from '@/core/auth/auth-context';
 
 import EvidenciaVentaGaleria from '@/features/venta/components/EvidenciaVentaGaleria';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
 const METODOS_PAGO: MetodoPagoVenta[] = ['EFECTIVO', 'TARJETA', 'YAPE', 'PLIN', 'TRANSFERENCIA'];
 
@@ -499,6 +500,9 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
               <tbody className="divide-y divide-gray-200">
                 {(venta.detalles ?? []).map(d => {
                   const gratuita = esLineaGratuita(d);
+                  // Cantidad y P.U. en la unidad en la que se cobró: un granel
+                  // se guarda en gramos y sin esto salía "3000 × 0.01".
+                  const pres = presentacionPlana(d);
                   return (
                     <tr key={d.id} className={d.origenComboId ? 'bg-purple-50/40' : ''}>
                       {/* La única columna que puede crecer: los badges viajan
@@ -513,11 +517,14 @@ export default function VentaDetailPage({ params }: { params: Promise<{ id: stri
                           <span className="block text-[10px] text-amber-600">desc. {fmt(d.descuento)}</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right text-gray-600">{Number(d.cantidad)}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right text-gray-600">{pres.cantidadTexto(Number(d.cantidad))}</td>
                       {/* Una línea gratuita se cobra en cero, pero el precio de
                           lista SIGUE siendo el referencial que se declara a
                           SUNAT: se muestra tachado en vez de esconderse. */}
-                      <td className={`whitespace-nowrap px-2 py-2 text-right ${gratuita ? 'text-gray-400 line-through' : 'text-gray-600'}`}>{monto(d.precioUnitario)}</td>
+                      <td className={`whitespace-nowrap px-2 py-2 text-right ${gratuita ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                        {monto(pres.precio(Number(d.precioUnitario)))}
+                        {pres.activa && <span className="text-[10px] text-gray-400">/{pres.simbolo}</span>}
+                      </td>
                       <td className={`whitespace-nowrap px-4 py-2 text-right font-medium ${gratuita ? 'text-violet-600' : 'text-gray-900'}`}>{gratuita ? monto(0) : monto(d.total)}</td>
                     </tr>
                   );
