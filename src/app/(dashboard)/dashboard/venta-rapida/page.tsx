@@ -25,6 +25,8 @@ import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/P
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import NumeroInput from '@/components/ui/NumeroInput';
+import { UnidadPresentacion, presentacionPlana } from '@/core/utils/unidad-presentacion';
+import { presentacionDeVariante } from '@/features/compras/utils/variantes-comprables';
 
 interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
 
@@ -44,6 +46,11 @@ function fmt(n: number): string {
 
 /** Plata: dos decimales. Un 33.33333% de descuento no puede viajar crudo. */
 function r2(n: number): number { return Math.round(n * 100) / 100; }
+
+/** En qué unidad se le habla al cajero en esta línea: kg en un granel, la de siempre en el resto. */
+function presDeLinea(it: VentaItem): UnidadPresentacion {
+  return new UnidadPresentacion(it.factorPresentacion ?? 1, it.unidadPresentacionSimbolo);
+}
 
 function genKey() { return Math.random().toString(36).slice(2, 10); }
 
@@ -159,10 +166,17 @@ function VentaRapidaInner() {
   }, [sedeId]);
 
   // --- Agregar al carrito (con niveles async, paridad cubit.agregarProducto) ---
-  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string, cantidad: number = 1) => {
-    const stocks = varianteId
-      ? p.variantes?.find(v => v.id === varianteId)?.stocksPorSede
-      : p.stocksPorSede;
+  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string, cantidadPedida?: number) => {
+    const variante = varianteId ? p.variantes?.find(v => v.id === varianteId) : undefined;
+    const stocks = varianteId ? variante?.stocksPorSede : p.stocksPorSede;
+    // La misma regla que el selector de variantes: la propia de la variante o
+    // la heredada del producto, salvo un bulto cerrado.
+    const pres = variante
+      ? presentacionDeVariante(p, variante)
+      : { factor: presentacionPlana(p).factor, simbolo: p.unidadPresentacionSimbolo ?? undefined };
+    // Sin cantidad explícita se agrega UNA de presentación: un clic en un
+    // granel suma 1 kg (1000 g), no 1 gramo. Es lo que hace el app.
+    const cantidad = cantidadPedida ?? (pres.factor > 1 ? pres.factor : 1);
     const stock = stockDeSede(stocks);
     const precioBase = stock ? Number(infoPrecioEfectivo(stock) ?? stock.precio ?? 0) : 0;
     if (precioBase <= 0) { setInfo(`"${p.nombre}" no tiene precio configurado en esta sede`); return; }
@@ -208,6 +222,7 @@ function VentaRapidaInner() {
       enLiquidacion: stock ? infoLiquidacionActiva(stock) : false,
       precioCosto: stock?.precioCosto != null ? Number(stock.precioCosto) : null,
       stockDisponible: stock?.cantidad ?? null,
+      ...(pres.factor > 1 && { factorPresentacion: pres.factor, unidadPresentacionSimbolo: pres.simbolo ?? null }),
     };
     setItems(prev => recalcularNivelesEnLote([...prev, nuevo]));
 
@@ -646,7 +661,11 @@ function VentaRapidaInner() {
   }, []);
 
   const cambiarCantidad = (key: string, nueva: number) => {
-    if (nueva < 1) return;
+    // Enteros SIEMPRE: el stock es entero en el backend (`stockActual Int`), y
+    // un granel no es la excepción porque su cantidad va en gramos —los kilos
+    // con decimales se convierten antes de llegar acá—. Un 1.5 en una línea
+    // por unidad vendería celular y medio.
+    if (nueva < 1 || !Number.isInteger(nueva)) return;
     setItems(prev => recalcularNivelesEnLote(
       prev.map(it => (it.key === key ? { ...it, cantidad: nueva } : it))));
   };
@@ -1261,6 +1280,10 @@ function VentaRapidaInner() {
                 <p className="px-4 py-14 text-center text-sm text-gray-400">Toca un producto para agregarlo</p>
               ) : itemsVista.map(it => {
                 const c = calcularLinea(it);
+                // Granel: la cantidad se teclea en kg (hasta 3 decimales = 1 g)
+                // y el − / + mueven un kilo entero, como en el app.
+                const pres = presDeLinea(it);
+                const paso = pres.activa ? pres.factor : 1;
                 const aCostoLinea = !!it.precioModo;
                 const conNivel = !it.esOrdenServicio && !aCostoLinea && it.precioUnitario < it.precioBase;
                 const excede = !it.esOrdenServicio && (it.stockDisponible ?? Infinity) < it.cantidad;
@@ -1310,7 +1333,7 @@ function VentaRapidaInner() {
                         {aCostoLinea && (costosLinea?.tramos?.length ?? 0) > 1 && (
                           <p className="truncate text-[10px] text-[#043261]">
                             {costosLinea!.tramos
-                              .map(t => `${t.cantidad} a S/ ${fmt(t.costoUnitario)}`)
+                              .map(t => `${pres.cantidadTexto(t.cantidad)} a ${pres.precioTexto(t.costoUnitario)}`)
                               .join(' + ')}
                           </p>
                         )}
@@ -1318,11 +1341,11 @@ function VentaRapidaInner() {
                       <div className="shrink-0 text-right">
                         <p className="text-[15px] font-bold leading-tight text-gray-900">S/ {fmt(c.total)}</p>
                         <p className={`text-[11px] font-medium ${aCostoLinea ? 'text-[#043261]' : conNivel ? 'text-blue-700' : 'text-gray-500'}`}>
-                          S/ {fmt(it.precioUnitario)} c/u
+                          {pres.activa ? pres.precioTexto(it.precioUnitario) : `S/ ${fmt(it.precioUnitario)} c/u`}
                           {/* El precio de lista tachado al lado: es el tamaño
                               del favor que se está haciendo. */}
                           {aCostoLinea && it.precioBase > it.precioUnitario && (
-                            <span className="ml-1 font-normal text-gray-400 line-through">{fmt(it.precioBase)}</span>
+                            <span className="ml-1 font-normal text-gray-400 line-through">{fmt(pres.precio(it.precioBase))}</span>
                           )}
                         </p>
                       </div>
@@ -1348,7 +1371,7 @@ function VentaRapidaInner() {
                             pantalla. Va el mismo `#043261/30` del botón Cambiar
                             —un valor que ya vive acá— en vez de inventar otro. */}
                         <div className="flex h-7 items-center overflow-hidden rounded-full border border-[#043261]/30">
-                          <button onClick={() => cambiarCantidad(it.key, it.cantidad - 1)}
+                          <button onClick={() => cambiarCantidad(it.key, it.cantidad - paso)}
                             className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
                           </button>
@@ -1356,11 +1379,16 @@ function VentaRapidaInner() {
                               clics. `NumeroInput` deja el campo vacío mientras
                               se escribe y solo sube números; `cambiarCantidad`
                               ignora lo que baje de 1, así que borrarlo y salir
-                              devuelve la cantidad que había. */}
-                          <NumeroInput value={it.cantidad} onChange={n => cambiarCantidad(it.key, n)}
-                            title="Cantidad: escribila o usá − y +"
+                              devuelve la cantidad que había. Por unidad el
+                              punto ni entra; a granel se escriben kilos y se
+                              guardan gramos (1.5 → 1500). */}
+                          <NumeroInput value={pres.cantidad(it.cantidad)}
+                            onChange={n => cambiarCantidad(it.key, Math.round(pres.cantidadAUnidadDeVenta(n)))}
+                            decimales={pres.activa ? 3 : 0}
+                            title={pres.activa ? `Cantidad en ${pres.simbolo}: escribila (1.5) o usá − y +` : 'Cantidad: escribila o usá − y +'}
                             className="h-7 w-11 border-0 bg-transparent p-0 text-center text-[13px] font-medium text-[#043261] outline-none focus:bg-blue-50" />
-                          <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)}
+                          {pres.activa && <span className="-ml-1 pr-0.5 text-[11px] text-gray-500">{pres.simbolo}</span>}
+                          <button onClick={() => cambiarCantidad(it.key, it.cantidad + paso)}
                             className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
                           </button>
@@ -1462,14 +1490,14 @@ function VentaRapidaInner() {
                           <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" />
                         </svg>
                         <span className="flex-1 text-[10px] text-red-700">
-                          {(it.stockDisponible ?? 0) > 0 ? `Solo quedan ${it.stockDisponible} en esta sede` : 'Sin stock en esta sede'}
+                          {(it.stockDisponible ?? 0) > 0 ? `Solo quedan ${pres.cantidadTexto(it.stockDisponible ?? 0)} en esta sede` : 'Sin stock en esta sede'}
                         </span>
                         {/* Con 0 disponible no hay a qué ajustar: lo que queda es sacarlo. */}
                         <button onClick={() => ((it.stockDisponible ?? 0) > 0
                           ? cambiarCantidad(it.key, it.stockDisponible as number)
                           : quitarItem(it.key))}
                           className="shrink-0 rounded-full border border-red-300 bg-white px-2 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50">
-                          {(it.stockDisponible ?? 0) > 0 ? `Ajustar a ${it.stockDisponible}` : 'Quitar'}
+                          {(it.stockDisponible ?? 0) > 0 ? `Ajustar a ${pres.cantidadTexto(it.stockDisponible ?? 0)}` : 'Quitar'}
                         </button>
                       </div>
                     )}
@@ -1775,6 +1803,7 @@ function PieAtajos() {
 function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onApply: (monto: number) => void; onClose: () => void }) {
   type Modo = 'monto' | 'pct' | 'total';
   const bruto = item.cantidad * item.precioUnitario;
+  const pres = presDeLinea(item);
   const [modo, setModo] = useState<Modo>('monto');
   const [valor, setValor] = useState(item.descuento > 0 ? String(item.descuento) : '');
   const campo = useRef<HTMLInputElement>(null);
@@ -1835,7 +1864,9 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
             justamente los números. */}
         <p className="mt-0.5 truncate text-xs text-gray-500">{item.descripcion}</p>
         <p className="text-xs text-gray-500">
-          {item.cantidad} × S/ {fmt(item.precioUnitario)} = S/ {fmt(bruto)}
+          {pres.activa
+            ? `${pres.cantidadTexto(item.cantidad)} × ${pres.precioTexto(item.precioUnitario)}`
+            : `${item.cantidad} × S/ ${fmt(item.precioUnitario)}`} = S/ {fmt(bruto)}
         </p>
         <div className="mt-3 flex gap-2">
           {BOTON_MODO('monto', 'S/ Monto')}
@@ -1855,7 +1886,9 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
               ? 'Escribí en cuánto queda la línea'
               : `No puede pasar de S/ ${fmt(bruto)}`)
             : <>Descuento S/ {fmt(descuento)} · queda S/ {fmt(queda)}
-              {item.cantidad > 1 && ` · S/ ${fmt(queda / item.cantidad)} c/u`}</>}
+              {pres.activa
+                ? ` · ${pres.precioTexto(queda / item.cantidad)}`
+                : item.cantidad > 1 && ` · S/ ${fmt(queda / item.cantidad)} c/u`}</>}
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar desc.</button>

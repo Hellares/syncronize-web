@@ -688,6 +688,14 @@ export interface VentaItem {
   enLiquidacion: boolean;
   precioCosto?: number | null;
   stockDisponible?: number | null;
+  /**
+   * Presentación de la línea (contexto local, NO viaja: el backend la resuelve
+   * del producto al guardar el snapshot). Un granel se guarda en gramos y se
+   * habla en kilos: `cantidad` y `precioUnitario` siguen en gramos, y esto es
+   * lo que deja teclear 1.5 kg y leer S/ 11.00/kg en la línea.
+   */
+  factorPresentacion?: number | null;
+  unidadPresentacionSimbolo?: string | null;
 }
 
 /**

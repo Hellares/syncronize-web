@@ -25,6 +25,13 @@ import { useState } from 'react';
 /** Vacío, o dígitos con UN separador decimal. Coma y punto valen los dos. */
 const SOLO_NUMERO = /^\d*(?:[.,]\d*)?$/;
 
+/** El patrón con un tope de decimales; con 0 ni siquiera entra el punto. */
+function patronNumero(decimales?: number): RegExp {
+  if (decimales === undefined) return SOLO_NUMERO;
+  if (decimales <= 0) return /^\d*$/;
+  return new RegExp(`^\\d*(?:[.,]\\d{0,${decimales}})?$`);
+}
+
 interface Props {
   /** Valor del modelo. Se muestra cuando el campo no se está editando. */
   value: number;
@@ -38,6 +45,11 @@ interface Props {
   disabled?: boolean;
   title?: string;
   className?: string;
+  /**
+   * Cuántos decimales se dejan teclear. Sin él, los que sean; con 0 el punto
+   * no entra: una cantidad de celulares no tiene medio celular.
+   */
+  decimales?: number;
 }
 
 export default function NumeroInput({
@@ -49,6 +61,7 @@ export default function NumeroInput({
   disabled,
   title,
   className,
+  decimales,
 }: Props) {
   // `null` = no se está editando: manda el valor del modelo.
   const [texto, setTexto] = useState<string | null>(null);
@@ -58,7 +71,7 @@ export default function NumeroInput({
   return (
     <input
       type="text"
-      inputMode="decimal"
+      inputMode={decimales === 0 ? 'numeric' : 'decimal'}
       title={title}
       disabled={disabled}
       placeholder={placeholder}
@@ -70,7 +83,7 @@ export default function NumeroInput({
         const v = e.target.value.trim();
         // Letras y signos no entran: sin esto, `type="text"` acepta cualquier
         // cosa y el modelo se queda con el último número bueno sin avisar.
-        if (!SOLO_NUMERO.test(v)) return;
+        if (!patronNumero(decimales).test(v)) return;
         setTexto(v);
         const n = parseFloat(v.replace(',', '.'));
         if (!Number.isNaN(n)) onChange(n);
