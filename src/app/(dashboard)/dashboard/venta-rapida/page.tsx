@@ -24,6 +24,7 @@ import VarianteSelector from '@/features/producto/components/VarianteSelector';
 import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
+import NumeroInput from '@/components/ui/NumeroInput';
 
 interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
 
@@ -1297,7 +1298,14 @@ function VentaRapidaInner() {
                             className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 12h12" /></svg>
                           </button>
-                          <span className="min-w-[26px] text-center text-[13px] font-medium text-[#043261]">{it.cantidad}</span>
+                          {/* Editable: llegar a 12 a puros clics eran once
+                              clics. `NumeroInput` deja el campo vacío mientras
+                              se escribe y solo sube números; `cambiarCantidad`
+                              ignora lo que baje de 1, así que borrarlo y salir
+                              devuelve la cantidad que había. */}
+                          <NumeroInput value={it.cantidad} onChange={n => cambiarCantidad(it.key, n)}
+                            title="Cantidad: escribila o usá − y +"
+                            className="h-7 w-11 border-0 bg-transparent p-0 text-center text-[13px] font-medium text-[#043261] outline-none focus:bg-blue-50" />
                           <button onClick={() => cambiarCantidad(it.key, it.cantidad + 1)}
                             className="flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100">
                             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 6v12M6 12h12" /></svg>
