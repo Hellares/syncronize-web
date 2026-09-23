@@ -748,18 +748,63 @@ function VentaRapidaInner() {
     [items],
   );
 
-  // Descuento global %: setea descuento manual por línea (paridad aplicarDescuentoGlobal)
-  const aplicarDescuentoGlobal = (pct: number) => {
+  /**
+   * Descuento global: entra como MONTO y se reparte PROPORCIONAL entre las
+   * líneas, que es el mismo prorrateo del combo. Repartir proporcional y
+   * aplicar un porcentaje son la misma cuenta —cada línea cede lo suyo, no el
+   * monto entero—, con una diferencia que importa en la caja: acá los centavos
+   * se cuadran, porque la última línea elegible absorbe el resto y la suma da
+   * exacto lo que se pidió.
+   */
+  const aplicarDescuentoGlobal = (descuentoTotal: number) => {
     setDescGlobalOpen(false);
-    const aplicar = () => setItems(prev => prev.map(it => {
+    const aplicar = () => setItems(prev => {
       // Las líneas a costo se saltean: un centavo de descuento sobre ellas es
       // vender bajo costo, y el backend las rechaza.
-      if (it.precioModo) return it;
-      const bruto = it.cantidad * it.precioUnitario;
-      return { ...it, descuento: Math.min(bruto, bruto * pct / 100) };
-    }));
-    if (pct > 0) conAutorizacionDescuento(aplicar); else aplicar();
+      const elegibles = prev.filter(it => !it.precioModo);
+      const base = elegibles.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
+      const ultima = elegibles[elegibles.length - 1]?.key;
+      let repartido = 0;
+      return prev.map(it => {
+        if (it.precioModo) return it;
+        const bruto = it.cantidad * it.precioUnitario;
+        // La última se lleva lo que falte para llegar al monto pedido en vez de
+        // su parte teórica: es donde caen los centavos del redondeo.
+        const desc = it.key === ultima
+          ? r2(descuentoTotal - repartido)
+          : base > 0 ? r2(descuentoTotal * bruto / base) : 0;
+        repartido += desc;
+        return { ...it, descuento: Math.min(Math.max(desc, 0), bruto) };
+      });
+    });
+    if (descuentoTotal > 0) conAutorizacionDescuento(aplicar); else aplicar();
   };
+
+  /**
+   * Lo que el diálogo global necesita para traducir entre porcentaje, monto y
+   * total a cobrar, calculado sobre el carrito SIN los descuentos que va a
+   * pisar.
+   *
+   * `factor` es cuánto baja el total por cada sol repartido. Casi siempre es 1
+   * —precio con IGV incluido—, pero una línea con el IGV por fuera lo mueve, y
+   * el ICBPER de las bolsas no se descuenta nunca. Sale de evaluar el total en
+   * los dos extremos (sin descuento y con la base entera descontada) en vez de
+   * rehacer a mano la cuenta del IGV: `calcularLinea` es lineal en el bruto.
+   */
+  const globalCtx = useMemo(() => {
+    const sinDesc = (it: VentaItem) => ({ ...it, descuento: it.precioModo ? it.descuento : 0 });
+    const base = items.reduce((s, it) => s + (it.precioModo ? 0 : it.cantidad * it.precioUnitario), 0);
+    const totalSinDesc = items.reduce((s, it) => s + calcularLinea(sinDesc(it)).total, 0);
+    const totalTodoDesc = items.reduce((s, it) => s + calcularLinea(
+      it.precioModo ? it : { ...it, descuento: it.cantidad * it.precioUnitario },
+    ).total, 0);
+    return {
+      base,
+      totalSinDesc,
+      factor: base > 0 ? (totalSinDesc - totalTodoDesc) / base : 1,
+      hayACosto: items.some(it => it.precioModo),
+    };
+  }, [items]);
 
   const totales = useMemo(() => items.reduce((acc, it) => {
     const c = calcularLinea(it);
@@ -1531,7 +1576,7 @@ function VentaRapidaInner() {
 
       {/* Descuento global */}
       {descGlobalOpen && (
-        <DescuentoGlobalDialog onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
+        <DescuentoGlobalDialog ctx={globalCtx} onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
       )}
 
       {/* De qué lote sale UNA línea: la mercadería por encargo tiene dueño */}
@@ -1819,18 +1864,91 @@ function ModoCostoDialog({ titulo, subtitulo, actual, costos, onPick, onClose }:
   );
 }
 
-function DescuentoGlobalDialog({ onApply, onClose }: { onApply: (pct: number) => void; onClose: () => void }) {
-  const [pct, setPct] = useState('');
+/**
+ * Descuento para TODO el carrito, por los mismos tres caminos que el de línea:
+ * un porcentaje, el monto total a rebajar, o directo en cuánto se quiere
+ * cobrar. Sea cual sea, termina en un monto que se reparte proporcional.
+ *
+ * El porcentaje que le toca a cada línea se muestra siempre, porque es la
+ * pregunta que se hace el vendedor cuando tipea un monto: cada línea cede su
+ * parte —una de S/ 10 en un carrito de S/ 2000 cede 5 centavos de un descuento
+ * de S/ 10, no los 10—, así que ninguna se queda en cero por chica que sea.
+ */
+function DescuentoGlobalDialog({ ctx, onApply, onClose }: {
+  ctx: { base: number; totalSinDesc: number; factor: number; hayACosto: boolean };
+  onApply: (descuento: number) => void;
+  onClose: () => void;
+}) {
+  type Modo = 'pct' | 'monto' | 'total';
+  const { base, totalSinDesc, factor, hayACosto } = ctx;
+  const [modo, setModo] = useState<Modo>('pct');
+  const [valor, setValor] = useState('');
+  const campo = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    campo.current?.focus();
+    campo.current?.select();
+  }, [modo]);
+
+  const num = parseFloat(valor.replace(',', '.'));
+  const vacio = !Number.isFinite(num);
+  // Todo se traduce a monto de descuento: es lo único que las líneas entienden.
+  const descuento = vacio ? 0
+    : modo === 'pct' ? base * num / 100
+      : modo === 'monto' ? num
+        : (totalSinDesc - num) / (factor || 1);
+  const pct = base > 0 ? descuento / base * 100 : 0;
+  const cobra = totalSinDesc - descuento * factor;
+  // Medio centavo de tolerancia: pedir el total exacto de un carrito con IGV
+  // por fuera puede dar un descuento un pelo mayor que la base por redondeo.
+  const invalido = base <= 0 || (modo === 'total' && vacio) || descuento < 0 || descuento > base + 0.005;
+
+  const cambiarModo = (m: Modo) => {
+    // El número se traduce, como en el de línea: un "20" de porcentaje leído
+    // como monto son S/ 20, y leído como total cobra 20 soles por todo.
+    const d = Math.min(Math.max(descuento, 0), base);
+    setModo(m);
+    setValor(m === 'total' ? String(r2(totalSinDesc - d * factor))
+      : d <= 0 ? ''
+        : String(r2(m === 'monto' ? d : base > 0 ? d / base * 100 : 0)));
+  };
+
+  const BOTON_MODO = (m: Modo, label: string) => (
+    <button onClick={() => cambiarModo(m)}
+      className={`flex-1 rounded-lg border p-1.5 text-[11px] ${modo === m
+        ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold'
+        : 'border-gray-200 text-gray-500'}`}>{label}</button>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-xs rounded-xl bg-white px-5 pb-5 pt-[10px] shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-[#004A94]">Descuento global</h3>
-        <p className="mt-0.5 text-xs text-gray-500">Se aplica como descuento por línea a todo el carrito.</p>
-        <input className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right outline-none focus:border-[#437EFF]"
-          type="number" step="0.5" min="0" max="100" value={pct} onChange={e => setPct(e.target.value)} autoFocus placeholder="% descuento" />
+        <p className="mt-0.5 text-xs text-gray-500">
+          Carrito S/ {fmt(totalSinDesc)}{hayACosto && ' · las líneas a costo quedan afuera'}
+        </p>
+        <div className="mt-3 flex gap-2">
+          {BOTON_MODO('pct', '% Porcent.')}
+          {BOTON_MODO('monto', 'S/ Monto')}
+          {BOTON_MODO('total', 'S/ Cobrar')}
+        </div>
+        <input ref={campo} className={`${inputClassPelado} mt-2 text-right`}
+          type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)}
+          placeholder={modo === 'pct' ? '0 %' : modo === 'monto' ? '0.00' : fmt(totalSinDesc)} />
+        {/* El porcentaje va SIEMPRE, sea cual sea el modo: es la traducción que
+            el vendedor no tiene cómo hacer de cabeza cuando tipea un monto. */}
+        <p className={`mt-1.5 text-[11px] ${invalido ? 'text-red-600' : 'text-gray-500'}`}>
+          {base <= 0 ? 'No hay líneas que admitan descuento'
+            : invalido
+              ? (modo === 'total' && vacio
+                ? 'Escribí cuánto vas a cobrar'
+                : `El descuento no puede pasar de S/ ${fmt(base)}`)
+              : `${pct.toFixed(2)}% en cada línea · −S/ ${fmt(descuento)} · cobrás S/ ${fmt(cobra)}`}
+        </p>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar</button>
-          <button onClick={() => onApply(parseFloat(pct) || 0)} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">Aplicar</button>
+          <button onClick={() => onApply(r2(descuento))} disabled={invalido}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-40">Aplicar</button>
         </div>
       </div>
     </div>
