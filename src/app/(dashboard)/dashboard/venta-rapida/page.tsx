@@ -150,6 +150,8 @@ function VentaRapidaInner() {
   const [escaneo, setEscaneo] = useState<{ ok: boolean; texto: string } | null>(null);
   const escaneoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Con qué búsqueda se cargó la grilla que se ve ahora ('' = catálogo). */
+  const grillaQueryRef = useRef('');
 
   // Dialogs carrito
   const [descLineaTarget, setDescLineaTarget] = useState<VentaItem | null>(null);
@@ -215,6 +217,7 @@ function VentaRapidaInner() {
           page: 1, limit: 30, search: q || undefined,
           sedeId: sedeId || undefined, isActive: true, esInsumo: false,
         });
+        grillaQueryRef.current = q;
         setProductos(res.data);
       } catch { /* ignore */ } finally { setSearching(false); }
     }, 350);
@@ -445,13 +448,20 @@ function VentaRapidaInner() {
         sedeId: sedeId || undefined, isActive: true, esInsumo: false,
       });
       const candidatos = res.data;
-      setProductos(candidatos);
+      // 🔴 La grilla NO se toca si el código entra directo: pintar los
+      // candidatos y enseguida recargar el catálogo hacía parpadear la
+      // pantalla en cada lectura. Solo cambia cuando el cajero tiene que
+      // elegir, o cuando lo tecleado era una palabra.
+      const mostrarCandidatos = () => { grillaQueryRef.current = codigo; setProductos(candidatos); };
+      // Tras agregar: la grilla vuelve al catálogo SOLO si mostraba otra
+      // búsqueda (el buscador ya quedó vacío). Si ya era el catálogo, nada.
+      const volverAlCatalogo = () => { if (grillaQueryRef.current) search(''); };
 
       // 1) El código es del producto.
       const directos = candidatos.filter(p => igual(p.codigoBarras) || igual(p.sku) || igual(p.codigoEmpresa));
       if (directos.length === 1) {
         const p = directos[0];
-        search('');
+        volverAlCatalogo();
         if (p.esCombo || p.tieneVariantes) {
           // Combo: se expande en sus componentes. Variantes: el código es del
           // producto, no de una talla/color, así que falta elegirla.
@@ -466,6 +476,7 @@ function VentaRapidaInner() {
         return true;
       }
       if (directos.length > 1) {
+        mostrarCandidatos();
         avisarEscaneo(false, `El código ${codigo} está en ${directos.length} productos: elige uno`);
         return true;
       }
@@ -477,7 +488,7 @@ function VentaRapidaInner() {
         const ficha = c.variantes?.length ? c : await productoService.getProducto(c.id);
         const v = ficha.variantes?.find(x => igual(x.codigoBarras) || igual(x.sku));
         if (v) {
-          search('');
+          volverAlCatalogo();
           if (await addItem(ficha, v.id, v.nombre)) avisarEscaneo(true, `+1 ${ficha.nombre} - ${v.nombre}`);
           else avisarEscaneo(false, `${ficha.nombre} - ${v.nombre} no tiene precio en esta sede`);
           return true;
@@ -491,8 +502,9 @@ function VentaRapidaInner() {
         avisarEscaneo(false, `No hay ningún producto con el código ${codigo}`);
         return true;
       }
-      // Era una palabra: queda en el buscador con sus resultados (ya
-      // cargados arriba), como una búsqueda normal.
+      // Era una palabra: queda en el buscador con sus resultados, como una
+      // búsqueda normal.
+      mostrarCandidatos();
       setQuery(codigo);
       return false;
     } catch {
