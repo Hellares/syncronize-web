@@ -36,6 +36,9 @@ function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Plata: dos decimales. Un 33.33333% de descuento no puede viajar crudo. */
+function r2(n: number): number { return Math.round(n * 100) / 100; }
+
 function genKey() { return Math.random().toString(36).slice(2, 10); }
 
 
@@ -1648,31 +1651,87 @@ function CobrablesSheet({ sedeId, onPick, onClose }: { sedeId?: string; onPick: 
 }
 
 /* --- Dialogs de descuento --- */
+/**
+ * Descuento de línea, por tres caminos que terminan en el mismo número: un
+ * MONTO que se le resta a la línea entera. El reparto entre las unidades sale
+ * solo, porque `calcularLinea` hace `cantidad * precioUnitario - descuento`.
+ *
+ * El tercero —TOTAL— es como se cierra un trato de verdad: "los 4 te los dejo
+ * en 1500", no "te hago 500 de descuento". Se teclea el precio final de la
+ * línea y el descuento es la resta; con 4 × 500 quedan 125 menos por unidad
+ * sin que nadie divida nada.
+ */
 function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onApply: (monto: number) => void; onClose: () => void }) {
-  const [modo, setModo] = useState<'monto' | 'pct'>('monto');
-  const [valor, setValor] = useState(item.descuento > 0 ? String(item.descuento) : '');
+  type Modo = 'monto' | 'pct' | 'total';
   const bruto = item.cantidad * item.precioUnitario;
+  const [modo, setModo] = useState<Modo>('monto');
+  const [valor, setValor] = useState(item.descuento > 0 ? String(item.descuento) : '');
 
-  const aplicar = () => {
-    const v = parseFloat(valor) || 0;
-    onApply(modo === 'monto' ? v : bruto * v / 100);
+  const num = parseFloat(valor.replace(',', '.'));
+  const vacio = !Number.isFinite(num);
+  // Lo tecleado, traducido SIEMPRE a monto de descuento: es lo único que la
+  // línea entiende.
+  const descuento = vacio ? 0
+    : modo === 'monto' ? num
+      : modo === 'pct' ? bruto * num / 100
+        : bruto - num;
+  // En 'total' la caja vacía no es "sin descuento" sino "regalado": sin este
+  // corte, Aplicar con el campo en blanco dejaría la línea en cero.
+  const invalido = (modo === 'total' && vacio) || descuento < 0 || descuento > bruto;
+  const queda = bruto - descuento;
+
+  const cambiarModo = (m: Modo) => {
+    // El número se TRADUCE al modo nuevo en vez de quedar como está: un "500"
+    // de monto, leído como porcentaje, es 500%; leído como total, regala la
+    // línea. Era la trampa que ya tenía el diálogo con dos modos.
+    const d = Math.min(Math.max(descuento, 0), bruto);
+    setModo(m);
+    setValor(m === 'total' ? String(r2(bruto - d))
+      : d <= 0 ? ''
+        : String(r2(m === 'monto' ? d : bruto > 0 ? d / bruto * 100 : 0)));
   };
+
+  const BOTON_MODO = (m: Modo, label: string) => (
+    <button onClick={() => cambiarModo(m)}
+      className={`flex-1 rounded-lg border p-1.5 text-[11px] ${modo === m
+        ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold'
+        : 'border-gray-200 text-gray-500'}`}>{label}</button>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-[#004A94]">Descuento de línea</h3>
-        <p className="mt-0.5 text-xs text-gray-500 truncate">{item.descripcion} · línea S/ {fmt(bruto)}</p>
+        {/* La cuenta va en su propia línea y FUERA del truncate: con un
+            nombre largo, lo que se comía los puntos suspensivos eran
+            justamente los números. */}
+        <p className="mt-0.5 truncate text-xs text-gray-500">{item.descripcion}</p>
+        <p className="text-xs text-gray-500">
+          {item.cantidad} × S/ {fmt(item.precioUnitario)} = S/ {fmt(bruto)}
+        </p>
         <div className="mt-3 flex gap-2">
-          <button onClick={() => setModo('monto')} className={`flex-1 rounded-lg border p-1.5 text-xs ${modo === 'monto' ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold' : 'border-gray-200 text-gray-500'}`}>S/ Monto</button>
-          <button onClick={() => setModo('pct')} className={`flex-1 rounded-lg border p-1.5 text-xs ${modo === 'pct' ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF] font-bold' : 'border-gray-200 text-gray-500'}`}>% Porcentaje</button>
+          {BOTON_MODO('monto', 'S/ Monto')}
+          {BOTON_MODO('pct', '% Porcent.')}
+          {BOTON_MODO('total', 'S/ Total')}
         </div>
-        <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right outline-none focus:border-[#437EFF]"
+        <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-right text-sm outline-none focus:border-[#437EFF]"
           type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} autoFocus
-          placeholder={modo === 'monto' ? '0.00' : '0 %'} />
+          placeholder={modo === 'monto' ? '0.00' : modo === 'pct' ? '0 %' : fmt(bruto)} />
+        {/* Qué va a pasar, en plata. En 'total' es lo que el vendedor no sabe
+            —cuánto terminó cediendo— y en los otros dos, en cuánto queda la
+            línea, que es lo que le va a decir al cliente. */}
+        <p className={`mt-1.5 text-[11px] ${invalido ? 'text-red-600' : 'text-gray-500'}`}>
+          {invalido
+            ? (modo === 'total' && vacio
+              ? 'Escribí en cuánto queda la línea'
+              : `No puede pasar de S/ ${fmt(bruto)}`)
+            : <>Descuento S/ {fmt(descuento)} · queda S/ {fmt(queda)}
+              {item.cantidad > 1 && ` · S/ ${fmt(queda / item.cantidad)} c/u`}</>}
+        </p>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar desc.</button>
-          <button onClick={aplicar} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570]">Aplicar</button>
+          <button onClick={() => onApply(r2(descuento))} disabled={invalido}
+            className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-40">Aplicar</button>
         </div>
       </div>
     </div>
