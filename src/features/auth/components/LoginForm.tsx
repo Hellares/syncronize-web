@@ -5,11 +5,12 @@ import { useAuth } from '@/core/auth/auth-context';
 import { useLogin } from '../hooks/use-login';
 import GoogleSignInButton from './GoogleSignInButton';
 import ModeSelector from './ModeSelector';
+import CambiarPasswordTemporal from './CambiarPasswordTemporal';
 import type { CredentialResponse } from '@react-oauth/google';
 import { AxiosError } from 'axios';
 
 export default function LoginForm() {
-  const { state, login, googleLogin } = useAuth();
+  const { state, login, googleLogin, logout } = useAuth();
   const {
     email,
     password,
@@ -57,6 +58,19 @@ export default function LoginForm() {
       setModeLoading(false);
     }
   };
+
+  // Primer ingreso con contraseña temporal
+  if (state.status === 'password-change') {
+    return (
+      <CambiarPasswordTemporal
+        credencial={email}
+        passwordActual={password}
+        nombre={state.user.nombres ?? ''}
+        onCambiada={setPassword}
+        onCancelar={logout}
+      />
+    );
+  }
 
   // Mode selection screen
   if (state.status === 'mode-selection') {

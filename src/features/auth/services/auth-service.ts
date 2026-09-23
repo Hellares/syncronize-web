@@ -13,6 +13,15 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
   return res.data;
 }
 
+/** Cambia la contraseña. El backend cierra TODAS las sesiones, incluida esta. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post(AUTH_ENDPOINTS.CHANGE_PASSWORD, {
+    currentPassword,
+    newPassword,
+    confirmPassword: newPassword,
+  });
+}
+
 export async function googleAuth(data: GoogleAuthRequest): Promise<AuthResponse> {
   const res = await apiClient.post<AuthResponse>(AUTH_ENDPOINTS.GOOGLE, data);
   return res.data;

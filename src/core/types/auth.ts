@@ -84,4 +84,10 @@ export type AuthState =
   | { status: 'loading' }
   | { status: 'authenticated'; user: User; tenant: Tenant | null }
   | { status: 'unauthenticated' }
-  | { status: 'mode-selection'; user: User; options: ModeOption[]; tokens?: AuthTokens };
+  | { status: 'mode-selection'; user: User; options: ModeOption[]; tokens?: AuthTokens }
+  /**
+   * La cuenta la creó un admin y todavía tiene la contraseña temporal (el
+   * DNI). El backend entrega tokens SIN empresa que solo sirven para cambiarla:
+   * entrar al dashboard con ellos lo muestra vacío.
+   */
+  | { status: 'password-change'; user: User };

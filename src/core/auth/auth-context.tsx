@@ -13,6 +13,7 @@ type AuthAction =
   | { type: 'SET_AUTHENTICATED'; user: User; tenant: Tenant | null }
   | { type: 'SET_UNAUTHENTICATED' }
   | { type: 'SET_MODE_SELECTION'; user: User; options: ModeOption[]; tokens?: { accessToken: string; refreshToken: string } }
+  | { type: 'SET_PASSWORD_CHANGE'; user: User }
   | { type: 'SET_INITIAL' };
 
 function authReducer(_state: AuthState, action: AuthAction): AuthState {
@@ -30,6 +31,8 @@ function authReducer(_state: AuthState, action: AuthAction): AuthState {
         options: action.options,
         tokens: action.tokens ? { ...action.tokens, expiresIn: '' } : undefined,
       };
+    case 'SET_PASSWORD_CHANGE':
+      return { status: 'password-change', user: action.user };
     case 'SET_INITIAL':
       return { status: 'initial' };
   }
@@ -44,6 +47,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
   selectMode: (loginMode: string, subdominioEmpresa?: string) => void;
   checkAuthStatus: () => Promise<void>;
+  /**
+   * Cambia la contraseña temporal y vuelve a entrar con la nueva: el backend
+   * cierra todas las sesiones al cambiarla, incluida la temporal.
+   */
+  cambiarPasswordTemporal: (credencial: string, actual: string, nueva: string) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -54,6 +62,17 @@ function processAuthResponse(
   response: AuthResponse,
   dispatch: React.Dispatch<AuthAction>
 ) {
+  // Contraseña temporal: igual que el app, primero se cambia. Los tokens se
+  // guardan SOLO para poder llamar a change-password; no se marca la sesión
+  // como iniciada, así que recargar vuelve al login.
+  if (response.user?.requiereCambioPassword) {
+    if (response.accessToken && response.refreshToken) {
+      tokenService.setTokens(response.accessToken, response.refreshToken);
+    }
+    dispatch({ type: 'SET_PASSWORD_CHANGE', user: response.user });
+    return;
+  }
+
   if (response.requiresSelection && response.options) {
     dispatch({
       type: 'SET_MODE_SELECTION',
@@ -177,6 +196,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const cambiarPasswordTemporalFn = useCallback(async (
+    credencial: string,
+    actual: string,
+    nueva: string,
+  ): Promise<AuthResponse> => {
+    await authService.changePassword(actual, nueva);
+    // Los tokens temporales ya quedaron revocados.
+    tokenService.clearTokens();
+    try {
+      const response = await authService.login({ credencial, password: nueva });
+      processAuthResponse(response, dispatch);
+      return response;
+    } catch (error) {
+      // La contraseña YA cambió: al login, a entrar con la nueva.
+      dispatch({ type: 'SET_UNAUTHENTICATED' });
+      throw error;
+    }
+  }, []);
+
   const googleLoginFn = useCallback(async (
     idToken: string,
     loginMode?: string,
@@ -220,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout: logoutFn,
         selectMode: selectModeFn,
         checkAuthStatus,
+        cambiarPasswordTemporal: cambiarPasswordTemporalFn,
       }}
     >
       {children}
