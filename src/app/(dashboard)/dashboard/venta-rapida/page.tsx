@@ -1092,6 +1092,19 @@ function VentaRapidaInner() {
     setInfo(`▶ Retomaste "${elegida.etiqueta}"`);
   };
 
+  /** Vacía el carrito entero de una vez, en vez de quitar línea por línea. */
+  const vaciarCarrito = () => {
+    if (!items.length) return;
+    // Confirmación: está al lado de "Descuento" y un clic errado borra la venta entera.
+    if (!window.confirm(`¿Vaciar el carrito? Se quitan las ${items.length} ${items.length === 1 ? 'línea' : 'líneas'} (S/ ${fmt(totales.total)}).`)) return;
+    setItems([]);
+    setOrdenCliente(null);
+    setModoCosto(null);
+    setCostos({});
+    firmaCosto.current = '';
+    setInfo('Carrito vaciado');
+  };
+
   const descartarEspera = (id: string) => {
     if (!alcance) return;
     const v = enEspera.find(x => x.id === id);
@@ -1400,6 +1413,13 @@ function VentaRapidaInner() {
                     <path d="M9 5v14M15 5v14" />
                   </svg>
                   En espera
+                </button>
+                <button onClick={vaciarCarrito} title="Quitar todas las líneas del carrito"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-[11px] font-medium text-red-600 hover:bg-red-50">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" />
+                  </svg>
+                  Vaciar
                 </button>
                 <button onClick={() => setDescGlobalOpen(true)}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">
