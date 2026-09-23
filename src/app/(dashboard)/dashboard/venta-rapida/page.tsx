@@ -1703,6 +1703,66 @@ function CobrablesSheet({ sedeId, onPick, onClose }: { sedeId?: string; onPick: 
 
 /* --- Dialogs de descuento --- */
 /**
+ * Atajos del campo de los diálogos de descuento, para cerrar una venta sin
+ * soltar el teclado: Enter aplica y ↑↓ cambian de modo. El Escape no está acá
+ * sino en `useEscape`, porque tiene que andar sin importar dónde esté el foco.
+ *
+ * Van en el INPUT y no en el diálogo entero a propósito: con el foco en un
+ * botón, Enter tiene que hacer lo que dice ese botón —si no, pararse en
+ * "Quitar desc." y pulsar Enter aplicaría un descuento—. Y como el campo se
+ * reenfoca en cada cambio de modo, el foco vive ahí casi siempre.
+ */
+function atajosDescuento<M extends string>(o: {
+  modos: readonly M[];
+  modo: M;
+  cambiarModo: (m: M) => void;
+  aplicar: () => void;
+  puedeAplicar: boolean;
+}) {
+  return (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (o.puedeAplicar) o.aplicar();
+      return;
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      // Le gana al stepper nativo del type="number", que acá no sirve de nada:
+      // subir de a 1 un descuento es peor que teclearlo.
+      e.preventDefault();
+      const i = o.modos.indexOf(o.modo);
+      const paso = e.key === 'ArrowDown' ? 1 : o.modos.length - 1;
+      o.cambiarModo(o.modos[(i + paso) % o.modos.length]);
+    }
+  };
+}
+
+/**
+ * Esc cierra, venga el foco de donde venga. Colgarlo del contenedor no alcanza:
+ * un clic en el blanco del diálogo manda el foco al body y desde ahí el evento
+ * ya no pasa por el div.
+ */
+function useEscape(onClose: () => void) {
+  const cb = useRef(onClose);
+  // En un efecto y no en el render: escribir un ref mientras se renderiza es
+  // justo lo que prohíbe `react-hooks/refs`.
+  useEffect(() => { cb.current = onClose; });
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') cb.current(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
+}
+
+/** Pie con los atajos: sin esto no se descubren. */
+function PieAtajos() {
+  return (
+    <p className="mt-2 text-center text-[10px] text-gray-400">
+      Enter aplica · Esc cierra · ↑↓ cambia de modo
+    </p>
+  );
+}
+
+/**
  * Descuento de línea, por tres caminos que terminan en el mismo número: un
  * MONTO que se le resta a la línea entera. El reparto entre las unidades sale
  * solo, porque `calcularLinea` hace `cantidad * precioUnitario - descuento`.
@@ -1727,6 +1787,7 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
     campo.current?.focus();
     campo.current?.select();
   }, [modo]);
+  useEscape(onClose);
 
   const num = parseFloat(valor.replace(',', '.'));
   const vacio = !Number.isFinite(num);
@@ -1751,6 +1812,12 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
       : d <= 0 ? ''
         : String(r2(m === 'monto' ? d : bruto > 0 ? d / bruto * 100 : 0)));
   };
+
+  const aplicar = () => onApply(r2(descuento));
+  const atajos = atajosDescuento({
+    modos: ['monto', 'pct', 'total'] as const,
+    modo, cambiarModo, aplicar, puedeAplicar: !invalido,
+  });
 
   const BOTON_MODO = (m: Modo, label: string) => (
     <button onClick={() => cambiarModo(m)}
@@ -1777,6 +1844,7 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
         </div>
         <input ref={campo} className={`${inputClassPelado} mt-2 text-right`}
           type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)}
+          onKeyDown={atajos}
           placeholder={modo === 'monto' ? '0.00' : modo === 'pct' ? '0 %' : fmt(bruto)} />
         {/* Qué va a pasar, en plata. En 'total' es lo que el vendedor no sabe
             —cuánto terminó cediendo— y en los otros dos, en cuánto queda la
@@ -1791,9 +1859,10 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar desc.</button>
-          <button onClick={() => onApply(r2(descuento))} disabled={invalido}
+          <button onClick={aplicar} disabled={invalido}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-40">Aplicar</button>
         </div>
+        <PieAtajos />
       </div>
     </div>
   );
@@ -1889,6 +1958,7 @@ function DescuentoGlobalDialog({ ctx, onApply, onClose }: {
     campo.current?.focus();
     campo.current?.select();
   }, [modo]);
+  useEscape(onClose);
 
   const num = parseFloat(valor.replace(',', '.'));
   const vacio = !Number.isFinite(num);
@@ -1913,6 +1983,12 @@ function DescuentoGlobalDialog({ ctx, onApply, onClose }: {
         : String(r2(m === 'monto' ? d : base > 0 ? d / base * 100 : 0)));
   };
 
+  const aplicar = () => onApply(r2(descuento));
+  const atajos = atajosDescuento({
+    modos: ['pct', 'monto', 'total'] as const,
+    modo, cambiarModo, aplicar, puedeAplicar: !invalido,
+  });
+
   const BOTON_MODO = (m: Modo, label: string) => (
     <button onClick={() => cambiarModo(m)}
       className={`flex-1 rounded-lg border p-1.5 text-[11px] ${modo === m
@@ -1934,6 +2010,7 @@ function DescuentoGlobalDialog({ ctx, onApply, onClose }: {
         </div>
         <input ref={campo} className={`${inputClassPelado} mt-2 text-right`}
           type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)}
+          onKeyDown={atajos}
           placeholder={modo === 'pct' ? '0 %' : modo === 'monto' ? '0.00' : fmt(totalSinDesc)} />
         {/* El porcentaje va SIEMPRE, sea cual sea el modo: es la traducción que
             el vendedor no tiene cómo hacer de cabeza cuando tipea un monto. */}
@@ -1947,9 +2024,10 @@ function DescuentoGlobalDialog({ ctx, onApply, onClose }: {
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={() => onApply(0)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Quitar</button>
-          <button onClick={() => onApply(r2(descuento))} disabled={invalido}
+          <button onClick={aplicar} disabled={invalido}
             className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-bold text-white hover:bg-[#003570] disabled:opacity-40">Aplicar</button>
         </div>
+        <PieAtajos />
       </div>
     </div>
   );
