@@ -27,8 +27,13 @@ import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
 import NumeroInput from '@/components/ui/NumeroInput';
 import { UnidadPresentacion, presentacionPlana } from '@/core/utils/unidad-presentacion';
 import { presentacionDeVariante } from '@/features/compras/utils/variantes-comprables';
+import { useAuth } from '@/core/auth/auth-context';
+import {
+  type AlcanceCarrito, type CarritoGuardado, type ClienteDeOrden, type VentaEnEspera,
+  leerCarritoActual, guardarCarritoActual, leerEnEspera, guardarEnEspera, haceCuanto, MAX_EN_ESPERA,
+} from '@/features/venta/utils/ventas-en-espera';
 
-interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombre: string; documento: string }
+type OrdenClienteCtx = ClienteDeOrden;
 
 // Estilo estándar de input de la web: zinc-100, ring azul, sombra y glow al
 // enfocar. El padding deja lugar a la lupa y al limpiar / spinner.
@@ -63,6 +68,13 @@ function VentaRapidaInner() {
   const permissions = usePermissions();
   const defaultSede = sedes.find(s => s.isActive && s.esPrincipal) || sedes.find(s => s.isActive);
   const sedeId = defaultSede?.id ?? '';
+  const { state: authState } = useAuth();
+  const usuarioId = authState.status === 'authenticated' ? authState.user.id : '';
+  // Dónde se guarda el carrito en el navegador: por empresa, cajero y sede.
+  const alcance = useMemo<AlcanceCarrito | null>(
+    () => (empresa?.id && usuarioId && sedeId ? { empresaId: empresa.id, usuarioId, sedeId } : null),
+    [empresa?.id, usuarioId, sedeId],
+  );
 
   const [mode, setMode] = useState<'carrito' | 'cobro'>('carrito');
   const [items, setItems] = useState<VentaItem[]>([]);
@@ -123,6 +135,13 @@ function VentaRapidaInner() {
   // Producto+cantidad de cada línea elegible, ya cotizado. Corta el bucle del
   // efecto que recotiza: sin esto se re-pediría en cada render.
   const firmaCosto = useRef<string>('');
+
+  // --- Ventas en espera (en el navegador, ver `ventas-en-espera.ts`) ---
+  const [enEspera, setEnEspera] = useState<VentaEnEspera[]>([]);
+  const [esperaDialogOpen, setEsperaDialogOpen] = useState(false);
+  // Qué alcance ya se leyó del navegador. Hasta entonces NO se guarda: el
+  // primer render trae el carrito vacío y pisaría el que había que recuperar.
+  const hidratado = useRef<string | null>(null);
 
   // Autorización de descuentos (paridad Flutter: sin canManageDiscounts un admin debe autorizar)
   const [authDescuento, setAuthDescuento] = useState<null | (() => void)>(null);
@@ -715,7 +734,10 @@ function VentaRapidaInner() {
       precioCosto: null,
       stockDisponible: null,
     };
-    setItems(prev => [...prev, nuevo]);
+    // El chequeo de arriba mira el `items` de ESTE render. La precarga por
+    // ?ordenServicioId llega async y puede caer sobre un carrito recuperado del
+    // navegador que ya traía la orden: acá se mira el estado real.
+    setItems(prev => (prev.some(it => it.ordenServicioId === o.id) ? prev : [...prev, nuevo]));
     setOrdenCliente(ctx);
     setCobrablesOpen(false);
     setInfo(`Orden ${o.codigo} agregada (saldo hoy S/ ${fmt(o.saldoPendiente)})`);
@@ -947,6 +969,138 @@ function VentaRapidaInner() {
     return out;
   }, [items]);
 
+  // =========================================================
+  // CARRITO EN EL NAVEGADOR + VENTAS EN ESPERA
+  // =========================================================
+
+  /**
+   * Al retomar una venta guardada, precio y stock se vuelven a leer: pudieron
+   * cambiar mientras esperaba, y cobrar el precio de hace dos horas sin decirlo
+   * es peor que avisar. Se reprecian solo las líneas a precio de lista: a costo,
+   * atadas a un lote, de combo u órdenes tienen su propio precio. El descuento
+   * de la línea (el "precio final" cerrado a mano) queda como monto.
+   */
+  const refrescarCarrito = useCallback(async (lineas: VentaItem[]) => {
+    const ids = [...new Set(lineas.map(l => l.productoId).filter((x): x is string => !!x))];
+    if (!ids.length) return;
+    const fichas = new Map<string, Producto>();
+    await Promise.all(ids.map(async (id) => {
+      try { fichas.set(id, await productoService.getProducto(id)); } catch { /* queda como estaba */ }
+    }));
+    const cambiados: string[] = [];
+    const frescas = new Map<string, Partial<VentaItem>>();
+    for (const it of lineas) {
+      const p = it.productoId ? fichas.get(it.productoId) : undefined;
+      if (!p) continue;
+      const v = it.varianteId ? p.variantes?.find(x => x.id === it.varianteId) : undefined;
+      const stock = stockDeSede(it.varianteId ? v?.stocksPorSede : p.stocksPorSede);
+      if (!stock) continue;
+      const cambio: Partial<VentaItem> = { stockDisponible: stock.cantidad ?? null };
+      const repreciable = !it.precioModo && !it.loteId && !it.origenComboId && !it.esOrdenServicio;
+      const base = Number(infoPrecioEfectivo(stock) ?? stock.precio ?? 0);
+      if (repreciable && base > 0 && Math.abs(base - it.precioBase) > 0.0001) {
+        const pres = presDeLinea(it);
+        cambiados.push(`${it.descripcion} (S/ ${fmt(pres.precio(it.precioBase))} → S/ ${fmt(pres.precio(base))})`);
+        Object.assign(cambio, { precioBase: base, precioUnitario: base, enLiquidacion: infoLiquidacionActiva(stock) });
+      }
+      frescas.set(it.key, cambio);
+    }
+    if (!frescas.size) return;
+    setItems(prev => recalcularNivelesEnLote(prev.map(it => (frescas.has(it.key) ? { ...it, ...frescas.get(it.key) } : it))));
+    if (cambiados.length) setInfo(`Cambió el precio de ${cambiados.join(', ')}`);
+  }, [stockDeSede]);
+
+  /** Pone un carrito guardado en pantalla, en lugar del que haya. */
+  const cargarCarrito = useCallback((c: CarritoGuardado) => {
+    setItems(c.items);
+    setOrdenCliente(c.ordenCliente);
+    setModoCosto(c.modoCosto);
+    // El cache de costos es del carrito anterior; el efecto que recotiza lo
+    // vuelve a pedir si este trae líneas a costo.
+    setCostos({});
+    firmaCosto.current = '';
+    setMode('carrito');
+    void refrescarCarrito(c.items);
+  }, [refrescarCarrito]);
+
+  // Guardar en cada cambio. 🔴 Declarado ANTES que el de recuperar: en el
+  // primer commit corre primero, ve `hidratado` vacío y no pisa nada.
+  useEffect(() => {
+    if (!alcance || hidratado.current !== JSON.stringify(alcance)) return;
+    guardarCarritoActual(alcance, { items, ordenCliente, modoCosto });
+  }, [alcance, items, ordenCliente, modoCosto]);
+
+  // Recuperar al entrar (o al cambiar de sede/usuario).
+  useEffect(() => {
+    if (!alcance) return;
+    const k = JSON.stringify(alcance);
+    if (hidratado.current === k) return;
+    hidratado.current = k;
+    setEnEspera(leerEnEspera(alcance));
+    const c = leerCarritoActual(alcance);
+    if (c) {
+      // Si la precarga de una orden ya metió algo, se suma a lo recuperado.
+      setItems(prev => [...c.items, ...prev.filter(it => !c.items.some(x => x.key === it.key || (x.ordenServicioId && x.ordenServicioId === it.ordenServicioId)))]);
+      setOrdenCliente(prev => c.ordenCliente ?? prev);
+      setModoCosto(c.modoCosto);
+      void refrescarCarrito(c.items);
+      setInfo('Se recuperó la venta que tenías en curso');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alcance]);
+
+  /**
+   * Aparca la venta en curso y deja el carrito vacío para el siguiente cliente.
+   * Devuelve la lista nueva para quien necesite encadenar (retomar = aparcar +
+   * cargar, sin que la primera escritura pise a la segunda).
+   */
+  const aparcar = (etiqueta: string, lista: VentaEnEspera[]): VentaEnEspera[] => {
+    const ahora = Date.now();
+    const nueva: VentaEnEspera = {
+      id: `${ahora.toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      etiqueta: etiqueta.trim() || ordenCliente?.nombre
+        || `Venta de las ${new Date(ahora).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`,
+      items, ordenCliente, modoCosto, guardadoEn: ahora,
+    };
+    return [nueva, ...lista].slice(0, MAX_EN_ESPERA);
+  };
+
+  const ponerEnEspera = (etiqueta: string) => {
+    setEsperaDialogOpen(false);
+    if (!alcance || !items.length) return;
+    const lista = aparcar(etiqueta, enEspera);
+    guardarEnEspera(alcance, lista);
+    setEnEspera(lista);
+    setItems([]);
+    setOrdenCliente(null);
+    setModoCosto(null);
+    setCostos({});
+    firmaCosto.current = '';
+    setInfo(`⏸ "${lista[0].etiqueta}" quedó en espera`);
+  };
+
+  /** Retoma una venta en espera. La que estaba en pantalla, si tenía algo, pasa a espera: nunca se pierde. */
+  const retomar = (id: string) => {
+    if (!alcance) return;
+    const elegida = enEspera.find(v => v.id === id);
+    if (!elegida) return;
+    let lista = enEspera.filter(v => v.id !== id);
+    if (items.length) lista = aparcar('', lista);
+    guardarEnEspera(alcance, lista);
+    setEnEspera(lista);
+    cargarCarrito(elegida);
+    setInfo(`▶ Retomaste "${elegida.etiqueta}"`);
+  };
+
+  const descartarEspera = (id: string) => {
+    if (!alcance) return;
+    const v = enEspera.find(x => x.id === id);
+    if (!v || !window.confirm(`¿Descartar la venta en espera "${v.etiqueta}"? Se pierden sus ${v.items.length} líneas.`)) return;
+    const lista = enEspera.filter(x => x.id !== id);
+    guardarEnEspera(alcance, lista);
+    setEnEspera(lista);
+  };
+
   const handleVentaOk = (venta: Venta) => {
     setItems([]);
     setOrdenCliente(null);
@@ -1057,6 +1211,34 @@ function VentaRapidaInner() {
           </button>
         </div>
       </div>
+
+      {/* Ventas en espera: un clic la retoma. La que esté en pantalla pasa a
+          espera, así que retomar nunca borra nada. */}
+      {enEspera.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2">
+          <span className="text-[11px] font-medium text-amber-800">En espera ({enEspera.length})</span>
+          {enEspera.map(v => {
+            const total = v.items.reduce((s, it) => s + calcularLinea(it).total, 0);
+            return (
+              <div key={v.id} className="flex items-center overflow-hidden rounded-lg border border-amber-300 bg-white">
+                <button onClick={() => retomar(v.id)} title="Retomar esta venta"
+                  className="flex items-baseline gap-1.5 px-2.5 py-1 text-left hover:bg-amber-50">
+                  <span className="max-w-[160px] truncate text-[11px] font-medium text-gray-800">{v.etiqueta}</span>
+                  <span className="whitespace-nowrap text-[10px] text-gray-500">
+                    {v.items.length} {v.items.length === 1 ? 'línea' : 'líneas'} · S/ {fmt(total)} · {haceCuanto(v.guardadoEn)}
+                  </span>
+                </button>
+                <button onClick={() => descartarEspera(v.id)} title="Descartar"
+                  className="self-stretch border-l border-amber-200 px-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* === Catálogo === */}
@@ -1209,6 +1391,16 @@ function VentaRapidaInner() {
                 <p className="truncate text-[11px] text-gray-500">{resumenCarrito.texto}</p>
               </div>
               {items.length > 0 && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                {/* Aparcar: el cliente fue a buscar más cosas y hay fila. */}
+                <button onClick={() => setEsperaDialogOpen(true)} disabled={!alcance}
+                  title="Guardar esta venta para atender a otro cliente"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 px-2.5 py-1.5 text-[11px] font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+                    <path d="M9 5v14M15 5v14" />
+                  </svg>
+                  En espera
+                </button>
                 <button onClick={() => setDescGlobalOpen(true)}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:bg-gray-50">
                   <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -1216,6 +1408,7 @@ function VentaRapidaInner() {
                   </svg>
                   Descuento
                 </button>
+                </div>
               )}
             </div>
 
@@ -1602,6 +1795,11 @@ function VentaRapidaInner() {
         );
       })()}
 
+      {esperaDialogOpen && (
+        <EnEsperaDialog sugerida={ordenCliente?.nombre ?? ''} total={totales.total}
+          onApply={ponerEnEspera} onClose={() => setEsperaDialogOpen(false)} />
+      )}
+
       {/* Descuento global */}
       {descGlobalOpen && (
         <DescuentoGlobalDialog ctx={globalCtx} onApply={aplicarDescuentoGlobal} onClose={() => setDescGlobalOpen(false)} />
@@ -1779,6 +1977,43 @@ function useEscape(onClose: () => void) {
     document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
   }, []);
+}
+
+/**
+ * Pide una etiqueta para reconocer la venta al retomarla. Opcional: con Enter
+ * pelado queda "Venta de las 14:32". Lo normal es el nombre o una seña del
+ * cliente ("señora de polo rojo"), que es lo que el cajero va a buscar.
+ */
+function EnEsperaDialog({ sugerida, total, onApply, onClose }: {
+  sugerida: string; total: number; onApply: (etiqueta: string) => void; onClose: () => void;
+}) {
+  const [etiqueta, setEtiqueta] = useState(sugerida);
+  const campo = useRef<HTMLInputElement>(null);
+  useEffect(() => { campo.current?.focus(); campo.current?.select(); }, []);
+  useEscape(onClose);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-xs rounded-xl bg-white px-5 pb-5 pt-[10px] shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-medium text-[#004A94]">Poner en espera</h3>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Venta de S/ {fmt(total)}. El carrito queda libre para el siguiente cliente.
+        </p>
+        <input ref={campo} className={`${inputClassPelado} mt-3`} maxLength={40}
+          value={etiqueta} onChange={e => setEtiqueta(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onApply(etiqueta); } }}
+          placeholder="Nombre o seña del cliente (opcional)" />
+        <p className="mt-1.5 text-[10px] text-gray-400">
+          Queda guardada en este navegador. No aparta stock: se valida al cobrar.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50">Cancelar</button>
+          <button onClick={() => onApply(etiqueta)}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700">Poner en espera</button>
+        </div>
+        <p className="mt-2 text-center text-[10px] text-gray-400">Enter guarda · Esc cierra</p>
+      </div>
+    </div>
+  );
 }
 
 /** Pie con los atajos: sin esto no se descubren. */
