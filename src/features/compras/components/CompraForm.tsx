@@ -24,6 +24,9 @@ import LineaManualAsistente from '@/features/compras/components/LineaManualAsist
 import { FILTROS_COMPRA } from '@/features/compras/components/filtros-compra';
 import { gastoDesdeGuardado, lineaDesdeDetalleGuardado } from '@/features/compras/utils/linea-guardada';
 import type { GastoForm, LineaForm } from '@/features/compras/utils/linea-guardada';
+import { useAuth } from '@/core/auth/auth-context';
+import { type AlcanceCompra, type CompraEnCurso, borrarCompraEnCurso, guardarCompraEnCurso, leerCompraEnCurso } from '@/features/compras/utils/compra-en-curso';
+import { haceCuanto } from '@/features/venta/utils/ventas-en-espera';
 
 // Estilo estandar de inputs de la web (zinc + ring azul + glow al focus),
 // el mismo de `servicios/nueva` y `CotizacionForm`. El ring va BAKED porque
@@ -96,11 +99,90 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
   const [buscando, setBuscando] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- Compra nueva guardada en el navegador (ver `compra-en-curso.ts`) ---
+  const { state: authState } = useAuth();
+  const usuarioId = authState.status === 'authenticated' ? authState.user.id : '';
+  const alcance: AlcanceCompra | null = !editando && empresa?.id && usuarioId ? { empresaId: empresa.id, usuarioId } : null;
+  const alcanceKey = alcance ? `${alcance.empresaId}:${alcance.usuarioId}` : '';
+  // Hasta haber leído el navegador NO se guarda: el primer render trae el
+  // formulario vacío y pisaría la compra que había que recuperar.
+  const hidratado = useRef<string | null>(null);
+  // Tras crear la compra no se vuelve a escribir: el formulario todavía tiene
+  // los datos mientras navega al detalle, y la recuperaría como si nada.
+  const terminada = useRef(false);
+  const [recuperada, setRecuperada] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!alcance || terminada.current || hidratado.current !== alcanceKey) return;
+    guardarCompraEnCurso(alcance, {
+      proveedorId, sedeId, moneda, tipoCambio, terminosPago, fecha, tipoDoc, serie, numero,
+      diasCredito, observaciones, precioIncluyeIgv, lineas, gastos,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alcanceKey, proveedorId, sedeId, moneda, tipoCambio, terminosPago, fecha, tipoDoc, serie, numero,
+    diasCredito, observaciones, precioIncluyeIgv, lineas, gastos]);
+
+  // 🔴 Declarado DESPUÉS del de guardar: en el primer commit aquel corre antes,
+  // ve `hidratado` vacío y no pisa nada.
+  useEffect(() => {
+    if (!alcance || hidratado.current === alcanceKey) return;
+    hidratado.current = alcanceKey;
+    const c = leerCompraEnCurso(alcance);
+    if (!c) return;
+    setProveedorId(c.proveedorId);
+    if (c.sedeId) setSedeId(c.sedeId);
+    setMoneda(c.moneda);
+    setTipoCambio(c.tipoCambio);
+    setTerminosPago(c.terminosPago);
+    setFecha(c.fecha);
+    setTipoDoc(c.tipoDoc);
+    setSerie(c.serie);
+    setNumero(c.numero);
+    setDiasCredito(c.diasCredito);
+    setObservaciones(c.observaciones);
+    setPrecioIncluyeIgv(c.precioIncluyeIgv);
+    setLineas(c.lineas);
+    setGastos(c.gastos);
+    setRecuperada(c.guardadoEn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alcanceKey]);
+
+  /** Vuelve el formulario a una compra en blanco. Lo guardado se borra con él. */
+  const vaciarCompra = () => {
+    if (!window.confirm(`¿Vaciar la compra? Se pierden ${lineas.length} ${lineas.length === 1 ? 'línea' : 'líneas'}${gastos.length ? ` y ${gastos.length} gasto${gastos.length === 1 ? '' : 's'}` : ''} y los datos del documento.`)) return;
+    const blanco: Omit<CompraEnCurso, 'guardadoEn'> = {
+      proveedorId: '', sedeId: sedes[0]?.id ?? '', moneda: 'PEN', tipoCambio: '', terminosPago: 'CONTADO',
+      fecha: aInputDateTimeLocal(new Date()), tipoDoc: 'FACTURA', serie: '', numero: '', diasCredito: '',
+      observaciones: '', precioIncluyeIgv: true, lineas: [], gastos: [],
+    };
+    setProveedorId(blanco.proveedorId);
+    setSedeId(blanco.sedeId);
+    setMoneda(blanco.moneda);
+    setTipoCambio(blanco.tipoCambio);
+    setTerminosPago(blanco.terminosPago);
+    setFecha(blanco.fecha);
+    setTipoDoc(blanco.tipoDoc);
+    setSerie(blanco.serie);
+    setNumero(blanco.numero);
+    setDiasCredito(blanco.diasCredito);
+    setObservaciones(blanco.observaciones);
+    setPrecioIncluyeIgv(blanco.precioIncluyeIgv);
+    setLineas([]);
+    setGastos([]);
+    setSeleccionada(null);
+    setCabeceraAbierta(true);
+    setError(null);
+    setRecuperada(null);
+    if (alcance) borrarCompraEnCurso(alcance);
+  };
+
   useEffect(() => {
     listarProveedores().then(setProveedores).catch(() => setProveedores([]));
   }, []);
   useEffect(() => {
-    if (sedes.length && !sedeId) setSedeId(sedes[0].id);
+    // Funcional: en el mismo commit puede haber entrado la sede de una compra
+    // recuperada del navegador, y el `sedeId` de este cierre todavía es ''.
+    if (sedes.length && !sedeId) setSedeId(s => s || sedes[0].id);
   }, [sedes, sedeId]);
 
   // Deja el formulario como quedo el borrador la ultima vez que se guardo.
@@ -813,6 +895,9 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         observaciones: observaciones.trim() || undefined,
         ...(gastosPayload.length > 0 ? { gastos: gastosPayload } : {}),
       });
+      // Creada: lo guardado en el navegador ya no es una compra a medias.
+      terminada.current = true;
+      if (alcance) borrarCompraEnCurso(alcance);
       router.push(`/dashboard/compras/${creada.id}`);
     } catch (e) {
       const msg = (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
@@ -882,6 +967,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           </div>
           {/* El mismo boton que "+ Nuevo producto": 30 px de alto, `px-3` y
               texto de 10 — la altura del input estandar de la web. */}
+          {!editando && (lineas.length > 0 || gastos.length > 0 || !!proveedorId) && (
+            <button onClick={vaciarCompra} disabled={guardando} title="Borrar toda la compra y empezar de cero"
+              className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md border border-red-200 px-3 text-[10px] font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" />
+              </svg>
+              Vaciar
+            </button>
+          )}
           <button onClick={guardar} disabled={guardando}
             className="inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-md bg-[#004A94] px-3 text-[10px] font-medium text-white transition-colors hover:bg-[#003570] disabled:opacity-60">
             {!guardando && (
@@ -899,6 +993,15 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       </div>
 
       {error && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+      {/* Se dice que se recuperó: una compra que aparece cargada sola, sin
+          explicación, parece de otro usuario o un error. */}
+      {recuperada != null && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-800">
+          <span>Se recuperó la compra que estabas cargando ({haceCuanto(recuperada)}).</span>
+          <button onClick={() => setRecuperada(null)} className="ml-auto text-[11px] text-gray-500 hover:text-gray-700">Ocultar</button>
+        </div>
+      )}
 
       {/* Cabecera plegable: se llena una vez y despues solo roba altura */}
       {cabeceraAbierta && (
