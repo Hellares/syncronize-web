@@ -59,6 +59,45 @@ function presDeLinea(it: VentaItem): UnidadPresentacion {
 
 function genKey() { return Math.random().toString(36).slice(2, 10); }
 
+/**
+ * ¿Lo que llegó al buscador es un código (de barras, SKU, interno)? Mismo
+ * criterio que el backend (`pareceCodigo`): una sola palabra. Un nombre de una
+ * palabra ("MOUSE") también pasa, y por eso el resultado se confirma por
+ * IGUALDAD exacta antes de agregar nada.
+ */
+function pareceCodigo(texto: string): boolean {
+  const t = texto.trim();
+  return t.length > 0 && t.length < 50 && !t.includes(' ');
+}
+
+/** Un código de barras de verdad: solo dígitos y largo de EAN-8 para arriba. */
+function esCodigoNumerico(texto: string): boolean {
+  return /^\d{6,}$/.test(texto.trim());
+}
+
+/**
+ * El pitido del POS: el cajero timbra mirando el producto, no la pantalla.
+ * Agudo y corto si entró, grave y más largo si no. Sin audio (permiso del
+ * navegador, sin interacción previa) simplemente no suena.
+ */
+function pitido(ok: boolean) {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = ok ? 1800 : 300;
+    gain.gain.value = 0.05;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (ok ? 0.08 : 0.3));
+    osc.onended = () => { ctx.close().catch(() => {}); };
+  } catch { /* sin audio */ }
+}
+
 
 function VentaRapidaInner() {
   const router = useRouter();
@@ -105,6 +144,11 @@ function VentaRapidaInner() {
   // despacio termina metiendo el resto del nombre en el precio. El foco lo
   // mueve el usuario: Enter o Tab desde el buscador.
   const precioRef = useRef<HTMLInputElement>(null);
+  /** El buscador: también es donde escribe el lector de código de barras. */
+  const buscadorRef = useRef<HTMLInputElement>(null);
+  /** Resultado de la última lectura, bajo el buscador. Se va solo. */
+  const [escaneo, setEscaneo] = useState<{ ok: boolean; texto: string } | null>(null);
+  const escaneoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dialogs carrito
@@ -179,13 +223,35 @@ function VentaRapidaInner() {
   // Carga inicial del catálogo
   useEffect(() => { search(''); }, [search]);
 
+  // El lector de código de barras escribe donde esté el foco. Si el cajero
+  // acaba de tocar un botón del carrito, el foco no está en ningún campo y la
+  // lectura se perdería: la primera tecla lo devuelve al buscador. Nunca
+  // roba el foco de otro campo ni actúa con un diálogo abierto encima.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+      const activo = document.activeElement as HTMLElement | null;
+      if (activo && (activo.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(activo.tagName))) return;
+      // Todos los diálogos de la web son un overlay `fixed inset-0`.
+      if (document.querySelector('.fixed.inset-0')) return;
+      const input = buscadorRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      search((input.value + e.key).toUpperCase());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [search]);
+
   const stockDeSede = useCallback((stocks?: StockPorSedeInfo[]): StockPorSedeInfo | null => {
     if (!stocks?.length) return null;
     return stocks.find(s => s.sedeId === sedeId) ?? stocks[0];
   }, [sedeId]);
 
   // --- Agregar al carrito (con niveles async, paridad cubit.agregarProducto) ---
-  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string, cantidadPedida?: number) => {
+  /** Devuelve false si no pudo agregarlo (sin precio en la sede). */
+  const addItem = useCallback(async (p: Producto, varianteId?: string, varianteNombre?: string, cantidadPedida?: number): Promise<boolean> => {
     const variante = varianteId ? p.variantes?.find(v => v.id === varianteId) : undefined;
     const stocks = varianteId ? variante?.stocksPorSede : p.stocksPorSede;
     // La misma regla que el selector de variantes: la propia de la variante o
@@ -198,7 +264,7 @@ function VentaRapidaInner() {
     const cantidad = cantidadPedida ?? (pres.factor > 1 ? pres.factor : 1);
     const stock = stockDeSede(stocks);
     const precioBase = stock ? Number(infoPrecioEfectivo(stock) ?? stock.precio ?? 0) : 0;
-    if (precioBase <= 0) { setInfo(`"${p.nombre}" no tiene precio configurado en esta sede`); return; }
+    if (precioBase <= 0) { setInfo(`"${p.nombre}" no tiene precio configurado en esta sede`); return false; }
 
     // Gotcha del proyecto: buscar en carrito SIEMPRE incluyendo varianteId.
     // 🔴 Y NUNCA fusionar contra una línea atada a un lote: esa es de un
@@ -218,7 +284,7 @@ function VentaRapidaInner() {
         const tocada = { ...prev[i], cantidad: prev[i].cantidad + cantidad };
         return recalcularNivelesEnLote([...resto, tocada]);
       });
-      return;
+      return true;
     }
 
     const key = genKey();
@@ -243,7 +309,16 @@ function VentaRapidaInner() {
       stockDisponible: stock?.cantidad ?? null,
       ...(pres.factor > 1 && { factorPresentacion: pres.factor, unidadPresentacionSimbolo: pres.simbolo ?? null }),
     };
-    setItems(prev => recalcularNivelesEnLote([...prev, nuevo]));
+    // 🔴 Se vuelve a mirar sobre `prev`: con el lector se timbra el mismo
+    // producto dos veces antes de que la pantalla se repinte, y el `items` de
+    // arriba todavía no tiene la primera línea. Sin esto salían DOS líneas en
+    // vez de una con cantidad 2.
+    setItems(prev => {
+      const i = prev.findIndex(it => it.productoId === p.id && (it.varianteId ?? null) === (varianteId ?? null) && !it.loteId);
+      if (i < 0) return recalcularNivelesEnLote([...prev, nuevo]);
+      const resto = prev.filter((_, j) => j !== i);
+      return recalcularNivelesEnLote([...resto, { ...prev[i], cantidad: prev[i].cantidad + cantidad }]);
+    });
 
     // Niveles async (cache-less v1: fetch directo y recalcular)
     try {
@@ -257,6 +332,7 @@ function VentaRapidaInner() {
           prev.map(it => (it.key === key ? { ...it, niveles } : it))));
       }
     } catch { /* sin niveles */ }
+    return true;
   }, [items, stockDeSede]);
 
   // --- Combos: se EXPANDEN en componentes con prorrateo del descuento (paridad _expandirYAgregarCombo) ---
@@ -334,6 +410,97 @@ function VentaRapidaInner() {
       return;
     }
     addItem(p);
+  };
+
+  const avisarEscaneo = (ok: boolean, texto: string) => {
+    pitido(ok);
+    setEscaneo({ ok, texto });
+    if (escaneoTimerRef.current) clearTimeout(escaneoTimerRef.current);
+    escaneoTimerRef.current = setTimeout(() => setEscaneo(null), ok ? 2500 : 5000);
+  };
+
+  /**
+   * Lector de código de barras: el lector "teclea" el código y manda Enter.
+   * Como en cualquier POS, eso AGREGA al carrito de una (y timbrar otra vez
+   * el mismo suma 1), en vez de solo buscarlo.
+   *
+   * Se agrega solo si hay UNA coincidencia EXACTA con el código de barras, el
+   * SKU o el código interno —del producto o de una variante—. El backend
+   * también devuelve lo que matchea por palabras, así que "contiene" no
+   * alcanza. Devuelve false si no hubo match exacto, para que el Enter siga
+   * haciendo lo de siempre.
+   */
+  const agregarPorCodigo = async (crudo: string): Promise<boolean> => {
+    const codigo = crudo.trim().toUpperCase();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // El campo se vacía YA, antes de ir al backend: el lector puede estar
+    // tecleando la siguiente lectura mientras esta se resuelve, y se pegaría
+    // al final de este código.
+    setQuery('');
+    const igual = (v?: string | null) => !!v && v.trim().toUpperCase() === codigo;
+    setSearching(true);
+    try {
+      const res = await productoService.getProductos({
+        page: 1, limit: 30, search: codigo,
+        sedeId: sedeId || undefined, isActive: true, esInsumo: false,
+      });
+      const candidatos = res.data;
+      setProductos(candidatos);
+
+      // 1) El código es del producto.
+      const directos = candidatos.filter(p => igual(p.codigoBarras) || igual(p.sku) || igual(p.codigoEmpresa));
+      if (directos.length === 1) {
+        const p = directos[0];
+        search('');
+        if (p.esCombo || p.tieneVariantes) {
+          // Combo: se expande en sus componentes. Variantes: el código es del
+          // producto, no de una talla/color, así que falta elegirla.
+          await handlePick(p);
+          if (p.tieneVariantes && !p.esCombo) avisarEscaneo(true, `${p.nombre}: elige la variante`);
+          else pitido(true);
+        } else if (await addItem(p)) {
+          avisarEscaneo(true, `+1 ${p.nombre}`);
+        } else {
+          avisarEscaneo(false, `${p.nombre} no tiene precio en esta sede`);
+        }
+        return true;
+      }
+      if (directos.length > 1) {
+        avisarEscaneo(false, `El código ${codigo} está en ${directos.length} productos: elige uno`);
+        return true;
+      }
+
+      // 2) El código es de una variante. El listado no trae las variantes, así
+      //    que se pide la ficha de los que tienen.
+      const conVariantes = candidatos.filter(p => p.tieneVariantes && !p.esCombo).slice(0, 5);
+      for (const c of conVariantes) {
+        const ficha = c.variantes?.length ? c : await productoService.getProducto(c.id);
+        const v = ficha.variantes?.find(x => igual(x.codigoBarras) || igual(x.sku));
+        if (v) {
+          search('');
+          if (await addItem(ficha, v.id, v.nombre)) avisarEscaneo(true, `+1 ${ficha.nombre} - ${v.nombre}`);
+          else avisarEscaneo(false, `${ficha.nombre} - ${v.nombre} no tiene precio en esta sede`);
+          return true;
+        }
+      }
+
+      // Un código numérico que no está en ningún lado es un producto sin
+      // cargar (o mal leído): se avisa fuerte. Una palabra suelta sigue su
+      // camino de búsqueda normal.
+      if (esCodigoNumerico(codigo)) {
+        avisarEscaneo(false, `No hay ningún producto con el código ${codigo}`);
+        return true;
+      }
+      // Era una palabra: queda en el buscador con sus resultados (ya
+      // cargados arriba), como una búsqueda normal.
+      setQuery(codigo);
+      return false;
+    } catch {
+      avisarEscaneo(false, `No se pudo buscar el código ${codigo}`);
+      return true;
+    } finally {
+      setSearching(false);
+    }
   };
 
   /**
@@ -1271,16 +1438,20 @@ function VentaRapidaInner() {
                 `text-transform`, porque lo que se guarda es el valor.
                 Buscar no se ve afectado: `textoBusqueda` normaliza a
                 minúsculas y sin acentos. */}
-            <input className={inputClass} value={query}
+            <input ref={buscadorRef} className={inputClass} value={query}
               onChange={e => search(e.target.value.toUpperCase())}
-              onKeyDown={e => {
-                // Enter = "terminé de escribir el nombre": salta al precio.
-                // Tab llega solo, porque el botón de limpiar está fuera del
-                // orden de tabulación.
-                if (e.key === 'Enter' && precioRef.current) {
-                  e.preventDefault();
-                  precioRef.current.focus();
-                }
+              onKeyDown={async e => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                // Un código (lo que manda el lector, o uno tecleado) se agrega
+                // directo al carrito.
+                const texto = e.currentTarget.value;
+                if (pareceCodigo(texto) && await agregarPorCodigo(texto)) return;
+                // Si no: Enter = "terminé de escribir el nombre", salta al
+                // precio del alta rápida. Tab llega solo, porque el botón de
+                // limpiar está fuera del orden de tabulación. En el próximo
+                // tick: el panel del alta recién se monta con los resultados.
+                setTimeout(() => precioRef.current?.focus(), 0);
               }}
               placeholder="BUSCAR POR NOMBRE, CÓDIGO O SKU…" />
             {searching ? (
@@ -1298,6 +1469,14 @@ function VentaRapidaInner() {
                 </svg>
               </button>
             ) : null}
+            {/* Resultado de la lectura. Flota sobre la grilla: si empujara el
+                contenido, cada timbrada haría saltar las tarjetas. */}
+            {escaneo && (
+              <div className={`absolute left-0 top-full z-30 mt-1 max-w-full truncate rounded-md px-2.5 py-1 text-[11px] font-medium shadow-md ring-1 ${
+                escaneo.ok ? 'bg-green-50 text-green-700 ring-green-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
+                {escaneo.ok ? '✓ ' : '✕ '}{escaneo.texto}
+              </div>
+            )}
           </div>
           {/* Máximo 6 columnas con respiro entre cards */}
           {/* 180px y no `15rem` (240): lo que se descuenta acá se le RESTA a la
