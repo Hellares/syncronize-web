@@ -32,6 +32,12 @@ interface OrdenClienteCtx { clienteId?: string; clienteEmpresaId?: string; nombr
 // enfocar. El padding deja lugar a la lupa y al limpiar / spinner.
 const inputClass = "h-[30px] w-full rounded-[6px] bg-zinc-100 pl-8 pr-9 text-xs text-[#004A94] shadow-md outline-none ring-1 ring-blue-400 transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 focus:shadow-lg focus:shadow-blue-200";
 
+// El mismo input, sin el hueco que la lupa y el limpiar le comen a los lados.
+// Se DERIVA en vez de encadenar `px-3` detras de `inputClass`: son la misma
+// propiedad, y cual gana lo decide el orden en que Tailwind emite el CSS, no el
+// orden dentro del className.
+const inputClassPelado = inputClass.replace('pl-8 pr-9', 'px-3');
+
 function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -1088,7 +1094,7 @@ function VentaRapidaInner() {
                         onChange={e => setAltaPrecio(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') crearYAgregar(); }}
                         placeholder="0.00"
-                        className={`${inputClass} w-[110px] px-3`}
+                        className={`${inputClassPelado} w-[110px]`}
                       />
                     </label>
                     <label className="flex flex-col gap-1">
@@ -1100,7 +1106,7 @@ function VentaRapidaInner() {
                         value={altaCantidad}
                         onChange={e => setAltaCantidad(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') crearYAgregar(); }}
-                        className={`${inputClass} w-[80px] px-3`}
+                        className={`${inputClassPelado} w-[80px]`}
                       />
                     </label>
                     <button
@@ -1666,6 +1672,16 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
   const bruto = item.cantidad * item.precioUnitario;
   const [modo, setModo] = useState<Modo>('monto');
   const [valor, setValor] = useState(item.descuento > 0 ? String(item.descuento) : '');
+  const campo = useRef<HTMLInputElement>(null);
+
+  // Cada modo reescribe el campo, asi que al cambiarlo hay que volver a el con
+  // el numero SELECCIONADO: si no, el vendedor tiene que borrar los 2000 que
+  // acaba de poner 'S/ Total' antes de teclear 1500. Tambien corre al abrir,
+  // que es lo que hacia `autoFocus`.
+  useEffect(() => {
+    campo.current?.focus();
+    campo.current?.select();
+  }, [modo]);
 
   const num = parseFloat(valor.replace(',', '.'));
   const vacio = !Number.isFinite(num);
@@ -1700,7 +1716,7 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-xs rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-xs rounded-xl bg-white px-5 pb-5 pt-[10px] shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-medium text-[#004A94]">Descuento de línea</h3>
         {/* La cuenta va en su propia línea y FUERA del truncate: con un
             nombre largo, lo que se comía los puntos suspensivos eran
@@ -1714,8 +1730,8 @@ function DescuentoLineaDialog({ item, onApply, onClose }: { item: VentaItem; onA
           {BOTON_MODO('pct', '% Porcent.')}
           {BOTON_MODO('total', 'S/ Total')}
         </div>
-        <input className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-right text-sm outline-none focus:border-[#437EFF]"
-          type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} autoFocus
+        <input ref={campo} className={`${inputClassPelado} mt-2 text-right`}
+          type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)}
           placeholder={modo === 'monto' ? '0.00' : modo === 'pct' ? '0 %' : fmt(bruto)} />
         {/* Qué va a pasar, en plata. En 'total' es lo que el vendedor no sabe
             —cuánto terminó cediendo— y en los otros dos, en cuánto queda la
