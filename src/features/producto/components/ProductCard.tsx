@@ -7,6 +7,7 @@
 
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
+import { presentacionPlana } from '@/core/utils/unidad-presentacion';
 
 /**
  * Shell del <button> contenedor, SIN color de borde.
@@ -48,6 +49,10 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
   const sinStock = !p.tieneVariantes && !p.esCombo && (stock?.cantidad ?? 0) <= 0;
   const marca = p.marca?.nombre;
   const priceColor = enLiq ? '#dc2626' : accent;
+  // Un granel se guarda en gramos: sin convertir, la tarjeta decía "S/ 0.01"
+  // y "×28000" en vez de "S/ 11.00/kg" y "28 kg". Sin presentación el factor
+  // es 1 y todo queda como antes.
+  const pres = presentacionPlana(p);
 
   return (
     <>
@@ -77,14 +82,15 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
           </div>
           {!p.tieneVariantes && (
             <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[8px] font-bold shadow-sm ${sinStock ? 'bg-red-600/90 text-white' : 'bg-white/90 text-gray-600'}`}>
-              {sinStock ? 'SIN STOCK' : `×${stock?.cantidad ?? 0}`}
+              {sinStock ? 'SIN STOCK' : pres.activa ? pres.cantidadTexto(stock?.cantidad ?? 0) : `×${stock?.cantidad ?? 0}`}
             </span>
           )}
         </div>
         {/* Price tag flotante (asoma bajo la imagen) */}
         {precio != null && (
           <span className="absolute -bottom-2 right-1.5 z-10 rounded-lg rounded-b-2xl bg-white px-1.5 py-0.5 text-[11px] font-extrabold shadow-[0_2px_10px_rgba(0,0,0,0.15)]" style={{ color: priceColor }}>
-            S/ {fmt(Number(precio))}
+            S/ {fmt(pres.precio(Number(precio)))}
+            {pres.activa && <span className="text-[9px] font-bold">/{pres.simbolo}</span>}
           </span>
         )}
       </div>
