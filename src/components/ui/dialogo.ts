@@ -63,6 +63,14 @@ export const DIALOG_PANEL_RELIEVE =
 export const DIALOG_PANEL_RELIEVE_MD =
   'font-sans flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
 
+/**
+ * El mismo panel para una ficha larga en dos columnas (alta de usuario: datos
+ * a la izquierda, rol y permisos a la derecha). Cadena completa por lo mismo
+ * que la de arriba.
+ */
+export const DIALOG_PANEL_RELIEVE_3XL =
+  'font-sans flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-[inset_0_3px_0_0_#8fb8f2,inset_0_9px_11px_-8px_rgb(67_126_255_/_0.38),0_20px_25px_-5px_rgb(0_0_0_/_0.1),0_8px_10px_-6px_rgb(0_0_0_/_0.1)]';
+
 /** Cabecera fija del diálogo (no scrollea). */
 export const DIALOG_HEAD = 'shrink-0 px-5 pt-3 pb-2';
 

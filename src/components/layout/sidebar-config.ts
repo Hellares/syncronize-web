@@ -461,7 +461,7 @@ export const SIDEBAR_NODES: SidebarNode[] = [
         { label: 'Integración Yape', href: '/dashboard/integraciones/yape', icon: 'intercambio', permission: 'canManageSettings' },
         { label: 'WhatsApp de la empresa', href: '/dashboard/whatsapp', icon: 'chat', permission: 'canManageSettings', enConstruccion: true },
         { label: 'Agente IA (WhatsApp)', href: '/dashboard/agente-ia', icon: 'robot', permission: 'canManageSettings', enConstruccion: true },
-        { label: 'Usuarios', href: '/dashboard/usuarios', icon: 'personas', permission: 'canViewUsers', enConstruccion: true },
+        { label: 'Usuarios', href: '/dashboard/usuarios', icon: 'personas', permission: 'canViewUsers' },
         { label: 'Personalización', href: '/dashboard/personalizacion', icon: 'paleta', permission: 'canManageSettings', enConstruccion: true },
       ],
     },
