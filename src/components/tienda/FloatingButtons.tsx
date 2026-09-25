@@ -12,7 +12,7 @@ export function FloatingButtons({ telefono, empresaNombre }: Props) {
   const [showBackTop, setShowBackTop] = useState(false);
   const whatsapp = enlaceChatWhatsapp(
     telefono,
-    `Hola ${empresaNombre}, vi su tienda en Syncronize y me gustaría mas información.`,
+    `Hola ${empresaNombre}, vi su tienda web y me gustaría más información.`,
   );
 
   useEffect(() => {

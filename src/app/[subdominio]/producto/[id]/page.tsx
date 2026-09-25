@@ -77,7 +77,7 @@ export default async function ProductoPage({ params }: Props) {
 
   const whatsapp = enlaceChatWhatsapp(
     producto.empresa.telefono,
-    `Hola ${producto.empresa.nombre}, me interesa el producto:\n\n*${producto.nombre}*\nPrecio: ${precioFinal ? `S/ ${precioFinal.toFixed(2)}` : 'consultar'}\n\nVi este producto en Syncronize.`,
+    `Hola ${producto.empresa.nombre}, me interesa el producto:\n\n*${producto.nombre}*\nPrecio: ${precioFinal ? `S/ ${precioFinal.toFixed(2)}` : 'consultar'}`,
   );
 
   // El de la web si la empresa subió uno; si no, el de la empresa.
