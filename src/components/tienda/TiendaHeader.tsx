@@ -193,7 +193,7 @@ export function TiendaHeader({
       {/* Franja superior: se va con el scroll, no queda pegada */}
       {(avisos.length > 0 || telefonos.length > 0) && (
         <div className="relative z-30 text-white" style={{ backgroundColor: colors.primario }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-9 flex items-center justify-center md:justify-between gap-4 text-[12px] md:text-[13px] font-semibold">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-9 flex items-center justify-center md:justify-between gap-4 text-[12px] md:text-[13px] font-medium">
             {[0, 1].map((i) => (
               <div key={i} className="hidden md:flex min-w-0">{avisos[i]}</div>
             ))}

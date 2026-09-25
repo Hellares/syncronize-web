@@ -130,7 +130,7 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
           )}
 
           {/* Nombre */}
-          <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-semibold transition-colors flex-1 mt-0.5 product-title">
+          <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-medium transition-colors flex-1 mt-0.5 product-title">
             {producto.nombre}
           </h3>
 
