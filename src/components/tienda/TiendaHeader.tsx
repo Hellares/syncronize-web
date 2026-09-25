@@ -312,7 +312,7 @@ export function TiendaHeader({
               <div ref={categoriasRef} className="relative flex-shrink-0 mr-4">
                 <button
                   onClick={() => setCategoriasOpen(!categoriasOpen)}
-                  className="flex items-center gap-3 px-5 py-2.5 rounded-lg text-white text-[14px] font-bold uppercase tracking-wide transition-colors"
+                  className="flex items-center gap-3 px-5 py-2.5 rounded-lg text-white text-[14px] font-medium uppercase tracking-wide transition-colors"
                   style={{ backgroundColor: lighten(colors.primario, 0.12) }}
                   aria-expanded={categoriasOpen}
                 >
@@ -347,7 +347,7 @@ export function TiendaHeader({
               <>
                 <button
                   onClick={() => elegir(null)}
-                  className="flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
+                  className="flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-medium uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
                   style={categoriaActiva === null ? { backgroundColor: 'rgba(255,255,255,0.22)' } : undefined}
                 >
                   Todos
@@ -362,11 +362,11 @@ export function TiendaHeader({
             )}
 
             <div className="ml-auto pl-2 hidden xl:flex items-center gap-1 flex-shrink-0">
-              <a href="#productos-section" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-semibold whitespace-nowrap transition-colors">Productos</a>
+              <a href="#productos-section" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Productos</a>
               {hayServicios && (
-                <a href="#servicios" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-semibold whitespace-nowrap transition-colors">Servicios</a>
+                <a href="#servicios" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Servicios</a>
               )}
-              <a href="#ubicacion" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-semibold whitespace-nowrap transition-colors">Ubicación</a>
+              <a href="#ubicacion" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Ubicación</a>
             </div>
           </div>
         </nav>
