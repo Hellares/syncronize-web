@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSesionTienda } from './SesionTienda';
 import { soles } from '@/lib/tienda-compra';
+import { volarAlCarrito } from './volar-al-carrito';
 
 export interface VarianteCompra {
   id: string;
@@ -90,6 +91,7 @@ export function ComprarPanel({ productoId, hayStock, stockActual, variantes, col
     setEnviando(modo);
     const ok = await agregar(productoId, variante?.id ?? null, cantidad);
     setEnviando(null);
+    if (ok && modo === 'agregar') volarAlCarrito(document.querySelector<HTMLElement>('[data-producto-foto]'));
     if (ok && modo === 'comprar') router.push(`/${subdominio}/carrito`);
   };
 

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { ComprarPanel } from '@/components/tienda/compra/ComprarPanel';
+import { BotonCarrito } from '@/components/tienda/compra/CarritoYCuenta';
 import { logoTienda } from '@/lib/tienda';
 import { ImageGallery } from '@/components/tienda/ImageGallery';
 import { DEFAULT_COLORS, lighten, alpha, darken, TiendaColors } from '@/lib/colors';
@@ -110,11 +111,14 @@ export default async function ProductoPage({ params }: Props) {
             </svg>
             <span className="text-sm font-medium">Volver a la tienda</span>
           </Link>
-          {logo && (
-            <Link href={`/${subdominio}`}>
-              <img src={logo} alt={empresa?.nombre ?? ''} className="h-9 max-w-[160px] object-contain logo-shimmer" />
-            </Link>
-          )}
+          <div className="flex items-center gap-4">
+            {logo && (
+              <Link href={`/${subdominio}`}>
+                <img src={logo} alt={empresa?.nombre ?? ''} className="h-9 max-w-[160px] object-contain logo-shimmer" />
+              </Link>
+            )}
+            <BotonCarrito claro />
+          </div>
         </div>
       </header>
 

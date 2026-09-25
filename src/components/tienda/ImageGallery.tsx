@@ -53,6 +53,7 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
           <img
             src={current.url}
             alt={nombre}
+            data-producto-foto
             className="w-full h-full object-contain transition-opacity duration-300"
           />
         )}
