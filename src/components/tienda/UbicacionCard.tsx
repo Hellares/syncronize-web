@@ -92,7 +92,7 @@ export function UbicacionCard({ sede, colors }: Props) {
           </svg>
         </span>
         <div className="min-w-0">
-          <h3 className="text-sm font-bold text-gray-900 leading-tight">Ubicación</h3>
+          <h3 className="text-[15px] font-medium text-gray-900 leading-tight">Ubicación</h3>
           <p className="text-[11px] text-gray-400 truncate">{sede.nombre}</p>
         </div>
       </div>
@@ -114,7 +114,7 @@ export function UbicacionCard({ sede, colors }: Props) {
         {/* Dirección */}
         {(sede.direccion || zona) && (
           <div>
-            {sede.direccion && <p className="text-[13px] font-semibold text-gray-800 leading-snug">{sede.direccion}</p>}
+            {sede.direccion && <p className="text-[13px] font-medium text-gray-800 leading-snug">{sede.direccion}</p>}
             {zona && <p className="text-xs text-gray-500 mt-0.5">{zona}</p>}
             {sede.referencia && <p className="text-xs text-gray-500 mt-1">Ref.: {sede.referencia}</p>}
             {sede.stand && <p className="text-xs text-gray-500 mt-0.5">Stand: {sede.stand}</p>}
@@ -138,14 +138,14 @@ export function UbicacionCard({ sede, colors }: Props) {
         {dias.some((x) => x.tramo) && (
           <div className="pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+              <p className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Horario
               </p>
               {ahora && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${abierto ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${abierto ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                   {abierto ? '● Abierto ahora' : '● Cerrado'}
                 </span>
               )}
@@ -153,7 +153,7 @@ export function UbicacionCard({ sede, colors }: Props) {
 
             {todosIguales ? (
               <p className="text-xs text-gray-600">
-                Todos los días <span className="font-semibold text-gray-800">{dias[0].tramo!.inicio} – {dias[0].tramo!.fin}</span>
+                Todos los días <span className="font-medium text-gray-900">{dias[0].tramo!.inicio} – {dias[0].tramo!.fin}</span>
               </p>
             ) : (
               <div className="space-y-0.5">
@@ -162,7 +162,7 @@ export function UbicacionCard({ sede, colors }: Props) {
                   return (
                     <div
                       key={dia.clave}
-                      className={`flex justify-between text-xs px-2 py-1 rounded-md ${esHoy ? 'font-semibold' : 'text-gray-500'}`}
+                      className={`flex justify-between text-xs px-2 py-1 rounded-md ${esHoy ? 'font-medium' : 'text-gray-500'}`}
                       style={esHoy ? { backgroundColor: alpha(colors.primario, 0.08), color: colors.primario } : undefined}
                     >
                       <span>{dia.corto}</span>

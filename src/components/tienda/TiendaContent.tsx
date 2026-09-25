@@ -184,7 +184,7 @@ export function TiendaContent({
                     </svg>
                   </span>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-gray-900 leading-tight">Categorías</h3>
+                    <h3 className="text-[15px] font-medium text-gray-900 leading-tight">Categorías</h3>
                     <p className="text-[11px] text-gray-400">{categorias.length} categorías</p>
                   </div>
                 </div>
@@ -195,7 +195,7 @@ export function TiendaContent({
                       <button
                         key={cat.id ?? 'todas'}
                         onClick={() => elegirCategoria(activa ? null : cat.id)}
-                        className={`relative w-full flex items-center justify-between gap-2 text-left pl-4 pr-2.5 py-2 rounded-lg text-sm transition-colors ${activa ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                        className={`relative w-full flex items-center justify-between gap-2 text-left pl-4 pr-2.5 py-2 rounded-lg text-sm font-medium transition-colors ${activa ? '' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                         style={activa ? { color: colors.primario, backgroundColor: alpha(colors.primario, 0.08) } : undefined}
                       >
                         {/* Marca de la activa */}
@@ -204,7 +204,7 @@ export function TiendaContent({
                         )}
                         <span className="truncate">{cat.nombre}</span>
                         <span
-                          className="min-w-[24px] px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-center"
+                          className="min-w-[24px] px-1.5 py-0.5 rounded-full text-[10px] font-medium text-center"
                           style={activa
                             ? { backgroundColor: colors.primario, color: '#fff' }
                             : { backgroundColor: '#f3f4f6', color: '#6b7280' }}
