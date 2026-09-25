@@ -29,9 +29,9 @@ export function FloatingButtons({ telefono, empresaNombre }: Props) {
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-[60px] h-[60px] rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center transition-all hover:scale-110 group overflow-hidden"
+          className="fixed bottom-6 right-6 z-50 w-[56px] h-[56px] rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center transition-all hover:scale-110 group"
         >
-          <img src="/w.png" alt="WhatsApp" className="w-[60px] h-[60px] object-contain" />
+          <img src="/w.png" alt="WhatsApp" className="w-[56px] h-[56px] object-contain" />
           <span className="absolute right-full mr-3 bg-white text-gray-700 text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             Chatea con nosotros
           </span>
