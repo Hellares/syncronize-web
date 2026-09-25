@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ItemCarrito, mkt, soles } from '@/lib/tienda-compra';
+import { useRouter } from 'next/navigation';
+import { ItemCarrito, soles } from '@/lib/tienda-compra';
 import { TiendaColors } from '@/lib/colors';
 import { useSesionTienda } from './SesionTienda';
 
@@ -33,12 +34,12 @@ export function Cargando() {
 }
 
 export function CarritoVista({ colors }: { colors: TiendaColors }) {
-  const { subdominio, usuario, grupo, carritoCargado, recargarCarrito, mostrarAviso } = useSesionTienda();
+  const { subdominio, usuario, grupo, carritoCargado, cambiarCantidad, pedirIngreso } = useSesionTienda();
+  const router = useRouter();
   const [ocupado, setOcupado] = useState<string | null>(null);
 
-  if (usuario === undefined) return <Cargando />;
-  if (!usuario) return <PedirIngreso texto="Ingresa para ver tu carrito." colors={colors} />;
-  if (!carritoCargado) return <Cargando />;
+  // Sin sesión se ve el carrito del navegador: el DNI se pide recién al continuar.
+  if (usuario === undefined || !carritoCargado) return <Cargando />;
 
   const items = grupo?.items ?? [];
   if (items.length === 0) {
@@ -55,14 +56,16 @@ export function CarritoVista({ colors }: { colors: TiendaColors }) {
   const cambiar = async (item: ItemCarrito, cantidad: number) => {
     setOcupado(item.id);
     try {
-      if (cantidad <= 0) await mkt(`/carrito/${item.id}`, { method: 'DELETE' });
-      else await mkt(`/carrito/${item.id}`, { method: 'PUT', body: JSON.stringify({ cantidad }) });
-      await recargarCarrito();
-    } catch (e) {
-      mostrarAviso(e instanceof Error ? e.message : 'No se pudo actualizar');
+      await cambiarCantidad(item, cantidad);
     } finally {
       setOcupado(null);
     }
+  };
+
+  const continuar = (e: React.MouseEvent) => {
+    if (usuario) return; // el Link lleva al checkout
+    e.preventDefault();
+    pedirIngreso(() => router.push(`/${subdominio}/checkout`));
   };
 
   const noDisponibles = items.filter((i) => !i.disponible);
@@ -128,12 +131,16 @@ export function CarritoVista({ colors }: { colors: TiendaColors }) {
         )}
         <Link
           href={`/${subdominio}/checkout`}
+          onClick={continuar}
           aria-disabled={noDisponibles.length > 0}
           className={`block w-full py-3 rounded-lg text-center text-white text-sm font-medium hover:opacity-90 ${noDisponibles.length > 0 ? 'pointer-events-none opacity-40' : ''}`}
           style={{ backgroundColor: colors.primario }}
         >
           Continuar compra
         </Link>
+        {!usuario && (
+          <p className="text-xs text-gray-400 text-center">Para continuar te pediremos tu DNI.</p>
+        )}
       </aside>
     </div>
   );

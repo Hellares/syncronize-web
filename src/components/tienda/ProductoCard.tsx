@@ -33,7 +33,7 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
     // Sin foto vuela el mismo botón "+".
     const origen = fotoRef.current ?? e.currentTarget as HTMLElement;
     setAgregando(true);
-    const ok = await agregar(producto.id, null, 1);
+    const ok = await agregar(producto.id, null, 1, { nombre: producto.nombre, precio: precioFinal ?? 0, imagenUrl: producto.imagen });
     setAgregando(false);
     if (ok) volarAlCarrito(origen);
   };

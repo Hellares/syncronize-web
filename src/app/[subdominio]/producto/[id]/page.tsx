@@ -210,6 +210,9 @@ export default async function ProductoPage({ params }: Props) {
               {/* Cantidad, variantes y compra */}
               <ComprarPanel
                 productoId={producto.id}
+                nombre={producto.nombre}
+                precio={precioFinal ?? null}
+                imagenUrl={producto.imagenes?.[0]?.url ?? producto.imagen ?? null}
                 hayStock={producto.hayStock}
                 stockActual={producto.stockActual}
                 variantes={producto.variantes ?? []}

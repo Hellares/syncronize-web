@@ -19,6 +19,10 @@ export interface VarianteCompra {
 
 interface Props {
   productoId: string;
+  /** Para mostrarlo en el carrito del navegador (sin sesión). */
+  nombre: string;
+  precio: number | null;
+  imagenUrl: string | null;
   hayStock: boolean;
   stockActual: number;
   variantes: VarianteCompra[];
@@ -31,7 +35,7 @@ interface Props {
  * con lo ya elegido no tiene stock queda deshabilitada, y recién con todos
  * los atributos elegidos queda una variante concreta para comprar.
  */
-export function ComprarPanel({ productoId, hayStock, stockActual, variantes, colorPrimario }: Props) {
+export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, stockActual, variantes, colorPrimario }: Props) {
   const { agregar, subdominio } = useSesionTienda();
   const router = useRouter();
   const [eleccion, setEleccion] = useState<Record<string, string>>({});
@@ -71,6 +75,10 @@ export function ComprarPanel({ productoId, hayStock, stockActual, variantes, col
   const disponible = conVariantes ? !!variante?.hayStock : hayStock;
   const faltaElegir = conVariantes && !variante;
 
+  const precioVariante = variante
+    ? (variante.enOferta && variante.precioOferta ? variante.precioOferta : variante.precio)
+    : null;
+
   const elegir = (nombre: string, valor: string) => {
     setEleccion((prev) => {
       const nuevo = { ...prev, [nombre]: prev[nombre] === valor ? '' : valor };
@@ -89,17 +97,19 @@ export function ComprarPanel({ productoId, hayStock, stockActual, variantes, col
   const ejecutar = async (modo: 'agregar' | 'comprar') => {
     if (faltaElegir || !disponible || enviando) return;
     setEnviando(modo);
-    const ok = await agregar(productoId, variante?.id ?? null, cantidad);
+    const ok = await agregar(productoId, variante?.id ?? null, cantidad, {
+      nombre,
+      varianteNombre: variante?.nombre ?? null,
+      precio: (variante ? precioVariante : precio) ?? 0,
+      imagenUrl,
+      stockMax: maximo,
+    });
     setEnviando(null);
     if (ok && modo === 'agregar') volarAlCarrito(document.querySelector<HTMLElement>('[data-producto-foto]'));
     if (ok && modo === 'comprar') router.push(`/${subdominio}/carrito`);
   };
 
   if (!conVariantes && !hayStock) return null;
-
-  const precioVariante = variante
-    ? (variante.enOferta && variante.precioOferta ? variante.precioOferta : variante.precio)
-    : null;
 
   return (
     <div className="mt-4 space-y-3">
