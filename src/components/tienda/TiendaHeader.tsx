@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CategoriaTienda, Empresa, Sede } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { logoTienda } from '@/lib/tienda';
+import { CategoriasSlider } from './CategoriasSlider';
 import { TiendaColors, lighten } from '@/lib/colors';
 
 interface Props {
@@ -20,13 +21,6 @@ interface Props {
   onSearch?: (query: string) => void;
   colors: TiendaColors;
 }
-
-/**
- * Cuántas categorías entran sueltas en la barra según el ancho; todas están
- * siempre en el botón "Categorías". Los enlaces Productos/Servicios/Ubicación
- * solo aparecen en xl, donde sobra lugar.
- */
-const CATEGORIAS_EN_BARRA = { md: 3, lg: 5, xl: 7 };
 
 const IconoWhatsapp = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -285,7 +279,7 @@ export function TiendaHeader({
                 "Ubicación" en la barra de abajo (ese enlace tiene `px-3`). */}
             <div className="hidden md:flex items-center ml-auto flex-shrink-0">
               {redes.length > 0 && (
-                <div className="flex items-center gap-4 lg:gap-6">
+                <div className="flex items-center gap-3 lg:gap-6">
                   {redes.map((red) => (
                     <a key={red.nombre} href={red.url} target="_blank" rel="noopener noreferrer"
                       aria-label={red.nombre} title={red.nombre}
@@ -297,12 +291,14 @@ export function TiendaHeader({
               )}
               {whatsapp && (
                 <a href={whatsapp} target="_blank" rel="noopener noreferrer"
-                  className="ml-6 lg:ml-10 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
+                  aria-label="Contáctanos por WhatsApp"
+                  className="ml-5 lg:ml-10 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
                   <IconoWhatsapp className="w-6 h-6 text-green-600" />
-                  Contáctanos
+                  {/* En tablet el texto no entra: sacaba el carrito de la pantalla */}
+                  <span className="hidden lg:inline">Contáctanos</span>
                 </a>
               )}
-              <div className="ml-6 lg:ml-10 mr-2">
+              <div className="ml-5 lg:ml-10 mr-2">
                 <BotonCarrito />
               </div>
             </div>
@@ -344,28 +340,28 @@ export function TiendaHeader({
               </div>
             )}
 
-            {/* Todos + las primeras categorías sueltas */}
+            {/* "Todos" fijo + el resto en un carril que se desliza si no entra
+                (antes iban 3/5/7 sueltas según el ancho, y con nombres largos
+                se comían los enlaces de la derecha). */}
             {categorias.length > 0 && (
-              <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                {[{ id: null as string | null, nombre: 'Todos' }, ...categorias.slice(0, CATEGORIAS_EN_BARRA.xl)].map((cat, i) => {
-                  const activa = cat.id === categoriaActiva;
-                  // `i` cuenta "Todos" (i = 0), por eso el `>`.
-                  const visibilidad = i > CATEGORIAS_EN_BARRA.lg ? 'hidden xl:block'
-                    : i > CATEGORIAS_EN_BARRA.md ? 'hidden lg:block' : '';
-                  return (
-                    <button key={cat.id ?? 'todos'}
-                      onClick={() => elegir(cat.id)}
-                      title={cat.nombre}
-                      className={`${visibilidad} flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15 max-w-[170px] truncate`}
-                      style={activa ? { backgroundColor: 'rgba(255,255,255,0.22)' } : undefined}>
-                      {cat.nombre}
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <button
+                  onClick={() => elegir(null)}
+                  className="flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
+                  style={categoriaActiva === null ? { backgroundColor: 'rgba(255,255,255,0.22)' } : undefined}
+                >
+                  Todos
+                </button>
+                <CategoriasSlider
+                  categorias={categorias}
+                  categoriaActiva={categoriaActiva}
+                  onElegir={elegir}
+                  fondo={colors.primario}
+                />
+              </>
             )}
 
-            <div className="ml-auto hidden xl:flex items-center gap-1 flex-shrink-0">
+            <div className="ml-auto pl-2 hidden xl:flex items-center gap-1 flex-shrink-0">
               <a href="#productos-section" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-semibold whitespace-nowrap transition-colors">Productos</a>
               {hayServicios && (
                 <a href="#servicios" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-semibold whitespace-nowrap transition-colors">Servicios</a>
