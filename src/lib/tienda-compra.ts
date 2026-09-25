@@ -51,11 +51,22 @@ export interface Carrito {
   total: number;
 }
 
+export interface SedeRetiro {
+  id: string;
+  nombre: string;
+  direccion?: string | null;
+  distrito?: string | null;
+  provincia?: string | null;
+  telefono?: string | null;
+  coordenadas?: { lat: number; lon?: number; lng?: number } | null;
+  horarioAtencion?: Record<string, { inicio: string; fin: string }> | null;
+}
+
 export interface OpcionesEnvio {
   empresaId: string;
   empresaNombre: string;
   envio: { disponible: boolean; gratisDesde: number | null; mensajeLocal: string; mensajeNacional: string };
-  retiroTienda: { disponible: boolean; sedes: { id: string; nombre: string; direccion?: string | null; distrito?: string | null }[] };
+  retiroTienda: { disponible: boolean; sedes: SedeRetiro[] };
   contraentrega: { disponible: boolean; mensaje: string };
 }
 
@@ -88,6 +99,7 @@ export interface Pedido {
   modalidadEnvio?: 'DELIVERY_LOCAL' | 'AGENCIA' | null;
   agenciaEnvio?: string | null;
   agenciaDireccionEnvio?: string | null;
+  sedeRetiro?: SedeRetiro | null;
   motivoRechazo?: string | null;
   comprobantePagoUrl?: string | null;
   creadoEn: string;
@@ -129,6 +141,15 @@ export async function api<T>(ruta: string, init: RequestInit = {}): Promise<T> {
 
 /** Atajo para las rutas del marketplace (`/api/tienda-web/m/marketplace/...`). */
 export const mkt = <T,>(ruta: string, init?: RequestInit) => api<T>(`/m/marketplace${ruta}`, init);
+
+/** En retiro en tienda, ENVIADO = listo para recoger y ENTREGADO = recogido. */
+export function etiquetaEstado(p: Pick<Pedido, 'estado' | 'tipoEntrega'>) {
+  const e = ETIQUETA_ESTADO[p.estado];
+  if (p.tipoEntrega !== 'RETIRO_TIENDA') return e;
+  if (p.estado === 'ENVIADO') return { ...e, texto: 'Listo para recoger' };
+  if (p.estado === 'ENTREGADO') return { ...e, texto: 'Recogido' };
+  return e;
+}
 
 export const ETIQUETA_ESTADO: Record<EstadoPedido, { texto: string; clase: string }> = {
   PENDIENTE_PAGO: { texto: 'Pendiente de pago', clase: 'bg-amber-50 text-amber-700' },

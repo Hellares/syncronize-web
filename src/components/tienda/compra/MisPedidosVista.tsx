@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ETIQUETA_ESTADO, Pedido, mkt, soles } from '@/lib/tienda-compra';
+import { Pedido, etiquetaEstado, mkt, soles } from '@/lib/tienda-compra';
 import { TiendaColors } from '@/lib/colors';
 import { useSesionTienda } from './SesionTienda';
 import { Cargando, PedirIngreso } from './CarritoVista';
@@ -39,7 +39,7 @@ export function MisPedidosVista({ colors }: { colors: TiendaColors }) {
   return (
     <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
       {pedidos.map((p) => {
-        const e = ETIQUETA_ESTADO[p.estado];
+        const e = etiquetaEstado(p);
         return (
           <li key={p.id}>
             <Link href={`/${subdominio}/pedido/${p.id}`} className="flex items-center justify-between gap-3 p-4 hover:bg-gray-50">

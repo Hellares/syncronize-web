@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CobroYape, ETIQUETA_ESTADO, EstadoPedido, Pedido, mkt, num, soles } from '@/lib/tienda-compra';
+import { CobroYape, EstadoPedido, Pedido, etiquetaEstado, mkt, num, soles } from '@/lib/tienda-compra';
+import { resumenHorario } from '../UbicacionCard';
 import { TiendaColors } from '@/lib/colors';
 import { useSesionTienda } from './SesionTienda';
 import { Cargando, PedirIngreso } from './CarritoVista';
@@ -20,11 +21,18 @@ const PASOS: { estado: EstadoPedido; texto: string }[] = [
   { estado: 'ENTREGADO', texto: 'Entregado' },
 ];
 
-function Seguimiento({ estado, colors }: { estado: EstadoPedido; colors: TiendaColors }) {
+/** En retiro en tienda los pasos se llaman distinto: no hay "en camino". */
+const PASOS_RETIRO: Partial<Record<EstadoPedido, string>> = {
+  ENVIADO: 'Listo para recoger',
+  ENTREGADO: 'Recogido',
+};
+
+function Seguimiento({ estado, retiro, colors }: { estado: EstadoPedido; retiro: boolean; colors: TiendaColors }) {
   const i = PASOS.findIndex((p) => p.estado === estado);
+  const pasos = PASOS.map((p) => ({ ...p, texto: (retiro && PASOS_RETIRO[p.estado]) || p.texto }));
   return (
     <ol className="space-y-3">
-      {PASOS.map((p, idx) => {
+      {pasos.map((p, idx) => {
         const hecho = i >= idx;
         return (
           <li key={p.estado} className="flex items-center gap-3">
@@ -92,7 +100,10 @@ export function PedidoVista({ pedidoId, colors }: { pedidoId: string; colors: Ti
   if (error && !pedido) return <p className="text-sm text-red-600">{error}</p>;
   if (!pedido) return <Cargando />;
 
-  const etiqueta = ETIQUETA_ESTADO[pedido.estado];
+  const etiqueta = etiquetaEstado(pedido);
+  const retiro = pedido.tipoEntrega === 'RETIRO_TIENDA';
+  const sede = pedido.sedeRetiro;
+  const sedeLng = sede?.coordenadas?.lng ?? sede?.coordenadas?.lon;
   const pagable = PAGABLE.includes(pedido.estado) && pedido.metodoPago !== 'CONTRAENTREGA';
   const restante = cobroDesde ? Math.max(0, VIDA_COBRO_SEG - Math.floor((ahora - cobroDesde) / 1000)) : 0;
 
@@ -271,17 +282,46 @@ export function PedidoVista({ pedidoId, colors }: { pedidoId: string; colors: Ti
           </section>
         )}
 
+        {/* Retiro en tienda: dónde, cuándo y qué llevar */}
+        {retiro && sede && !['CANCELADO', 'ENTREGADO'].includes(pedido.estado) && (
+          <section className="bg-white rounded-2xl border border-gray-100 p-5 space-y-2">
+            <h2 className="text-sm font-medium text-gray-900">
+              {pedido.estado === 'ENVIADO' ? '¡Tu pedido está listo! Recógelo en' : 'Recogerás tu pedido en'}
+            </h2>
+            <p className="text-sm text-gray-900">{sede.nombre}</p>
+            {(sede.direccion || sede.distrito) && (
+              <p className="text-sm text-gray-600">{[sede.direccion, sede.distrito].filter(Boolean).join(', ')}</p>
+            )}
+            {resumenHorario(sede.horarioAtencion ?? undefined) && (
+              <p className="text-xs text-gray-500">Horario: {resumenHorario(sede.horarioAtencion ?? undefined)}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Lleva tu DNI y el código <span className="font-medium text-gray-700">{pedido.codigo}</span>.
+              {pedido.estado !== 'ENVIADO' && ' Te avisaremos cuando esté listo.'}
+            </p>
+            {sede.coordenadas?.lat != null && sedeLng != null && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${sede.coordenadas.lat},${sedeLng}`}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-block text-sm font-medium underline underline-offset-2" style={{ color: colors.primario }}
+              >
+                Cómo llegar
+              </a>
+            )}
+          </section>
+        )}
+
         {/* Seguimiento */}
         {!['PENDIENTE_PAGO', 'PAGO_ENVIADO', 'PAGO_RECHAZADO', 'CANCELADO'].includes(pedido.estado) && (
           <section className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
             {pedido.estado === 'PAGO_VALIDADO' && pedido.metodoPago !== 'CONTRAENTREGA' && (
               <p className="text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">¡Pago recibido! Gracias por tu compra.</p>
             )}
-            <Seguimiento estado={pedido.estado} colors={colors} />
+            <Seguimiento estado={pedido.estado} retiro={retiro} colors={colors} />
             {pedido.estado === 'ENVIADO' && (
               <button type="button" onClick={() => void accion('confirmar-recepcion')}
                 className="w-full py-2.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: colors.primario }}>
-                Ya recibí mi pedido
+                {retiro ? 'Ya lo recogí' : 'Ya recibí mi pedido'}
               </button>
             )}
           </section>
@@ -324,7 +364,7 @@ export function PedidoVista({ pedidoId, colors }: { pedidoId: string; colors: Ti
         </div>
         <p className="text-xs text-gray-500">
           {pedido.tipoEntrega === 'RETIRO_TIENDA'
-            ? 'Retiro en tienda'
+            ? `Retiro en tienda${sede ? ` — ${sede.nombre}` : ''}`
             : pedido.modalidadEnvio === 'AGENCIA'
               ? `Envío por ${pedido.agenciaEnvio} a ${pedido.provinciaEnvio} — recoges en ${pedido.agenciaDireccionEnvio}`
               : `Delivery a ${[pedido.direccionEnvio, pedido.distritoEnvio].filter(Boolean).join(', ')}`}

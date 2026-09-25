@@ -7,6 +7,7 @@ import { OpcionesEnvio, Pedido, mkt, soles } from '@/lib/tienda-compra';
 import { TiendaColors } from '@/lib/colors';
 import { useSesionTienda } from './SesionTienda';
 import { Cargando, PedirIngreso } from './CarritoVista';
+import { resumenHorario } from '../UbicacionCard';
 
 /**
  * Como en la venta: delivery (reparto en la ciudad) o envío a provincia por
@@ -224,15 +225,24 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
             <div className="space-y-2 pt-1">
               {opciones.retiroTienda.sedes.map((s) => (
                 <Opcion key={s.id} activa={sedeId === s.id} onClick={() => setSedeId(s.id)} titulo={s.nombre}
-                  detalle={[s.direccion, s.distrito].filter(Boolean).join(', ')} colors={colors} />
+                  detalle={[[s.direccion, s.distrito].filter(Boolean).join(', '), resumenHorario(s.horarioAtencion ?? undefined)].filter(Boolean).join(' · ')}
+                  colors={colors} />
               ))}
             </div>
           )}
           {entrega === 'RETIRO_TIENDA' && opciones?.retiroTienda.sedes.length === 1 && (
-            <p className="text-xs text-gray-500">
-              Retiras en {opciones.retiroTienda.sedes[0].nombre}
-              {opciones.retiroTienda.sedes[0].direccion ? ` — ${opciones.retiroTienda.sedes[0].direccion}` : ''}
-            </p>
+            <div className="text-xs text-gray-500 space-y-0.5">
+              <p>
+                Recoges en <span className="font-medium text-gray-700">{opciones.retiroTienda.sedes[0].nombre}</span>
+                {opciones.retiroTienda.sedes[0].direccion ? ` — ${opciones.retiroTienda.sedes[0].direccion}` : ''}
+              </p>
+              {resumenHorario(opciones.retiroTienda.sedes[0].horarioAtencion ?? undefined) && (
+                <p>Horario: {resumenHorario(opciones.retiroTienda.sedes[0].horarioAtencion ?? undefined)}</p>
+              )}
+            </div>
+          )}
+          {entrega === 'RETIRO_TIENDA' && (
+            <p className="text-xs text-gray-400">Te avisaremos cuando esté listo. Al recoger, lleva tu DNI y el código del pedido.</p>
           )}
         </section>
 

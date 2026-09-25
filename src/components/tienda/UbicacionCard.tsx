@@ -23,10 +23,19 @@ type Tramo = { inicio: string; fin: string };
 /** `miércoles` y `miercoles` son la misma clave. */
 const sinTildes = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-function horarioOrdenado(horario?: Record<string, Tramo>) {
+export function horarioOrdenado(horario?: Record<string, Tramo>) {
   if (!horario) return [];
   const porClave = new Map(Object.entries(horario).map(([dia, t]) => [sinTildes(dia), t]));
   return DIAS.map((d) => ({ ...d, tramo: porClave.get(d.clave) ?? null }));
+}
+
+/** "Todos los días 09:00 – 21:00", o "Lun 09:00 – 18:00 · Sáb 09:00 – 13:00 …". */
+export function resumenHorario(horario?: Record<string, Tramo>): string | null {
+  const dias = horarioOrdenado(horario).filter((d) => d.tramo);
+  if (dias.length === 0) return null;
+  const t = (d: (typeof dias)[number]) => `${d.tramo!.inicio} – ${d.tramo!.fin}`;
+  if (dias.length === 7 && dias.every((d) => t(d) === t(dias[0]))) return `Todos los días ${t(dias[0])}`;
+  return dias.map((d) => `${d.corto} ${t(d)}`).join(' · ');
 }
 
 /** Día (clave de DIAS) y hora "HH:mm" de ahora en Lima. */
