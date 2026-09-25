@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Producto } from '@/lib/types';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { useSesionTienda } from './compra/SesionTienda';
+import { volarAlCarrito } from './compra/volar-al-carrito';
 
 export function ProductoCard({ producto, subdominio, colors }: { producto: Producto; subdominio: string; colors: TiendaColors }) {
   const [loading, setLoading] = useState(false);
   const [agregando, setAgregando] = useState(false);
+  const fotoRef = useRef<HTMLImageElement>(null);
   const router = useRouter();
   const { agregar } = useSesionTienda();
   const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
@@ -28,9 +30,12 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
     e.stopPropagation();
     if (producto.tieneVariantes) { handleClick(); return; }
     if (agregando) return;
+    // Sin foto vuela el mismo botón "+".
+    const origen = fotoRef.current ?? e.currentTarget as HTMLElement;
     setAgregando(true);
-    await agregar(producto.id, null, 1);
+    const ok = await agregar(producto.id, null, 1);
     setAgregando(false);
+    if (ok) volarAlCarrito(origen);
   };
 
   // Sin stock: en vez de "Sin stock" (callejón sin salida) se ofrece consultar
@@ -67,6 +72,7 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
         <div className="relative aspect-square md:aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
           {producto.imagen ? (
             <img
+              ref={fotoRef}
               src={producto.imagen}
               alt={producto.nombre}
               className="w-full h-full object-contain p-2 md:p-4 group-hover:scale-110 transition-transform duration-500 ease-out"
