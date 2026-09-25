@@ -27,6 +27,10 @@ export interface Empresa {
       colorFondo1?: string;
       colorFondo2?: string;
       videos?: Array<{ url: string; titulo?: string }>;
+      /** Links o @usuario, tal como los cargó la empresa en el app (Personalización). */
+      redes?: { facebook?: string; instagram?: string; tiktok?: string };
+      /** La empresa marcó que envía a todo el Perú. */
+      enviosNacionales?: boolean;
     };
   }[];
 }

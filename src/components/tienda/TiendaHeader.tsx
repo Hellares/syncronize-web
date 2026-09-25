@@ -46,26 +46,74 @@ const IconoCorreo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-/** Las redes que la empresa cargó, en el orden de la imagen de referencia. */
+const IconoCamion = ({ className }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+  </svg>
+);
+
+/**
+ * El carrito todavía no existe en la tienda web: el ícono queda puesto para
+ * cuando se implemente, sin acción y avisando que viene.
+ */
+const BotonCarrito = () => (
+  <button
+    type="button"
+    aria-label="Carrito (muy pronto)"
+    title="Carrito: muy pronto"
+    className="relative flex items-center p-1 text-gray-900 cursor-default"
+  >
+    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
+    </svg>
+    <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+      0
+    </span>
+  </button>
+);
+
+type Red = 'facebook' | 'instagram' | 'tiktok';
+
+const PERFIL: Record<Red, (usuario: string) => string> = {
+  facebook: (u) => `https://www.facebook.com/${u}`,
+  instagram: (u) => `https://www.instagram.com/${u}`,
+  tiktok: (u) => `https://www.tiktok.com/@${u}`,
+};
+
+/**
+ * El link tal como lo cargó la empresa en el app: puede venir completo, sin
+ * `https://` o como `@usuario`. null si está vacío.
+ */
+function linkDeRed(red: Red, valor?: string | null): string | null {
+  const v = valor?.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (!v.startsWith('@') && /^[^\s/]+\.[a-z]{2,}(\/|$)/i.test(v)) return `https://${v}`;
+  return PERFIL[red](v.replace(/^@/, ''));
+}
+
+/**
+ * Las redes que la empresa cargó, en el orden de la imagen de referencia.
+ * Salen de `webConfig.redes` (Personalización en el app); Facebook e Instagram
+ * caen a las columnas viejas de la empresa si ahí no hay nada.
+ */
 function redesDe(empresa: Empresa) {
-  return [
-    empresa.facebook && {
-      nombre: 'Facebook', url: empresa.facebook,
+  const redes = empresa.personalizaciones?.[0]?.webConfig?.redes;
+  const lista: { nombre: string; url: string | null; icono: React.ReactNode }[] = [
+    {
+      nombre: 'Facebook', url: linkDeRed('facebook', redes?.facebook || empresa.facebook),
       icono: <path d="M22 12a10 10 0 10-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0022 12z" />,
     },
-    empresa.instagram && {
-      nombre: 'Instagram', url: empresa.instagram,
+    {
+      nombre: 'Instagram', url: linkDeRed('instagram', redes?.instagram || empresa.instagram),
       icono: <path d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.72 3.72 0 01-1.38-.9 3.72 3.72 0 01-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 5.78.13 4.9.33 4.14.63c-.79.3-1.46.72-2.13 1.38A5.88 5.88 0 00.63 4.14C.33 4.9.13 5.78.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.27.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13a5.88 5.88 0 002.13 1.38c.76.3 1.64.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.27-.06 2.15-.26 2.91-.56a5.88 5.88 0 002.13-1.38 5.88 5.88 0 001.38-2.13c.3-.76.5-1.64.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.27-.26-2.15-.56-2.91a5.88 5.88 0 00-1.38-2.13A5.88 5.88 0 0019.86.63C19.1.33 18.22.13 16.95.07 15.67.01 15.26 0 12 0zm0 5.84a6.16 6.16 0 100 12.32 6.16 6.16 0 000-12.32zM12 16a4 4 0 110-8 4 4 0 010 8zm6.4-11.85a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z" />,
     },
-    empresa.twitter && {
-      nombre: 'X', url: empresa.twitter,
-      icono: <path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64z" />,
+    {
+      nombre: 'TikTok', url: linkDeRed('tiktok', redes?.tiktok),
+      icono: <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />,
     },
-    empresa.linkedin && {
-      nombre: 'LinkedIn', url: empresa.linkedin,
-      icono: <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 110-4.13 2.06 2.06 0 010 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />,
-    },
-  ].filter(Boolean) as { nombre: string; url: string; icono: React.ReactNode }[];
+  ];
+  return lista.filter((r): r is { nombre: string; url: string; icono: React.ReactNode } => !!r.url);
 }
 
 export function TiendaHeader({
@@ -80,9 +128,32 @@ export function TiendaHeader({
   const whatsapp = enlaceChatWhatsapp(empresa.telefono);
   const redes = redesDe(empresa);
   // Solo datos reales de la empresa: la franja superior no promete nada que
-  // la empresa no haya cargado (envíos, garantía…).
+  // la empresa no haya marcado (los envíos son un switch en Personalización).
   const telefonos = [...new Set([empresa.telefono, sedePrincipal?.telefono].filter(Boolean))] as string[];
   const lugar = [sedePrincipal?.distrito, sedePrincipal?.provincia].filter(Boolean).join(', ');
+  const enviosNacionales = empresa.personalizaciones?.[0]?.webConfig?.enviosNacionales === true;
+
+  // Izquierda y centro de la franja: los dos primeros que la empresa tenga.
+  const avisos = [
+    enviosNacionales && (
+      <span key="envios" className="flex items-center gap-1.5 truncate">
+        <IconoCamion className="w-4 h-4 flex-shrink-0" />
+        <span className="truncate">Envíos a todo el Perú</span>
+      </span>
+    ),
+    lugar && (
+      <a key="lugar" href="#ubicacion" className="flex items-center gap-1.5 hover:text-white/80 transition-colors truncate">
+        <IconoUbicacion className="w-4 h-4 flex-shrink-0" />
+        <span className="truncate">{lugar}</span>
+      </a>
+    ),
+    empresa.email && (
+      <a key="email" href={`mailto:${empresa.email}`} className="flex items-center gap-1.5 hover:text-white/80 transition-colors truncate">
+        <IconoCorreo className="w-4 h-4 flex-shrink-0" />
+        <span className="truncate">{empresa.email}</span>
+      </a>
+    ),
+  ].filter(Boolean).slice(0, 2);
 
   // La barra pegada tapa el comienzo de cada sección al saltar a un ancla:
   // el `scroll-padding` del documento se ajusta a su alto real (cambia entre
@@ -124,22 +195,12 @@ export function TiendaHeader({
   return (
     <>
       {/* Franja superior: se va con el scroll, no queda pegada */}
-      {(lugar || empresa.email || telefonos.length > 0) && (
+      {(avisos.length > 0 || telefonos.length > 0) && (
         <div className="relative z-30 text-white" style={{ backgroundColor: colors.primario }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-9 flex items-center justify-center md:justify-between gap-4 text-[12px] md:text-[13px] font-semibold">
-            {lugar ? (
-              <a href="#ubicacion" className="hidden md:flex items-center gap-1.5 hover:text-white/80 transition-colors truncate">
-                <IconoUbicacion className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{lugar}</span>
-              </a>
-            ) : <span className="hidden md:block" />}
-
-            {empresa.email ? (
-              <a href={`mailto:${empresa.email}`} className="hidden md:flex items-center gap-1.5 hover:text-white/80 transition-colors truncate">
-                <IconoCorreo className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{empresa.email}</span>
-              </a>
-            ) : <span className="hidden md:block" />}
+            {[0, 1].map((i) => (
+              <div key={i} className="hidden md:flex min-w-0">{avisos[i]}</div>
+            ))}
 
             {telefonos.length > 0 ? (
               <a
@@ -173,7 +234,10 @@ export function TiendaHeader({
               )}
             </Link>
 
-            {/* Hamburguesa (celular) */}
+            {/* Carrito + hamburguesa (celular) */}
+            <div className="md:hidden">
+              <BotonCarrito />
+            </div>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="md:hidden p-1.5 text-gray-700"
@@ -213,25 +277,26 @@ export function TiendaHeader({
               </button>
             </form>
 
-            {/* Redes + contacto (escritorio) */}
-            {(redes.length > 0 || whatsapp) && (
-              <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-                {redes.map((red) => (
-                  <a key={red.nombre} href={red.url} target="_blank" rel="noopener noreferrer"
-                    aria-label={red.nombre} title={red.nombre}
-                    className="text-gray-900 hover:opacity-70 transition-opacity">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">{red.icono}</svg>
-                  </a>
-                ))}
-                {whatsapp && (
-                  <a href={whatsapp} target="_blank" rel="noopener noreferrer"
-                    className="ml-2 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
-                    <IconoWhatsapp className="w-6 h-6 text-green-600" />
-                    Contáctanos
-                  </a>
-                )}
+            {/* Redes + contacto + carrito (escritorio): el carrito va siempre */}
+            <div className="hidden md:flex items-center gap-4 flex-shrink-0">
+              {redes.map((red) => (
+                <a key={red.nombre} href={red.url} target="_blank" rel="noopener noreferrer"
+                  aria-label={red.nombre} title={red.nombre}
+                  className="text-gray-900 hover:opacity-70 transition-opacity">
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">{red.icono}</svg>
+                </a>
+              ))}
+              {whatsapp && (
+                <a href={whatsapp} target="_blank" rel="noopener noreferrer"
+                  className="ml-2 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
+                  <IconoWhatsapp className="w-6 h-6 text-green-600" />
+                  Contáctanos
+                </a>
+              )}
+              <div className="ml-2">
+                <BotonCarrito />
               </div>
-            )}
+            </div>
           </div>
         </div>
 
