@@ -185,11 +185,6 @@ export default async function ProductoPage({ params }: Props) {
                 ) : (
                   <span className="text-xl font-semibold" style={{ color: colors.primario }}>Consultar precio</span>
                 )}
-                {precioFinal && precioFinal > 50 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    en <span className="text-green-600 font-semibold">6x S/ {(precioFinal / 6).toFixed(2)}</span> sin interes
-                  </p>
-                )}
               </div>
 
               {/* Stock */}
