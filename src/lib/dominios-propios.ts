@@ -17,7 +17,10 @@ export interface DominioPropio {
 }
 
 export const DOMINIOS_PROPIOS: Record<string, DominioPropio> = {
-  'jayliland.net.pe': { subdominio: 'jayli', redirigirDesdeSyncronize: false },
+  // 25-09: DNS + SSL andando → syncronize.net.pe/jayli manda acá.
+  'jayliland.net.pe': { subdominio: 'jayli', redirigirDesdeSyncronize: true },
+  // COMPANY COMPUTER (Carranza). Prender la redirección recién con su SSL.
+  'companycomputer.net.pe': { subdominio: 'companycomputer', redirigirDesdeSyncronize: false },
 };
 
 /** Hosts de prod desde los que se redirige al dominio propio (beta no: se prueba ahí). */
