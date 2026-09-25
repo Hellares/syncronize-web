@@ -1,3 +1,4 @@
+import { DEFAULT_COLORS, TiendaColors } from './colors';
 import type { Empresa } from './types';
 
 /**
@@ -26,4 +27,18 @@ export function linkGoogleMaps(empresa?: Pick<Empresa, 'personalizaciones'> | nu
   const esGoogleMaps = new RegExp(
     String.raw`^https://((www\.)?${dominio}/maps|maps\.${dominio}/|maps\.app\.goo\.gl/|goo\.gl/maps/)`, 'i');
   return esGoogleMaps.test(url) ? url : null;
+}
+
+/** Los colores de la tienda (personalización de la empresa o los de fábrica). */
+export function coloresTienda(empresa?: Pick<Empresa, 'personalizaciones'> | null): TiendaColors {
+  const banner = empresa?.personalizaciones?.[0];
+  const wc = banner?.webConfig;
+  return {
+    primario: banner?.colorPrimario || DEFAULT_COLORS.primario,
+    secundario: banner?.colorSecundario || DEFAULT_COLORS.secundario,
+    acento: banner?.colorAcento || DEFAULT_COLORS.acento,
+    bannerColor: banner?.bannerColor || DEFAULT_COLORS.bannerColor,
+    fondo1: wc?.colorFondo1 || DEFAULT_COLORS.fondo1,
+    fondo2: wc?.colorFondo2 || DEFAULT_COLORS.fondo2,
+  };
 }

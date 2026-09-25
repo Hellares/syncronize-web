@@ -6,6 +6,7 @@ import { CategoriaTienda, Empresa, Sede } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { logoTienda } from '@/lib/tienda';
 import { CategoriasSlider } from './CategoriasSlider';
+import { BotonCarrito, BotonCuenta } from './compra/CarritoYCuenta';
 import { TiendaColors, lighten } from '@/lib/colors';
 
 interface Props {
@@ -45,26 +46,6 @@ const IconoCamion = ({ className }: { className?: string }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9 1.96 2.5H17V9.5h2.5zM18 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
   </svg>
-);
-
-/**
- * El carrito todavía no existe en la tienda web: el ícono queda puesto para
- * cuando se implemente, sin acción y avisando que viene.
- */
-const BotonCarrito = () => (
-  <button
-    type="button"
-    aria-label="Carrito (muy pronto)"
-    title="Carrito: muy pronto"
-    className="relative flex items-center p-1 text-gray-900 cursor-default"
-  >
-    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
-    </svg>
-    <span className="absolute -top-1 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
-      0
-    </span>
-  </button>
 );
 
 type Red = 'facebook' | 'instagram' | 'tiktok';
@@ -231,7 +212,8 @@ export function TiendaHeader({
             </Link>
 
             {/* Carrito + hamburguesa (celular) */}
-            <div className="md:hidden">
+            <div className="md:hidden flex items-center gap-1">
+              <BotonCuenta />
               <BotonCarrito />
             </div>
             <button
@@ -298,7 +280,10 @@ export function TiendaHeader({
                   <span className="hidden lg:inline">Contáctanos</span>
                 </a>
               )}
-              <div className="ml-5 lg:ml-10 mr-2">
+              <div className="ml-5 lg:ml-8">
+                <BotonCuenta conTexto />
+              </div>
+              <div className="ml-4 lg:ml-6 mr-2">
                 <BotonCarrito />
               </div>
             </div>

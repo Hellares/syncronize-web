@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Producto } from '@/lib/types';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { useSesionTienda } from './compra/SesionTienda';
 
 export function ProductoCard({ producto, subdominio, colors }: { producto: Producto; subdominio: string; colors: TiendaColors }) {
   const [loading, setLoading] = useState(false);
+  const [agregando, setAgregando] = useState(false);
   const router = useRouter();
+  const { agregar } = useSesionTienda();
   const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
   const tieneDescuento = producto.enOferta && producto.precioOferta && producto.precio;
   const descuentoPct = tieneDescuento && producto.precio! > 0
@@ -18,6 +21,16 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
     if (loading) return;
     setLoading(true);
     router.push(`/${subdominio}/producto/${producto.id}`);
+  };
+
+  // Con variantes hay que elegir (talla, color…): el botón lleva al detalle.
+  const agregarAlCarrito = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (producto.tieneVariantes) { handleClick(); return; }
+    if (agregando) return;
+    setAgregando(true);
+    await agregar(producto.id, null, 1);
+    setAgregando(false);
   };
 
   // Sin stock: en vez de "Sin stock" (callejón sin salida) se ofrece consultar
@@ -107,6 +120,22 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
                 <span className="text-[10px] md:text-[13px] font-bold whitespace-nowrap" style={{ color: colors.primario }}>Consultar precio</span>
               )}
             </div>
+
+            {producto.hayStock && precioFinal != null && (
+              <button
+                type="button"
+                onClick={agregarAlCarrito}
+                disabled={agregando}
+                aria-label={producto.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
+                title={producto.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
+                className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full text-white flex items-center justify-center shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: colors.primario }}
+              >
+                <svg className="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+            )}
 
             {!producto.hayStock && (
               <button

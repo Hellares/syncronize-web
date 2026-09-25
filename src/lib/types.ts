@@ -66,6 +66,8 @@ export interface Producto {
   precioOferta?: number;
   enOferta: boolean;
   hayStock: boolean;
+  /** El precio y el stock viven en las variantes: se elige en el detalle. */
+  tieneVariantes?: boolean;
   imagen?: string;
   calificacion?: number;
   totalOpiniones?: number;
@@ -82,6 +84,18 @@ export interface Producto {
 
 export interface ProductoDetalle extends Producto {
   stockActual: number;
+  tieneVariantes?: boolean;
+  /** Con variantes, el precio y el stock viven en cada una (ver `ComprarPanel`). */
+  variantes?: {
+    id: string;
+    nombre: string;
+    atributos: { nombre: string; valor: string }[];
+    precio: number | null;
+    precioOferta: number | null;
+    enOferta: boolean;
+    hayStock: boolean;
+    stockActual: number;
+  }[];
   videoUrl?: string;
   imagenes: { id: string; url: string; thumbnail?: string }[];
   atributos: { nombre: string; valor: string }[];

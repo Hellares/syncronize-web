@@ -4,6 +4,7 @@ import { ProductoDetalle, Pregunta, Opinion, PaginatedResponse, Empresa } from '
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { ComprarPanel } from '@/components/tienda/compra/ComprarPanel';
 import { logoTienda } from '@/lib/tienda';
 import { ImageGallery } from '@/components/tienda/ImageGallery';
 import { DEFAULT_COLORS, lighten, alpha, darken, TiendaColors } from '@/lib/colors';
@@ -201,6 +202,15 @@ export default async function ProductoPage({ params }: Props) {
                   Marca: <span className="font-medium text-gray-700">{producto.marca}</span>
                 </p>
               )}
+
+              {/* Cantidad, variantes y compra */}
+              <ComprarPanel
+                productoId={producto.id}
+                hayStock={producto.hayStock}
+                stockActual={producto.stockActual}
+                variantes={producto.variantes ?? []}
+                colorPrimario={colors.primario}
+              />
 
               {/* Botones de acción */}
               <div className="mt-auto pt-5 space-y-2.5">
