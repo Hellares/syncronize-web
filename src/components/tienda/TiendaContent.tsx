@@ -172,20 +172,45 @@ export function TiendaContent({
           {/* Sidebar */}
           {categorias.length > 1 && (
             <aside className="hidden lg:block w-56 flex-shrink-0">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-100 overflow-hidden sticky top-16 shadow-sm">
-                <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-3 font-semibold text-sm">Categorias</div>
-                <nav className="divide-y divide-gray-50">
-                  {categorias.map((cat) => {
+              {/* `top-36`: queda debajo de la cabecera pegada (franja blanca + barra de categorías) */}
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden sticky top-36 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+                <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100">
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: alpha(colors.primario, 0.1), color: colors.primario }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-gray-900 leading-tight">Categorías</h3>
+                    <p className="text-[11px] text-gray-400">{categorias.length} categorías</p>
+                  </div>
+                </div>
+                <nav className="p-2 space-y-0.5">
+                  {[{ id: null as string | null, nombre: 'Todas', total: totalProductos }, ...categorias].map((cat) => {
                     const activa = cat.id === categoriaActiva;
                     return (
                       <button
-                        key={cat.id}
+                        key={cat.id ?? 'todas'}
                         onClick={() => elegirCategoria(activa ? null : cat.id)}
-                        className={`w-full flex items-center justify-between gap-2 text-left px-4 py-2.5 text-sm transition-colors ${activa ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+                        className={`relative w-full flex items-center justify-between gap-2 text-left pl-4 pr-2.5 py-2 rounded-lg text-sm transition-colors ${activa ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                         style={activa ? { color: colors.primario, backgroundColor: alpha(colors.primario, 0.08) } : undefined}
                       >
+                        {/* Marca de la activa */}
+                        {activa && (
+                          <span className="absolute left-1 top-2 bottom-2 w-[3px] rounded-full" style={{ backgroundColor: colors.primario }} />
+                        )}
                         <span className="truncate">{cat.nombre}</span>
-                        <span className="text-[11px] text-gray-400">{cat.total}</span>
+                        <span
+                          className="min-w-[24px] px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-center"
+                          style={activa
+                            ? { backgroundColor: colors.primario, color: '#fff' }
+                            : { backgroundColor: '#f3f4f6', color: '#6b7280' }}
+                        >
+                          {cat.total}
+                        </span>
                       </button>
                     );
                   })}
