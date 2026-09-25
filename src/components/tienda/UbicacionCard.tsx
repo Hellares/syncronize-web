@@ -124,7 +124,7 @@ export function UbicacionCard({ sede, colors }: Props) {
         {comoLlegar && (
           <a
             href={comoLlegar} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-white text-sm font-semibold transition-opacity hover:opacity-90"
+            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90"
             style={{ backgroundColor: colors.primario }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">

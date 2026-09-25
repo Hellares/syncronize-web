@@ -195,7 +195,7 @@ export function TiendaContent({
                       <button
                         key={cat.id ?? 'todas'}
                         onClick={() => elegirCategoria(activa ? null : cat.id)}
-                        className={`relative w-full flex items-center justify-between gap-2 text-left pl-4 pr-2.5 py-2 rounded-lg text-sm font-medium transition-colors ${activa ? '' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                        className={`relative w-full flex items-center justify-between gap-2 text-left pl-4 pr-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors ${activa ? '' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                         style={activa ? { color: colors.primario, backgroundColor: alpha(colors.primario, 0.08) } : undefined}
                       >
                         {/* Marca de la activa */}
@@ -221,7 +221,7 @@ export function TiendaContent({
 
               {whatsapp && (
                 <a href={whatsapp} target="_blank" rel="noopener noreferrer"
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors shadow-md shadow-green-500/20">
+                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors shadow-md shadow-green-500/20">
                   💬 WhatsApp
                 </a>
               )}
