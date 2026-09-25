@@ -9,6 +9,7 @@ import { SearchHero } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
 import { VideosSection } from './VideosSection';
+import { UbicacionCard } from './UbicacionCard';
 
 interface Props {
   empresa: Empresa;
@@ -172,8 +173,7 @@ export function TiendaContent({
           {/* Sidebar */}
           {categorias.length > 1 && (
             <aside className="hidden lg:block w-56 flex-shrink-0">
-              {/* `top-36`: queda debajo de la cabecera pegada (franja blanca + barra de categorías) */}
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden sticky top-36 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+              <div className="relative bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
                 <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100">
                   <span
                     className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -217,29 +217,7 @@ export function TiendaContent({
                 </nav>
               </div>
 
-              {sedePrincipal && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-100 mt-4 p-4 shadow-sm">
-                  <h3 className="font-semibold text-sm mb-2 text-gray-800">📍 Ubicacion</h3>
-                  {sedePrincipal.direccion && <p className="text-xs text-gray-500">{sedePrincipal.direccion}</p>}
-                  {sedePrincipal.stand && <p className="text-xs text-gray-500">Stand: {sedePrincipal.stand}</p>}
-                  <p className="text-xs text-gray-500">{[sedePrincipal.distrito, sedePrincipal.provincia].filter(Boolean).join(', ')}</p>
-                  {sedePrincipal.coordenadas?.lat && (
-                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${sedePrincipal.coordenadas.lat},${sedePrincipal.coordenadas.lng ?? sedePrincipal.coordenadas.lon}`}
-                      target="_blank" className="mt-2 inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium">🗺️ Como llegar</a>
-                  )}
-                  {sedePrincipal.horarioAtencion && (
-                    <div className="mt-3 border-t pt-2">
-                      <p className="text-xs font-semibold text-gray-700 mb-1">🕐 Horario</p>
-                      {Object.entries(sedePrincipal.horarioAtencion).map(([dia, h]) => (
-                        <div key={dia} className="flex text-[11px] text-gray-500">
-                          <span className="w-14 capitalize">{dia}</span>
-                          <span>{h.inicio} - {h.fin}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {sedePrincipal && <UbicacionCard sede={sedePrincipal} colors={colors} />}
 
               {whatsapp && (
                 <a href={whatsapp} target="_blank" rel="noopener noreferrer"
