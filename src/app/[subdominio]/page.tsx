@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { getEmpresaBySubdominio, getProductosByEmpresa, getServiciosByEmpresa, getOpinionesProducto } from '@/lib/api';
 import { Empresa, Producto, ProductosTiendaResponse, TIENDA_PAGE_SIZE } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
-import { logoTienda } from '@/lib/tienda';
+import { linkGoogleMaps, logoTienda } from '@/lib/tienda';
 import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
@@ -132,6 +132,9 @@ export default async function TiendaPage({ params }: Props) {
   const logo = logoTienda(empresa);
   const coordenadas = sedePrincipal?.coordenadas;
   const coordLng = coordenadas?.lng ?? coordenadas?.lon;
+  // La ficha del negocio en Google Maps (muestra su nombre) o, si no, las coordenadas.
+  const comoLlegar = linkGoogleMaps(empresa)
+    ?? (coordenadas?.lat && coordLng ? `https://www.google.com/maps/dir/?api=1&destination=${coordenadas.lat},${coordLng}` : null);
 
   return (
     <div
@@ -303,8 +306,8 @@ export default async function TiendaPage({ params }: Props) {
                 {sedePrincipal && (sedePrincipal.distrito || sedePrincipal.provincia) && (
                   <p className="text-xs">{[sedePrincipal.distrito, sedePrincipal.provincia].filter(Boolean).join(', ')}</p>
                 )}
-                {coordenadas?.lat && coordLng && (
-                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${coordenadas.lat},${coordLng}`}
+                {comoLlegar && (
+                  <a href={comoLlegar}
                     target="_blank" rel="noopener noreferrer"
                     className="block text-xs text-green-400 hover:text-green-300 transition-colors">🗺️ Como llegar</a>
                 )}

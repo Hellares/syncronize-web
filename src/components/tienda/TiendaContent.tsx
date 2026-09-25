@@ -10,6 +10,7 @@ import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
 import { VideosSection } from './VideosSection';
 import { UbicacionCard } from './UbicacionCard';
+import { linkGoogleMaps } from '@/lib/tienda';
 
 interface Props {
   empresa: Empresa;
@@ -217,7 +218,7 @@ export function TiendaContent({
                 </nav>
               </div>
 
-              {sedePrincipal && <UbicacionCard sede={sedePrincipal} colors={colors} />}
+              {sedePrincipal && <UbicacionCard sede={sedePrincipal} colors={colors} googleMapsUrl={linkGoogleMaps(empresa)} />}
 
               {whatsapp && (
                 <a href={whatsapp} target="_blank" rel="noopener noreferrer"

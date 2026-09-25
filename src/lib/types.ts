@@ -33,6 +33,8 @@ export interface Empresa {
       enviosNacionales?: boolean;
       /** Logo propio de la web (distinto al de los tickets); ver `logoTienda`. */
       logoUrl?: string | null;
+      /** Link a la ficha del local en Google Maps; ver `linkGoogleMaps`. */
+      googleMapsUrl?: string | null;
     };
   }[];
 }

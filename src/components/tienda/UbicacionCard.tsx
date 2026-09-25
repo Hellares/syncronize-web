@@ -41,14 +41,18 @@ function ahoraEnLima() {
 interface Props {
   sede: Sede;
   colors: TiendaColors;
+  /** Ficha del local en Google Maps: si está, "Cómo llegar" y el mapa van ahí. */
+  googleMapsUrl?: string | null;
 }
 
-export function UbicacionCard({ sede, colors }: Props) {
+export function UbicacionCard({ sede, colors, googleMapsUrl }: Props) {
   const dias = horarioOrdenado(sede.horarioAtencion);
   const lat = sede.coordenadas?.lat;
   const lng = sede.coordenadas?.lng ?? sede.coordenadas?.lon;
   const hayMapa = lat != null && lng != null;
-  const comoLlegar = hayMapa ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : null;
+  // La ficha del negocio muestra su nombre; las coordenadas, solo un pin.
+  const comoLlegar = googleMapsUrl
+    ?? (hayMapa ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : null);
 
   // Distrito / provincia / departamento sin repetir (en muchos datos el
   // distrito y la provincia son el mismo nombre).

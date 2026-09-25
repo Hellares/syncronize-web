@@ -8,3 +8,22 @@ import type { Empresa } from './types';
 export function logoTienda(empresa?: Pick<Empresa, 'logo' | 'personalizaciones'> | null): string | undefined {
   return empresa?.personalizaciones?.[0]?.webConfig?.logoUrl || empresa?.logo || undefined;
 }
+
+/**
+ * El link a la ficha del local en Google Maps (`webConfig.googleMapsUrl`, se
+ * carga en Personalización del app), o null. Con coordenadas Google solo pone
+ * un pin sin nombre; la ficha muestra el negocio y su "Cómo llegar".
+ *
+ * Solo se aceptan links de Google Maps: el valor lo escribe la empresa y va
+ * directo a un `href` público.
+ */
+export function linkGoogleMaps(empresa?: Pick<Empresa, 'personalizaciones'> | null): string | null {
+  const url = empresa?.personalizaciones?.[0]?.webConfig?.googleMapsUrl?.trim();
+  if (!url) return null;
+  // google.com / google.com.pe / google.pe… y nada más: `[a-z.]+` dejaba pasar
+  // `google.com.evil.com/maps`.
+  const dominio = String.raw`google\.(com|com\.[a-z]{2}|[a-z]{2})`;
+  const esGoogleMaps = new RegExp(
+    String.raw`^https://((www\.)?${dominio}/maps|maps\.${dominio}/|maps\.app\.goo\.gl/|goo\.gl/maps/)`, 'i');
+  return esGoogleMaps.test(url) ? url : null;
+}
