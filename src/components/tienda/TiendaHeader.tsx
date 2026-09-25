@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CategoriaTienda, Empresa, Sede } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { logoTienda } from '@/lib/tienda';
 import { TiendaColors, lighten } from '@/lib/colors';
 
 interface Props {
@@ -127,6 +128,7 @@ export function TiendaHeader({
 
   const whatsapp = enlaceChatWhatsapp(empresa.telefono);
   const redes = redesDe(empresa);
+  const logo = logoTienda(empresa);
   // Solo datos reales de la empresa: la franja superior no promete nada que
   // la empresa no haya marcado (los envíos son un switch en Personalización).
   const telefonos = [...new Set([empresa.telefono, sedePrincipal?.telefono].filter(Boolean))] as string[];
@@ -222,8 +224,8 @@ export function TiendaHeader({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 md:py-3 flex flex-wrap md:flex-nowrap items-center gap-x-6 gap-y-2">
             {/* Logo */}
             <Link href={`/${subdominio}`} className="flex items-center flex-shrink-0 mr-auto md:mr-0">
-              {empresa.logo ? (
-                <img src={empresa.logo} alt={empresa.nombre} className="h-11 md:h-16 max-w-[190px] md:max-w-[260px] object-contain" />
+              {logo ? (
+                <img src={logo} alt={empresa.nombre} className="h-11 md:h-16 max-w-[190px] md:max-w-[260px] object-contain" />
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" style={{ backgroundColor: colors.primario }}>

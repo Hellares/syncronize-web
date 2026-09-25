@@ -31,6 +31,8 @@ export interface Empresa {
       redes?: { facebook?: string; instagram?: string; tiktok?: string };
       /** La empresa marcó que envía a todo el Perú. */
       enviosNacionales?: boolean;
+      /** Logo propio de la web (distinto al de los tickets); ver `logoTienda`. */
+      logoUrl?: string | null;
     };
   }[];
 }

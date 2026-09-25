@@ -4,6 +4,7 @@ import { ProductoDetalle, Pregunta, Opinion, PaginatedResponse, Empresa } from '
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { logoTienda } from '@/lib/tienda';
 import { ImageGallery } from '@/components/tienda/ImageGallery';
 import { DEFAULT_COLORS, lighten, alpha, darken, TiendaColors } from '@/lib/colors';
 
@@ -77,6 +78,9 @@ export default async function ProductoPage({ params }: Props) {
     `Hola ${producto.empresa.nombre}, me interesa el producto:\n\n*${producto.nombre}*\nPrecio: ${precioFinal ? `S/ ${precioFinal.toFixed(2)}` : 'consultar'}\n\nVi este producto en Syncronize.`,
   );
 
+  // El de la web si la empresa subió uno; si no, el de la empresa.
+  const logo = logoTienda(empresa) ?? producto.empresa.logo;
+
   const resumenOpiniones = opinionesData.resumen;
   const coordenadas = producto.sede?.coordenadas;
   const coordLng = coordenadas?.lng ?? coordenadas?.lon;
@@ -105,9 +109,9 @@ export default async function ProductoPage({ params }: Props) {
             </svg>
             <span className="text-sm font-medium">Volver a la tienda</span>
           </Link>
-          {empresa?.logo && (
+          {logo && (
             <Link href={`/${subdominio}`}>
-              <img src={empresa.logo} alt={empresa.nombre} className="h-9 max-w-[160px] object-contain logo-shimmer" />
+              <img src={logo} alt={empresa?.nombre ?? ''} className="h-9 max-w-[160px] object-contain logo-shimmer" />
             </Link>
           )}
         </div>
@@ -389,8 +393,8 @@ export default async function ProductoPage({ params }: Props) {
             Vendedor
           </h2>
           <div className="flex items-center gap-3">
-            {producto.empresa.logo ? (
-              <img src={producto.empresa.logo} alt="" className="h-12 max-w-[120px] object-contain" />
+            {logo ? (
+              <img src={logo} alt="" className="h-12 max-w-[120px] object-contain" />
             ) : (
               <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: colors.primario }}>
                 {producto.empresa.nombre[0]}

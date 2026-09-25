@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { getEmpresaBySubdominio, getProductosByEmpresa, getServiciosByEmpresa, getOpinionesProducto } from '@/lib/api';
 import { Empresa, Producto, ProductosTiendaResponse, TIENDA_PAGE_SIZE } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { logoTienda } from '@/lib/tienda';
 import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: `${empresa.nombre} | Syncronize`,
       description: empresa.descripcion || `Tienda de ${empresa.nombre}`,
-      openGraph: { title: empresa.nombre, description: empresa.descripcion || '', images: empresa.logo ? [empresa.logo] : [] },
+      openGraph: { title: empresa.nombre, description: empresa.descripcion || '', images: logoTienda(empresa) ? [logoTienda(empresa)!] : [] },
     };
   } catch {
     return { title: 'Tienda no encontrada' };
@@ -128,6 +129,7 @@ export default async function TiendaPage({ params }: Props) {
   const ofertas = productos.filter((p: Producto) => p.enOferta);
   const categorias = productosData.categorias ?? [];
   const whatsapp = enlaceChatWhatsapp(empresa.telefono);
+  const logo = logoTienda(empresa);
   const coordenadas = sedePrincipal?.coordenadas;
   const coordLng = coordenadas?.lng ?? coordenadas?.lon;
 
@@ -241,7 +243,7 @@ export default async function TiendaPage({ params }: Props) {
           <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row items-start gap-6">
-                {empresa.logo && <img src={empresa.logo} alt="" className="w-16 h-16 rounded-xl object-cover shadow-sm" />}
+                {logo && <img src={logo} alt="" className="h-16 w-auto max-w-[160px] object-contain" />}
                 <div className="flex-1">
                   <h2 className="text-lg font-bold text-gray-900 mb-2">Sobre {empresa.nombre}</h2>
                   <p className="text-sm text-gray-600 leading-relaxed">{empresa.descripcion}</p>
@@ -277,8 +279,8 @@ export default async function TiendaPage({ params }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                {empresa.logo && <img src={empresa.logo} alt="" className="h-14 max-w-[220px] object-contain opacity-90" />}
-                {!empresa.logo && <span className="text-white font-bold">{empresa.nombre}</span>}
+                {logo && <img src={logo} alt="" className="h-14 max-w-[220px] object-contain opacity-90" />}
+                {!logo && <span className="text-white font-bold">{empresa.nombre}</span>}
               </div>
               {empresa.descripcion && <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{empresa.descripcion}</p>}
             </div>
