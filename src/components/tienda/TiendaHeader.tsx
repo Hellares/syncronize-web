@@ -277,23 +277,30 @@ export function TiendaHeader({
               </button>
             </form>
 
-            {/* Redes + contacto + carrito (escritorio): el carrito va siempre */}
-            <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-              {redes.map((red) => (
-                <a key={red.nombre} href={red.url} target="_blank" rel="noopener noreferrer"
-                  aria-label={red.nombre} title={red.nombre}
-                  className="text-gray-900 hover:opacity-70 transition-opacity">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">{red.icono}</svg>
-                </a>
-              ))}
+            {/* Redes + contacto + carrito (escritorio): el carrito va siempre.
+                `ml-auto` manda el espacio libre ANTES del grupo (lo separa del
+                buscador), y el `mr-2` del carrito lo alinea con el final de
+                "Ubicación" en la barra de abajo (ese enlace tiene `px-3`). */}
+            <div className="hidden md:flex items-center ml-auto flex-shrink-0">
+              {redes.length > 0 && (
+                <div className="flex items-center gap-4 lg:gap-6">
+                  {redes.map((red) => (
+                    <a key={red.nombre} href={red.url} target="_blank" rel="noopener noreferrer"
+                      aria-label={red.nombre} title={red.nombre}
+                      className="text-gray-900 hover:opacity-70 transition-opacity">
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">{red.icono}</svg>
+                    </a>
+                  ))}
+                </div>
+              )}
               {whatsapp && (
                 <a href={whatsapp} target="_blank" rel="noopener noreferrer"
-                  className="ml-2 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
+                  className="ml-6 lg:ml-10 flex items-center gap-2 text-sm text-gray-900 hover:opacity-70 transition-opacity whitespace-nowrap">
                   <IconoWhatsapp className="w-6 h-6 text-green-600" />
                   Contáctanos
                 </a>
               )}
-              <div className="ml-2">
+              <div className="ml-6 lg:ml-10 mr-2">
                 <BotonCarrito />
               </div>
             </div>
