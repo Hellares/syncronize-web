@@ -84,6 +84,10 @@ export interface Pedido {
   tipoEntrega: 'ENVIO_DOMICILIO' | 'RETIRO_TIENDA';
   direccionEnvio?: string | null;
   distritoEnvio?: string | null;
+  provinciaEnvio?: string | null;
+  modalidadEnvio?: 'DELIVERY_LOCAL' | 'AGENCIA' | null;
+  agenciaEnvio?: string | null;
+  agenciaDireccionEnvio?: string | null;
   motivoRechazo?: string | null;
   comprobantePagoUrl?: string | null;
   creadoEn: string;

@@ -8,7 +8,14 @@ import { TiendaColors } from '@/lib/colors';
 import { useSesionTienda } from './SesionTienda';
 import { Cargando, PedirIngreso } from './CarritoVista';
 
-type Entrega = 'ENVIO_DOMICILIO' | 'RETIRO_TIENDA';
+/**
+ * Como en la venta: delivery (reparto en la ciudad) o envío a provincia por
+ * agencia — los dos son "envío a domicilio" para el backend, con su
+ * `modalidadEnvio` — o retiro en tienda.
+ */
+type Entrega = 'DELIVERY' | 'AGENCIA' | 'RETIRO_TIENDA';
+
+const AGENCIAS = ['SHALOM', 'OLVA', 'MARVISUR'];
 type Pago = 'YAPE' | 'CONTRAENTREGA';
 
 const inputCls =
@@ -43,6 +50,10 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
   const [sedeId, setSedeId] = useState('');
   const [pago, setPago] = useState<Pago>('YAPE');
   const [direccion, setDireccion] = useState('');
+  const [agencia, setAgencia] = useState('');
+  const [agenciaDireccion, setAgenciaDireccion] = useState('');
+  const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
   const [referencia, setReferencia] = useState('');
   const [distrito, setDistrito] = useState('');
   const [provincia, setProvincia] = useState('');
@@ -58,7 +69,7 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
       .then((o) => {
         if (!vivo) return;
         setOpciones(o);
-        setEntrega(o.envio.disponible ? 'ENVIO_DOMICILIO' : o.retiroTienda.disponible ? 'RETIRO_TIENDA' : null);
+        setEntrega(o.envio.disponible ? 'DELIVERY' : o.retiroTienda.disponible ? 'RETIRO_TIENDA' : null);
         if (o.retiroTienda.sedes.length === 1) setSedeId(o.retiroTienda.sedes[0].id);
       })
       .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : 'No se pudieron cargar las opciones de entrega'); });
@@ -80,7 +91,19 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
   }
 
   const total = grupo?.subtotal ?? 0;
-  const faltaDireccion = entrega === 'ENVIO_DOMICILIO' && (direccion.trim().length < 5 || !distrito.trim());
+  const faltaDireccion =
+    (entrega === 'DELIVERY' && (direccion.trim().length < 5 || !distrito.trim())) ||
+    (entrega === 'AGENCIA' && (!agencia.trim() || !departamento.trim() || !provincia.trim() || agenciaDireccion.trim().length < 5));
+
+  const usarMiUbicacion = () => {
+    if (!navigator.geolocation) { setError('Tu navegador no permite compartir la ubicación'); return; }
+    setBuscandoUbicacion(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setUbicacion({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setBuscandoUbicacion(false); },
+      () => { setError('No pudimos obtener tu ubicación. Revisa el permiso del navegador.'); setBuscandoUbicacion(false); },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
   const faltaSede = entrega === 'RETIRO_TIENDA' && !sedeId;
 
   const confirmar = async () => {
@@ -93,13 +116,24 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
         body: JSON.stringify({
           empresaId,
           metodoPago: pago,
-          entregaPorEmpresa: [{ empresaId, tipoEntrega: entrega, ...(entrega === 'RETIRO_TIENDA' && { sedeRetiroId: sedeId }) }],
-          ...(entrega === 'ENVIO_DOMICILIO' && {
+          entregaPorEmpresa: [{
+            empresaId,
+            tipoEntrega: entrega === 'RETIRO_TIENDA' ? 'RETIRO_TIENDA' : 'ENVIO_DOMICILIO',
+            ...(entrega === 'RETIRO_TIENDA' && { sedeRetiroId: sedeId }),
+          }],
+          ...(entrega === 'DELIVERY' && {
+            modalidadEnvio: 'DELIVERY_LOCAL',
             direccionEnvio: direccion.trim(),
             referenciaEnvio: referencia.trim() || undefined,
             distritoEnvio: distrito.trim(),
-            provinciaEnvio: provincia.trim() || undefined,
-            departamentoEnvio: departamento.trim() || undefined,
+            ...(ubicacion && { latitudEnvio: ubicacion.lat, longitudEnvio: ubicacion.lng }),
+          }),
+          ...(entrega === 'AGENCIA' && {
+            modalidadEnvio: 'AGENCIA',
+            agenciaEnvio: agencia.trim().toUpperCase(),
+            agenciaDireccionEnvio: agenciaDireccion.trim(),
+            departamentoEnvio: departamento.trim(),
+            provinciaEnvio: provincia.trim(),
           }),
           notasComprador: notas.trim() || undefined,
         }),
@@ -122,10 +156,14 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
           {!opciones?.envio.disponible && !opciones?.retiroTienda.disponible && (
             <p className="text-sm text-red-600">Esta tienda no tiene configurada ninguna forma de entrega.</p>
           )}
-          <div className="grid sm:grid-cols-2 gap-2">
+          <div className="grid sm:grid-cols-3 gap-2">
             {opciones?.envio.disponible && (
-              <Opcion activa={entrega === 'ENVIO_DOMICILIO'} onClick={() => setEntrega('ENVIO_DOMICILIO')}
-                titulo="Envío a domicilio" detalle={opciones.envio.mensajeLocal} colors={colors} />
+              <>
+                <Opcion activa={entrega === 'DELIVERY'} onClick={() => setEntrega('DELIVERY')}
+                  titulo="Delivery en la ciudad" detalle="Te lo llevamos a tu dirección" colors={colors} />
+                <Opcion activa={entrega === 'AGENCIA'} onClick={() => setEntrega('AGENCIA')}
+                  titulo="Envío a provincia" detalle="Por agencia (Shalom, Olva…)" colors={colors} />
+              </>
             )}
             {opciones?.retiroTienda.disponible && (
               <Opcion activa={entrega === 'RETIRO_TIENDA'} onClick={() => setEntrega('RETIRO_TIENDA')}
@@ -133,15 +171,52 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
             )}
           </div>
 
-          {entrega === 'ENVIO_DOMICILIO' && (
-            <div className="grid sm:grid-cols-2 gap-2 pt-1">
-              <input className={`${inputCls} sm:col-span-2`} placeholder="Dirección (calle, número, dpto.)" autoComplete="street-address"
+          {entrega === 'DELIVERY' && (
+            <div className="space-y-2 pt-1">
+              <input className={inputCls} placeholder="Dirección de entrega (calle, número, dpto.)" autoComplete="street-address"
                 value={direccion} onChange={(e) => setDireccion(e.target.value)} />
-              <input className={`${inputCls} sm:col-span-2`} placeholder="Referencia (opcional)"
+              <input className={inputCls} placeholder="Referencia (ej. frente al parque, puerta verde)"
                 value={referencia} onChange={(e) => setReferencia(e.target.value)} />
-              <input className={inputCls} placeholder="Distrito" value={distrito} onChange={(e) => setDistrito(e.target.value)} />
-              <input className={inputCls} placeholder="Provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
-              <input className={`${inputCls} sm:col-span-2`} placeholder="Departamento" value={departamento} onChange={(e) => setDepartamento(e.target.value)} />
+              <input className={inputCls} placeholder="Distrito / zona" value={distrito} onChange={(e) => setDistrito(e.target.value)} />
+              <button
+                type="button"
+                onClick={usarMiUbicacion}
+                disabled={buscandoUbicacion}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {buscandoUbicacion ? 'Buscando tu ubicación…' : ubicacion ? '✓ Ubicación agregada (toca para actualizar)' : 'Compartir mi ubicación (opcional, ayuda al repartidor)'}
+              </button>
+              <p className="text-xs text-gray-400">{opciones?.envio.mensajeLocal}</p>
+            </div>
+          )}
+
+          {entrega === 'AGENCIA' && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-medium text-gray-500">Agencia</p>
+              <div className="flex flex-wrap gap-1.5">
+                {AGENCIAS.map((a) => (
+                  <button key={a} type="button" onClick={() => setAgencia(a)}
+                    className="px-3 py-1.5 rounded-lg border text-xs font-medium"
+                    style={agencia === a ? { backgroundColor: colors.primario, borderColor: colors.primario, color: '#fff' } : { borderColor: '#e5e7eb', color: '#4b5563' }}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+              <input className={inputCls} placeholder="Otra agencia (escríbela)" value={AGENCIAS.includes(agencia) ? '' : agencia}
+                onChange={(e) => setAgencia(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <input className={inputCls} placeholder="Departamento" value={departamento} onChange={(e) => setDepartamento(e.target.value)} />
+                <input className={inputCls} placeholder="Provincia / ciudad" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
+              </div>
+              <input className={inputCls} placeholder="Dirección de la agencia donde recogerás" value={agenciaDireccion}
+                onChange={(e) => setAgenciaDireccion(e.target.value)} />
+              <p className="text-xs text-gray-400">
+                Recogerás tu pedido en la agencia con tu DNI. {opciones?.envio.mensajeNacional}
+              </p>
             </div>
           )}
 
@@ -193,7 +268,8 @@ export function CheckoutVista({ empresaId, colors }: { empresaId: string; colors
             </li>
           ))}
         </ul>
-        {entrega === 'ENVIO_DOMICILIO' && <p className="text-xs text-gray-400">{opciones?.envio.mensajeLocal}</p>}
+        {entrega === 'DELIVERY' && <p className="text-xs text-gray-400">{opciones?.envio.mensajeLocal}</p>}
+        {entrega === 'AGENCIA' && <p className="text-xs text-gray-400">{opciones?.envio.mensajeNacional}</p>}
         <div className="flex justify-between text-base font-medium text-gray-900 pt-3 border-t border-gray-100">
           <span>Total</span>
           <span>{soles(total)}</span>

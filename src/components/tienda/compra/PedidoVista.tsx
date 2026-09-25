@@ -325,7 +325,9 @@ export function PedidoVista({ pedidoId, colors }: { pedidoId: string; colors: Ti
         <p className="text-xs text-gray-500">
           {pedido.tipoEntrega === 'RETIRO_TIENDA'
             ? 'Retiro en tienda'
-            : `Envío a ${[pedido.direccionEnvio, pedido.distritoEnvio].filter(Boolean).join(', ')}`}
+            : pedido.modalidadEnvio === 'AGENCIA'
+              ? `Envío por ${pedido.agenciaEnvio} a ${pedido.provinciaEnvio} — recoges en ${pedido.agenciaDireccionEnvio}`
+              : `Delivery a ${[pedido.direccionEnvio, pedido.distritoEnvio].filter(Boolean).join(', ')}`}
         </p>
         <Link href={`/${subdominio}/mis-pedidos`} className="block text-center text-xs underline underline-offset-2 text-gray-500">
           Ver todos mis pedidos
