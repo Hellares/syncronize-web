@@ -49,13 +49,13 @@ export function TiendaContent({
         empresa={empresa}
         subdominio={subdominio}
         categorias={categorias}
+        categoriaActiva={categoriaActiva}
         onCategoria={elegirCategoria}
         hayServicios={hayServicios}
+        sedePrincipal={sedePrincipal}
         onSearch={(q) => setHeroSearch(q)}
         colors={colors}
       />
-      {/* Spacer para header fijo */}
-      <div className="h-[96px] md:h-[96px]" />
 
       {/* Hero con buscador */}
       <SearchHero
@@ -167,7 +167,7 @@ export function TiendaContent({
       )}
 
       {/* Main content */}
-      <main id="productos-section" className="scroll-mt-28 max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
+      <main id="productos-section" className="max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
         <div className="flex gap-6">
           {/* Sidebar */}
           {categorias.length > 1 && (

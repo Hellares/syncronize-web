@@ -133,7 +133,7 @@ export default async function TiendaPage({ params }: Props) {
 
   return (
     <div
-      className="min-h-screen flex flex-col overflow-x-hidden relative"
+      className="min-h-screen flex flex-col overflow-x-clip relative"
       style={{
         background: `linear-gradient(135deg, ${lighten(colors.fondo1, 0.75)} 0%, ${lighten(colors.fondo2, 0.8)} 30%, ${lighten(colors.fondo1, 0.85)} 60%, ${lighten(colors.fondo2, 0.75)} 100%)`,
         backgroundAttachment: 'fixed',
@@ -169,7 +169,7 @@ export default async function TiendaPage({ params }: Props) {
       {/* Servicios */}
       {servicios.length > 0 && (
         <ScrollReveal>
-          <section id="servicios" className="scroll-mt-28 max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+          <section id="servicios" className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               🔧 Nuestros servicios
             </h2>
@@ -292,7 +292,7 @@ export default async function TiendaPage({ params }: Props) {
               </nav>
             </div>
             {/* Destino de "Ubicación": es lo único que se ve en cualquier pantalla (la barra lateral solo aparece en escritorio) */}
-            <div id="ubicacion" className="scroll-mt-28">
+            <div id="ubicacion">
               <h4 className="text-white text-sm font-semibold mb-4">Contacto y ubicacion</h4>
               <div className="space-y-2">
                 {empresa.telefono && <p className="text-xs">📞 {empresa.telefono}</p>}
