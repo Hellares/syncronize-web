@@ -57,3 +57,13 @@ export function telefonoParaWhatsapp(telefono?: string | null): string | null {
 export function enlaceWhatsapp(numero: string, texto: string): string {
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
+
+/**
+ * El enlace al chat a partir del teléfono GUARDADO, o null si no hay número.
+ * Sin texto abre el chat vacío.
+ */
+export function enlaceChatWhatsapp(telefono?: string | null, texto?: string): string | null {
+  const numero = telefonoParaWhatsapp(telefono);
+  if (!numero) return null;
+  return texto ? enlaceWhatsapp(numero, texto) : `https://wa.me/${numero}`;
+}

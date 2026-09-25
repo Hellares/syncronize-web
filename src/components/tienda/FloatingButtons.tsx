@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 
 interface Props {
   telefono?: string;
@@ -9,6 +10,10 @@ interface Props {
 
 export function FloatingButtons({ telefono, empresaNombre }: Props) {
   const [showBackTop, setShowBackTop] = useState(false);
+  const whatsapp = enlaceChatWhatsapp(
+    telefono,
+    `Hola ${empresaNombre}, vi su tienda en Syncronize y me gustaría mas información.`,
+  );
 
   useEffect(() => {
     const handleScroll = () => setShowBackTop(window.scrollY > 400);
@@ -19,9 +24,9 @@ export function FloatingButtons({ telefono, empresaNombre }: Props) {
   return (
     <>
       {/* WhatsApp FAB */}
-      {telefono && (
+      {whatsapp && (
         <a
-          href={`https://wa.me/${telefono.replace(/\D/g, '').replace(/^9/, '51')}?text=${encodeURIComponent(`Hola ${empresaNombre}, vi su tienda en Syncronize y me gustaría mas información.`)}`}
+          href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-50 w-[60px] h-[60px] rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center transition-all hover:scale-110 group overflow-hidden"

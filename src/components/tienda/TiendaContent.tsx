@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Empresa, Producto, Sede } from '@/lib/types';
-import { TiendaColors } from '@/lib/colors';
+import { CategoriaTienda, Empresa, Producto, Sede } from '@/lib/types';
+import { enlaceChatWhatsapp } from '@/core/utils/telefono';
+import { TiendaColors, alpha } from '@/lib/colors';
 import { TiendaHeader } from './TiendaHeader';
 import { SearchHero } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
@@ -14,27 +15,45 @@ interface Props {
   subdominio: string;
   productos: Producto[];
   totalProductos: number;
-  categorias: string[];
+  totalPaginas: number;
+  categorias: CategoriaTienda[];
   ofertas: Producto[];
   bannerUrl?: string;
   bannerTexto?: string;
   banners?: Array<{ url: string; texto?: string; link?: string; orden?: number }>;
   sedePrincipal?: Sede;
   totalServicios: number;
+  hayServicios: boolean;
   colors: TiendaColors;
   webVideos?: Array<{ url: string; titulo?: string }>;
 }
 
 export function TiendaContent({
-  empresa, subdominio, productos, totalProductos, categorias, ofertas,
-  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, colors, webVideos,
+  empresa, subdominio, productos, totalProductos, totalPaginas, categorias, ofertas,
+  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, hayServicios, colors, webVideos,
 }: Props) {
   const [heroSearch, setHeroSearch] = useState('');
+  const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
+  const whatsapp = enlaceChatWhatsapp(empresa.telefono);
+
+  // Desde el header o la barra lateral la grilla puede estar lejos: se baja a ella.
+  const elegirCategoria = (id: string | null) => {
+    setCategoriaActiva(id);
+    document.getElementById('productos-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <>
       {/* Header */}
-      <TiendaHeader empresa={empresa} subdominio={subdominio} categorias={categorias} onSearch={(q) => setHeroSearch(q)} colors={colors} />
+      <TiendaHeader
+        empresa={empresa}
+        subdominio={subdominio}
+        categorias={categorias}
+        onCategoria={elegirCategoria}
+        hayServicios={hayServicios}
+        onSearch={(q) => setHeroSearch(q)}
+        colors={colors}
+      />
       {/* Spacer para header fijo */}
       <div className="h-[96px] md:h-[96px]" />
 
@@ -148,7 +167,7 @@ export function TiendaContent({
       )}
 
       {/* Main content */}
-      <main id="productos-section" className="max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
+      <main id="productos-section" className="scroll-mt-28 max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
         <div className="flex gap-6">
           {/* Sidebar */}
           {categorias.length > 1 && (
@@ -156,9 +175,20 @@ export function TiendaContent({
               <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-100 overflow-hidden sticky top-16 shadow-sm">
                 <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-3 font-semibold text-sm">Categorias</div>
                 <nav className="divide-y divide-gray-50">
-                  {categorias.map((cat) => (
-                    <button key={cat} className="w-full text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">{cat}</button>
-                  ))}
+                  {categorias.map((cat) => {
+                    const activa = cat.id === categoriaActiva;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => elegirCategoria(activa ? null : cat.id)}
+                        className={`w-full flex items-center justify-between gap-2 text-left px-4 py-2.5 text-sm transition-colors ${activa ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+                        style={activa ? { color: colors.primario, backgroundColor: alpha(colors.primario, 0.08) } : undefined}
+                      >
+                        <span className="truncate">{cat.nombre}</span>
+                        <span className="text-[11px] text-gray-400">{cat.total}</span>
+                      </button>
+                    );
+                  })}
                 </nav>
               </div>
 
@@ -186,8 +216,8 @@ export function TiendaContent({
                 </div>
               )}
 
-              {empresa.telefono && (
-                <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`} target="_blank"
+              {whatsapp && (
+                <a href={whatsapp} target="_blank" rel="noopener noreferrer"
                   className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors shadow-md shadow-green-500/20">
                   💬 WhatsApp
                 </a>
@@ -200,8 +230,11 @@ export function TiendaContent({
             <ProductosGrid
               subdominio={subdominio}
               productosIniciales={productos}
-              totalProductos={totalProductos}
+              totalInicial={totalProductos}
+              totalPagesInicial={totalPaginas}
               categorias={categorias}
+              categoriaActiva={categoriaActiva}
+              onCategoriaChange={setCategoriaActiva}
               initialSearch={heroSearch}
               colors={colors}
             />

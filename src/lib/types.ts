@@ -113,6 +113,27 @@ export interface Opinion {
   creadoEn: string;
 }
 
+/** Productos por página en la tienda pública (la carga inicial y cada "Ver más"). */
+export const TIENDA_PAGE_SIZE = 40;
+
+/** Una categoría de la tienda con productos visibles (EmpresaCategoria). */
+export interface CategoriaTienda {
+  id: string;
+  nombre: string;
+  total: number;
+}
+
+/**
+ * Lo que devuelve `/marketplace/empresas/:subdominio/productos`: la paginación
+ * viene en `pagination`, y `categorias` solo en la página 1 (sale de TODO el
+ * catálogo visible, no de la página).
+ */
+export interface ProductosTiendaResponse {
+  data: Producto[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+  categorias?: CategoriaTienda[];
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;

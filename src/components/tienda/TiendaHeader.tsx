@@ -2,21 +2,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Empresa } from '@/lib/types';
+import { CategoriaTienda, Empresa } from '@/lib/types';
+import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { TiendaColors, darken, lighten, alpha } from '@/lib/colors';
 
 interface Props {
   empresa: Empresa;
   subdominio: string;
-  categorias: string[];
+  categorias: CategoriaTienda[];
+  onCategoria: (id: string) => void;
+  /** Sin servicios visibles, el enlace "Servicios" no tendría adónde ir. */
+  hayServicios: boolean;
   onSearch?: (query: string) => void;
   colors: TiendaColors;
 }
 
-export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors }: Props) {
+export function TiendaHeader({ empresa, subdominio, categorias, onCategoria, hayServicios, onSearch, colors }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const whatsapp = enlaceChatWhatsapp(empresa.telefono);
+
+  const enlaceNav = 'px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap';
+  const enlaceMovil = 'block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg cursor-pointer';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-20">
@@ -102,33 +110,28 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors
                 {categoriasOpen && (
                   <div className="absolute top-full left-0 mt-0.5 rounded-lg shadow-2xl py-1 min-w-[220px] z-50 max-h-[70vh] overflow-y-auto" style={{ backgroundColor: lighten(colors.primario, 0.85), borderColor: lighten(colors.primario, 0.7), borderWidth: 1, borderStyle: 'solid' }}>
                     {categorias.map((cat) => (
-                      <span key={cat}
-                        className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-white cursor-pointer transition-colors">
-                        {cat}
+                      <button key={cat.id}
+                        onClick={() => { setCategoriasOpen(false); onCategoria(cat.id); }}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left text-gray-700 hover:bg-white cursor-pointer transition-colors">
+                        {cat.nombre}
                         <svg className="w-3.5 h-3.5 text-blue-300 hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                      </span>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
             )}
 
-            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
-              Productos
-            </span>
-            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
-              Servicios
-            </span>
-            <span className="px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
-              📍 Ubicacion
-            </span>
+            <a href="#productos-section" className={enlaceNav}>Productos</a>
+            {hayServicios && <a href="#servicios" className={enlaceNav}>Servicios</a>}
+            <a href="#ubicacion" className={enlaceNav}>📍 Ubicacion</a>
 
-            {empresa.telefono && (
-              <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`}
-                target="_blank"
-                className="ml-auto px-3 py-1 text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer whitespace-nowrap">
+            {whatsapp && (
+              <a href={whatsapp}
+                target="_blank" rel="noopener noreferrer"
+                className={`ml-auto ${enlaceNav}`}>
                 Contactanos
               </a>
             )}
@@ -153,19 +156,19 @@ export function TiendaHeader({ empresa, subdominio, categorias, onSearch, colors
                 </summary>
                 <div className="pl-6 space-y-0.5 mt-0.5">
                   {categorias.map((cat) => (
-                    <span key={cat} onClick={() => setMenuOpen(false)}
-                      className="block px-3 py-1.5 text-sm text-gray-500 hover:bg-blue-50 rounded-lg cursor-pointer">{cat}</span>
+                    <button key={cat.id} onClick={() => { setMenuOpen(false); onCategoria(cat.id); }}
+                      className="block w-full text-left px-3 py-1.5 text-sm text-gray-500 hover:bg-blue-50 rounded-lg cursor-pointer">{cat.nombre}</button>
                   ))}
                 </div>
               </details>
             )}
 
-            <span onClick={() => setMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg cursor-pointer">Productos</span>
-            <span onClick={() => setMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg cursor-pointer">Servicios</span>
-            <span onClick={() => setMenuOpen(false)} className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg cursor-pointer">📍 Ubicacion</span>
+            <a href="#productos-section" onClick={() => setMenuOpen(false)} className={enlaceMovil}>Productos</a>
+            {hayServicios && <a href="#servicios" onClick={() => setMenuOpen(false)} className={enlaceMovil}>Servicios</a>}
+            <a href="#ubicacion" onClick={() => setMenuOpen(false)} className={enlaceMovil}>📍 Ubicacion</a>
 
-            {empresa.telefono && (
-              <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`} target="_blank"
+            {whatsapp && (
+              <a href={whatsapp} target="_blank" rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
                 className="block px-3 py-2 text-sm text-green-600 font-medium hover:bg-green-50 rounded-lg">💬 Contactanos</a>
             )}

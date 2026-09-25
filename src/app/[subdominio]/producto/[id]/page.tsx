@@ -3,6 +3,7 @@ import { getProductoDetalle, getPreguntasProducto, getOpinionesProducto, getEmpr
 import { ProductoDetalle, Pregunta, Opinion, PaginatedResponse, Empresa } from '@/lib/types';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { ImageGallery } from '@/components/tienda/ImageGallery';
 import { DEFAULT_COLORS, lighten, alpha, darken, TiendaColors } from '@/lib/colors';
 
@@ -70,6 +71,11 @@ export default async function ProductoPage({ params }: Props) {
   const tieneDescuento = producto.enOferta && producto.precioOferta && producto.precio;
   const descuentoPct = tieneDescuento && producto.precio! > 0
     ? Math.round((1 - producto.precioOferta! / producto.precio!) * 100) : 0;
+
+  const whatsapp = enlaceChatWhatsapp(
+    producto.empresa.telefono,
+    `Hola ${producto.empresa.nombre}, me interesa el producto:\n\n*${producto.nombre}*\nPrecio: ${precioFinal ? `S/ ${precioFinal.toFixed(2)}` : 'consultar'}\n\nVi este producto en Syncronize.`,
+  );
 
   const resumenOpiniones = opinionesData.resumen;
   const coordenadas = producto.sede?.coordenadas;
@@ -199,11 +205,9 @@ export default async function ProductoPage({ params }: Props) {
 
               {/* Botones de acción */}
               <div className="mt-auto pt-5 space-y-2.5">
-                {producto.empresa.telefono && (
+                {whatsapp && (
                   <a
-                    href={`https://wa.me/${producto.empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}?text=${encodeURIComponent(
-                      `Hola ${producto.empresa.nombre}, me interesa el producto:\n\n*${producto.nombre}*\nPrecio: ${precioFinal ? `S/ ${precioFinal.toFixed(2)}` : 'consultar'}\n\nVi este producto en Syncronize.`
-                    )}`}
+                    href={whatsapp}
                     target="_blank" rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-md shadow-green-500/20"
                   >

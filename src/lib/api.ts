@@ -1,3 +1,5 @@
+import type { ProductosTiendaResponse } from './types';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3000/api';
 
 export async function fetchApi<T>(
@@ -30,14 +32,17 @@ export async function getEmpresaBySubdominio(subdominio: string) {
 
 export async function getProductosByEmpresa(
   subdominio: string,
-  params?: { page?: number; limit?: number; search?: string },
+  params?: { page?: number; limit?: number; search?: string; categoriaId?: string },
 ) {
   const searchParams = new URLSearchParams();
   if (params?.page) searchParams.set('page', String(params.page));
   if (params?.limit) searchParams.set('limit', String(params.limit));
   if (params?.search) searchParams.set('search', params.search);
+  if (params?.categoriaId) searchParams.set('categoriaId', params.categoriaId);
   const qs = searchParams.toString();
-  return fetchApi(`/marketplace/empresas/${subdominio}/productos${qs ? `?${qs}` : ''}`);
+  return fetchApi(
+    `/marketplace/empresas/${encodeURIComponent(subdominio)}/productos${qs ? `?${qs}` : ''}`,
+  ) as Promise<ProductosTiendaResponse>;
 }
 
 export async function getProductoDetalle(id: string) {

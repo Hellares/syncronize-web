@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { getEmpresaBySubdominio, getProductosByEmpresa, getServiciosByEmpresa, getOpinionesProducto } from '@/lib/api';
-import { Empresa, Producto, PaginatedResponse } from '@/lib/types';
+import { Empresa, Producto, ProductosTiendaResponse, TIENDA_PAGE_SIZE } from '@/lib/types';
+import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
@@ -38,11 +39,11 @@ export default async function TiendaPage({ params }: Props) {
   const { subdominio } = await params;
 
   let empresa: Empresa;
-  let productosData: PaginatedResponse<Producto>;
+  let productosData: ProductosTiendaResponse;
 
   try {
     empresa = await getEmpresaBySubdominio(subdominio) as Empresa;
-    productosData = await getProductosByEmpresa(subdominio, { limit: 40 }) as PaginatedResponse<Producto>;
+    productosData = await getProductosByEmpresa(subdominio, { limit: TIENDA_PAGE_SIZE });
   } catch (error: any) {
     if (error?.status === 403) {
       return (
@@ -117,12 +118,18 @@ export default async function TiendaPage({ params }: Props) {
     fondo1: wc?.colorFondo1 || DEFAULT_COLORS.fondo1,
     fondo2: wc?.colorFondo2 || DEFAULT_COLORS.fondo2,
   };
-  const totalProductos = empresa._count?.productos || 0;
+  // El total de la paginación cuenta solo los productos VISIBLES en la tienda;
+  // `_count.productos` cuenta todos los activos, incluidos los ocultos.
+  const totalProductos = productosData.pagination?.total ?? productosData.data.length;
+  const totalPaginas = productosData.pagination?.totalPages ?? 1;
   const totalServicios = empresa._count?.servicios || 0;
   const sedePrincipal = empresa.sedes?.find((s) => s.esPrincipal) || empresa.sedes?.[0];
   const productos = productosData.data as Producto[];
   const ofertas = productos.filter((p: Producto) => p.enOferta);
-  const categorias = [...new Set(productos.map((p: Producto) => p.categoria).filter(Boolean))] as string[];
+  const categorias = productosData.categorias ?? [];
+  const whatsapp = enlaceChatWhatsapp(empresa.telefono);
+  const coordenadas = sedePrincipal?.coordenadas;
+  const coordLng = coordenadas?.lng ?? coordenadas?.lon;
 
   return (
     <div
@@ -146,7 +153,9 @@ export default async function TiendaPage({ params }: Props) {
         subdominio={subdominio}
         productos={productos}
         totalProductos={totalProductos}
+        totalPaginas={totalPaginas}
         totalServicios={totalServicios}
+        hayServicios={servicios.length > 0}
         categorias={categorias}
         ofertas={ofertas}
         bannerUrl={banner?.bannerPrincipalUrl}
@@ -160,7 +169,7 @@ export default async function TiendaPage({ params }: Props) {
       {/* Servicios */}
       {servicios.length > 0 && (
         <ScrollReveal>
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
+          <section id="servicios" className="scroll-mt-28 max-w-7xl mx-auto px-4 sm:px-6 mb-8">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               🔧 Nuestros servicios
             </h2>
@@ -276,20 +285,29 @@ export default async function TiendaPage({ params }: Props) {
             <div>
               <h4 className="text-white text-sm font-semibold mb-4">Navegacion</h4>
               <nav className="space-y-2">
-                <p className="text-xs hover:text-white cursor-pointer transition-colors">🏠 Inicio</p>
-                <p className="text-xs hover:text-white cursor-pointer transition-colors">📦 Productos</p>
-                {totalServicios > 0 && <p className="text-xs hover:text-white cursor-pointer transition-colors">🔧 Servicios</p>}
-                <p className="text-xs hover:text-white cursor-pointer transition-colors">📍 Ubicacion</p>
+                <a href="#" className="block text-xs hover:text-white transition-colors">🏠 Inicio</a>
+                <a href="#productos-section" className="block text-xs hover:text-white transition-colors">📦 Productos</a>
+                {servicios.length > 0 && <a href="#servicios" className="block text-xs hover:text-white transition-colors">🔧 Servicios</a>}
+                <a href="#ubicacion" className="block text-xs hover:text-white transition-colors">📍 Ubicacion</a>
               </nav>
             </div>
-            <div>
-              <h4 className="text-white text-sm font-semibold mb-4">Contacto</h4>
+            {/* Destino de "Ubicación": es lo único que se ve en cualquier pantalla (la barra lateral solo aparece en escritorio) */}
+            <div id="ubicacion" className="scroll-mt-28">
+              <h4 className="text-white text-sm font-semibold mb-4">Contacto y ubicacion</h4>
               <div className="space-y-2">
                 {empresa.telefono && <p className="text-xs">📞 {empresa.telefono}</p>}
                 {empresa.email && <p className="text-xs">✉️ {empresa.email}</p>}
                 {sedePrincipal?.direccion && <p className="text-xs">📍 {sedePrincipal.direccion}</p>}
-                {empresa.telefono && (
-                  <a href={`https://wa.me/${empresa.telefono.replace(/\D/g, '').replace(/^9/, '51')}`} target="_blank"
+                {sedePrincipal && (sedePrincipal.distrito || sedePrincipal.provincia) && (
+                  <p className="text-xs">{[sedePrincipal.distrito, sedePrincipal.provincia].filter(Boolean).join(', ')}</p>
+                )}
+                {coordenadas?.lat && coordLng && (
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${coordenadas.lat},${coordLng}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="block text-xs text-green-400 hover:text-green-300 transition-colors">🗺️ Como llegar</a>
+                )}
+                {whatsapp && (
+                  <a href={whatsapp} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors">💬 WhatsApp</a>
                 )}
               </div>

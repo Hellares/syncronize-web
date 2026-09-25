@@ -9,11 +9,16 @@ export async function GET(
   const { subdominio } = await params;
   const searchParams = request.nextUrl.searchParams.toString();
 
-  const res = await fetch(
-    `${API_URL}/marketplace/empresas/${subdominio}/productos${searchParams ? `?${searchParams}` : ''}`,
-    { cache: 'no-store' }
-  );
-
-  const data = await res.json();
-  return NextResponse.json(data);
+  try {
+    const res = await fetch(
+      `${API_URL}/marketplace/empresas/${encodeURIComponent(subdominio)}/productos${searchParams ? `?${searchParams}` : ''}`,
+      { cache: 'no-store' }
+    );
+    // El status del backend pasa tal cual: con un 200 fijo, un error llegaba
+    // al navegador como una lista vacía y la tienda decía "no hay productos".
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(data, { status: res.status });
+  } catch {
+    return NextResponse.json({ message: 'No se pudo consultar la tienda' }, { status: 502 });
+  }
 }
