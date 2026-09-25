@@ -21,7 +21,7 @@ interface Props {
   colors: TiendaColors;
 }
 
-export function SearchHero({ empresa, bannerUrl, bannerTexto, banners, totalProductos, colors }: Props) {
+export function SearchHero({ bannerUrl, bannerTexto, banners, colors }: Props) {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const slides: Banner[] = banners && banners.length > 0
@@ -44,11 +44,7 @@ export function SearchHero({ empresa, bannerUrl, bannerTexto, banners, totalProd
 
   if (!hasSlides) {
     return (
-      <div className="py-8" style={{ background: `linear-gradient(to bottom right, ${colors.primario}, ${lighten(colors.primario, 0.2)}, ${colors.secundario})` }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <p className="text-white/80 text-sm">📦 {totalProductos} productos disponibles</p>
-        </div>
-      </div>
+      <div className="h-[84px]" style={{ background: `linear-gradient(to bottom right, ${colors.primario}, ${lighten(colors.primario, 0.2)}, ${colors.secundario})` }} />
     );
   }
 
