@@ -57,7 +57,9 @@ export default async function ServiciosPage({ params }: Props) {
   const colors = coloresTienda(empresa);
   const logo = logoTienda(empresa);
   const sw = empresa.personalizaciones?.[0]?.webConfig?.serviciosWeb ?? {};
-  const fotoTaller = urlSegura(sw.fotoTaller);
+  const videoPortada = urlSegura(sw.videoPortada);
+  const fotoTaller = videoPortada ? null : urlSegura(sw.fotoTaller);
+  const hayMedia = !!(videoPortada || fotoTaller);
   const trabajos = (sw.trabajos ?? []).filter((t) => urlSegura(t?.url));
   const consejos = (sw.consejos ?? []).filter((v) => v?.url);
   const galeria = (sw.galeria ?? []).map((g) => urlSegura(g?.url)).filter((u): u is string => !!u);
@@ -111,7 +113,7 @@ export default async function ServiciosPage({ params }: Props) {
             <span className="text-gray-700 font-medium">Servicios</span>
           </nav>
 
-          <div className={`relative overflow-hidden rounded-2xl bg-[#0f1a2e] text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${fotoTaller ? 'md:grid-cols-2' : ''}`}>
+          <div className={`relative overflow-hidden rounded-2xl bg-[#0f1a2e] text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
             <div className="absolute inset-0 opacity-100 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.16) 1.3px, transparent 1.6px)', backgroundSize: '28px 28px' }} aria-hidden="true" />
             <div className="relative flex flex-col gap-4 md:gap-5">
               <span className="text-[11px] md:text-xs font-bold tracking-[0.12em] uppercase" style={{ color: lighten(colors.primario, 0.45) }}>{empresa.nombre}</span>
@@ -130,7 +132,18 @@ export default async function ServiciosPage({ params }: Props) {
                 )}
               </div>
             </div>
-            {fotoTaller && (
+            {videoPortada ? (
+              <video
+                src={videoPortada}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+                className="relative w-full h-[220px] md:h-[300px] object-cover rounded-xl bg-black/30"
+              />
+            ) : fotoTaller && (
               <img src={fotoTaller} alt="" className="relative w-full h-[220px] md:h-[300px] object-cover rounded-xl" />
             )}
           </div>

@@ -29,6 +29,8 @@ export interface ServiciosWebConfig {
   titulo?: string | null;
   descripcion?: string | null;
   fotoTaller?: string | null;
+  /** Video de la portada (archivo subido): se reproduce en bucle y sin sonido. Gana a la foto. */
+  videoPortada?: string | null;
   trabajos?: Array<{ url: string; titulo?: string; tipo?: string }>;
   consejos?: Array<{ url: string; titulo?: string }>;
   galeria?: Array<{ url: string }>;
