@@ -43,9 +43,9 @@ const forma = (d: string, c: string, b: string) =>
 // `corrido`: el carrito empieza (manija) en la esquina de la punta; se corre
 // dentro de su lienzo para que no la toque.
 const conPunta = (d: string, c: string, b: string, huecos = false, corrido = false) => {
-  const s = 0.86;
+  const s = 0.89;
   const t = 5.2; // pegado a la punta, sin tocarla
-  return `<g transform="translate(${t} ${t}) scale(${s})${corrido ? ' translate(1 2)' : ''}"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
+  return `<g transform="translate(${t} ${t}) scale(${s})${corrido ? ' translate(0 1)' : ''}"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
     + `<path d="${PUNTA}" fill="${c}" stroke="${b}" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
 };
 
