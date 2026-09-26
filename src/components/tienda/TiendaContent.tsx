@@ -98,7 +98,7 @@ export function TiendaContent({
         return (
           // Con banners las tarjetas se montan sobre su difuminado; sin banners,
           // sobre la franja de color (como siempre).
-          <section className={`max-w-[960px] mx-auto px-0 md:px-6 relative z-10 ${hayBanners ? '-mt-14 md:-mt-[120px]' : '-mt-10'}`}>
+          <section className={`max-w-[910px] mx-auto px-0 md:px-6 relative z-10 ${hayBanners ? '-mt-14 md:-mt-[100px]' : '-mt-10'}`}>
             {/* Desktop: grid */}
             <div className="hidden md:grid md:grid-cols-5 gap-[22px]">
               {badges.map((badge) => (
