@@ -59,6 +59,11 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
         style={{ '--hover-color': colors.primario, '--hover-bg': alpha(colors.primario, 0.08) } as React.CSSProperties}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+          e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+        }}
       >
 
         {/* Loading overlay */}
@@ -67,6 +72,16 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
             <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: alpha(colors.primario, 0.2), borderTopColor: colors.primario }} />
           </div>
         )}
+
+        {/* Brillo con el color de la tienda que sigue al mouse. Solo con mouse
+            (el hover de Tailwind 4 no aplica en pantallas táctiles) y sin
+            "reducir movimiento". Lo mueven las variables --mx/--my del
+            onMouseMove, sin re-render. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[5] opacity-0 motion-safe:group-hover:opacity-100 transition-opacity duration-300"
+          style={{ background: `radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), ${alpha(colors.primario, 0.25)}, transparent 70%)` }}
+        />
 
         {/* Imagen */}
         <div className="relative aspect-square md:aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
