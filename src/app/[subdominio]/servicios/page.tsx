@@ -104,31 +104,27 @@ export default async function ServiciosPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-16 flex flex-col gap-10 md:gap-16">
-        {/* Migas + portada */}
-        <section className="flex flex-col gap-4">
-          <nav className="flex items-center gap-1.5 text-xs text-gray-500" aria-label="Migas">
-            <Link href={`/${subdominio}`} className="hover:underline">{empresa.nombre}</Link>
+      {/* Portada a todo el ancho, pegada a la cabecera, con las migas adentro. El
+          fondo (azul de la tienda) se desvanece abajo; el contenido queda nítido. */}
+      <section className="relative z-10 text-white">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.18) 1.3px, transparent 1.6px), linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
+            backgroundSize: '28px 28px, 100% 100%',
+            maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-16 md:pb-24 flex flex-col gap-6 md:gap-8">
+          <nav className="flex items-center gap-1.5 text-xs text-white/75" aria-label="Migas">
+            <Link href={`/${subdominio}`} className="hover:underline hover:text-white">{empresa.nombre}</Link>
             <span>/</span>
-            <span className="text-gray-700 font-medium">Servicios</span>
+            <span className="text-white font-medium">Servicios</span>
           </nav>
 
-          <div className={`relative overflow-hidden rounded-t-2xl text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
-            {/* Fondo con el azul de la tienda que se desvanece abajo (solo el fondo: el
-                contenido queda nítido). */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.18) 1.3px, transparent 1.6px), linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
-                backgroundSize: '28px 28px, 100% 100%',
-                // Arriba y a los costados se desvanece apenas; abajo, del todo.
-                maskImage: 'linear-gradient(to bottom, transparent 0, #000 1.5%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 1%, #000 99%, transparent 100%)',
-                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 1.5%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 1%, #000 99%, transparent 100%)',
-                maskComposite: 'intersect',
-                WebkitMaskComposite: 'source-in',
-              }}
-              aria-hidden="true"
-            />
+          <div className={`grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
             <div className="relative flex flex-col gap-4 md:gap-5">
               {/* El logo va sobre una placa blanca: muchos tienen letras oscuras y la portada es oscura. */}
               {logo ? (
@@ -168,8 +164,10 @@ export default async function ServiciosPage({ params }: Props) {
               <img src={fotoTaller} alt="" className="relative w-full h-[220px] md:h-[300px] object-cover rounded-xl" />
             )}
           </div>
-        </section>
+        </div>
+      </section>
 
+      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-2 pb-16 flex flex-col gap-10 md:gap-16">
         {/* Servicios */}
         <section id="lista-servicios" className="flex flex-col gap-5 scroll-mt-6">
           <div className="flex flex-col gap-1.5">
