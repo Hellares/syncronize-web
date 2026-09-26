@@ -122,8 +122,8 @@ export default async function ServiciosPage({ params }: Props) {
                 backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.18) 1.3px, transparent 1.6px), linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
                 backgroundSize: '28px 28px, 100% 100%',
                 // Arriba y a los costados se desvanece apenas; abajo, del todo.
-                maskImage: 'linear-gradient(to bottom, transparent 0, #000 7%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 4%, #000 96%, transparent 100%)',
-                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 7%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 4%, #000 96%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, transparent 0, #000 3.5%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 2%, #000 98%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 3.5%, #000 60%, transparent 100%), linear-gradient(to right, transparent 0, #000 2%, #000 98%, transparent 100%)',
                 maskComposite: 'intersect',
                 WebkitMaskComposite: 'source-in',
               }}
