@@ -116,7 +116,14 @@ export default async function ServiciosPage({ params }: Props) {
           <div className={`relative overflow-hidden rounded-2xl bg-[#0f1a2e] text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
             <div className="absolute inset-0 opacity-100 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.16) 1.3px, transparent 1.6px)', backgroundSize: '28px 28px' }} aria-hidden="true" />
             <div className="relative flex flex-col gap-4 md:gap-5">
-              <span className="text-[11px] md:text-xs font-bold tracking-[0.12em] uppercase" style={{ color: lighten(colors.primario, 0.45) }}>{empresa.nombre}</span>
+              {/* El logo va sobre una placa blanca: muchos tienen letras oscuras y la portada es oscura. */}
+              {logo ? (
+                <span className="self-start inline-flex items-center bg-white rounded-lg px-3 py-2 shadow-sm">
+                  <img src={logo} alt={empresa.nombre} className="h-7 md:h-9 max-w-[180px] object-contain" />
+                </span>
+              ) : (
+                <span className="text-[11px] md:text-xs font-bold tracking-[0.12em] uppercase" style={{ color: lighten(colors.primario, 0.45) }}>{empresa.nombre}</span>
+              )}
               <h1 className="text-[28px] md:text-5xl font-extrabold leading-[1.1] tracking-tight [text-wrap:balance]">{titulo}</h1>
               <p className="text-[15px] md:text-[17px] leading-relaxed text-slate-300 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
               <div className="flex flex-col sm:flex-row gap-3">
