@@ -7,6 +7,7 @@ import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
 import { PaginaDestellos } from '@/components/tienda/PaginaDestellos';
+import type { ServicioTienda } from '@/lib/servicios-web';
 import { notFound } from 'next/navigation';
 import { DEFAULT_COLORS, lighten, alpha, TiendaColors } from '@/lib/colors';
 
@@ -94,10 +95,13 @@ export default async function TiendaPage({ params }: Props) {
   }
 
   // Servicios (opcional)
-  let servicios: any[] = [];
+  // Solo los primeros: la lista completa está en /servicios.
+  let servicios: ServicioTienda[] = [];
+  let totalServiciosVisibles = 0;
   try {
-    const sData = await getServiciosByEmpresa(subdominio) as any;
+    const sData = await getServiciosByEmpresa(subdominio) as { data?: ServicioTienda[]; pagination?: { total?: number } };
     servicios = sData?.data || [];
+    totalServiciosVisibles = sData?.pagination?.total ?? servicios.length;
   } catch { /* ignorar */ }
 
   // Opiniones destacadas (del primer producto con opiniones)
@@ -163,8 +167,9 @@ export default async function TiendaPage({ params }: Props) {
         productos={productos}
         totalProductos={totalProductos}
         totalPaginas={totalPaginas}
-        totalServicios={totalServicios}
+        totalServicios={totalServiciosVisibles}
         hayServicios={servicios.length > 0}
+        servicios={servicios}
         categorias={categorias}
         ofertas={ofertas}
         bannerUrl={banner?.bannerPrincipalUrl}
@@ -174,36 +179,6 @@ export default async function TiendaPage({ params }: Props) {
         colors={colors}
         webVideos={wc?.videos}
       />
-
-      {/* Servicios */}
-      {servicios.length > 0 && (
-        <ScrollReveal>
-          <section id="servicios" className="max-w-7xl mx-auto px-4 sm:px-6 mb-8">
-            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              🔧 Nuestros servicios
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {servicios.slice(0, 6).map((servicio: any) => (
-                <div key={servicio.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 mb-3">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="font-semibold text-sm text-gray-900">{servicio.nombre}</h3>
-                  {servicio.descripcion && (
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{servicio.descripcion}</p>
-                  )}
-                  {servicio.precio && (
-                    <p className="text-sm font-bold text-blue-600 mt-2">S/ {Number(servicio.precio).toFixed(2)}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        </ScrollReveal>
-      )}
 
       {/* Testimonios / Opiniones destacadas */}
       {opiniones.length > 0 && (
@@ -296,7 +271,7 @@ export default async function TiendaPage({ params }: Props) {
               <nav className="space-y-2">
                 <a href="#" className="block text-xs hover:text-white transition-colors">🏠 Inicio</a>
                 <a href="#productos-section" className="block text-xs hover:text-white transition-colors">📦 Productos</a>
-                {servicios.length > 0 && <a href="#servicios" className="block text-xs hover:text-white transition-colors">🔧 Servicios</a>}
+                {servicios.length > 0 && <a href={`/${subdominio}/servicios`} className="block text-xs hover:text-white transition-colors">🔧 Servicios</a>}
                 <a href="#ubicacion" className="block text-xs hover:text-white transition-colors">📍 Ubicacion</a>
               </nav>
             </div>

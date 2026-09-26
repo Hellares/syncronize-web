@@ -353,7 +353,7 @@ export function TiendaHeader({
             <div className="ml-auto pl-2 hidden xl:flex items-center gap-1 flex-shrink-0">
               <a href="#productos-section" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Productos</a>
               {hayServicios && (
-                <a href="#servicios" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Servicios</a>
+                <a href={`/${subdominio}/servicios`} className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Servicios</a>
               )}
               <a href="#ubicacion" className="px-3 py-1.5 rounded-md text-white/85 hover:text-white hover:bg-white/15 text-[13px] font-medium whitespace-nowrap transition-colors">Ubicación</a>
             </div>
@@ -386,7 +386,7 @@ export function TiendaHeader({
               )}
 
               <a href="#productos-section" onClick={() => setMenuOpen(false)} className={enlaceMovil}>Productos</a>
-              {hayServicios && <a href="#servicios" onClick={() => setMenuOpen(false)} className={enlaceMovil}>Servicios</a>}
+              {hayServicios && <a href={`/${subdominio}/servicios`} onClick={() => setMenuOpen(false)} className={enlaceMovil}>Servicios</a>}
               <a href="#ubicacion" onClick={() => setMenuOpen(false)} className={enlaceMovil}>Ubicación</a>
 
               {redes.length > 0 && (

@@ -10,6 +10,8 @@ import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
 import { VideosSection } from './VideosSection';
 import { UbicacionCard } from './UbicacionCard';
+import { ServiciosCard, ServiciosFila } from './ServiciosCard';
+import type { ServicioTienda } from '@/lib/servicios-web';
 import { linkGoogleMaps } from '@/lib/tienda';
 
 interface Props {
@@ -26,13 +28,15 @@ interface Props {
   sedePrincipal?: Sede;
   totalServicios: number;
   hayServicios: boolean;
+  /** Los primeros servicios, para las tarjetas que llevan a /servicios. */
+  servicios: ServicioTienda[];
   colors: TiendaColors;
   webVideos?: Array<{ url: string; titulo?: string }>;
 }
 
 export function TiendaContent({
   empresa, subdominio, productos, totalProductos, totalPaginas, categorias, ofertas,
-  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, hayServicios, colors, webVideos,
+  bannerUrl, bannerTexto, banners, sedePrincipal, totalServicios, hayServicios, servicios, colors, webVideos,
 }: Props) {
   const [heroSearch, setHeroSearch] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
@@ -224,6 +228,8 @@ export function TiendaContent({
                 </nav>
               </div>
 
+              <ServiciosCard subdominio={subdominio} servicios={servicios} total={totalServicios} colors={colors} />
+
               {sedePrincipal && <UbicacionCard sede={sedePrincipal} colors={colors} googleMapsUrl={linkGoogleMaps(empresa)} />}
 
               {whatsapp && (
@@ -248,6 +254,7 @@ export function TiendaContent({
               initialSearch={heroSearch}
               onLimpiarBusqueda={() => setHeroSearch('')}
               colors={colors}
+              debajoDeCategorias={<ServiciosFila subdominio={subdominio} servicios={servicios} total={totalServicios} colors={colors} />}
             />
           </div>
         </div>

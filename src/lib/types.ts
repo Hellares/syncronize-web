@@ -37,6 +37,8 @@ export interface Empresa {
       googleMapsUrl?: string | null;
       /** Cursor de la tienda elegido en el app; ver `lib/cursores.ts`. */
       cursor?: { tipo?: string; color?: string | null; borde?: string | null };
+      /** Fotos de trabajos, videos de consejos y galería de la página de servicios. */
+      serviciosWeb?: import('./servicios-web').ServiciosWebConfig;
     };
   }[];
 }

@@ -12,24 +12,30 @@ interface VideoItem {
 interface Props {
   videos: VideoItem[];
   colors: TiendaColors;
+  /** Reemplaza el título "Galeria de videos" (la página de servicios trae el suyo). */
+  encabezado?: React.ReactNode;
+  /** Clases del contenedor: la portada lo centra; otra página puede traer el suyo. */
+  className?: string;
 }
 
-export function VideosSection({ videos, colors }: Props) {
+export function VideosSection({ videos, colors, encabezado, className = 'max-w-7xl mx-auto px-2 md:px-6 mt-4 md:mt-8' }: Props) {
   const [activeVideo, setActiveVideo] = useState<number | null>(null);
 
   if (videos.length === 0) return null;
 
   return (
     <>
-      <section className="max-w-7xl mx-auto px-2 md:px-6 mt-4 md:mt-8">
-        <div className="flex items-center justify-between mb-3 px-2 md:px-0">
-          <h2 className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-1.5">
-            <svg className="w-4 h-4 md:w-5 md:h-5" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            Galeria de videos
-          </h2>
-        </div>
+      <section className={className}>
+        {encabezado ?? (
+          <div className="flex items-center justify-between mb-3 px-2 md:px-0">
+            <h2 className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-1.5">
+              <svg className="w-4 h-4 md:w-5 md:h-5" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Galeria de videos
+            </h2>
+          </div>
+        )}
 
         {/* Carousel horizontal - mobile auto-scroll */}
         <div className="md:hidden overflow-hidden">

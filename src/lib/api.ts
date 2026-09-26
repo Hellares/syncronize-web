@@ -57,6 +57,6 @@ export async function getOpinionesProducto(productoId: string, page = 1, limit =
   return fetchApi(`/marketplace/productos/${productoId}/opiniones?page=${page}&limit=${limit}`);
 }
 
-export async function getServiciosByEmpresa(subdominio: string) {
-  return fetchApi(`/marketplace/empresas/${subdominio}/servicios?limit=10`);
+export async function getServiciosByEmpresa(subdominio: string, limit = 10) {
+  return fetchApi(`/marketplace/empresas/${subdominio}/servicios?limit=${limit}`);
 }

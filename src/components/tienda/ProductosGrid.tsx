@@ -18,6 +18,8 @@ interface Props {
   /** "Mostrar todos" también vacía el buscador de la cabecera. */
   onLimpiarBusqueda?: () => void;
   colors: TiendaColors;
+  /** Va debajo de los chips de categoría (la fila de Servicios en celular). */
+  debajoDeCategorias?: React.ReactNode;
 }
 
 async function pedirPagina(
@@ -36,7 +38,7 @@ async function pedirPagina(
 
 export function ProductosGrid({
   subdominio, productosIniciales, totalInicial, totalPagesInicial,
-  categorias, categoriaActiva, onCategoriaChange, initialSearch, onLimpiarBusqueda, colors,
+  categorias, categoriaActiva, onCategoriaChange, initialSearch, onLimpiarBusqueda, colors, debajoDeCategorias,
 }: Props) {
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [search, setSearch] = useState('');
@@ -156,6 +158,8 @@ export function ProductosGrid({
           })}
         </div>
       )}
+
+      {debajoDeCategorias}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
