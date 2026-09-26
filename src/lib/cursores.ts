@@ -1,7 +1,7 @@
 /**
  * Cursores de la tienda web. La empresa elige uno en el app (Personalización)
- * y queda en `webConfig.cursor = { tipo, color }`; `color` null = el color
- * principal de la tienda. Los mismos dibujos están en el app
+ * y queda en `webConfig.cursor = { tipo, color, borde }`; `color` null = el
+ * color principal de la tienda y `borde` null = blanco. Los mismos dibujos están en el app
  * (`cursores_tienda.dart`) para la vista previa: si se cambia uno, cambiar los
  * dos.
  */
@@ -13,6 +13,8 @@ export type TipoCursor =
 export interface CursorConfig {
   tipo?: TipoCursor | string;
   color?: string | null;
+  /** Color del borde; null = blanco. */
+  borde?: string | null;
 }
 
 // Íconos en un lienzo de 32×32.
@@ -33,23 +35,24 @@ const PUNTA = 'M2 2 L2 13 L5.5 9.8 L12.8 9.2 Z';
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
 
-const forma = (d: string, c: string) =>
-  `<path d="${d}" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>`;
+// `b` es el borde: blanco por defecto; negro si el cursor es claro.
+const forma = (d: string, c: string, b: string) =>
+  `<path d="${d}" fill="${c}" stroke="${b}" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>`;
 
-const conPunta = (d: string, c: string, grande: boolean, huecos = false) => {
+const conPunta = (d: string, c: string, b: string, grande: boolean, huecos = false) => {
   const s = grande ? 0.86 : 0.8;
   const t = grande ? 4.5 : 6.4; // pegado a la punta; 32 - 32 * s
-  return `<g transform="translate(${t} ${t}) scale(${s})"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="#fff" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
-    + `<path d="${PUNTA}" fill="${c}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
+  return `<g transform="translate(${t} ${t}) scale(${s})"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
+    + `<path d="${PUNTA}" fill="${c}" stroke="${b}" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
 };
 
-const tematico = (d: string, c: string, huecos = false): [string, string] => [
-  `${svg(conPunta(d, c, false, huecos))} 2 2, auto`,
-  `${svg(conPunta(d, c, true, huecos))} 2 2, pointer`,
+const tematico = (d: string, c: string, b: string, huecos = false): [string, string] => [
+  `${svg(conPunta(d, c, b, false, huecos))} 2 2, auto`,
+  `${svg(conPunta(d, c, b, true, huecos))} 2 2, pointer`,
 ];
 
-const mira = (c: string): [string, string] => {
-  const cruz = (g: string) => `<g stroke="#fff" stroke-width="4" stroke-linecap="round">${g}</g><g stroke="${c}" stroke-width="2" stroke-linecap="round">${g}</g>`;
+const mira = (c: string, b: string): [string, string] => {
+  const cruz = (g: string) => `<g stroke="${b}" stroke-width="4" stroke-linecap="round">${g}</g><g stroke="${c}" stroke-width="2" stroke-linecap="round">${g}</g>`;
   const lineas = '<path d="M16 3v8M16 21v8M3 16h8M21 16h8"/>';
   const centro = `<circle cx="16" cy="16" r="1.6" fill="${c}"/>`;
   return [
@@ -63,25 +66,35 @@ const mira = (c: string): [string, string] => {
  * productos). null: cursor del sistema ("normal") o el anillo, que no es una
  * imagen sino dos elementos que dibuja `CursorTienda`.
  */
-export function cursorCss(tipo: string | undefined, color: string): [string, string] | null {
+export function cursorCss(tipo: string | undefined, color: string, borde = '#ffffff'): [string, string] | null {
+  const b = borde;
   switch (tipo) {
-    case 'flecha': return [`${svg(forma(P.flecha, color))} 5 3, auto`, `${svg(forma(P.mano, color))} 12 5, pointer`];
+    case 'flecha': return [`${svg(forma(P.flecha, color, b))} 5 3, auto`, `${svg(forma(P.mano, color, b))} 12 5, pointer`];
     case 'punto': return [
-      `${svg(`<circle cx="16" cy="16" r="5.5" fill="${color}" stroke="#fff" stroke-width="2"/>`)} 16 16, auto`,
-      `${svg(`<circle cx="16" cy="16" r="11" fill="${color}" fill-opacity=".18" stroke="${color}" stroke-width="2"/><circle cx="16" cy="16" r="3.5" fill="${color}"/>`)} 16 16, pointer`,
+      `${svg(`<circle cx="16" cy="16" r="5.5" fill="${color}" stroke="${b}" stroke-width="2"/>`)} 16 16, auto`,
+      `${svg(`<circle cx="16" cy="16" r="11" fill="none" stroke="${b}" stroke-width="4"/><circle cx="16" cy="16" r="11" fill="${color}" fill-opacity=".18" stroke="${color}" stroke-width="2"/><circle cx="16" cy="16" r="3.5" fill="${color}" stroke="${b}" stroke-width="1"/>`)} 16 16, pointer`,
     ];
-    case 'mira': return mira(color);
-    case 'corazon': return tematico(P.corazon, color);
-    case 'estrella': return tematico(P.estrella, color);
-    case 'carrito': return tematico(P.carrito, color);
-    case 'patita': return tematico(P.patita, color);
-    case 'craneo': return tematico(P.craneo, color, true);
+    case 'mira': return mira(color, b);
+    case 'corazon': return tematico(P.corazon, color, b);
+    case 'estrella': return tematico(P.estrella, color, b);
+    case 'carrito': return tematico(P.carrito, color, b);
+    case 'patita': return tematico(P.patita, color, b);
+    case 'craneo': return tematico(P.craneo, color, b, true);
     default: return null;
   }
 }
 
 /** El color va dentro de un SVG y de un `<style>`: solo un hex válido. */
 export function colorCursor(config: CursorConfig | undefined, primario: string): string {
-  const c = config?.color?.trim();
-  return c && /^#[0-9a-f]{6}$/i.test(c) ? c : primario;
+  return hexValido(config?.color) ?? primario;
+}
+
+/** El borde del cursor: blanco salvo que la empresa elija otro. */
+export function bordeCursor(config: CursorConfig | undefined): string {
+  return hexValido(config?.borde) ?? '#ffffff';
+}
+
+function hexValido(c?: string | null): string | null {
+  const v = c?.trim();
+  return v && /^#[0-9a-f]{6}$/i.test(v) ? v : null;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CursorConfig, colorCursor, cursorCss } from '@/lib/cursores';
+import { CursorConfig, bordeCursor, colorCursor, cursorCss } from '@/lib/cursores';
 
 // Lo que se puede tocar lleva el cursor "de clic" (la tarjeta de producto es
 // un div con onClick y `cursor-pointer`).
@@ -16,7 +16,8 @@ const TEXTO = 'input:not([type="button"]):not([type="submit"]):not([type="checkb
 export function CursorTienda({ config, primario }: { config?: CursorConfig; primario: string }) {
   const tipo = config?.tipo;
   const color = colorCursor(config, primario);
-  const css = cursorCss(tipo, color);
+  const borde = bordeCursor(config);
+  const css = cursorCss(tipo, color, borde);
   const anillo = tipo === 'anillo';
 
   useEffect(() => {
@@ -39,13 +40,13 @@ export function CursorTienda({ config, primario }: { config?: CursorConfig; prim
   return (
     <>
       <style>{`@media (hover: hover) and (pointer: fine) { ${reglas} }`}</style>
-      {anillo && <Anillo color={color} />}
+      {anillo && <Anillo color={color} borde={borde} />}
     </>
   );
 }
 
 /** Un punto pegado al mouse y un aro que lo alcanza con retraso; crece sobre lo que se puede tocar. */
-function Anillo({ color }: { color: string }) {
+function Anillo({ color, borde }: { color: string; borde: string }) {
   const ringRef = useRef<HTMLDivElement>(null);
   const dotRef = useRef<HTMLDivElement>(null);
 
@@ -94,13 +95,13 @@ function Anillo({ color }: { color: string }) {
     <>
       <style>{`
         .tienda-anillo { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; border-radius: 9999px; opacity: 0; transition: opacity .15s; }
-        .tienda-anillo-aro { width: 34px; height: 34px; border: 2px solid var(--cursor-color); transition: opacity .15s, width .18s, height .18s, background-color .18s; }
+        .tienda-anillo-aro { width: 34px; height: 34px; border: 2px solid var(--cursor-color); box-shadow: 0 0 0 1px var(--cursor-borde), inset 0 0 0 1px var(--cursor-borde); transition: opacity .15s, width .18s, height .18s, background-color .18s; }
         .tienda-anillo-aro[data-sobre="true"] { width: 52px; height: 52px; background: color-mix(in srgb, var(--cursor-color) 12%, transparent); }
-        .tienda-anillo-punto { width: 6px; height: 6px; background: var(--cursor-color); }
+        .tienda-anillo-punto { width: 6px; height: 6px; background: var(--cursor-color); box-shadow: 0 0 0 1px var(--cursor-borde); }
         @media not ((hover: hover) and (pointer: fine)) { .tienda-anillo { display: none; } }
       `}</style>
-      <div ref={ringRef} aria-hidden className="tienda-anillo tienda-anillo-aro" style={{ '--cursor-color': color } as React.CSSProperties} />
-      <div ref={dotRef} aria-hidden className="tienda-anillo tienda-anillo-punto" style={{ '--cursor-color': color } as React.CSSProperties} />
+      <div ref={ringRef} aria-hidden className="tienda-anillo tienda-anillo-aro" style={{ '--cursor-color': color, '--cursor-borde': borde } as React.CSSProperties} />
+      <div ref={dotRef} aria-hidden className="tienda-anillo tienda-anillo-punto" style={{ '--cursor-color': color, '--cursor-borde': borde } as React.CSSProperties} />
     </>
   );
 }

@@ -36,7 +36,7 @@ export interface Empresa {
       /** Link a la ficha del local en Google Maps; ver `linkGoogleMaps`. */
       googleMapsUrl?: string | null;
       /** Cursor de la tienda elegido en el app; ver `lib/cursores.ts`. */
-      cursor?: { tipo?: string; color?: string | null };
+      cursor?: { tipo?: string; color?: string | null; borde?: string | null };
     };
   }[];
 }
