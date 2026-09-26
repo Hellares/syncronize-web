@@ -29,8 +29,9 @@ const P = {
   craneo: 'M16 3C9 3 5 8 5 14c0 4 2 6.5 4.5 7.5v4c0 1.1.9 2 2 2h9c1.1 0 2-.9 2-2v-4c2.5-1 4.5-3.5 4.5-7.5 0-6-4-11-11-11zM8.5 14.5a3 3 0 106 0 3 3 0 10-6 0zm9 0a3 3 0 106 0 3 3 0 10-6 0zM16 18l-1.5 2.7h3zM13.1 23.6h1.5v3.9h-1.5zm4.3 0h1.5v3.9h-1.5z',
 };
 
-// Punta de flecha (sin cola) de los temáticos: su vértice es donde se hace clic.
-const PUNTA = 'M2 2 L2 14 L5.8 10.5 L13.8 9.9 Z';
+// Punta de los temáticos: un triángulo cuyo vértice de arriba es donde se hace
+// clic, con la esquina que tocaba el ícono recortada.
+const PUNTA = 'M2 2 L2 14 L10.3 11.1 L10.6 7.8 Z';
 
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
