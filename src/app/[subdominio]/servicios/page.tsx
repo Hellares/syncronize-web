@@ -68,7 +68,7 @@ export default async function ServiciosPage({ params }: Props) {
   const whatsapp = enlaceChatWhatsapp(empresa.telefono, `Hola ${empresa.nombre}, quisiera cotizar un servicio.`);
 
   // El color de la tienda llega por la variable --acento (la pone <main>).
-  const h2 = 'text-[15px] md:text-[17px] font-bold tracking-tight text-[var(--acento)]';
+  const h2 = 'text-[15px] md:text-[17px] font-bold tracking-tight text-[color:var(--acento)]';
 
   return (
     <div
