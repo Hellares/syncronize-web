@@ -138,7 +138,7 @@ export function ProductosGrid({
 
       {/* Chips de categoría: en pantallas chicas no hay barra lateral ni menú del header */}
       {categorias.length > 1 && (
-        <div className="lg:hidden -mx-2 px-2 mb-3 flex gap-2 overflow-x-auto pb-1">
+        <div className="lg:hidden -mx-2 px-2 mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[{ id: null as string | null, nombre: 'Todas' }, ...categorias].map((cat) => {
             const activa = cat.id === categoriaActiva;
             return (

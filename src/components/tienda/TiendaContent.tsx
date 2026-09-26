@@ -121,7 +121,7 @@ export function TiendaContent({
 
       {/* Ofertas */}
       {ofertas.length > 0 && (
-        <section className="max-w-7xl mx-auto px-0 md:px-6 mt-8">
+        <section className="max-w-7xl mx-auto px-0 md:px-6 mt-4 md:mt-8">
           <div className="flex items-center justify-between mb-3 px-2 md:px-0">
             <h2 className="text-sm md:text-lg font-bold text-gray-900 flex items-center gap-1.5">🔥 Ofertas de la semana</h2>
           </div>
@@ -175,7 +175,7 @@ export function TiendaContent({
       )}
 
       {/* Main content */}
-      <main id="productos-section" className="max-w-7xl mx-auto px-2 md:px-6 py-6 md:py-8 flex-1 w-full">
+      <main id="productos-section" className="max-w-7xl mx-auto px-2 md:px-6 pt-3 pb-6 md:py-8 flex-1 w-full">
         <div className="flex gap-6">
           {/* Sidebar */}
           {categorias.length > 1 && (
