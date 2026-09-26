@@ -178,7 +178,7 @@ export function TiendaHeader({
       {/* Franja superior: se va con el scroll, no queda pegada */}
       {(avisos.length > 0 || telefonos.length > 0) && (
         <div className="relative z-30 text-white" style={{ backgroundColor: colors.primario }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-9 flex items-center justify-center md:justify-between gap-4 text-[12px] md:text-[13px] font-medium">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-8 flex items-center justify-center md:justify-between gap-4 text-[12px] md:text-[13px] font-medium">
             {[0, 1].map((i) => (
               <div key={i} className="hidden md:flex min-w-0">{avisos[i]}</div>
             ))}
@@ -200,7 +200,7 @@ export function TiendaHeader({
       {/* Lo que queda pegado arriba: franja blanca + barra de categorías */}
       <header ref={barraRef} className="sticky top-0 z-30">
         <div className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 md:py-3 flex flex-wrap md:flex-nowrap items-center gap-x-6 gap-y-2">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 md:py-[7px] flex flex-wrap md:flex-nowrap items-center gap-x-6 gap-y-2">
             {/* Logo */}
             <Link href={`/${subdominio}`} className="flex items-center flex-shrink-0 mr-auto md:mr-0">
               {logo ? (
