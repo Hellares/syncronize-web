@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getEmpresaBySubdominio, getServiciosByEmpresa } from '@/lib/api';
 import type { Empresa } from '@/lib/types';
 import { coloresTienda, logoTienda } from '@/lib/tienda';
-import { lighten, alpha } from '@/lib/colors';
+import { lighten, darken, alpha } from '@/lib/colors';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { BotonCarrito } from '@/components/tienda/compra/CarritoYCuenta';
 import { PaginaDestellos } from '@/components/tienda/PaginaDestellos';
@@ -113,8 +113,19 @@ export default async function ServiciosPage({ params }: Props) {
             <span className="text-gray-700 font-medium">Servicios</span>
           </nav>
 
-          <div className={`relative overflow-hidden rounded-2xl bg-[#0f1a2e] text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
-            <div className="absolute inset-0 opacity-100 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.16) 1.3px, transparent 1.6px)', backgroundSize: '28px 28px' }} aria-hidden="true" />
+          <div className={`relative overflow-hidden rounded-t-2xl text-white p-6 md:p-14 grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
+            {/* Fondo con el azul de la tienda que se desvanece abajo (solo el fondo: el
+                contenido queda nítido). */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.18) 1.3px, transparent 1.6px), linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
+                backgroundSize: '28px 28px, 100% 100%',
+                maskImage: 'linear-gradient(to bottom, #000 60%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, #000 60%, transparent 100%)',
+              }}
+              aria-hidden="true"
+            />
             <div className="relative flex flex-col gap-4 md:gap-5">
               {/* El logo va sobre una placa blanca: muchos tienen letras oscuras y la portada es oscura. */}
               {logo ? (
@@ -125,7 +136,7 @@ export default async function ServiciosPage({ params }: Props) {
                 <span className="text-[11px] md:text-xs font-bold tracking-[0.12em] uppercase" style={{ color: lighten(colors.primario, 0.45) }}>{empresa.nombre}</span>
               )}
               <h1 className="text-[28px] md:text-5xl font-extrabold leading-[1.1] tracking-tight [text-wrap:balance]">{titulo}</h1>
-              <p className="text-[15px] md:text-[17px] leading-relaxed text-slate-300 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
+              <p className="text-[15px] md:text-[17px] leading-relaxed text-white/90 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 {whatsapp && (
                   <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="h-12 px-6 rounded-[10px] bg-green-500 hover:bg-green-600 text-white font-bold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
