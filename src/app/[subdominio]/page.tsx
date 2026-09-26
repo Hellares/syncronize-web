@@ -154,7 +154,7 @@ export default async function TiendaPage({ params }: Props) {
       </div>
 
       {/* Puntos que se encienden alrededor del mouse, en el fondo */}
-      <PaginaDestellos color={colors.primario} />
+      <PaginaDestellos />
 
       {/* Content interactivo (incluye header) */}
       <TiendaContent

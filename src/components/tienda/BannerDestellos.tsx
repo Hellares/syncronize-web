@@ -1,18 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { alpha, lighten } from '@/lib/colors';
 
 /**
  * Destellos sobre el banner: el efecto `GridWave` de la landing adaptado a la
  * tienda. Una grilla de puntos tenues por la que cada ~2 s viaja una onda que
- * los enciende con el color de la tienda; cerca del mouse también se encienden.
+ * los enciende en blanco; cerca del mouse también se encienden.
  *
  * Diferencias con el de la landing: no bloquea los clics (escucha el mouse en
  * el contenedor), respeta la densidad de pantalla, se pausa fuera de pantalla,
  * se apaga con "reducir movimiento" y en celular va más tenue.
  */
-export function BannerDestellos({ color }: { color: string }) {
+export function BannerDestellos() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -29,8 +28,6 @@ export function BannerDestellos({ color }: { color: string }) {
     const DOT_MAX = 4;
     const WAVE_RADIUS_MAX = 480;
     const MOUSE_RADIUS = 170;
-    // Sobre fotos el color puro de la tienda se pierde: un poco más claro.
-    const brillo = lighten(color, 0.25);
 
     let ancho = 0;
     let alto = 0;
@@ -90,12 +87,12 @@ export function BannerDestellos({ color }: { color: string }) {
           ctx.beginPath();
           ctx.arc(x, y, size, 0, Math.PI * 2);
           if (intensity > 0.08) {
-            ctx.fillStyle = alpha(brillo, 0.15 + intensity * 0.75);
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.15 + intensity * 0.8})`;
             ctx.fill();
             if (intensity > 0.3) {
               ctx.beginPath();
               ctx.arc(x, y, size * 3, 0, Math.PI * 2);
-              ctx.fillStyle = alpha(brillo, intensity * 0.2);
+              ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.25})`;
               ctx.fill();
             }
           } else {
@@ -147,7 +144,7 @@ export function BannerDestellos({ color }: { color: string }) {
       zona.removeEventListener('mousemove', onMove);
       zona.removeEventListener('mouseleave', onLeave);
     };
-  }, [color]);
+  }, []);
 
   return <canvas ref={canvasRef} aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" />;
 }

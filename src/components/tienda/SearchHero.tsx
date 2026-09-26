@@ -120,7 +120,7 @@ export function SearchHero({ bannerUrl, bannerTexto, banners, colors }: Props) {
         })}
 
         {/* Destellos (dentro del difuminado: se apagan junto con el banner) */}
-        <BannerDestellos color={colors.primario} />
+        <BannerDestellos />
       </div>
 
       {multiSlide && (

@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { alpha } from '@/lib/colors';
 
 /**
  * El brillo del mouse de los destellos del banner (`BannerDestellos`), en el
- * fondo de toda la página: una grilla invisible cuyos puntos se encienden con
- * el color de la tienda alrededor del cursor. Va fija detrás del contenido
- * (como el fondo), así que se ve entre las tarjetas y no encima de ellas.
+ * fondo de toda la página: una grilla invisible cuyos puntos se encienden en
+ * blanco alrededor del cursor (el fondo de la tienda siempre es de color).
+ * Va fija detrás del contenido (como el fondo), así que se ve entre las
+ * tarjetas y no encima de ellas.
  *
  * Solo se dibuja cuando se mueve el mouse (no hay animación continua). Sin
  * mouse (celular) o con "reducir movimiento" no hace nada.
  */
-export function PaginaDestellos({ color }: { color: string }) {
+export function PaginaDestellos() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -61,12 +61,12 @@ export function PaginaDestellos({ color }: { color: string }) {
           const size = DOT_BASE + intensity * (DOT_MAX - DOT_BASE);
           ctx.beginPath();
           ctx.arc(x, y, size, 0, Math.PI * 2);
-          ctx.fillStyle = alpha(color, 0.08 + intensity * 0.55);
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.2 + intensity * 0.8})`;
           ctx.fill();
           if (intensity > 0.45) {
             ctx.beginPath();
             ctx.arc(x, y, size * 3, 0, Math.PI * 2);
-            ctx.fillStyle = alpha(color, intensity * 0.12);
+            ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.35})`;
             ctx.fill();
           }
         }
@@ -90,7 +90,7 @@ export function PaginaDestellos({ color }: { color: string }) {
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseout', onSalir);
     };
-  }, [color]);
+  }, []);
 
   return <canvas ref={canvasRef} aria-hidden className="hidden md:block fixed inset-0 w-full h-full pointer-events-none z-0" />;
 }
