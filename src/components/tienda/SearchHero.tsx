@@ -41,7 +41,7 @@ function linkSeguro(link?: string): string | null {
 
 // La parte de abajo del banner se desvanece hacia el fondo de la página (como
 // Mercado Libre) y las tarjetas de "Envío nacional", etc. se montan encima.
-const DIFUMINADO = 'linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)';
+const DIFUMINADO = 'linear-gradient(to bottom, #000 0%, #000 75%, transparent 100%)';
 
 export function SearchHero({ bannerUrl, bannerTexto, banners, colors }: Props) {
   const [activeSlide, setActiveSlide] = useState(0);
