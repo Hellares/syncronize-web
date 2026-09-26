@@ -68,7 +68,7 @@ export function SearchHero({ bannerUrl, bannerTexto, banners, colors }: Props) {
 
   return (
     <div
-      className="group relative w-full h-[150px] sm:h-[230px] md:h-[380px] lg:h-[500px] overflow-hidden"
+      className="group relative w-full h-[150px] sm:h-[230px] md:h-[350px] lg:h-[450px] overflow-hidden"
       onMouseEnter={() => setPausado(true)}
       onMouseLeave={() => setPausado(false)}
       onTouchStart={(e) => { toqueX.current = e.touches[0].clientX; }}
