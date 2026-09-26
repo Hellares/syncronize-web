@@ -28,7 +28,7 @@ const P = {
 };
 
 // Punta de flecha (sin cola) de los temáticos: su vértice es donde se hace clic.
-const PUNTA = 'M2 2 L2 11 L4.9 8.4 L10.8 7.9 Z';
+const PUNTA = 'M2 2 L2 13 L5.5 9.8 L12.8 9.2 Z';
 
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
@@ -37,8 +37,8 @@ const forma = (d: string, c: string) =>
   `<path d="${d}" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>`;
 
 const conPunta = (d: string, c: string, grande: boolean, huecos = false) => {
-  const s = grande ? 0.7 : 0.62;
-  const t = grande ? 7 : 8.5; // pegado a la punta
+  const s = grande ? 0.79 : 0.71;
+  const t = grande ? 6.6 : 9; // pegado a la punta; 32 - 32 * s
   return `<g transform="translate(${t} ${t}) scale(${s})"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="#fff" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
     + `<path d="${PUNTA}" fill="${c}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
 };
