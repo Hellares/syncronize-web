@@ -20,6 +20,8 @@ interface Props {
   hayServicios: boolean;
   sedePrincipal?: Sede;
   onSearch?: (query: string) => void;
+  /** Lo buscado, cuando lo maneja la página ("Mostrar todos" de la grilla lo vacía). */
+  busqueda?: string;
   colors: TiendaColors;
 }
 
@@ -93,7 +95,7 @@ function redesDe(empresa: Empresa) {
 }
 
 export function TiendaHeader({
-  empresa, subdominio, categorias, categoriaActiva, onCategoria, hayServicios, sedePrincipal, onSearch, colors,
+  empresa, subdominio, categorias, categoriaActiva, onCategoria, hayServicios, sedePrincipal, onSearch, busqueda, colors,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriasOpen, setCategoriasOpen] = useState(false);
@@ -233,7 +235,7 @@ export function TiendaHeader({
             >
               <input
                 type="text"
-                value={searchQuery}
+                value={busqueda ?? searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   onSearch?.(e.target.value);

@@ -178,22 +178,14 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
             {producto.nombre}
           </h3>
 
-          {/* Ubicacion + distancia */}
-          <div className="flex items-center justify-between mt-auto pt-1 md:pt-2 border-t border-gray-100">
-            {producto.empresa?.ubicacion ? (
-              <span className="text-[10px] text-gray-400 truncate flex items-center gap-1">
-                <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                </svg>
-                {producto.empresa.ubicacion}
-              </span>
-            ) : <span />}
-            {producto.distancia != null && (
-              <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap ml-1 bg-emerald-50 px-1.5 py-0.5 rounded">
+          {/* La dirección no se repite en cada tarjeta: está en el panel de Ubicación de la tienda. */}
+          {producto.distancia != null && (
+            <div className="flex justify-end mt-auto pt-1 md:pt-2">
+              <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap bg-emerald-50 px-1.5 py-0.5 rounded">
                 {producto.distancia < 1 ? `${Math.round(producto.distancia * 1000)}m` : `${producto.distancia.toFixed(1)}km`}
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </article>
     </div>

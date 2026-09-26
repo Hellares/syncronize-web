@@ -56,6 +56,7 @@ export function TiendaContent({
         hayServicios={hayServicios}
         sedePrincipal={sedePrincipal}
         onSearch={(q) => setHeroSearch(q)}
+        busqueda={heroSearch}
         colors={colors}
       />
 
@@ -240,6 +241,7 @@ export function TiendaContent({
               categoriaActiva={categoriaActiva}
               onCategoriaChange={setCategoriaActiva}
               initialSearch={heroSearch}
+              onLimpiarBusqueda={() => setHeroSearch('')}
               colors={colors}
             />
           </div>

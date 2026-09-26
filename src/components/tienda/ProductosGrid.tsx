@@ -15,6 +15,8 @@ interface Props {
   categoriaActiva: string | null;
   onCategoriaChange: (id: string | null) => void;
   initialSearch?: string;
+  /** "Mostrar todos" también vacía el buscador de la cabecera. */
+  onLimpiarBusqueda?: () => void;
   colors: TiendaColors;
 }
 
@@ -34,7 +36,7 @@ async function pedirPagina(
 
 export function ProductosGrid({
   subdominio, productosIniciales, totalInicial, totalPagesInicial,
-  categorias, categoriaActiva, onCategoriaChange, initialSearch, colors,
+  categorias, categoriaActiva, onCategoriaChange, initialSearch, onLimpiarBusqueda, colors,
 }: Props) {
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [search, setSearch] = useState('');
@@ -118,41 +120,21 @@ export function ProductosGrid({
 
   return (
     <div>
-      {/* Buscador + limpiar */}
-      <div className="mb-4 flex gap-2 items-center">
-        <div className="relative flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar productos en esta tienda..."
-            className="w-full pl-9 md:pl-11 pr-10 py-2.5 md:py-3 rounded-lg md:rounded-xl border border-gray-200 bg-white text-xs md:text-sm focus:outline-none focus:ring-2 transition-all shadow-sm placeholder:text-gray-400"
-            style={{ '--tw-ring-color': alpha(colors.primario, 0.2) } as React.CSSProperties}
-            onFocus={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
-          />
-          {search && (
-            <button onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-        {(search || categoriaActiva) && (
+      {/* Se busca desde la cabecera (un solo buscador): acá solo se ve qué se filtró y se limpia. */}
+      {(busqueda || categoriaActiva) && (
+        <div className="mb-4 flex gap-2 items-center">
+          <p className="flex-1 min-w-0 text-sm text-gray-600 truncate">
+            {busqueda ? <>Resultados para <span className="font-medium text-gray-900">“{busqueda}”</span></> : categoriaNombre}
+          </p>
           <button
-            onClick={() => { setSearch(''); onCategoriaChange(null); }}
-            className="flex-shrink-0 px-4 py-3 rounded-xl text-white text-xs font-semibold transition-colors shadow-sm"
+            onClick={() => { setSearch(''); onLimpiarBusqueda?.(); onCategoriaChange(null); }}
+            className="flex-shrink-0 px-4 py-2 rounded-xl text-white text-xs font-semibold transition-colors shadow-sm"
             style={{ backgroundColor: colors.primario }}
           >
             Mostrar todos
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Chips de categoría: en pantallas chicas no hay barra lateral ni menú del header */}
       {categorias.length > 1 && (

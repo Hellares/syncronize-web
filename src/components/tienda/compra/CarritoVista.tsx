@@ -105,7 +105,7 @@ export function CarritoVista({ colors }: { colors: TiendaColors }) {
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-900">{soles(item.subtotal)}</span>
                     <button type="button" onClick={() => void cambiar(item, 0)} disabled={!!ocupado}
-                      className="text-xs text-gray-400 hover:text-red-600" aria-label={`Quitar ${item.productoNombre}`}>
+                      className="text-xs font-medium text-gray-600 underline underline-offset-2 hover:text-red-600" aria-label={`Quitar ${item.productoNombre}`}>
                       Quitar
                     </button>
                   </div>
