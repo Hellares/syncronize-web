@@ -55,7 +55,7 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
   return (
     <div onClick={handleClick} className="block h-full">
       <article
-        className={`bg-white rounded-md md:rounded-lg overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border border-gray-200 md:border-2 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}
+        className={`bg-white rounded-lg md:rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-all duration-300 cursor-pointer group h-full flex flex-col relative border border-gray-200 md:border-2 hover:-translate-y-1 ${loading ? 'opacity-60 pointer-events-none' : ''}`}
         style={{ '--hover-color': colors.primario, '--hover-bg': alpha(colors.primario, 0.08) } as React.CSSProperties}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = ''; }}
@@ -63,7 +63,7 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
 
         {/* Loading overlay */}
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 rounded-md md:rounded-lg">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 rounded-lg md:rounded-xl">
             <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: alpha(colors.primario, 0.2), borderTopColor: colors.primario }} />
           </div>
         )}
