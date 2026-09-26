@@ -94,7 +94,7 @@ export function CategoriasSlider({ categorias, categoriaActiva, onElegir, fondo 
                 data-cat={cat.id}
                 onClick={() => onElegir(cat.id)}
                 title={cat.nombre}
-                className="flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-medium uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
+                className="flex-shrink-0 px-3 xl:px-4 py-1 rounded-md text-white text-[13px] font-medium uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
                 style={activa ? { backgroundColor: 'rgba(255,255,255,0.22)' } : undefined}
               >
                 {cat.nombre}

@@ -296,16 +296,16 @@ export function TiendaHeader({
 
         {/* Barra de categorías (escritorio) */}
         <nav className="hidden md:block" style={{ backgroundColor: colors.primario }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-1">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[46px] flex items-center gap-1">
             {categorias.length > 0 && (
               <div ref={categoriasRef} className="relative flex-shrink-0 mr-4">
                 <button
                   onClick={() => setCategoriasOpen(!categoriasOpen)}
-                  className="flex items-center gap-3 px-5 py-2.5 rounded-lg text-white text-[14px] font-medium uppercase tracking-wide transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-1.5 rounded-lg text-white text-[13px] font-medium uppercase tracking-wide transition-colors"
                   style={{ backgroundColor: lighten(colors.primario, 0.12) }}
                   aria-expanded={categoriasOpen}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                   Categorías
@@ -336,7 +336,7 @@ export function TiendaHeader({
               <>
                 <button
                   onClick={() => elegir(null)}
-                  className="flex-shrink-0 px-3 xl:px-4 py-1.5 rounded-md text-white text-[14px] font-medium uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
+                  className="flex-shrink-0 px-3 xl:px-4 py-1 rounded-md text-white text-[13px] font-medium uppercase tracking-wide whitespace-nowrap transition-colors hover:bg-white/15"
                   style={categoriaActiva === null ? { backgroundColor: 'rgba(255,255,255,0.22)' } : undefined}
                 >
                   Todos
