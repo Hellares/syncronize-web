@@ -139,12 +139,12 @@ export default async function ServiciosPage({ params }: Props) {
               <p className="text-[15px] md:text-[17px] leading-relaxed text-white/90 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 {whatsapp && (
-                  <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="h-12 px-6 rounded-[10px] bg-green-500 hover:bg-green-600 text-white font-bold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
+                  <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="h-[42px] px-6 rounded-[10px] bg-[#1fa855] hover:bg-[#1a9249] text-white font-bold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
                     <IconoWhatsapp /> Cotizar por WhatsApp
                   </a>
                 )}
                 {servicios.length > 0 && (
-                  <a href="#lista-servicios" className="h-12 px-5 rounded-[10px] border-[1.5px] border-white/35 hover:border-white/60 text-white font-semibold text-[15px] inline-flex items-center justify-center transition-colors">
+                  <a href="#lista-servicios" className="h-[42px] px-5 rounded-[10px] border-[1.5px] border-white/35 hover:border-white/60 text-white font-semibold text-[15px] inline-flex items-center justify-center transition-colors">
                     Ver servicios
                   </a>
                 )}
@@ -236,8 +236,8 @@ export default async function ServiciosPage({ params }: Props) {
               <h2 className="text-[22px] md:text-[28px] font-extrabold">¿Tu equipo necesita revisión?</h2>
               <p className="text-sm md:text-[15px]" style={{ color: alpha('#ffffff', 0.85) }}>Escríbenos y te respondemos con el precio y el tiempo.</p>
             </div>
-            <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 h-12 md:h-[52px] px-6 rounded-[10px] bg-white text-gray-900 font-extrabold text-[15px] inline-flex items-center justify-center gap-2.5 hover:bg-gray-50 transition-colors">
-              <span className="text-green-600"><IconoWhatsapp /></span> Escribir por WhatsApp
+            <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 h-[42px] md:h-[46px] px-6 rounded-[10px] bg-white text-gray-900 font-extrabold text-[15px] inline-flex items-center justify-center gap-2.5 hover:bg-gray-50 transition-colors">
+              <span className="text-[#1fa855]"><IconoWhatsapp /></span> Escribir por WhatsApp
             </a>
           </section>
         )}

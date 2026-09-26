@@ -50,7 +50,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
           const duracion = duracionServicio(s);
           const whatsapp = enlaceChatWhatsapp(telefono, `Hola ${empresaNombre}, quisiera solicitar el servicio:\n\n*${s.nombre}*`);
           return (
-            <article key={s.id} className="bg-white rounded-xl px-4 py-[9px] md:px-6 md:py-[9px] flex flex-col gap-3 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
+            <article key={s.id} className="bg-white rounded-xl px-4 pt-1 pb-[9px] md:px-6 md:pt-1 md:pb-[9px] flex flex-col gap-3 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
               {/* Ícono y título en la misma fila. Amazon Ember solo trae 400/500/700:
                   `font-bold`/`extrabold` caen en la Bold y se ven pesados. */}
               <div className="flex items-center gap-3">
