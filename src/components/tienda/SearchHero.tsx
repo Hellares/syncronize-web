@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Empresa } from '@/lib/types';
 import { TiendaColors, lighten } from '@/lib/colors';
+import { BannerDestellos } from './BannerDestellos';
 
 interface Banner {
   url: string;
@@ -117,6 +118,9 @@ export function SearchHero({ bannerUrl, bannerTexto, banners, colors }: Props) {
             </div>
           );
         })}
+
+        {/* Destellos (dentro del difuminado: se apagan junto con el banner) */}
+        <BannerDestellos color={colors.primario} />
       </div>
 
       {multiSlide && (
