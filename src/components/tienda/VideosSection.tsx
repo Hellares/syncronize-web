@@ -44,7 +44,7 @@ export function VideosSection({ videos, colors }: Props) {
                   <VideoThumbnail url={video.url} />
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                     <div className="flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]" fill="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
@@ -75,7 +75,7 @@ export function VideosSection({ videos, colors }: Props) {
                   <VideoThumbnail url={video.url} />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                     <div className="flex items-center justify-center transition-transform group-hover:scale-110">
-                      <svg className="w-8 h-8 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]" fill="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]" style={{ color: colors.primario }} fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
