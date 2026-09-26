@@ -5,7 +5,7 @@ import { CategoriaTienda, Empresa, Producto, Sede } from '@/lib/types';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { TiendaHeader } from './TiendaHeader';
-import { SearchHero } from './SearchHero';
+import { SearchHero, slidesDeBanners } from './SearchHero';
 import { ProductosGrid } from './ProductosGrid';
 import { OfertasCarousel } from './OfertasCarousel';
 import { VideosSection } from './VideosSection';
@@ -37,6 +37,7 @@ export function TiendaContent({
   const [heroSearch, setHeroSearch] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
   const whatsapp = enlaceChatWhatsapp(empresa.telefono);
+  const hayBanners = slidesDeBanners(banners, bannerUrl, bannerTexto).length > 0;
 
   // Desde el header o la barra lateral la grilla puede estar lejos: se baja a ella.
   const elegirCategoria = (id: string | null) => {
@@ -93,7 +94,9 @@ export function TiendaContent({
         );
 
         return (
-          <section className="max-w-[960px] mx-auto px-0 md:px-6 -mt-10 md:-mt-10 relative z-10">
+          // Con banners las tarjetas se montan sobre su difuminado; sin banners,
+          // sobre la franja de color (como siempre).
+          <section className={`max-w-[960px] mx-auto px-0 md:px-6 relative z-10 ${hayBanners ? '-mt-14 md:-mt-[120px]' : '-mt-10'}`}>
             {/* Desktop: grid */}
             <div className="hidden md:grid md:grid-cols-5 gap-[22px]">
               {badges.map((badge) => (
