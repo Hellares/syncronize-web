@@ -94,7 +94,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
                     href={whatsapp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="h-10 px-4 rounded-lg text-white text-sm font-medium flex items-center hover:opacity-90 transition-opacity"
+                    className="h-[34px] px-4 rounded-lg text-white text-sm font-medium flex items-center hover:opacity-90 transition-opacity"
                     style={{ backgroundColor: colors.primario }}
                   >
                     Solicitar
