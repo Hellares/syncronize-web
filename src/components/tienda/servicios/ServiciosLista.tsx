@@ -51,19 +51,16 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
           const whatsapp = enlaceChatWhatsapp(telefono, `Hola ${empresaNombre}, quisiera solicitar el servicio:\n\n*${s.nombre}*`);
           return (
             <article key={s.id} className="bg-white rounded-xl p-4 md:p-6 flex flex-col gap-3 md:gap-3.5 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
-              <div className="flex items-start gap-3 md:flex-col md:gap-3.5">
-                <div className="flex w-full md:justify-between items-start gap-3">
-                  <span className="w-10 h-10 md:w-12 md:h-12 rounded-[10px] md:rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: alpha(colors.primario, 0.1), color: colors.primario }}>
-                    <IconoServicio className="w-5 h-5 md:w-6 md:h-6" />
-                  </span>
-                  <div className="flex-1 min-w-0 md:hidden">
-                    <h3 className="text-[15px] font-bold text-gray-900">{s.nombre}</h3>
-                  </div>
-                  {s.destacado && (
-                    <span className="hidden md:inline-block text-[11px] font-bold tracking-wide uppercase text-amber-800 bg-amber-100 px-2 py-1 rounded-md">Más pedido</span>
-                  )}
-                </div>
-                <h3 className="hidden md:block text-[17px] font-bold text-gray-900">{s.nombre}</h3>
+              {/* Ícono y título en la misma fila. Amazon Ember solo trae 400/500/700:
+                  `font-bold`/`extrabold` caen en la Bold y se ven pesados. */}
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 md:w-12 md:h-12 rounded-[10px] md:rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: alpha(colors.primario, 0.1), color: colors.primario }}>
+                  <IconoServicio className="w-5 h-5 md:w-6 md:h-6" />
+                </span>
+                <h3 className="flex-1 min-w-0 text-[13px] md:text-[15px] font-medium text-gray-900 leading-snug">{s.nombre}</h3>
+                {s.destacado && (
+                  <span className="flex-shrink-0 text-[10px] md:text-[11px] font-medium tracking-wide uppercase text-amber-800 bg-amber-100 px-2 py-1 rounded-md">Más pedido</span>
+                )}
               </div>
               {s.descripcion && <p className="text-[13px] md:text-sm leading-relaxed text-gray-500 line-clamp-3">{s.descripcion}</p>}
 
@@ -88,7 +85,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
                 <div className="flex flex-col">
                   <span className="text-[11px] md:text-xs text-gray-500">{etiqueta}</span>
                   <span className="flex items-baseline gap-2">
-                    <span className="text-lg md:text-xl font-extrabold text-gray-900 tabular-nums">{precio}</span>
+                    <span className="text-lg md:text-xl font-medium text-gray-900 tabular-nums">{precio}</span>
                     {antes && <span className="text-xs text-gray-400 line-through tabular-nums">{antes}</span>}
                   </span>
                 </div>
@@ -97,7 +94,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
                     href={whatsapp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="h-10 px-4 rounded-lg text-white text-sm font-bold flex items-center hover:opacity-90 transition-opacity"
+                    className="h-10 px-4 rounded-lg text-white text-sm font-medium flex items-center hover:opacity-90 transition-opacity"
                     style={{ backgroundColor: colors.primario }}
                   >
                     Solicitar
