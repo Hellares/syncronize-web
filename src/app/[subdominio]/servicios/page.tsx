@@ -67,7 +67,7 @@ export default async function ServiciosPage({ params }: Props) {
   const descripcion = sw.descripcion?.trim() || 'Conoce lo que hacemos, el precio y el tiempo de cada servicio. Cotiza por WhatsApp sin compromiso.';
   const whatsapp = enlaceChatWhatsapp(empresa.telefono, `Hola ${empresa.nombre}, quisiera cotizar un servicio.`);
 
-  const h2 = 'text-[22px] md:text-3xl font-extrabold tracking-tight text-gray-900';
+  const h2 = 'text-[13px] md:text-[15px] font-bold tracking-tight text-gray-900';
 
   return (
     <div
