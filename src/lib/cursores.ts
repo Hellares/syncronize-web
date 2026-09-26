@@ -30,8 +30,8 @@ const P = {
 };
 
 // Punta de los temáticos: un triángulo cuyo vértice de arriba es donde se hace
-// clic, con la esquina que tocaba el ícono recortada.
-const PUNTA = 'M2 2 L2 12 L10.3 11.1 L10.6 7.8 Z';
+// clic. Su tercer vértice (7.5, 5.7) queda antes de cualquier ícono.
+const PUNTA = 'M2 2 L2 12 L7.5 5.7 Z';
 
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
@@ -40,16 +40,18 @@ const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
 const forma = (d: string, c: string, b: string) =>
   `<path d="${d}" fill="${c}" stroke="${b}" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>`;
 
-const conPunta = (d: string, c: string, b: string, grande: boolean, huecos = false) => {
+// `corrido`: el carrito empieza (manija) en la esquina de la punta; se corre
+// dentro de su lienzo para que no la toque.
+const conPunta = (d: string, c: string, b: string, grande: boolean, huecos = false, corrido = false) => {
   const s = grande ? 0.92 : 0.86;
   const t = grande ? 2.5 : 4.4; // pegado a la punta; 32 - 32 * s
-  return `<g transform="translate(${t} ${t}) scale(${s})"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
+  return `<g transform="translate(${t} ${t}) scale(${s})${corrido ? ' translate(2.5 2)' : ''}"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
     + `<path d="${PUNTA}" fill="${c}" stroke="${b}" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
 };
 
-const tematico = (d: string, c: string, b: string, huecos = false): [string, string] => [
-  `${svg(conPunta(d, c, b, false, huecos))} 2 2, auto`,
-  `${svg(conPunta(d, c, b, true, huecos))} 2 2, pointer`,
+const tematico = (d: string, c: string, b: string, huecos = false, corrido = false): [string, string] => [
+  `${svg(conPunta(d, c, b, false, huecos, corrido))} 2 2, auto`,
+  `${svg(conPunta(d, c, b, true, huecos, corrido))} 2 2, pointer`,
 ];
 
 const mira = (c: string, b: string): [string, string] => {
@@ -78,7 +80,7 @@ export function cursorCss(tipo: string | undefined, color: string, borde = '#fff
     case 'mira': return mira(color, b);
     case 'corazon': return tematico(P.corazon, color, b);
     case 'estrella': return tematico(P.estrella, color, b);
-    case 'carrito': return tematico(P.carrito, color, b);
+    case 'carrito': return tematico(P.carrito, color, b, false, true);
     case 'patita': return tematico(P.patita, color, b);
     case 'craneo': return tematico(P.craneo, color, b, true);
     default: return null;
