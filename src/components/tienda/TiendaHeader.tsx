@@ -243,7 +243,7 @@ export function TiendaHeader({
                   onSearch?.(e.target.value);
                 }}
                 placeholder="Buscar productos..."
-                className="flex-1 min-w-0 pl-4 md:pl-5 pr-3 py-1.5 md:py-2 rounded-l-lg border-2 border-r-0 border-gray-400 bg-white text-sm text-gray-900 focus:outline-none placeholder:text-gray-500"
+                className="flex-1 min-w-0 pl-4 md:pl-5 pr-3 py-1.5 md:py-2 rounded-l-lg border-2 border-r-0 border-gray-300 bg-white text-sm text-gray-900 focus:outline-none placeholder:text-gray-500"
                 onFocus={(e) => { e.currentTarget.style.borderColor = colors.primario; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = ''; }}
               />
