@@ -44,13 +44,13 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 items-start">
         {visibles.map((s) => {
           const { etiqueta, precio, antes } = precioServicio(s);
           const duracion = duracionServicio(s);
           const whatsapp = enlaceChatWhatsapp(telefono, `Hola ${empresaNombre}, quisiera solicitar el servicio:\n\n*${s.nombre}*`);
           return (
-            <article key={s.id} className="bg-white rounded-xl p-4 md:p-6 flex flex-col gap-3 md:gap-3.5 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
+            <article key={s.id} className="bg-white rounded-xl px-4 py-3.5 md:px-6 md:py-3.5 flex flex-col gap-3 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
               {/* Ícono y título en la misma fila. Amazon Ember solo trae 400/500/700:
                   `font-bold`/`extrabold` caen en la Bold y se ven pesados. */}
               <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
                 </div>
               )}
 
-              <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
                 <div className="flex flex-col">
                   <span className="text-[11px] md:text-xs text-gray-500">{etiqueta}</span>
                   <span className="flex items-baseline gap-2">
