@@ -67,7 +67,8 @@ export default async function ServiciosPage({ params }: Props) {
   const descripcion = sw.descripcion?.trim() || 'Conoce lo que hacemos, el precio y el tiempo de cada servicio. Cotiza por WhatsApp sin compromiso.';
   const whatsapp = enlaceChatWhatsapp(empresa.telefono, `Hola ${empresa.nombre}, quisiera cotizar un servicio.`);
 
-  const h2 = 'text-[13px] md:text-[15px] font-bold tracking-tight text-gray-900';
+  // El color de la tienda llega por la variable --acento (la pone <main>).
+  const h2 = 'text-[15px] md:text-[17px] font-bold tracking-tight text-[var(--acento)]';
 
   return (
     <div
@@ -167,7 +168,10 @@ export default async function ServiciosPage({ params }: Props) {
         </div>
       </section>
 
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-2 pb-16 flex flex-col gap-10 md:gap-16">
+      <main
+        className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-2 pb-16 flex flex-col gap-10 md:gap-16"
+        style={{ '--acento': colors.primario } as React.CSSProperties}
+      >
         {/* Servicios */}
         <section id="lista-servicios" className="flex flex-col gap-5 scroll-mt-6">
           <div className="flex flex-col gap-1.5">

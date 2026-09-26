@@ -85,7 +85,7 @@ export function ServiciosLista({ servicios, colors, telefono, empresaNombre }: P
                 <div className="flex flex-col">
                   <span className="text-[11px] md:text-xs text-gray-500">{etiqueta}</span>
                   <span className="flex items-baseline gap-2">
-                    <span className="text-lg md:text-xl font-medium text-gray-900 tabular-nums">{precio}</span>
+                    <span className="text-[15px] md:text-[17px] font-medium tabular-nums" style={{ color: colors.primario }}>{precio}</span>
                     {antes && <span className="text-xs text-gray-400 line-through tabular-nums">{antes}</span>}
                   </span>
                 </div>
