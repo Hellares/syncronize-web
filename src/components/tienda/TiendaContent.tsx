@@ -85,7 +85,7 @@ export function TiendaContent({
         const BadgeCard = ({ badge, mobile }: { badge: typeof badges[0]; mobile?: boolean }) => (
           // Semitransparentes, más sólidas abajo (donde va el texto) y casi
           // transparentes arriba, para que no tapen el banner.
-          <div className={`bg-gradient-to-t from-white/75 via-white/35 to-white/5 backdrop-blur-[2px] shadow-md border border-white/50 flex flex-col items-center text-center hover:from-white/90 hover:via-white/55 hover:to-white/25 hover:shadow-lg transition-all cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-[3px] shadow-none border-0' : 'p-4 rounded-md'}`}>
+          <div className={`bg-gradient-to-t from-white/75 via-white/35 to-white/5 backdrop-blur-[2px] shadow-md flex flex-col items-center text-center hover:from-white/90 hover:via-white/55 hover:to-white/25 hover:shadow-lg transition-all cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-[3px] shadow-none border-0' : 'p-4 rounded-md'}`}>
             <div className={`${badge.color} ${mobile ? 'w-8 h-8 flex rounded-[3px]' : 'w-16 h-16 hidden md:flex rounded-full'} items-center justify-center mb-1 md:mb-2 overflow-hidden`}>
               {badge.image && <img src={badge.image} alt={badge.title} className={`${mobile ? 'w-8 h-8' : 'w-16 h-16'} object-contain`} />}
             </div>
