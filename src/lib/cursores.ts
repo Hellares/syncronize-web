@@ -30,8 +30,8 @@ const P = {
 };
 
 // Punta de los temáticos: un triángulo cuyo vértice de arriba es donde se hace
-// clic. Su tercer vértice (7.5, 5.7) queda antes de cualquier ícono.
-const PUNTA = 'M2 2 L2 12 L7.5 5.7 Z';
+// clic. Su tercer vértice (9.2, 6.8) queda antes de cualquier ícono.
+const PUNTA = 'M2 2 L2 12 L9.2 6.8 Z';
 
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
@@ -42,17 +42,18 @@ const forma = (d: string, c: string, b: string) =>
 
 // `corrido`: el carrito empieza (manija) en la esquina de la punta; se corre
 // dentro de su lienzo para que no la toque.
-const conPunta = (d: string, c: string, b: string, grande: boolean, huecos = false, corrido = false) => {
-  const s = grande ? 0.92 : 0.86;
-  const t = grande ? 2.5 : 4.4; // pegado a la punta; 32 - 32 * s
-  return `<g transform="translate(${t} ${t}) scale(${s})${corrido ? ' translate(2.5 2)' : ''}"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
+const conPunta = (d: string, c: string, b: string, huecos = false, corrido = false) => {
+  const s = 0.86;
+  const t = 5.2; // pegado a la punta, sin tocarla
+  return `<g transform="translate(${t} ${t}) scale(${s})${corrido ? ' translate(1 2)' : ''}"><path d="${d}" fill="${c}"${huecos ? ' fill-rule="evenodd"' : ''} stroke="${b}" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></g>`
     + `<path d="${PUNTA}" fill="${c}" stroke="${b}" stroke-width="1.2" stroke-linejoin="round" paint-order="stroke"/>`;
 };
 
-const tematico = (d: string, c: string, b: string, huecos = false, corrido = false): [string, string] => [
-  `${svg(conPunta(d, c, b, false, huecos, corrido))} 2 2, auto`,
-  `${svg(conPunta(d, c, b, true, huecos, corrido))} 2 2, pointer`,
-];
+// Sobre lo clicable el temático no cambia de tamaño (se veía "agrandarse").
+const tematico = (d: string, c: string, b: string, huecos = false, corrido = false): [string, string] => {
+  const img = svg(conPunta(d, c, b, huecos, corrido));
+  return [`${img} 2 2, auto`, `${img} 2 2, pointer`];
+};
 
 const mira = (c: string, b: string): [string, string] => {
   const cruz = (g: string) => `<g stroke="${b}" stroke-width="4" stroke-linecap="round">${g}</g><g stroke="${c}" stroke-width="2" stroke-linecap="round">${g}</g>`;
