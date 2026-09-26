@@ -31,7 +31,7 @@ const P = {
 
 // Punta de los temáticos: un triángulo cuyo vértice de arriba es donde se hace
 // clic, con la esquina que tocaba el ícono recortada.
-const PUNTA = 'M2 2 L2 14 L10.3 11.1 L10.6 7.8 Z';
+const PUNTA = 'M2 2 L2 12 L10.3 11.1 L10.6 7.8 Z';
 
 const svg = (inner: string) => 'url("data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${inner}</svg>`) + '")';
