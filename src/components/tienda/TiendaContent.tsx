@@ -83,12 +83,13 @@ export function TiendaContent({
         ];
 
         const BadgeCard = ({ badge, mobile }: { badge: typeof badges[0]; mobile?: boolean }) => (
-          <div className={`bg-white shadow-md border border-gray-100 flex flex-col items-center text-center hover:shadow-lg transition-shadow cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-md shadow-none border-0' : 'p-4 rounded-xl'}`}>
-            <div className={`${badge.color} ${mobile ? 'w-8 h-8 flex rounded-md' : 'w-16 h-16 hidden md:flex rounded-full'} items-center justify-center mb-1 md:mb-2 overflow-hidden`}>
+          // Semitransparentes (vidrio esmerilado) para que no tapen el banner.
+          <div className={`bg-white/55 backdrop-blur-md shadow-md border border-white/70 flex flex-col items-center text-center hover:bg-white/75 hover:shadow-lg transition-all cursor-pointer group ${mobile ? 'flex-shrink-0 w-[65px] p-1.5 rounded-[3px] shadow-none border-0' : 'p-4 rounded-md'}`}>
+            <div className={`${badge.color} ${mobile ? 'w-8 h-8 flex rounded-[3px]' : 'w-16 h-16 hidden md:flex rounded-full'} items-center justify-center mb-1 md:mb-2 overflow-hidden`}>
               {badge.image && <img src={badge.image} alt={badge.title} className={`${mobile ? 'w-8 h-8' : 'w-16 h-16'} object-contain`} />}
             </div>
             <p className={`font-bold text-gray-800 ${mobile ? 'text-[8px] leading-tight' : 'text-[11px] mb-1'}`}>{badge.title}</p>
-            <p className="text-[9px] text-gray-400 leading-tight mb-2 line-clamp-2 hidden md:block">{badge.desc}</p>
+            <p className="text-[9px] text-gray-600 leading-tight mb-2 line-clamp-2 hidden md:block">{badge.desc}</p>
             <span className="text-[9px] text-blue-500 font-semibold group-hover:text-blue-700 transition-colors hidden md:block">{badge.link}</span>
           </div>
         );
