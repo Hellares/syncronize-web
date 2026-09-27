@@ -46,7 +46,7 @@ export interface OrdenDetalle extends OrdenResumen {
   adelanto: number;
   historial: { estado: EstadoOrden; nota: string | null; fecha: string }[];
   adelantos: { monto: number; fecha: string }[];
-  /** Fotos del equipo (de la orden y de sus componentes), sin la firma. */
+  /** Fotos del equipo (solo las de la orden, sin la firma): las de cada componente van en su línea. */
   fotos?: { url: string; miniatura: string }[];
 }
 
