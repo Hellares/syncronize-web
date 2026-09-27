@@ -197,19 +197,40 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                   )}
                   {(orden.items.length > 0 || (orden.costoServicio ?? 0) > 0) && (
                     <div className="flex flex-col text-sm">
-                      {(orden.costoServicio ?? 0) > 0 && (
-                        <Linea nombre={orden.servicio ?? 'Servicio'} valor={soles(orden.costoServicio)} />
-                      )}
-                      {orden.items.map((it, i) => (
+                      {((orden.costoServicio ?? 0) > 0 || orden.items.length > 0) && (
                         <Linea
-                          key={i}
-                          nombre={it.nombre}
-                          accion={it.accion ? (TIPO_ACCION_LABEL[it.accion as TipoAccionComponente] ?? it.accion) : null}
-                          accionColor={it.accion ? (TIPO_ACCION_COLOR[it.accion as TipoAccionComponente] ?? 'text-teal-600') : undefined}
-                          detalle={it.descripcion}
-                          valor={soles(it.monto)}
+                          nombre={orden.servicio ?? 'Servicio'}
+                          valor={(orden.costoServicio ?? 0) > 0 ? soles(orden.costoServicio) : ''}
+                          sinBorde={orden.items.length > 0}
                         />
-                      ))}
+                      )}
+                      {/* Los componentes cuelgan DEL servicio (flecha en codo): no
+                          son servicios aparte, son las piezas de este trabajo. */}
+                      {orden.items.length > 0 && (
+                        <div className="border-b border-gray-100 pb-2">
+                          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke={colors.primario} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M6 3v8a4 4 0 0 0 4 4h9" />
+                              <path d="M15 11l4 4-4 4" />
+                            </svg>
+                            Componentes
+                          </p>
+                          <div className="ml-[7px] mt-1 border-l-2 pl-4" style={{ borderColor: alpha(colors.primario, 0.2) }}>
+                            {orden.items.map((it, i) => (
+                              <Linea
+                                key={i}
+                                nombre={it.nombre}
+                                accion={it.accion ? (TIPO_ACCION_LABEL[it.accion as TipoAccionComponente] ?? it.accion) : null}
+                                accionColor={it.accion ? (TIPO_ACCION_COLOR[it.accion as TipoAccionComponente] ?? 'text-teal-600') : undefined}
+                                detalle={it.descripcion}
+                                valor={soles(it.monto)}
+                                sinBorde
+                                compacto
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {orden.descuento > 0 && <Linea nombre="Descuento" valor={`− ${soles(orden.descuento)}`} tenue />}
                       {orden.adelanto > 0 && <Linea nombre="Adelanto pagado" valor={`− ${soles(orden.adelanto)}`} tenue sinBorde />}
                       <div className="flex justify-between items-baseline pt-2">
@@ -429,13 +450,13 @@ function VisorFotos({ fotos, inicial, onCerrar }: { fotos: string[]; inicial: nu
   );
 }
 
-function Linea({ nombre, valor, tenue = false, sinBorde = false, accion, accionColor, detalle }: {
-  nombre: string; valor: string; tenue?: boolean; sinBorde?: boolean;
+function Linea({ nombre, valor, tenue = false, sinBorde = false, compacto = false, accion, accionColor, detalle }: {
+  nombre: string; valor: string; tenue?: boolean; sinBorde?: boolean; compacto?: boolean;
   /** Componente: acción ("Reparar") y su descripción, como en la orden del taller. */
   accion?: string | null; accionColor?: string; detalle?: string | null;
 }) {
   return (
-    <div className={`flex justify-between gap-3 py-2.5 ${sinBorde ? '' : 'border-b border-gray-100'} ${tenue ? 'text-gray-500' : 'text-gray-900'}`}>
+    <div className={`flex justify-between gap-3 ${compacto ? 'py-1.5' : 'py-2.5'} ${sinBorde ? '' : 'border-b border-gray-100'} ${tenue ? 'text-gray-500' : 'text-gray-900'}`}>
       <span className="min-w-0">
         {nombre}
         {accion && <> · <span className={accionColor}>{accion}</span></>}
