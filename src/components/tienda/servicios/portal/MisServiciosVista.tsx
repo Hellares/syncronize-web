@@ -15,13 +15,21 @@ const IconoEquipo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-/** Listado de las órdenes de servicio del comprador en esta tienda. */
+const IconoEmpresa = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 21h18M5 21V5a1 1 0 011-1h8a1 1 0 011 1v16M15 9h3a1 1 0 011 1v11M9 8h2M9 12h2M9 16h2" />
+  </svg>
+);
+
+/** Listado de las órdenes de servicio del comprador en esta tienda (personales y de sus empresas). */
 export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaColors; empresaNombre: string }) {
   const { subdominio, usuario } = useSesionTienda();
   const [ordenes, setOrdenes] = useState<OrdenResumen[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'curso' | 'terminados'>('curso');
   const [aprobando, setAprobando] = useState<string | null>(null);
+  // null = todas; '' = personales; nombre = las de ese cliente empresa.
+  const [filtro, setFiltro] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -47,8 +55,11 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
     }
   };
 
-  const enCurso = (ordenes ?? []).filter((o) => !estaTerminada(o));
-  const terminadas = (ordenes ?? []).filter(estaTerminada);
+  const empresas = [...new Set((ordenes ?? []).map((o) => o.empresaCliente).filter((e): e is string => !!e))];
+  const hayPersonales = (ordenes ?? []).some((o) => !o.empresaCliente);
+  const visibles = (ordenes ?? []).filter((o) => filtro === null || (o.empresaCliente ?? '') === filtro);
+  const enCurso = visibles.filter((o) => !estaTerminada(o));
+  const terminadas = visibles.filter(estaTerminada);
   const porAprobar = enCurso.filter((o) => o.estado === 'ESPERANDO_APROBACION');
   const saldoTotal = enCurso.reduce((s, o) => s + Math.max(0, o.saldo), 0);
   const nombre = usuario?.nombres?.split(' ')[0];
@@ -97,6 +108,7 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
             </span>
             <p className="text-gray-700">Todavía no tienes servicios con {empresaNombre}.</p>
             <p className="text-sm text-gray-500 max-w-md">Cuando dejes un equipo en la tienda con tu DNI, lo vas a poder seguir desde aquí.</p>
+            <p className="text-xs text-gray-400 max-w-md">Si vienes en nombre de una empresa, pide que registren tu DNI como contacto de la empresa para ver sus equipos.</p>
             <Link href={`/${subdominio}/servicios`} className="text-sm font-medium" style={{ color: colors.primario }}>Ver nuestros servicios</Link>
           </div>
         ) : (
@@ -129,6 +141,27 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
                 </div>
               </section>
             ))}
+
+            {empresas.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filtrar por cliente">
+                {([[null, 'Todos'], ...(hayPersonales ? [['', 'Personales']] : []), ...empresas.map((e) => [e, e])] as [string | null, string][]).map(([valor, label]) => {
+                  const activo = filtro === valor;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setFiltro(valor)}
+                      aria-pressed={activo}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors"
+                      style={activo ? { backgroundColor: colors.primario, color: '#fff' } : { backgroundColor: '#fff', color: '#3a4a63' }}
+                    >
+                      {valor && <IconoEmpresa className="w-3.5 h-3.5" />}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex">
               <div className="inline-flex gap-1 bg-white p-1 rounded-xl" role="tablist">
@@ -167,7 +200,7 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
                       <Link href={`/${subdominio}/mis-servicios/${o.id}`} className="flex items-center gap-3 px-4 md:px-6 py-3.5 hover:bg-gray-50">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{o.equipo}</p>
-                          <p className="text-xs text-gray-500 tabular-nums">{o.codigo} · {fechaCorta(o.fechaEntrega ?? o.creadoEn, true)}</p>
+                          <p className="text-xs text-gray-500 tabular-nums">{o.codigo} · {fechaCorta(o.fechaEntrega ?? o.creadoEn, true)}{o.empresaCliente ? ` · ${o.empresaCliente}` : ''}</p>
                         </div>
                         <span className="text-sm font-medium text-gray-900 tabular-nums">{soles(o.total)}</span>
                         <Pastilla {...e} />
@@ -209,9 +242,17 @@ function TarjetaOrden({ o, subdominio, colors }: { o: OrdenResumen; subdominio: 
           <IconoEquipo className="w-6 h-6" />
         </span>
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          {o.empresaCliente && (
+            <span className="self-start inline-flex items-center gap-1 max-w-full text-[11px] font-medium px-2 py-0.5 rounded-md mb-0.5" style={{ backgroundColor: alpha(colors.primario, 0.08), color: colors.primario }}>
+              <IconoEmpresa className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{o.empresaCliente}</span>
+            </span>
+          )}
           <span className="text-xs text-gray-500 tabular-nums">{o.codigo} · Ingresó {fechaCorta(o.creadoEn)}</span>
           <span className="text-[15px] font-medium truncate" style={{ color: colors.primario }}>{o.equipo}</span>
-          {o.servicio && <span className="text-[13px] text-gray-500 truncate">{o.servicio}</span>}
+          {(o.servicio || o.contacto) && (
+            <span className="text-[13px] text-gray-500 truncate">{[o.servicio, o.contacto && `Dejó: ${o.contacto}`].filter(Boolean).join(' · ')}</span>
+          )}
         </div>
         <Pastilla {...e} />
       </div>

@@ -21,6 +21,10 @@ export interface OrdenResumen {
   total: number;
   saldo: number;
   tieneComprobante: boolean;
+  /** La orden es de un cliente empresa (RUC) donde el comprador es contacto. */
+  empresaCliente: string | null;
+  /** El contacto de la empresa que dejó el equipo. */
+  contacto: string | null;
 }
 
 export interface OrdenDetalle extends OrdenResumen {

@@ -117,6 +117,11 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                     {[orden.servicio, orden.tecnico && `Técnico: ${orden.tecnico}`].filter(Boolean).join(' · ')}
                   </span>
                 )}
+                {orden.empresaCliente && (
+                  <span className="self-start mt-1 text-xs md:text-[13px] font-medium bg-white/15 border border-white/25 rounded-lg px-2.5 py-1">
+                    Para {orden.empresaCliente}{orden.contacto ? ` · Lo dejó ${orden.contacto}` : ''}
+                  </span>
+                )}
               </div>
               <Pastilla {...e} grande />
             </div>
