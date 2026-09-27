@@ -174,6 +174,69 @@ function EditComponenteForm({
   );
 }
 
+/* --- Miniaturas en la fila del componente (detalle de la orden) --- */
+/** Las fotos del componente a la derecha de su fila; un clic las abre en grande. */
+export function MiniaturasComponente({ empresaId, componenteId }: { empresaId: string; componenteId: string }) {
+  const [imagenes, setImagenes] = useState<ArchivoResponse[]>([]);
+  const [abierta, setAbierta] = useState<number | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    storageService.getFilesByEntity('SERVICIO_COMPONENTE', componenteId, empresaId)
+      .then(list => { if (vivo) setImagenes(list); })
+      .catch(() => { if (vivo) setImagenes([]); });
+    return () => { vivo = false; };
+  }, [componenteId, empresaId]);
+
+  useEffect(() => {
+    if (abierta === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAbierta(null);
+      else if (e.key === 'ArrowRight') setAbierta(i => (i === null ? i : (i + 1) % imagenes.length));
+      else if (e.key === 'ArrowLeft') setAbierta(i => (i === null ? i : (i - 1 + imagenes.length) % imagenes.length));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [abierta, imagenes.length]);
+
+  if (imagenes.length === 0) return null;
+  return (
+    <>
+      <span className="flex -space-x-1.5">
+        {imagenes.slice(0, 3).map((img, j) => (
+          <button key={img.id} type="button" onClick={() => setAbierta(j)} title="Ver imagen"
+            className="relative h-8 w-8 overflow-hidden rounded-md bg-gray-100 ring-2 ring-white transition-transform hover:z-10 hover:scale-110">
+            <img src={img.urlThumbnail || img.url} alt={img.nombreOriginal} className="h-full w-full object-cover" />
+            {j === 2 && imagenes.length > 3 && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-[10px] font-semibold text-white">+{imagenes.length - 3}</span>
+            )}
+          </button>
+        ))}
+      </span>
+      {abierta !== null && imagenes[abierta] && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4" onClick={() => setAbierta(null)}>
+          <img src={imagenes[abierta].url} alt={imagenes[abierta].nombreOriginal}
+            onClick={e => e.stopPropagation()}
+            className="max-h-[90vh] max-w-full rounded-lg object-contain" />
+          <button type="button" onClick={() => setAbierta(null)} aria-label="Cerrar"
+            className="absolute right-4 top-4 h-10 w-10 rounded-full bg-white/15 text-lg text-white hover:bg-white/25">✕</button>
+          {imagenes.length > 1 && (
+            <>
+              <button type="button" aria-label="Anterior"
+                onClick={e => { e.stopPropagation(); setAbierta((abierta - 1 + imagenes.length) % imagenes.length); }}
+                className="absolute left-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/15 text-xl text-white hover:bg-white/25">‹</button>
+              <button type="button" aria-label="Siguiente"
+                onClick={e => { e.stopPropagation(); setAbierta((abierta + 1) % imagenes.length); }}
+                className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/15 text-xl text-white hover:bg-white/25">›</button>
+              <span className="absolute bottom-5 left-1/2 -translate-x-1/2 text-sm tabular-nums text-white/80">{abierta + 1} / {imagenes.length}</span>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 /* --- Imágenes de evidencia del componente (entidadTipo SERVICIO_COMPONENTE) --- */
 function ComponenteImagenes({ empresaId, componenteId, canManage }: { empresaId: string; componenteId: string; canManage: boolean }) {
   const [imagenes, setImagenes] = useState<ArchivoResponse[]>([]);

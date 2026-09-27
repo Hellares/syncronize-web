@@ -28,6 +28,8 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [fotoAbierta, setFotoAbierta] = useState<number | null>(null);
+  // Las fotos de UN componente, abiertas desde su miniatura en el presupuesto.
+  const [fotosComponente, setFotosComponente] = useState<{ fotos: string[]; i: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const finChatRef = useRef<HTMLDivElement>(null);
 
@@ -226,6 +228,24 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                                 valor={soles(it.monto)}
                                 sinBorde
                                 compacto
+                                extra={(it.fotos?.length ?? 0) > 0 && (
+                                  <span className="flex -space-x-2">
+                                    {it.fotos!.slice(0, 3).map((f, j) => (
+                                      <button
+                                        key={j}
+                                        type="button"
+                                        onClick={() => setFotosComponente({ fotos: it.fotos!.map((x) => x.url), i: j })}
+                                        aria-label={`Ver foto ${j + 1} de ${it.nombre}`}
+                                        className="relative w-10 h-10 rounded-lg overflow-hidden ring-2 ring-white bg-gray-100 hover:z-10 hover:scale-105 transition-transform"
+                                      >
+                                        <img src={f.miniatura} alt="" className="w-full h-full object-cover" />
+                                        {j === 2 && it.fotos!.length > 3 && (
+                                          <span className="absolute inset-0 bg-black/55 text-white text-xs font-medium flex items-center justify-center">+{it.fotos!.length - 3}</span>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </span>
+                                )}
                               />
                             ))}
                           </div>
@@ -400,6 +420,9 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
         )}
       </main>
 
+      {fotosComponente && (
+        <VisorFotos fotos={fotosComponente.fotos} inicial={fotosComponente.i} onCerrar={() => setFotosComponente(null)} />
+      )}
       {orden?.fotos && fotoAbierta !== null && (
         <VisorFotos fotos={orden.fotos.map((f) => f.url)} inicial={fotoAbierta} onCerrar={() => setFotoAbierta(null)} />
       )}
@@ -450,8 +473,10 @@ function VisorFotos({ fotos, inicial, onCerrar }: { fotos: string[]; inicial: nu
   );
 }
 
-function Linea({ nombre, valor, tenue = false, sinBorde = false, compacto = false, accion, accionColor, detalle }: {
+function Linea({ nombre, valor, tenue = false, sinBorde = false, compacto = false, accion, accionColor, detalle, extra }: {
   nombre: string; valor: string; tenue?: boolean; sinBorde?: boolean; compacto?: boolean;
+  /** Lo que va a la derecha antes del monto (las fotos del componente). */
+  extra?: React.ReactNode;
   /** Componente: acción ("Reparar") y su descripción, como en la orden del taller. */
   accion?: string | null; accionColor?: string; detalle?: string | null;
 }) {
@@ -462,7 +487,10 @@ function Linea({ nombre, valor, tenue = false, sinBorde = false, compacto = fals
         {accion && <> · <span className={accionColor}>{accion}</span></>}
         {detalle && <span className="block text-xs text-gray-500">{detalle}</span>}
       </span>
-      <span className="tabular-nums font-medium">{valor}</span>
+      <span className="flex items-center gap-3 shrink-0">
+        {extra}
+        <span className="tabular-nums font-medium">{valor}</span>
+      </span>
     </div>
   );
 }

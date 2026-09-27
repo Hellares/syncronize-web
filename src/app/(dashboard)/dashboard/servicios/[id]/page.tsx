@@ -19,7 +19,7 @@ import { DatosPersonalizadosView } from '@/features/ordenes-servicio/components/
 import { MensajesOrden } from '@/features/ordenes-servicio/components/mensajes-orden';
 import { OrdenServicioPrintMenu } from '@/features/ordenes-servicio/components/orden-servicio-print-menu';
 import { TiempoServicioCard, TercerizacionCard } from '@/features/ordenes-servicio/components/orden-servicio-tiempo-b2b';
-import { ComponenteDetailDialog } from '@/features/ordenes-servicio/components/componente-detail-dialog';
+import { ComponenteDetailDialog, MiniaturasComponente } from '@/features/ordenes-servicio/components/componente-detail-dialog';
 import { ResumenCostosCard, OrdenImagenesSection } from '@/features/ordenes-servicio/components/orden-costos-imagenes';
 import AdelantosOrdenWidget from '@/features/ordenes-servicio/components/adelantos-orden-widget';
 import { usePermissions } from '@/features/empresa/context/empresa-context';
@@ -60,6 +60,9 @@ export default function OrdenDetailPage() {
   const [componenteOpen, setComponenteOpen] = useState(false);
   const [editandoPrometida, setEditandoPrometida] = useState(false);
   const [componenteDetalle, setComponenteDetalle] = useState<OrdenServicioComponente | null>(null);
+  // Sube al cerrar el diálogo del componente: ahí se suben/borran sus fotos y
+  // las miniaturas de la fila se vuelven a pedir.
+  const [fotosVersion, setFotosVersion] = useState(0);
 
   /**
    * Trae la orden y su historial.
@@ -346,6 +349,7 @@ export default function OrdenDetailPage() {
                         {total > 0 && <p className="text-[10px] text-gray-400">M.O. {fmt(c.costoAccion)} · Repuesto/compra {fmt(c.costoRepuestos)}</p>}
                       </button>
                       <span className="flex shrink-0 items-center gap-2">
+                        <MiniaturasComponente key={`${c.id}-${fotosVersion}`} empresaId={orden.empresaId} componenteId={c.id} />
                         <span className="text-gray-500">{fmt(total)}</span>
                         {permissions.canManageOrders && puedeModificarComponentes && (
                           <button onClick={() => eliminarComponente(c.id)} className="text-gray-300 hover:text-red-500">✕</button>
@@ -436,8 +440,8 @@ export default function OrdenDetailPage() {
           empresaId={orden.empresaId}
           componente={componenteDetalle}
           canManage={permissions.canManageOrders && puedeModificarComponentes}
-          onClose={() => setComponenteDetalle(null)}
-          onChanged={() => { setComponenteDetalle(null); flash('Componente actualizado'); cargar(true); }}
+          onClose={() => { setComponenteDetalle(null); setFotosVersion(v => v + 1); }}
+          onChanged={() => { setComponenteDetalle(null); setFotosVersion(v => v + 1); flash('Componente actualizado'); cargar(true); }}
         />
       )}
     </div>
