@@ -104,6 +104,8 @@ export default async function ServiciosPage({ params }: Props) {
           </div>
         </div>
       </header>
+      {/* Separación entre la cabecera y la portada */}
+      <div className="relative z-10 h-px w-full bg-white/60" aria-hidden="true" />
 
       {/* Portada a todo el ancho, pegada a la cabecera, con las migas adentro. El
           fondo (azul de la tienda) se desvanece abajo; el contenido queda nítido. */}
