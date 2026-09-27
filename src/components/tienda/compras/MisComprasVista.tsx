@@ -418,14 +418,14 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
         <div className="flex flex-col">
           <h3 className="text-[15px] font-medium mb-1" style={{ color: colors.primario }}>Productos</h3>
           {c.items.map((it, i) => (
-            <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-              <span className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: alpha(colors.primario, 0.06), color: colors.primario }}>
+            <div key={i} className="flex items-center gap-3 py-[7.5px] border-b border-gray-100 last:border-0">
+              <span className="w-12 h-[46px] rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: alpha(colors.primario, 0.06), color: colors.primario }}>
                 {it.imagen ? (
                   <img src={it.imagen} alt="" className="w-full h-full object-cover" />
                 ) : <IconoBolsa className="w-5 h-5" />}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm md:text-[15px] text-gray-900">{it.descripcion}</p>
+                <p className="text-xs md:text-[13px] text-gray-900">{it.descripcion}</p>
                 <p className="text-xs md:text-[13px] text-gray-500 tabular-nums">
                   {it.cantidad} × {soles(it.precioUnitario)}{it.descuento > 0 ? ` · desc. ${soles(it.descuento)}` : ''}
                 </p>
