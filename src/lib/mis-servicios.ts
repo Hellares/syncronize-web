@@ -48,6 +48,17 @@ export interface MensajeOrden {
   usuario?: { persona?: { nombres?: string | null } | null } | null;
 }
 
+/**
+ * El texto para el cliente. Los errores internos del servidor ("Cannot GET
+ * /api/...", 500) no se muestran tal cual.
+ */
+export function mensajeError(e: unknown, porDefecto: string): string {
+  const m = e instanceof Error ? e.message : '';
+  const status = (e as { status?: number } | null)?.status;
+  if (!m || /^Cannot (GET|POST)/i.test(m) || (status !== undefined && status >= 500)) return porDefecto;
+  return m;
+}
+
 const base = (sub: string) => `/empresas/${encodeURIComponent(sub)}/mis-servicios`;
 
 export const misServicios = {

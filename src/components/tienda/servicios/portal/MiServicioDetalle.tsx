@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
-import { ETIQUETA, MensajeOrden, OrdenDetalle, PASOS, etiquetaOrden, fechaCorta, horaCorta, misServicios, pasoDe } from '@/lib/mis-servicios';
+import { ETIQUETA, MensajeOrden, OrdenDetalle, PASOS, etiquetaOrden, fechaCorta, horaCorta, misServicios, pasoDe, mensajeError } from '@/lib/mis-servicios';
 import { useSesionTienda } from '../../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../../compra/CarritoVista';
 import { HeroPortal, Pastilla } from './HeroPortal';
@@ -36,7 +36,7 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
       setMensajes(m);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar el servicio');
+      setError(mensajeError(e, 'No se pudo cargar el servicio'));
     }
   }, [subdominio, id]);
 
@@ -60,7 +60,7 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
     try {
       setOrden(await misServicios.aprobar(subdominio, id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo aprobar');
+      setError(mensajeError(e, 'No se pudo aprobar'));
     } finally {
       setAprobando(false);
     }
@@ -76,7 +76,7 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
       setMensajes((xs) => [...xs, m]);
       setTexto('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo enviar el mensaje');
+      setError(mensajeError(e, 'No se pudo enviar el mensaje'));
     } finally {
       setEnviando(false);
     }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
-import { OrdenResumen, PASOS, estaTerminada, etiquetaOrden, fechaCorta, misServicios, pasoDe } from '@/lib/mis-servicios';
+import { OrdenResumen, PASOS, estaTerminada, etiquetaOrden, fechaCorta, misServicios, pasoDe, mensajeError } from '@/lib/mis-servicios';
 import { useSesionTienda } from '../../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../../compra/CarritoVista';
 import { HeroPortal, Pastilla } from './HeroPortal';
@@ -29,7 +29,7 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
       setOrdenes(r.data);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron cargar tus servicios');
+      setError(mensajeError(e, 'No se pudieron cargar tus servicios'));
     }
   }, [subdominio]);
 
@@ -41,7 +41,7 @@ export function MisServiciosVista({ colors, empresaNombre }: { colors: TiendaCol
       await misServicios.aprobar(subdominio, id);
       await cargar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo aprobar');
+      setError(mensajeError(e, 'No se pudo aprobar'));
     } finally {
       setAprobando(null);
     }
