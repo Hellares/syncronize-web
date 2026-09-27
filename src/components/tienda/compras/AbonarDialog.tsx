@@ -6,6 +6,9 @@ import { soles } from '@/lib/tienda-compra';
 import { mensajeError } from '@/lib/mis-servicios';
 import { MediosPago, MetodoAbono, misCompras } from '@/lib/mis-compras';
 
+/** Un abono grande puede ir en varios Yape (límite por operación): una captura por cada uno. */
+const MAX_CAPTURAS = 3;
+
 const METODOS: { id: MetodoAbono; texto: string; color: string }[] = [
   { id: 'YAPE', texto: 'Yape', color: '#742284' },
   { id: 'PLIN', texto: 'Plin', color: '#0bb4c8' },
@@ -34,8 +37,8 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
   const [monto, setMonto] = useState(Math.min(sugerido > 0 ? sugerido : disponible, disponible).toFixed(2));
   const [cuentaId, setCuentaId] = useState<string | null>(null);
   const [operacion, setOperacion] = useState('');
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const [vista, setVista] = useState<string | null>(null);
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [vistas, setVistas] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
@@ -50,13 +53,20 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
     return () => { vivo = false; };
   }, [subdominio]);
 
-  // La vista previa de la captura (y su limpieza).
+  // Las vistas previas de las capturas (y su limpieza).
   useEffect(() => {
-    if (!archivo) { setVista(null); return; }
-    const url = URL.createObjectURL(archivo);
-    setVista(url);
-    return () => URL.revokeObjectURL(url);
-  }, [archivo]);
+    const urls = archivos.map((f) => URL.createObjectURL(f));
+    setVistas(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [archivos]);
+
+  const agregar = (lista: FileList | null) => {
+    if (!lista?.length) return;
+    const nuevas = [...archivos, ...Array.from(lista)];
+    if (nuevas.length > MAX_CAPTURAS) setError(`Puedes subir hasta ${MAX_CAPTURAS} capturas por pago`);
+    setArchivos(nuevas.slice(0, MAX_CAPTURAS));
+    if (inputRef.current) inputRef.current.value = '';
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !enviando) onCerrar(); };
@@ -79,7 +89,7 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
     if (!(valor > 0)) return setError('Escribe el monto que pagaste');
     if (valor > disponible + 0.005) return setError(`El monto no puede ser mayor a ${soles(disponible)}`);
     if (metodo === 'TRANSFERENCIA' && !cuentaId) return setError('Elige la cuenta a la que transferiste');
-    if (!archivo) return setError('Sube la captura de tu pago');
+    if (archivos.length === 0) return setError('Sube la captura de tu pago');
     setEnviando(true);
     try {
       await misCompras.reportarAbono(subdominio, ventaId, {
@@ -87,7 +97,7 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
         metodoPago: metodo,
         numeroOperacion: operacion,
         empresaBancoId: metodo === 'TRANSFERENCIA' ? cuentaId ?? undefined : undefined,
-        comprobante: archivo,
+        comprobantes: archivos,
       });
       setListo(true);
       onListo();
@@ -205,12 +215,33 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-[13px] text-gray-600">Sube la captura de tu pago</span>
-                <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => setArchivo(e.target.files?.[0] ?? null)} />
-                {vista ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-2.5">
-                    <img src={vista} alt="Tu captura" className="w-14 h-14 rounded-lg object-cover" />
-                    <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">{archivo?.name}</span>
-                    <button type="button" onClick={() => inputRef.current?.click()} className="text-sm font-medium px-2" style={{ color: colors.primario }}>Cambiar</button>
+                <span className="text-xs text-gray-400 -mt-1">¿Lo pagaste en varios Yape? Sube una captura por cada uno (hasta {MAX_CAPTURAS}).</span>
+                <input ref={inputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => agregar(e.target.files)} />
+                {vistas.length > 0 ? (
+                  <div className="flex flex-wrap gap-2.5">
+                    {vistas.map((v, i) => (
+                      <div key={v} className="relative w-20 h-20">
+                        <img src={v} alt={`Captura ${i + 1}`} className="w-full h-full rounded-xl object-cover ring-1 ring-gray-200" />
+                        <button
+                          type="button"
+                          onClick={() => setArchivos((a) => a.filter((_, j) => j !== i))}
+                          aria-label={`Quitar captura ${i + 1}`}
+                          className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gray-900/80 text-white flex items-center justify-center"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                    {archivos.length < MAX_CAPTURAS && (
+                      <button
+                        type="button"
+                        onClick={() => inputRef.current?.click()}
+                        className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 flex flex-col items-center justify-center gap-0.5 text-xs hover:bg-gray-50"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                        Otra
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -219,7 +250,7 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
                     className="h-20 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 flex flex-col items-center justify-center gap-1 hover:bg-gray-50"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
-                    Elegir imagen
+                    Elegir imagen(es)
                   </button>
                 )}
               </div>

@@ -83,6 +83,8 @@ export interface ReporteAbonoCliente {
   metodoPago: 'YAPE' | 'PLIN' | 'TRANSFERENCIA';
   numeroOperacion: string | null;
   comprobanteUrl: string;
+  /** Todas las capturas (un pago en varios Yape). */
+  comprobantes: string[];
   empresaBancoId: string | null;
   cuentaReportada: { id: string; nombreBanco: string; numeroCuenta: string } | null;
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';

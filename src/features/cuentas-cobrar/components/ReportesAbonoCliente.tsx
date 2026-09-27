@@ -34,7 +34,7 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
 }) {
   const [reportes, setReportes] = useState<ReporteAbonoCliente[]>([]);
   const [aprobando, setAprobando] = useState<ReporteAbonoCliente | null>(null);
-  const [captura, setCaptura] = useState<string | null>(null);
+  const [visor, setVisor] = useState<{ fotos: string[]; i: number } | null>(null);
   const [error, setError] = useState('');
 
   const cargar = useCallback(async () => {
@@ -74,10 +74,15 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
           const m = METODO[r.metodoPago] ?? { texto: r.metodoPago, clase: 'bg-gray-100 text-gray-600' };
           return (
             <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-              <button type="button" onClick={() => setCaptura(r.comprobanteUrl)} title="Ver captura"
-                className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200 hover:ring-[#437EFF]">
-                <img src={r.comprobanteUrl} alt={`Captura del pago de ${r.cliente}`} className="h-full w-full object-cover" />
-              </button>
+              {/* Un pago puede traer varias capturas (varios Yape): encimadas. */}
+              <span className="flex flex-shrink-0 -space-x-3">
+                {(r.comprobantes?.length ? r.comprobantes : [r.comprobanteUrl]).map((url, i, todas) => (
+                  <button key={url} type="button" onClick={() => setVisor({ fotos: todas, i })} title={`Ver captura ${i + 1} de ${todas.length}`}
+                    className="relative h-12 w-12 overflow-hidden rounded-lg bg-gray-100 ring-2 ring-white hover:z-10 hover:ring-[#437EFF]">
+                    <img src={url} alt={`Captura ${i + 1} del pago de ${r.cliente}`} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-gray-900">{r.cliente} <span className="font-mono text-xs text-gray-400">· {r.ventaCodigo}</span></p>
                 <p className="text-[11px] text-gray-500">
@@ -101,11 +106,22 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
         })}
       </ul>
 
-      {captura && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4" onClick={() => setCaptura(null)}>
-          <img src={captura} alt="Captura del pago" className="max-h-[90vh] max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-          <button type="button" onClick={() => setCaptura(null)} aria-label="Cerrar"
+      {visor && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4" onClick={() => setVisor(null)}>
+          <img src={visor.fotos[visor.i]} alt={`Captura ${visor.i + 1} del pago`} className="max-h-[90vh] max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+          <button type="button" onClick={() => setVisor(null)} aria-label="Cerrar"
             className="absolute right-4 top-4 h-10 w-10 rounded-full bg-white/15 text-lg text-white hover:bg-white/25">✕</button>
+          {visor.fotos.length > 1 && (
+            <>
+              <button type="button" aria-label="Anterior"
+                onClick={(e) => { e.stopPropagation(); setVisor({ ...visor, i: (visor.i - 1 + visor.fotos.length) % visor.fotos.length }); }}
+                className="absolute left-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/15 text-xl text-white hover:bg-white/25">‹</button>
+              <button type="button" aria-label="Siguiente"
+                onClick={(e) => { e.stopPropagation(); setVisor({ ...visor, i: (visor.i + 1) % visor.fotos.length }); }}
+                className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/15 text-xl text-white hover:bg-white/25">›</button>
+              <span className="absolute bottom-5 left-1/2 -translate-x-1/2 text-sm tabular-nums text-white/80">{visor.i + 1} / {visor.fotos.length}</span>
+            </>
+          )}
         </div>
       )}
 

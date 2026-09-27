@@ -82,14 +82,16 @@ export const misCompras = {
   mediosPago: (sub: string) => mkt<MediosPago>(`${base(sub)}/medios-pago`),
   /** Reporta un abono con la captura (multipart). Queda en revisión hasta que la tienda lo apruebe. */
   reportarAbono: (sub: string, id: string, datos: {
-    monto: number; metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string; comprobante: File;
+    monto: number; metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string;
+    /** 1 a 3 capturas: un pago grande puede ir en varios Yape. */
+    comprobantes: File[];
   }) => {
     const fd = new FormData();
     fd.append('monto', datos.monto.toFixed(2));
     fd.append('metodoPago', datos.metodoPago);
     if (datos.numeroOperacion?.trim()) fd.append('numeroOperacion', datos.numeroOperacion.trim());
     if (datos.empresaBancoId) fd.append('empresaBancoId', datos.empresaBancoId);
-    fd.append('comprobante', datos.comprobante);
+    for (const f of datos.comprobantes) fd.append('comprobantes', f);
     return mkt<{ id: string; estado: string }>(`${base(sub)}/${id}/abonos`, { method: 'POST', body: fd });
   },
   /** Estado de cuenta (crédito) personal (sin empresa) o de UNA empresa: nunca mezclados. */
