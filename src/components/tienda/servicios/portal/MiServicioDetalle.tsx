@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
-import { ETIQUETA, MensajeOrden, OrdenDetalle, PASOS, etiquetaOrden, fechaCorta, horaCorta, misServicios, pasoDe, mensajeError } from '@/lib/mis-servicios';
+import { ETIQUETA, MensajeOrden, OrdenDetalle, PASOS, etiquetaOrden, fechaCorta, horaCorta, misServicios, pasoDe, mensajeError, textoSinDiagnostico } from '@/lib/mis-servicios';
 import { TIPO_ACCION_COLOR, TIPO_ACCION_LABEL, type TipoAccionComponente } from '@/core/types/orden-servicio';
 import { useSesionTienda } from '../../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../../compra/CarritoVista';
@@ -195,7 +195,7 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                   {orden.diagnostico ? (
                     <p className="text-sm leading-relaxed text-gray-700 bg-slate-50 rounded-xl px-3.5 py-3 whitespace-pre-line">{orden.diagnostico}</p>
                   ) : (
-                    <p className="text-sm text-gray-500">Todavía estamos revisando tu equipo. Te avisamos cuando tengamos el diagnóstico.</p>
+                    <p className="text-sm text-gray-500">{textoSinDiagnostico(orden)}</p>
                   )}
                   {(orden.items.length > 0 || (orden.costoServicio ?? 0) > 0) && (
                     <div className="flex flex-col text-sm">

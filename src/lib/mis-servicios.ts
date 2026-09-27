@@ -119,6 +119,27 @@ export function etiquetaOrden(o: Pick<OrdenResumen, 'estado' | 'fechaEntrega'>) 
   return ETIQUETA[o.estado] ?? ETIQUETA.RECIBIDO;
 }
 
+/**
+ * Lo que dice "Diagnóstico y presupuesto" cuando el técnico no escribió un
+ * diagnóstico: según en qué va la orden (antes decía "estamos revisando" siempre).
+ */
+export function textoSinDiagnostico(o: Pick<OrdenResumen, 'estado' | 'fechaEntrega'>): string {
+  if (o.fechaEntrega || o.estado === 'ENTREGADO') return 'Servicio terminado: tu equipo ya fue entregado. ¡Gracias por confiar en nosotros!';
+  switch (o.estado) {
+    case 'RECIBIDO': return 'Recibimos tu equipo. En breve empezamos a revisarlo.';
+    case 'EN_DIAGNOSTICO': return 'Estamos revisando tu equipo. Te avisamos cuando tengamos el diagnóstico.';
+    case 'ESPERANDO_APROBACION': return 'Ya revisamos tu equipo. Mira el presupuesto y apruébalo para empezar la reparación.';
+    case 'EN_REPARACION':
+    case 'TERCERIZADO': return 'Estamos trabajando en tu equipo. Te avisamos apenas esté listo.';
+    case 'PENDIENTE_PIEZAS': return 'Estamos esperando los repuestos para continuar con la reparación.';
+    case 'REPARADO': return 'Tu equipo ya está reparado. Estamos haciendo las últimas pruebas.';
+    case 'LISTO_ENTREGA':
+    case 'FINALIZADO': return 'Tu equipo está listo. Puedes pasar a recogerlo.';
+    case 'CANCELADO': return 'Este servicio fue cancelado.';
+    default: return 'Te avisamos cualquier novedad de tu equipo.';
+  }
+}
+
 /** Fecha de calendario en Lima (el backend guarda instantes UTC). */
 export const fechaCorta = (iso: string | null | undefined, conAnio = false) =>
   iso ? new Date(iso).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', ...(conAnio && { year: 'numeric' }), timeZone: 'America/Lima' }) : '';
