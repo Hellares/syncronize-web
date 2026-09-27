@@ -65,6 +65,13 @@ export function BotonCuenta({ conTexto = false }: { conTexto?: boolean }) {
             Mis pedidos
           </Link>
           <Link
+            href={`/${subdominio}/mis-compras`}
+            onClick={() => setAbierto(false)}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Mis compras
+          </Link>
+          <Link
             href={`/${subdominio}/mis-servicios`}
             onClick={() => setAbierto(false)}
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
