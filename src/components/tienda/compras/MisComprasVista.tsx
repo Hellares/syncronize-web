@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
-import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { mensajeError } from '@/lib/mis-servicios';
 import {
   CompraDetalle, CompraResumen, ESTADO_COMPRA, METODO_PAGO, ResumenCompras, descargarEstadoCuenta, diaVence, fechaHora, misCompras,
@@ -28,7 +27,7 @@ const IconoEmpresa = ({ className }: { className?: string }) => (
 );
 
 /** "Mis compras": lo que el cliente compró en la tienda, pagado y a crédito, y cuánto debe. */
-export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: TiendaColors; empresaNombre: string; telefono?: string }) {
+export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColors; empresaNombre: string }) {
   const { subdominio, usuario } = useSesionTienda();
   const [compras, setCompras] = useState<CompraResumen[] | null>(null);
   const [resumen, setResumen] = useState<ResumenCompras | null>(null);
@@ -258,7 +257,6 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                   key={seleccion}
                   id={seleccion}
                   colors={colors}
-                  telefono={telefono}
                   onVolver={() => abrir(null)}
                 />
               ) : (
@@ -334,7 +332,7 @@ const ESTADO_CUOTA: Record<string, { texto: string; fondo: string; color: string
   PENDIENTE: { texto: 'Pendiente', fondo: '#eef2f8', color: '#3a4a63' },
 };
 
-function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors: TiendaColors; telefono?: string; onVolver: () => void }) {
+function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaColors; onVolver: () => void }) {
   const { subdominio } = useSesionTienda();
   const [c, setC] = useState<CompraDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -360,12 +358,6 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
   const e = ESTADO_COMPRA[c.estado];
   const debe = c.saldo > 0;
   const proxima = c.cuotas.find((q) => q.saldo > 0);
-  const whatsapp = enlaceChatWhatsapp(
-    telefono,
-    debe
-      ? `Hola, quiero consultar por mi compra ${c.codigo}. Me figura un saldo de ${soles(c.saldo)}.`
-      : `Hola, quiero consultar por mi compra ${c.codigo}.`,
-  );
 
   return (
     <div className="flex flex-col gap-2">
@@ -489,18 +481,6 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
 
         {c.esCredito && (
           <BotonEstadoCuenta clienteEmpresaId={c.clienteEmpresaId} colors={colors} bloque etiqueta={c.empresaCliente ? `Estado de cuenta de ${c.empresaCliente}` : 'Descargar mi estado de cuenta'} />
-        )}
-        {whatsapp && (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-12 rounded-xl text-white text-[15px] font-medium flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#1fa855' }}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 01-13.5 7.8L3 21l1.2-4.4A9 9 0 1121 12z" /></svg>
-            {debe ? 'Consultar mi saldo por WhatsApp' : 'Consultar por WhatsApp'}
-          </a>
         )}
       </section>
     </div>
