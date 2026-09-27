@@ -313,12 +313,9 @@ export default function OrdenDetailPage() {
         {orden.descripcionProblema && (
           <div className={`${CARD_BASE} p-4`}>
             <p className="text-[10px] uppercase text-gray-400">Problema reportado</p>
-            <p className="text-sm text-gray-700">{orden.descripcionProblema}</p>
+            <p className="text-xs text-[#004A94]">{orden.descripcionProblema}</p>
           </div>
         )}
-
-        {/* Imágenes de la orden (+ firma del cliente) */}
-        <OrdenImagenesSection orden={orden} canManageSettings={permissions.canManageSettings} forceShow={forceShowImagenes} />
 
         {/* Componentes */}
         {(permissions.canManageOrders || (orden.componentes ?? []).length > 0) && (
@@ -361,6 +358,9 @@ export default function OrdenDetailPage() {
             )}
           </div>
         )}
+
+        {/* Imágenes de la orden (+ firma del cliente) */}
+        <OrdenImagenesSection orden={orden} canManageSettings={permissions.canManageSettings} forceShow={forceShowImagenes} />
 
         {/* Historial */}
         {historial.length > 0 && (
