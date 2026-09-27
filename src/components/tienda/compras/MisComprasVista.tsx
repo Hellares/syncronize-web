@@ -277,7 +277,6 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
 function TarjetaCompra({ c, colors, activa, onAbrir }: { c: CompraResumen; colors: TiendaColors; activa: boolean; onAbrir: () => void }) {
   const e = ESTADO_COMPRA[c.estado];
   const deuda = c.esCredito && c.saldo > 0;
-  const avance = c.total > 0 ? Math.min(100, Math.round((c.pagado / c.total) * 100)) : 0;
   return (
     <button
       type="button"
@@ -318,9 +317,6 @@ function TarjetaCompra({ c, colors, activa, onAbrir }: { c: CompraResumen; color
       </div>
       {deuda && (
         <div className="-mt-3 flex flex-col gap-1.5">
-          <div className="h-0.5 rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${avance}%`, backgroundColor: c.estado === 'VENCIDA' ? '#b42318' : colors.primario }} />
-          </div>
           <span className="text-xs text-gray-500">
             Pagaste {soles(c.pagado)} de {soles(c.total)}
             {c.proximoPago && <> · {c.estado === 'VENCIDA' ? 'venció' : 'vence'} el {diaVence(c.proximoPago.fechaVencimiento)}</>}
