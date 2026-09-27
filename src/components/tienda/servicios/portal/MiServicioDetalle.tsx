@@ -26,6 +26,7 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
   const [aprobando, setAprobando] = useState(false);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [fotoAbierta, setFotoAbierta] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const finChatRef = useRef<HTMLDivElement>(null);
 
@@ -246,6 +247,24 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                       <p className="text-sm text-gray-800">&ldquo;{orden.descripcionProblema}&rdquo;</p>
                     </div>
                   )}
+                  {(orden.fotos?.length ?? 0) > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs text-gray-500">Fotos de tu equipo</span>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {orden.fotos!.map((f, i) => (
+                          <button
+                            key={f.url}
+                            type="button"
+                            onClick={() => setFotoAbierta(i)}
+                            aria-label={`Ver foto ${i + 1}`}
+                            className="aspect-square rounded-xl overflow-hidden bg-slate-100 hover:opacity-90 transition-opacity"
+                          >
+                            <img src={f.miniatura} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {orden.accesorios.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-gray-500">Dejaste:</span>
@@ -344,7 +363,54 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
           </>
         )}
       </main>
+
+      {orden?.fotos && fotoAbierta !== null && (
+        <VisorFotos fotos={orden.fotos.map((f) => f.url)} inicial={fotoAbierta} onCerrar={() => setFotoAbierta(null)} />
+      )}
     </>
+  );
+}
+
+/** Foto en grande sobre la página; flechas y teclado para pasar, Esc para cerrar. */
+function VisorFotos({ fotos, inicial, onCerrar }: { fotos: string[]; inicial: number; onCerrar: () => void }) {
+  const [i, setI] = useState(inicial);
+  const ir = useCallback((d: number) => setI((x) => (x + d + fotos.length) % fotos.length), [fotos.length]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar();
+      else if (e.key === 'ArrowRight') ir(1);
+      else if (e.key === 'ArrowLeft') ir(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; };
+  }, [ir, onCerrar]);
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/85 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Fotos del equipo" onClick={onCerrar}>
+      <img src={fotos[i]} alt={`Foto ${i + 1} de ${fotos.length}`} className="max-w-full max-h-[85vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+      <button type="button" onClick={onCerrar} aria-label="Cerrar" className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+      {fotos.length > 1 && (
+        <>
+          {([-1, 1] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); ir(d); }}
+              aria-label={d < 0 ? 'Foto anterior' : 'Foto siguiente'}
+              className={`absolute top-1/2 -translate-y-1/2 ${d < 0 ? 'left-3 md:left-6' : 'right-3 md:right-6'} w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d={d < 0 ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'} /></svg>
+            </button>
+          ))}
+          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 text-sm text-white/80 tabular-nums">{i + 1} / {fotos.length}</span>
+        </>
+      )}
+    </div>
   );
 }
 
