@@ -452,16 +452,18 @@ export default function NuevaOrdenPage() {
                         }}
                         placeholder="8 dígitos"
                       />
-                      {dniBusqueda && (
-                        <p className={`mt-1 text-[11px] ${dniBusqueda.estado === 'error' ? 'text-amber-700' : dniBusqueda.estado === 'ok' ? 'text-emerald-700' : 'text-gray-500'}`}>
-                          {dniBusqueda.texto}
-                        </p>
-                      )}
                     </div>
                     <div className="sm:col-span-3">
                       <label className={LABEL} htmlFor="nc-nombre">Nombre</label>
                       <input id="nc-nombre" className={INPUT_STD} value={nuevoContacto.nombre} onChange={e => setNuevoContacto(v => ({ ...v, nombre: e.target.value }))} placeholder="Se llena con el DNI" />
                     </div>
+                    {/* El resultado de RENIEC en una sola línea, a todo el ancho (en la
+                        columna del DNI el nombre se partía en dos). */}
+                    {dniBusqueda && (
+                      <p className={`sm:col-span-4 -mt-1 text-[11px] truncate ${dniBusqueda.estado === 'error' ? 'text-amber-700' : dniBusqueda.estado === 'ok' ? 'text-emerald-700' : 'text-gray-500'}`}>
+                        {dniBusqueda.texto}
+                      </p>
+                    )}
                     <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="nc-celular">Celular</label>
                       <input id="nc-celular" className={INPUT_STD} inputMode="tel" value={nuevoContacto.celular} onChange={e => setNuevoContacto(v => ({ ...v, celular: e.target.value }))} placeholder="Opcional" />
