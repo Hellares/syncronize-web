@@ -434,53 +434,43 @@ export default function NuevaOrdenPage() {
                   <option value={NUEVO_CONTACTO}>+ Nuevo contacto</option>
                 </select>
                 {creandoContacto && (
-                  <div className="mt-2.5 rounded-lg border border-gray-200 bg-gray-50/60 p-3 grid gap-2.5 sm:grid-cols-2">
+                  <div className="mt-2.5 rounded-lg border border-gray-200 bg-gray-50/60 p-3 grid gap-2.5 sm:grid-cols-4">
                     <div>
                       <label className={LABEL} htmlFor="nc-dni">DNI</label>
-                      <div className="flex gap-2">
-                        <input
-                          id="nc-dni"
-                          className={INPUT_STD}
-                          inputMode="numeric"
-                          maxLength={8}
-                          autoFocus
-                          value={nuevoContacto.dni}
-                          onChange={e => {
-                            const dni = e.target.value.replace(/\D/g, '');
-                            setNuevoContacto(v => ({ ...v, dni }));
-                            setDniBusqueda(null);
-                            if (dni.length === 8) void buscarDniContacto(dni);
-                          }}
-                          placeholder="8 dígitos"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void buscarDniContacto(nuevoContacto.dni)}
-                          disabled={nuevoContacto.dni.length !== 8 || dniBusqueda?.estado === 'buscando'}
-                          className="flex-shrink-0 px-3 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          Buscar
-                        </button>
-                      </div>
+                      <input
+                        id="nc-dni"
+                        className={INPUT_STD}
+                        inputMode="numeric"
+                        maxLength={8}
+                        autoFocus
+                        value={nuevoContacto.dni}
+                        onChange={e => {
+                          const dni = e.target.value.replace(/\D/g, '');
+                          setNuevoContacto(v => ({ ...v, dni }));
+                          setDniBusqueda(null);
+                          if (dni.length === 8) void buscarDniContacto(dni);
+                        }}
+                        placeholder="8 dígitos"
+                      />
                       {dniBusqueda && (
                         <p className={`mt-1 text-[11px] ${dniBusqueda.estado === 'error' ? 'text-amber-700' : dniBusqueda.estado === 'ok' ? 'text-emerald-700' : 'text-gray-500'}`}>
                           {dniBusqueda.texto}
                         </p>
                       )}
                     </div>
-                    <div>
+                    <div className="sm:col-span-3">
                       <label className={LABEL} htmlFor="nc-nombre">Nombre</label>
                       <input id="nc-nombre" className={INPUT_STD} value={nuevoContacto.nombre} onChange={e => setNuevoContacto(v => ({ ...v, nombre: e.target.value }))} placeholder="Se llena con el DNI" />
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="nc-celular">Celular</label>
                       <input id="nc-celular" className={INPUT_STD} inputMode="tel" value={nuevoContacto.celular} onChange={e => setNuevoContacto(v => ({ ...v, celular: e.target.value }))} placeholder="Opcional" />
                     </div>
-                    <div>
+                    <div className="sm:col-span-2">
                       <label className={LABEL} htmlFor="nc-cargo">Cargo</label>
                       <input id="nc-cargo" className={INPUT_STD} value={nuevoContacto.cargo} onChange={e => setNuevoContacto(v => ({ ...v, cargo: e.target.value }))} placeholder="Ej: Encargado de sistemas" />
                     </div>
-                    <p className="sm:col-span-2 text-xs text-gray-500">
+                    <p className="sm:col-span-4 text-xs text-gray-500">
                       Se guarda como contacto de la empresa al registrar la orden. Con su DNI podrá seguir los servicios de la empresa desde la tienda web.
                     </p>
                   </div>
