@@ -28,7 +28,7 @@ export function ServiciosCard({ subdominio, servicios, total, colors }: Props) {
           <IconoServicio className="w-5 h-5" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-[15px] font-medium text-gray-900 leading-tight">Servicios</h3>
+          <h3 className="text-[15px] font-medium leading-tight" style={{ color: colors.primario }}>Servicios</h3>
           <p className="text-[11px] text-gray-400">{total} {total === 1 ? 'servicio' : 'servicios'}</p>
         </div>
       </div>
@@ -41,7 +41,7 @@ export function ServiciosCard({ subdominio, servicios, total, colors }: Props) {
         ))}
       </ul>
       <span
-        className="mx-3 mt-3 mb-3.5 h-10 rounded-[10px] flex items-center justify-center gap-1.5 text-[13px] font-bold transition-colors"
+        className="mx-3 mt-3 mb-3.5 h-10 rounded-[10px] flex items-center justify-center gap-1.5 text-[13px] font-medium transition-colors"
         style={{ backgroundColor: alpha(colors.primario, 0.1), color: colors.primario }}
       >
         Ver todos los servicios
@@ -66,7 +66,7 @@ export function ServiciosFila({ subdominio, servicios, total, colors }: Props) {
         <IconoServicio className="w-[22px] h-[22px]" />
       </span>
       <span className="flex-1 min-w-0 flex flex-col">
-        <span className="text-[15px] font-bold text-gray-900">Servicios</span>
+        <span className="text-[15px] font-medium" style={{ color: colors.primario }}>Servicios</span>
         <span className="text-xs text-gray-500 truncate">{resumen}</span>
       </span>
       <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: alpha(colors.primario, 0.1), color: colors.primario }}>

@@ -105,7 +105,7 @@ export function UbicacionCard({ sede, colors, googleMapsUrl }: Props) {
           </svg>
         </span>
         <div className="min-w-0">
-          <h3 className="text-[15px] font-medium text-gray-900 leading-tight">Ubicación</h3>
+          <h3 className="text-[15px] font-medium leading-tight" style={{ color: colors.primario }}>Ubicación</h3>
           <p className="text-[11px] text-gray-400 truncate">{sede.nombre}</p>
         </div>
       </div>
