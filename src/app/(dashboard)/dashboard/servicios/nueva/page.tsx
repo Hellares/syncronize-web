@@ -12,7 +12,7 @@ import type { ClienteEmpresaContacto } from '@/core/types/cliente-empresa';
 import { DynamicFieldsForm, seedDefaults, validarCamposRequeridos, limpiarDatos } from '@/features/ordenes-servicio/components/dynamic-fields-form';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
-import { buscarClientes } from '@/features/cotizacion/services/cliente-service';
+import { agregarContacto, buscarClientes } from '@/features/cotizacion/services/cliente-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
 import type { ClientePersona } from '@/core/types/cliente';
@@ -22,6 +22,9 @@ import { apiClient } from '@/core/api/client';
 
 // Estilo estándar de la web (ver feedback_web_estilo_input_std): 30px, r6,
 // fondo zinc, ring azul, texto #004A94; al focus SOLO cambia la sombra.
+/** Valor del select de contacto para "+ Nuevo contacto". */
+const NUEVO_CONTACTO = '__nuevo__';
+
 const INPUT_STD =
   'w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] h-[30px] px-3 shadow-md focus:shadow-lg focus:shadow-blue-200';
 const INPUT_STD_TA =
@@ -116,6 +119,9 @@ export default function NuevaOrdenPage() {
   // limpieza en el efecto (que además mostraba los viejos por un frame).
   const [contactosDe, setContactosDe] = useState<{ clienteId: string; lista: ClienteEmpresaContacto[] } | null>(null);
   const [contactoId, setContactoId] = useState('');
+  // "+ Nuevo contacto": se crea en la empresa cliente al registrar la orden.
+  // Con su DNI, esa persona sigue el servicio desde la tienda web (Mis servicios).
+  const [nuevoContacto, setNuevoContacto] = useState({ nombre: '', dni: '', celular: '', cargo: '' });
 
   const [sedeId, setSedeId] = useState('');
   const [tipoServicio, setTipoServicio] = useState<TipoServicio>('REPARACION');
@@ -195,7 +201,7 @@ export default function NuevaOrdenPage() {
         setContactosDe({ clienteId, lista: cs });
         // Se preselecciona el principal: es quien firma en la mayoría de casos.
         const principal = cs.find((c) => c.esPrincipal) ?? cs[0];
-        setContactoId(principal?.id ?? '');
+        setContactoId(principal?.id ?? NUEVO_CONTACTO);
       })
       .catch(() => {});
     return () => { vigente = false; };
@@ -204,6 +210,7 @@ export default function NuevaOrdenPage() {
   // Solo valen si son del cliente actualmente elegido.
   const contactos = contactosDe && cliente && contactosDe.clienteId === cliente.id ? contactosDe.lista : [];
   const contactoIdValido = contactos.some((c) => c.id === contactoId) ? contactoId : '';
+  const creandoContacto = cliente?.tipo === 'empresa' && contactoId === NUEVO_CONTACTO;
 
   const elegirServicio = async (id: string) => {
     setServicioId(id);
@@ -243,8 +250,27 @@ export default function NuevaOrdenPage() {
     }
     const reqErr = validarCamposRequeridos(campos, datos);
     if (reqErr) { setError(reqErr); return; }
+    const dniNuevo = nuevoContacto.dni.trim();
+    if (creandoContacto && dniNuevo && !/^\d{8}$/.test(dniNuevo)) {
+      setError('El DNI del contacto debe tener 8 dígitos');
+      return;
+    }
     setIsSubmitting(true);
     try {
+      // El contacto nuevo va primero: la orden lo necesita por id.
+      let contactoParaOrden = contactoIdValido;
+      if (creandoContacto && cliente && nuevoContacto.nombre.trim()) {
+        const creado = await agregarContacto(empresaId, cliente.id, {
+          nombre: nuevoContacto.nombre.trim(),
+          ...(dniNuevo ? { dni: dniNuevo } : {}),
+          ...(nuevoContacto.celular.trim() ? { telefonoMovil: nuevoContacto.celular.trim() } : {}),
+          ...(nuevoContacto.cargo.trim() ? { cargo: nuevoContacto.cargo.trim() } : {}),
+        });
+        contactoParaOrden = creado.id;
+        setContactosDe((prev) => (prev && prev.clienteId === cliente.id ? { ...prev, lista: [...prev.lista, creado] } : prev));
+        setContactoId(creado.id);
+        setNuevoContacto({ nombre: '', dni: '', celular: '', cargo: '' });
+      }
       const datosLimpios = limpiarDatos(datos);
       const dto: CreateOrdenServicioDto = {
         empresaId,
@@ -255,7 +281,7 @@ export default function NuevaOrdenPage() {
         ...(Object.keys(datosLimpios).length > 0 ? { datosPersonalizados: datosLimpios } : {}),
         ...(cliente?.tipo === 'persona' ? { clienteId: cliente.id } : {}),
         ...(cliente?.tipo === 'empresa' ? { clienteEmpresaId: cliente.id } : {}),
-        ...(cliente?.tipo === 'empresa' && contactoIdValido ? { contactoClienteEmpresaId: contactoIdValido } : {}),
+        ...(cliente?.tipo === 'empresa' && contactoParaOrden ? { contactoClienteEmpresaId: contactoParaOrden } : {}),
         tipoEquipo: tipoEquipo.trim() || undefined,
         marcaEquipo: marcaEquipo.trim() || undefined,
         numeroSerie: numeroSerie.trim() || undefined,
@@ -375,18 +401,47 @@ export default function NuevaOrdenPage() {
               </div>
             )}
 
-            {/* Contacto: solo para clientes empresa */}
-            {cliente?.tipo === 'empresa' && contactos.length > 0 && (
+            {/* Contacto: quién deja el equipo en nombre de la empresa cliente */}
+            {cliente?.tipo === 'empresa' && (
               <div className="mt-3">
-                <label className={LABEL}>Contacto que entrega el equipo</label>
-                <select className={INPUT_STD} value={contactoIdValido} onChange={e => setContactoId(e.target.value)}>
+                <label className={LABEL} htmlFor="contacto-empresa">Quién deja el equipo (contacto de la empresa)</label>
+                <select
+                  id="contacto-empresa"
+                  className={INPUT_STD}
+                  value={creandoContacto ? NUEVO_CONTACTO : contactoIdValido}
+                  onChange={e => setContactoId(e.target.value)}
+                >
                   <option value="">Sin contacto específico</option>
                   {contactos.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.nombre}{c.cargo ? ` — ${c.cargo}` : ''}{c.esPrincipal ? ' (principal)' : ''}
                     </option>
                   ))}
+                  <option value={NUEVO_CONTACTO}>+ Nuevo contacto</option>
                 </select>
+                {creandoContacto && (
+                  <div className="mt-2.5 rounded-lg border border-gray-200 bg-gray-50/60 p-3 grid gap-2.5 sm:grid-cols-2">
+                    <div>
+                      <label className={LABEL} htmlFor="nc-nombre">Nombre</label>
+                      <input id="nc-nombre" className={INPUT_STD} value={nuevoContacto.nombre} onChange={e => setNuevoContacto(v => ({ ...v, nombre: e.target.value }))} placeholder="Nombre y apellido" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="nc-dni">DNI</label>
+                      <input id="nc-dni" className={INPUT_STD} inputMode="numeric" maxLength={8} value={nuevoContacto.dni} onChange={e => setNuevoContacto(v => ({ ...v, dni: e.target.value.replace(/\D/g, '') }))} placeholder="8 dígitos" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="nc-celular">Celular</label>
+                      <input id="nc-celular" className={INPUT_STD} inputMode="tel" value={nuevoContacto.celular} onChange={e => setNuevoContacto(v => ({ ...v, celular: e.target.value }))} placeholder="Opcional" />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor="nc-cargo">Cargo</label>
+                      <input id="nc-cargo" className={INPUT_STD} value={nuevoContacto.cargo} onChange={e => setNuevoContacto(v => ({ ...v, cargo: e.target.value }))} placeholder="Ej: Encargado de sistemas" />
+                    </div>
+                    <p className="sm:col-span-2 text-xs text-gray-500">
+                      Se guarda como contacto de la empresa al registrar la orden. Con su DNI podrá seguir los servicios de la empresa desde la tienda web.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
