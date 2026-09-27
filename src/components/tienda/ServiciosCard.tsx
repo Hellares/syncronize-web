@@ -21,7 +21,7 @@ export function ServiciosCard({ subdominio, servicios, total, colors }: Props) {
   return (
     <Link
       href={`/${subdominio}/servicios`}
-      className="group mt-4 block bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)] transition-shadow"
+      className="group relative mt-4 block bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)] transition-shadow"
     >
       <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-100">
         <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ backgroundColor: colors.primario }}>
@@ -60,7 +60,7 @@ export function ServiciosFila({ subdominio, servicios, total, colors }: Props) {
   return (
     <Link
       href={`/${subdominio}/servicios`}
-      className="lg:hidden mb-3 flex items-center gap-3 bg-white rounded-xl px-3.5 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
+      className="lg:hidden relative mb-3 flex items-center gap-3 bg-white rounded-xl px-3.5 py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
     >
       <span className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ backgroundColor: colors.primario }}>
         <IconoServicio className="w-[22px] h-[22px]" />
