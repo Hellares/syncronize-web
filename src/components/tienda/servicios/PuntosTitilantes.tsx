@@ -41,10 +41,10 @@ export function PuntosTitilantes({ espacio = 28 }: { espacio?: number }) {
       for (const p of puntos) {
         // Un pico corto por ciclo: la mayor parte del tiempo el punto está tenue.
         const pico = quieto ? 0 : Math.pow(Math.max(0, Math.sin(t * p.vel + p.fase)), 40);
-        const r = 1.3 + pico * 1.6;
+        const r = 1.3 + pico * 0.8;
         if (pico > 0.25) {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, r * 3.2, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, r * 2.2, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(255,255,255,${pico * 0.18})`;
           ctx.fill();
         }
