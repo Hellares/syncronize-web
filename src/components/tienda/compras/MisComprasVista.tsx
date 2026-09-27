@@ -7,7 +7,7 @@ import { soles } from '@/lib/tienda-compra';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { mensajeError } from '@/lib/mis-servicios';
 import {
-  CompraDetalle, CompraResumen, ESTADO_COMPRA, METODO_PAGO, ResumenCompras, diaVence, fechaHora, misCompras,
+  CompraDetalle, CompraResumen, ESTADO_COMPRA, METODO_PAGO, ResumenCompras, descargarEstadoCuenta, diaVence, fechaHora, misCompras,
 } from '@/lib/mis-compras';
 import { useSesionTienda } from '../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../compra/CarritoVista';
@@ -76,18 +76,19 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
   // La deuda separada: la personal y la de cada empresa donde es encargado.
   // No se suman: la de la empresa la paga la empresa, no él.
   const deudas = (() => {
-    const mapa = new Map<string, { monto: number; compras: number }>();
+    const mapa = new Map<string, { empresa: string | null; monto: number; compras: number }>();
     for (const c of compras ?? []) {
       if (!c.esCredito || c.saldo <= 0) continue;
-      const k = c.empresaCliente ?? '';
-      const d = mapa.get(k) ?? { monto: 0, compras: 0 };
-      mapa.set(k, { monto: d.monto + c.saldo, compras: d.compras + 1 });
+      const k = c.clienteEmpresaId ?? '';
+      const d = mapa.get(k) ?? { empresa: c.empresaCliente, monto: 0, compras: 0 };
+      mapa.set(k, { ...d, monto: d.monto + c.saldo, compras: d.compras + 1 });
     }
     return [...mapa.entries()]
-      .map(([empresa, d]) => ({ empresa: empresa || null, monto: Math.round(d.monto * 100) / 100, compras: d.compras }))
+      .map(([id, d]) => ({ id: id || null, empresa: d.empresa, monto: Math.round(d.monto * 100) / 100, compras: d.compras }))
       .sort((a, b) => (a.empresa === null ? -1 : b.empresa === null ? 1 : a.empresa.localeCompare(b.empresa)));
   })();
-  const separarDeuda = deudas.some((d) => d.empresa !== null);
+  const separarDeuda = deudas.some((d) => d.id !== null);
+  const hayCreditoPersonal = (compras ?? []).some((c) => c.esCredito && !c.clienteEmpresaId);
 
   const abrir = (id: string | null) => {
     setSeleccion(id);
@@ -117,8 +118,8 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                 <span className="text-[13px] text-gray-500">Le debes a la tienda</span>
                 {separarDeuda ? (
                   <div className="flex flex-col divide-y divide-gray-100">
-                    {(deudas.some((d) => d.empresa === null) ? deudas : [{ empresa: null, monto: 0, compras: 0 }, ...deudas]).map((d) => (
-                      <div key={d.empresa ?? '__personal'} className="flex items-center justify-between gap-3 py-1.5">
+                    {(deudas.some((d) => d.id === null) ? deudas : [{ id: null, empresa: null, monto: 0, compras: 0 }, ...deudas]).map((d) => (
+                      <div key={d.id ?? '__personal'} className="flex items-center justify-between gap-3 py-1.5">
                         <span className="min-w-0 flex items-center gap-1.5 text-[13px] text-gray-700">
                           {d.empresa ? (
                             <>
@@ -130,7 +131,12 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                           )}
                           {d.compras > 0 && <span className="flex-shrink-0 text-gray-400">· {d.compras}</span>}
                         </span>
-                        <span className={`text-lg md:text-xl font-bold tabular-nums flex-shrink-0 ${d.monto > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(d.monto)}</span>
+                        <span className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-lg md:text-xl font-bold tabular-nums ${d.monto > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(d.monto)}</span>
+                          {(d.id !== null || hayCreditoPersonal) && (
+                            <BotonEstadoCuenta clienteEmpresaId={d.id} colors={colors} icono etiqueta={`Estado de cuenta ${d.empresa ?? 'personal'}`} />
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -142,6 +148,7 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                         ? `En ${resumen.comprasConDeuda} ${resumen.comprasConDeuda === 1 ? 'compra' : 'compras'} a crédito${resumen.mora > 0 ? ` · mora ${soles(resumen.mora)}` : ''}`
                         : 'Estás al día. ¡Gracias!'}
                     </span>
+                    {hayCreditoPersonal && <BotonEstadoCuenta clienteEmpresaId={null} colors={colors} />}
                   </>
                 )}
               </div>
@@ -484,6 +491,9 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
           </div>
         )}
 
+        {c.esCredito && (
+          <BotonEstadoCuenta clienteEmpresaId={c.clienteEmpresaId} colors={colors} bloque etiqueta={c.empresaCliente ? `Estado de cuenta de ${c.empresaCliente}` : 'Descargar mi estado de cuenta'} />
+        )}
         {whatsapp && (
           <a
             href={whatsapp}
@@ -497,6 +507,72 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
           </a>
         )}
       </section>
+    </div>
+  );
+}
+
+const IconoDescarga = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </svg>
+);
+
+/**
+ * Baja el PDF del estado de cuenta: el personal (`clienteEmpresaId` null) o el
+ * de UNA empresa. Tres formas: enlace (card simple), ícono (fila de la card
+ * separada) y bloque (detalle de la compra).
+ */
+function BotonEstadoCuenta({ clienteEmpresaId, colors, icono = false, bloque = false, etiqueta = 'Descargar estado de cuenta' }: {
+  clienteEmpresaId: string | null; colors: TiendaColors; icono?: boolean; bloque?: boolean; etiqueta?: string;
+}) {
+  const { subdominio } = useSesionTienda();
+  const [bajando, setBajando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const bajar = async () => {
+    setBajando(true);
+    setError(null);
+    try {
+      await descargarEstadoCuenta(subdominio, clienteEmpresaId);
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo generar el estado de cuenta'));
+    } finally {
+      setBajando(false);
+    }
+  };
+
+  if (icono) {
+    return (
+      <button
+        type="button"
+        onClick={() => void bajar()}
+        disabled={bajando}
+        aria-label={etiqueta}
+        title={error ?? etiqueta}
+        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+        style={{ color: error ? '#b42318' : colors.primario }}
+      >
+        {bajando
+          ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          : <IconoDescarga className="w-[18px] h-[18px]" />}
+      </button>
+    );
+  }
+  return (
+    <div className={bloque ? 'flex flex-col gap-1' : 'flex flex-col'}>
+      <button
+        type="button"
+        onClick={() => void bajar()}
+        disabled={bajando}
+        className={bloque
+          ? 'h-12 rounded-xl border border-gray-200 text-[15px] font-medium text-gray-800 flex items-center justify-center gap-2 hover:bg-gray-50 disabled:opacity-60'
+          : 'self-start inline-flex items-center gap-1.5 min-h-[32px] text-[13px] font-medium disabled:opacity-60'}
+        style={bloque ? undefined : { color: colors.primario }}
+      >
+        <IconoDescarga className="w-4 h-4" />
+        {bajando ? 'Generando PDF...' : etiqueta}
+      </button>
+      {error && <span className="text-xs text-[#b42318]">{error}</span>}
     </div>
   );
 }

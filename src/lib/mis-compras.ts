@@ -1,4 +1,5 @@
 import { mkt } from './tienda-compra';
+import type { EstadoCuentaCliente } from '@/core/types/cuentas-cobrar';
 
 /**
  * "Mis compras": las ventas del comprador en esta tienda (web y tienda física),
@@ -29,6 +30,7 @@ export interface CompraResumen {
   fotos: string[];
   /** La compra es de un cliente empresa (RUC) donde el comprador es contacto. */
   empresaCliente: string | null;
+  clienteEmpresaId: string | null;
 }
 
 export interface ResumenCompras {
@@ -56,7 +58,32 @@ const base = (sub: string) => `/empresas/${encodeURIComponent(sub)}/mis-compras`
 export const misCompras = {
   listar: (sub: string) => mkt<{ resumen: ResumenCompras; data: CompraResumen[] }>(base(sub)),
   detalle: (sub: string, id: string) => mkt<CompraDetalle>(`${base(sub)}/${id}`),
+  /** Estado de cuenta (crédito) personal (sin empresa) o de UNA empresa: nunca mezclados. */
+  estadoCuenta: (sub: string, clienteEmpresaId: string | null) =>
+    mkt<{
+      empresa: { nombre: string; ruc: string | null };
+      estadoCuenta: EstadoCuentaCliente;
+      detalles: Record<string, { descripcion: string; cantidad: number; precioUnitario: number; total: number }[]>;
+    }>(`${base(sub)}/estado-cuenta${clienteEmpresaId ? `?empresa=${encodeURIComponent(clienteEmpresaId)}` : ''}`),
 };
+
+/**
+ * Baja el PDF del estado de cuenta: el MISMO documento que el panel manda
+ * desde Cuentas por cobrar (pendientes con sus productos + los abonos).
+ */
+export async function descargarEstadoCuenta(sub: string, clienteEmpresaId: string | null) {
+  const [{ descargarEstadoCuentaCliente }, r] = await Promise.all([
+    import('@/features/cuentas-cobrar/components/estado-cuenta-cliente-pdf'),
+    misCompras.estadoCuenta(sub, clienteEmpresaId),
+  ]);
+  await descargarEstadoCuentaCliente(
+    r.estadoCuenta,
+    r.empresa.nombre,
+    r.empresa.ruc ?? undefined,
+    r.detalles as unknown as Parameters<typeof descargarEstadoCuentaCliente>[3],
+    { incluirPendientes: true, incluirHistorial: true, incluirAbonos: true, incluirDetalle: true },
+  );
+}
 
 /** Colores de estado: los mismos tonos que las etiquetas de Mis servicios. */
 export const ESTADO_COMPRA: Record<EstadoCompra, { texto: string; fondo: string; color: string }> = {
