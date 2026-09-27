@@ -6,7 +6,6 @@ import { linkGoogleMaps, logoTienda } from '@/lib/tienda';
 import { TiendaContent } from '@/components/tienda/TiendaContent';
 import { FloatingButtons } from '@/components/tienda/FloatingButtons';
 import { ScrollReveal } from '@/components/tienda/ScrollReveal';
-import { PaginaDestellos } from '@/components/tienda/PaginaDestellos';
 import type { ServicioTienda } from '@/lib/servicios-web';
 import { notFound } from 'next/navigation';
 import { DEFAULT_COLORS, lighten, alpha, TiendaColors } from '@/lib/colors';
@@ -156,9 +155,6 @@ export default async function TiendaPage({ params }: Props) {
         <div className="blob blob-3" style={{ background: colors.primario }} />
         <div className="blob blob-4" style={{ background: colors.fondo1 }} />
       </div>
-
-      {/* Puntos que se encienden alrededor del mouse, en el fondo */}
-      <PaginaDestellos />
 
       {/* Content interactivo (incluye header) */}
       <TiendaContent

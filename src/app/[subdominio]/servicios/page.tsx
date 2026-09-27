@@ -7,7 +7,6 @@ import { coloresTienda, logoTienda } from '@/lib/tienda';
 import { lighten, darken, alpha } from '@/lib/colors';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { BotonCarrito } from '@/components/tienda/compra/CarritoYCuenta';
-import { PaginaDestellos } from '@/components/tienda/PaginaDestellos';
 import { VideosSection } from '@/components/tienda/VideosSection';
 import { ServiciosLista } from '@/components/tienda/servicios/ServiciosLista';
 import { GaleriaSlider } from '@/components/tienda/servicios/GaleriaSlider';
@@ -84,7 +83,6 @@ export default async function ServiciosPage({ params }: Props) {
         <div className="blob blob-2" style={{ background: colors.fondo2 }} />
         <div className="blob blob-3" style={{ background: colors.primario }} />
       </div>
-      <PaginaDestellos />
 
       {/* Cabecera (la del detalle de producto) */}
       <header className="relative z-10" style={{ background: `linear-gradient(to right, ${colors.primario}, ${lighten(colors.primario, 0.15)}, ${colors.secundario})` }}>
