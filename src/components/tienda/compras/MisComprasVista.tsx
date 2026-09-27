@@ -11,6 +11,7 @@ import {
 import { useSesionTienda } from '../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../compra/CarritoVista';
 import { HeroPortal, Pastilla } from '../servicios/portal/HeroPortal';
+import { AbonarDialog } from './AbonarDialog';
 
 type Tab = 'todas' | 'credito' | 'pagadas';
 
@@ -336,6 +337,9 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
   const { subdominio } = useSesionTienda();
   const [c, setC] = useState<CompraDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [abonando, setAbonando] = useState(false);
+  // Sube al reportar un pago: se vuelve a pedir el detalle (aparece "en revisión").
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -343,7 +347,7 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
       .then((r) => { if (vivo) setC(r); })
       .catch((e) => { if (vivo) setError(mensajeError(e, 'No se pudo cargar la compra')); });
     return () => { vivo = false; };
-  }, [subdominio, id]);
+  }, [subdominio, id, version]);
 
   const volver = (
     <button type="button" onClick={onVolver} className="lg:hidden self-start inline-flex items-center gap-1.5 h-10 text-sm font-medium" style={{ color: colors.primario }}>
@@ -358,6 +362,9 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
   const e = ESTADO_COMPRA[c.estado];
   const debe = c.saldo > 0;
   const proxima = c.cuotas.find((q) => q.saldo > 0);
+  // Lo que todavía puede abonar: el saldo menos lo que ya reportó y está en revisión.
+  const disponible = Math.max(0, Math.round((c.saldo - (c.enRevision ?? 0)) * 100) / 100);
+  const puedeAbonar = c.esCredito && disponible > 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -373,16 +380,31 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
               {[fechaHora(c.fecha), c.sede, c.comprobante && `${c.comprobante.tipo === 'FACTURA' ? 'Factura' : 'Boleta'} ${c.comprobante.numero}`, c.empresaCliente].filter(Boolean).join(' · ')}
             </p>
           </div>
-          {c.comprobante?.pdfUrl && (
-            <a
-              href={c.comprobante.pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="self-start flex-shrink-0 inline-flex items-center gap-2 h-10 px-3.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
-              Descargar {c.comprobante.tipo === 'FACTURA' ? 'factura' : 'boleta'}
-            </a>
+          {(c.comprobante?.pdfUrl || puedeAbonar) && (
+            <div className="flex flex-wrap gap-2 self-start flex-shrink-0">
+              {c.comprobante?.pdfUrl && (
+                <a
+                  href={c.comprobante.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-10 px-3.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+                  Descargar {c.comprobante.tipo === 'FACTURA' ? 'factura' : 'boleta'}
+                </a>
+              )}
+              {puedeAbonar && (
+                <button
+                  type="button"
+                  onClick={() => setAbonando(true)}
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-white text-sm font-medium"
+                  style={{ backgroundColor: colors.primario }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h3" /></svg>
+                  Abonar
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -461,6 +483,32 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
           </div>
         )}
 
+        {c.reportes?.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-[15px] font-medium" style={{ color: colors.primario }}>Pagos que enviaste</h3>
+            {c.reportes.map((r) => {
+              const rechazado = r.estado === 'RECHAZADO';
+              return (
+                <div key={r.id} className="flex items-start gap-3 px-3.5 py-2.5 rounded-xl" style={{ backgroundColor: rechazado ? '#fdecec' : '#fffaf0' }}>
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: rechazado ? '#fbd5d0' : '#fff1d6', color: rechazado ? '#b42318' : '#9a4b00' }}>
+                    {rechazado ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900">{rechazado ? 'La tienda no pudo confirmar este pago' : 'En revisión por la tienda'}</p>
+                    <p className="text-xs text-gray-500 tabular-nums">{fechaHora(r.fecha)} · {METODO_PAGO[r.metodo] ?? r.metodo}</p>
+                    {rechazado && r.motivoRechazo && <p className="text-xs mt-0.5" style={{ color: '#b42318' }}>Motivo: {r.motivoRechazo}</p>}
+                  </div>
+                  <span className="text-sm font-medium tabular-nums" style={{ color: rechazado ? '#b42318' : '#9a4b00' }}>{soles(r.monto)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {c.pagos.length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-[15px] font-medium" style={{ color: colors.primario }}>Tus pagos</h3>
@@ -483,6 +531,18 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
           <BotonEstadoCuenta clienteEmpresaId={c.clienteEmpresaId} colors={colors} bloque etiqueta={c.empresaCliente ? `Estado de cuenta de ${c.empresaCliente}` : 'Descargar mi estado de cuenta'} />
         )}
       </section>
+      {abonando && (
+        <AbonarDialog
+          subdominio={subdominio}
+          ventaId={c.id}
+          codigo={c.codigo}
+          disponible={disponible}
+          sugerido={proxima ? Math.min(proxima.saldo, disponible) : disponible}
+          colors={colors}
+          onListo={() => setVersion((v) => v + 1)}
+          onCerrar={() => setAbonando(false)}
+        />
+      )}
     </div>
   );
 }

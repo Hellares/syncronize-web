@@ -7,6 +7,7 @@ import type {
   RegistrarAbonoDto,
   DeudaCliente,
   EstadoCuentaCliente,
+  FuenteIngreso,
 } from '@/core/types/cuentas-cobrar';
 
 const BASE = '/cuentas-por-cobrar';
@@ -67,5 +68,41 @@ export async function getConfiguracionMora(): Promise<ConfiguracionMora> {
 
 export async function updateConfiguracionMora(data: Partial<ConfiguracionMora>): Promise<ConfiguracionMora> {
   const res = await apiClient.patch<ConfiguracionMora>(`${BASE}/configuracion-mora`, data);
+  return res.data;
+}
+
+// ── Pagos que reportan los clientes desde la tienda web ("Mis compras") ──
+
+export interface ReporteAbonoCliente {
+  id: string;
+  ventaId: string;
+  ventaCodigo: string;
+  cliente: string;
+  documento: string | null;
+  monto: number;
+  metodoPago: 'YAPE' | 'PLIN' | 'TRANSFERENCIA';
+  numeroOperacion: string | null;
+  comprobanteUrl: string;
+  empresaBancoId: string | null;
+  cuentaReportada: { id: string; nombreBanco: string; numeroCuenta: string } | null;
+  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
+  motivoRechazo: string | null;
+  creadoEn: string;
+  revisadoEn: string | null;
+}
+
+export async function getReportesAbono(estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' = 'PENDIENTE'): Promise<ReporteAbonoCliente[]> {
+  const res = await apiClient.get(`${BASE}/reportes-abono?estado=${estado}`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+/** Aprueba el pago reportado: registra el abono (entra a `fuente`, y a `bancoId` si es BANCO). */
+export async function aprobarReporteAbono(id: string, destino: { fuente: FuenteIngreso; bancoId?: string }): Promise<unknown> {
+  const res = await apiClient.post(`${BASE}/reportes-abono/${id}/aprobar`, destino);
+  return res.data;
+}
+
+export async function rechazarReporteAbono(id: string, motivo: string): Promise<unknown> {
+  const res = await apiClient.post(`${BASE}/reportes-abono/${id}/rechazar`, { motivo });
   return res.data;
 }

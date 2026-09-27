@@ -51,6 +51,27 @@ export interface CompraDetalle extends Omit<CompraResumen, 'fotos' | 'cantidadIt
   items: { descripcion: string; cantidad: number; precioUnitario: number; descuento: number; subtotal: number; imagen: string | null }[];
   cuotas: { numero: number; monto: number; pagado: number; saldo: number; mora: number; fechaVencimiento: string; estado: 'PAGADA' | 'VENCIDA' | 'PARCIAL' | 'PENDIENTE' }[];
   pagos: { monto: number; metodo: string; fecha: string; cuota: number | null }[];
+  /** Pagos que el cliente reportó y la tienda todavía no aprobó (o rechazó). */
+  reportes: ReporteAbono[];
+  /** Suma de los reportes PENDIENTES: no descuentan del saldo hasta aprobarse. */
+  enRevision: number;
+}
+
+export type MetodoAbono = 'YAPE' | 'PLIN' | 'TRANSFERENCIA';
+
+export interface ReporteAbono {
+  id: string;
+  monto: number;
+  metodo: MetodoAbono;
+  estado: 'PENDIENTE' | 'RECHAZADO';
+  motivoRechazo: string | null;
+  fecha: string;
+}
+
+export interface MediosPago {
+  qrYapeUrl: string | null;
+  qrPlinUrl: string | null;
+  cuentas: { id: string; banco: string; tipoCuenta: string; numero: string; cci: string | null; titular: string | null }[];
 }
 
 const base = (sub: string) => `/empresas/${encodeURIComponent(sub)}/mis-compras`;
@@ -58,6 +79,19 @@ const base = (sub: string) => `/empresas/${encodeURIComponent(sub)}/mis-compras`
 export const misCompras = {
   listar: (sub: string) => mkt<{ resumen: ResumenCompras; data: CompraResumen[] }>(base(sub)),
   detalle: (sub: string, id: string) => mkt<CompraDetalle>(`${base(sub)}/${id}`),
+  mediosPago: (sub: string) => mkt<MediosPago>(`${base(sub)}/medios-pago`),
+  /** Reporta un abono con la captura (multipart). Queda en revisión hasta que la tienda lo apruebe. */
+  reportarAbono: (sub: string, id: string, datos: {
+    monto: number; metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string; comprobante: File;
+  }) => {
+    const fd = new FormData();
+    fd.append('monto', datos.monto.toFixed(2));
+    fd.append('metodoPago', datos.metodoPago);
+    if (datos.numeroOperacion?.trim()) fd.append('numeroOperacion', datos.numeroOperacion.trim());
+    if (datos.empresaBancoId) fd.append('empresaBancoId', datos.empresaBancoId);
+    fd.append('comprobante', datos.comprobante);
+    return mkt<{ id: string; estado: string }>(`${base(sub)}/${id}/abonos`, { method: 'POST', body: fd });
+  },
   /** Estado de cuenta (crédito) personal (sin empresa) o de UNA empresa: nunca mezclados. */
   estadoCuenta: (sub: string, clienteEmpresaId: string | null) =>
     mkt<{

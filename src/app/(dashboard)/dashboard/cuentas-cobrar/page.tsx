@@ -8,6 +8,7 @@ import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
 import * as cxcService from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import AbonoDialog from '@/features/cuentas-cobrar/components/abono-dialog';
 import CuentaFilaDetalle from '@/features/cuentas-cobrar/components/CuentaFilaDetalle';
+import ReportesAbonoCliente from '@/features/cuentas-cobrar/components/ReportesAbonoCliente';
 import MenuAcciones, { type AccionMenu } from '@/components/ui/MenuAcciones';
 import Plegable from '@/components/ui/Plegable';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
@@ -132,6 +133,9 @@ export default function CuentasCobrarPage() {
 
       {accionMsg && <div className="rounded-lg border border-green-200 bg-green-50 p-3"><p className="text-sm text-green-700">{accionMsg}</p></div>}
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3"><p className="text-sm text-red-600">{error}</p></div>}
+
+      {/* Pagos que reportan los clientes desde la tienda web (solo si hay) */}
+      <ReportesAbonoCliente puedeGestionar={puedeGestionar} onAprobado={(m) => { flash(m); fetchCuentas(); fetchResumen(); }} />
 
       {/* Resumen */}
       {resumen && (
