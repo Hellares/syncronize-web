@@ -256,6 +256,8 @@ export default function OrdenDetailPage() {
             </button>
           )}
         </div>
+        {/* El cronómetro va en la fila del técnico: se lee junto a quién la tiene. */}
+        <TiempoServicioCard orden={orden} historial={historial} compacto className="sm:col-span-3" />
       </div>
 
       {/* Dos columnas: a la izquierda lo que se lee y se edita del trabajo, a
@@ -384,9 +386,6 @@ export default function OrdenDetailPage() {
 
         {/* Tercerización B2B (si aplica) */}
         <TercerizacionCard orden={orden} />
-
-        {/* Cronómetro de tiempo en taller */}
-        <TiempoServicioCard orden={orden} historial={historial} />
 
         {/* Chat con el cliente */}
         {permissions.canManageOrders && <MensajesOrden ordenId={id} />}

@@ -26,8 +26,11 @@ function fmtFechaCorta(iso?: string | null): string {
   return new Date(iso).toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-/** Cronómetro: tiempo total + desglose por estado (recorriendo el historial). */
-export function TiempoServicioCard({ orden, historial }: { orden: OrdenServicio; historial: HistorialOS[] }) {
+/** Cronómetro: tiempo total + desglose por estado (recorriendo el historial).
+ *  `compacto`: sin marco de card, para ir como celda de la ficha de la orden. */
+export function TiempoServicioCard({ orden, historial, compacto = false, className = '' }: {
+  orden: OrdenServicio; historial: HistorialOS[]; compacto?: boolean; className?: string;
+}) {
   const esTerminal = TERMINALES.includes(orden.estado);
   // "Ahora" se calcula tras montar (Date.now es impuro en render) y refresca cada minuto → cronómetro en vivo.
   const [now, setNow] = useState<number | null>(null);
@@ -58,6 +61,27 @@ export function TiempoServicioCard({ orden, historial }: { orden: OrdenServicio;
   }
   tiempos[prevEstado] = (tiempos[prevEstado] ?? 0) + Math.max(0, fin - prevTime);
   const desglose = Object.entries(tiempos).filter(([, ms]) => ms > 0).sort((a, b) => b[1] - a[1]);
+
+  if (compacto) {
+    return (
+      <div className={className}>
+        <p className="text-[10px] uppercase text-gray-400">Tiempo en taller</p>
+        <p className="text-xs font-semibold text-[#004A94]">{fmtDur(totalMs)}{esTerminal ? '' : ' ⏱'}</p>
+        {desglose.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {desglose.map(([estado, ms]) => {
+              const cfg = ESTADO_OS_CONFIG[estado as EstadoOrdenServicio];
+              return (
+                <span key={estado} className={`rounded px-1.5 py-0.5 text-[10px] ${cfg?.text ?? 'text-gray-600'} ${cfg?.bg ?? 'bg-gray-100'}`}>
+                  {cfg?.label ?? estado}: {fmtDur(ms)}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`${CARD_BASE} p-4`}>
