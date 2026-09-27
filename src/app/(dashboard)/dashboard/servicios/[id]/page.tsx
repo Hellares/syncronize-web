@@ -298,6 +298,11 @@ export default function OrdenDetailPage() {
           </div>
         </div>
 
+        {/* Datos personalizados (campos dinámicos del servicio) */}
+        {orden.datosPersonalizados && Object.keys(orden.datosPersonalizados).length > 0 && (
+          <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
+        )}
+
         {/* Problema reportado.
             🔴 `orden.notas` NO va acá: cada cambio de estado PISA ese campo con
             la nota que se escribió en el diálogo (`orden-servicio.service.ts`,
@@ -310,11 +315,6 @@ export default function OrdenDetailPage() {
             <p className="text-[10px] uppercase text-gray-400">Problema reportado</p>
             <p className="text-sm text-gray-700">{orden.descripcionProblema}</p>
           </div>
-        )}
-
-        {/* Datos personalizados (campos dinámicos del servicio) */}
-        {orden.datosPersonalizados && Object.keys(orden.datosPersonalizados).length > 0 && (
-          <DatosPersonalizadosView datos={orden.datosPersonalizados} campos={campos} />
         )}
 
         {/* Imágenes de la orden (+ firma del cliente) */}
