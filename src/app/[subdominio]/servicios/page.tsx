@@ -121,7 +121,7 @@ export default async function ServiciosPage({ params }: Props) {
           }}
           aria-hidden="true"
         />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-16 md:pb-24 flex flex-col gap-6 md:gap-8">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-16 md:pb-24 flex flex-col gap-3.5 md:gap-[22px]">
           <nav className="flex items-center gap-1.5 text-xs text-white/75" aria-label="Migas">
             <Link href={`/${subdominio}`} className="hover:underline hover:text-white">{empresa.nombre}</Link>
             <span>/</span>
