@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { backendConSesion, responder } from '@/lib/tienda-sesion';
 
 /**
- * Carrito, checkout y pedidos del comprador, reenviados al backend con su
+ * Carrito, checkout, pedidos y servicios del comprador, reenviados al backend con su
  * sesión. Solo estas rutas: esto no es un proxy abierto al backend.
  */
 const PERMITIDAS = [
@@ -14,6 +14,10 @@ const PERMITIDAS = [
   /^marketplace\/mis-pedidos$/,
   /^marketplace\/mis-pedidos\/[\w-]+$/,
   /^marketplace\/mis-pedidos\/[\w-]+\/(cobro-yape|comprobante-pago|cancelar|confirmar-recepcion)$/,
+  // Mis servicios (órdenes de servicio del comprador en esa tienda)
+  /^marketplace\/empresas\/[\w-]+\/mis-servicios$/,
+  /^marketplace\/empresas\/[\w-]+\/mis-servicios\/[\w-]+$/,
+  /^marketplace\/empresas\/[\w-]+\/mis-servicios\/[\w-]+\/(mensajes|aprobar)$/,
 ];
 
 type Params = { params: Promise<{ ruta: string[] }> };

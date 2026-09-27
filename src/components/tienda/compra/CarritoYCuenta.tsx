@@ -24,7 +24,7 @@ export function BotonCarrito({ claro = false }: { claro?: boolean }) {
   );
 }
 
-/** "Mi cuenta": ingresar, o el menú con Mis pedidos y Salir. */
+/** "Mi cuenta": ingresar, o el menú con Mis pedidos, Mis servicios y Salir. */
 export function BotonCuenta({ conTexto = false }: { conTexto?: boolean }) {
   const { subdominio, usuario, pedirIngreso, salir } = useSesionTienda();
   const [abierto, setAbierto] = useState(false);
@@ -63,6 +63,13 @@ export function BotonCuenta({ conTexto = false }: { conTexto?: boolean }) {
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
             Mis pedidos
+          </Link>
+          <Link
+            href={`/${subdominio}/mis-servicios`}
+            onClick={() => setAbierto(false)}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Mis servicios
           </Link>
           <button
             type="button"

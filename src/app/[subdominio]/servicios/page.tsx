@@ -149,11 +149,10 @@ export default async function ServiciosPage({ params }: Props) {
                     <IconoWhatsapp /> Cotizar por WhatsApp
                   </a>
                 )}
-                {servicios.length > 0 && (
-                  <a href="#lista-servicios" className="h-[42px] px-5 rounded-[10px] border-[1.5px] border-white/35 hover:border-white/60 text-white font-semibold text-[15px] inline-flex items-center justify-center transition-colors">
-                    Ver servicios
-                  </a>
-                )}
+                {/* Sus órdenes de servicio en esta tienda (pide ingresar si no hay sesión) */}
+                <Link href={`/${subdominio}/mis-servicios`} className="h-[42px] px-5 rounded-[10px] border-[1.5px] border-white/35 hover:border-white/60 text-white font-semibold text-[15px] inline-flex items-center justify-center transition-colors">
+                  Mis servicios
+                </Link>
               </div>
             </div>
             {videoPortada ? (
