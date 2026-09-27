@@ -11,6 +11,7 @@ import { VideosSection } from '@/components/tienda/VideosSection';
 import { ServiciosLista } from '@/components/tienda/servicios/ServiciosLista';
 import { GaleriaSlider } from '@/components/tienda/servicios/GaleriaSlider';
 import { TextoEscrito } from '@/components/tienda/servicios/TextoEscrito';
+import { PuntosTitilantes } from '@/components/tienda/servicios/PuntosTitilantes';
 import { ServicioTienda, urlSegura } from '@/lib/servicios-web';
 
 interface Props {
@@ -112,13 +113,14 @@ export default async function ServiciosPage({ params }: Props) {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.18) 1.3px, transparent 1.6px), linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
-            backgroundSize: '28px 28px, 100% 100%',
+            backgroundImage: `linear-gradient(160deg, ${darken(colors.primario, 0.25)} 0%, ${colors.primario} 60%, ${lighten(colors.primario, 0.1)} 100%)`,
             maskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to bottom, #000 62%, transparent 100%)',
           }}
           aria-hidden="true"
-        />
+        >
+          <PuntosTitilantes />
+        </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-16 md:pb-24 flex flex-col gap-3.5 md:gap-[22px]">
           <nav className="flex items-center gap-1.5 text-xs text-white/75" aria-label="Migas">
             <Link href={`/${subdominio}`} className="hover:underline hover:text-white">{empresa.nombre}</Link>
