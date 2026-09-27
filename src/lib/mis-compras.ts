@@ -27,6 +27,8 @@ export interface CompraResumen {
   mora: number;
   proximoPago: ProximoPago | null;
   cantidadItems: number;
+  /** Lo que ya reportó y espera aprobación de la tienda (no se puede volver a pagar). */
+  enRevision: number;
   fotos: string[];
   /** La compra es de un cliente empresa (RUC) donde el comprador es contacto. */
   empresaCliente: string | null;
@@ -43,7 +45,7 @@ export interface ResumenCompras {
   proximoPago: (ProximoPago & { codigo: string; ventaId: string; numeroCuotas: number | null }) | null;
 }
 
-export interface CompraDetalle extends Omit<CompraResumen, 'fotos' | 'cantidadItems'> {
+export interface CompraDetalle extends Omit<CompraResumen, 'fotos' | 'cantidadItems' | 'enRevision'> {
   sede: string | null;
   interes: number;
   descuento: number;
@@ -61,7 +63,11 @@ export type MetodoAbono = 'YAPE' | 'PLIN' | 'TRANSFERENCIA';
 
 export interface ReporteAbono {
   id: string;
+  /** Lo que va a ESTA compra. */
   monto: number;
+  /** El pago completo: pudo cubrir varias compras. */
+  pagoTotal: number;
+  compras: number;
   metodo: MetodoAbono;
   estado: 'PENDIENTE' | 'RECHAZADO';
   motivoRechazo: string | null;
@@ -80,19 +86,23 @@ export const misCompras = {
   listar: (sub: string) => mkt<{ resumen: ResumenCompras; data: CompraResumen[] }>(base(sub)),
   detalle: (sub: string, id: string) => mkt<CompraDetalle>(`${base(sub)}/${id}`),
   mediosPago: (sub: string) => mkt<MediosPago>(`${base(sub)}/medios-pago`),
-  /** Reporta un abono con la captura (multipart). Queda en revisión hasta que la tienda lo apruebe. */
-  reportarAbono: (sub: string, id: string, datos: {
-    monto: number; metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string;
+  /**
+   * Reporta un pago con sus capturas (multipart) a una o varias compras del
+   * mismo titular. Queda en revisión hasta que la tienda lo apruebe.
+   */
+  reportarAbono: (sub: string, datos: {
+    lineas: { ventaId: string; monto: number }[];
+    metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string;
     /** 1 a 4 capturas: un pago grande puede ir en varios Yape (S/ 500 c/u). */
     comprobantes: File[];
   }) => {
     const fd = new FormData();
-    fd.append('monto', datos.monto.toFixed(2));
+    fd.append('lineas', JSON.stringify(datos.lineas.map((l) => ({ ventaId: l.ventaId, monto: l.monto.toFixed(2) }))));
     fd.append('metodoPago', datos.metodoPago);
     if (datos.numeroOperacion?.trim()) fd.append('numeroOperacion', datos.numeroOperacion.trim());
     if (datos.empresaBancoId) fd.append('empresaBancoId', datos.empresaBancoId);
     for (const f of datos.comprobantes) fd.append('comprobantes', f);
-    return mkt<{ id: string; estado: string }>(`${base(sub)}/${id}/abonos`, { method: 'POST', body: fd });
+    return mkt<{ id: string; estado: string; monto: number; compras: number }>(`${base(sub)}/abonos`, { method: 'POST', body: fd });
   },
   /** Estado de cuenta (crédito) personal (sin empresa) o de UNA empresa: nunca mezclados. */
   estadoCuenta: (sub: string, clienteEmpresaId: string | null) =>

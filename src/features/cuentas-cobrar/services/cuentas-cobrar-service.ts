@@ -75,8 +75,6 @@ export async function updateConfiguracionMora(data: Partial<ConfiguracionMora>):
 
 export interface ReporteAbonoCliente {
   id: string;
-  ventaId: string;
-  ventaCodigo: string;
   cliente: string;
   documento: string | null;
   monto: number;
@@ -87,6 +85,8 @@ export interface ReporteAbonoCliente {
   comprobantes: string[];
   empresaBancoId: string | null;
   cuentaReportada: { id: string; nombreBanco: string; numeroCuenta: string } | null;
+  /** A qué ventas va y cuánto a cada una (una transferencia puede saldar varias). */
+  lineas: { ventaId: string; ventaCodigo: string; monto: number }[];
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
   motivoRechazo: string | null;
   creadoEn: string;

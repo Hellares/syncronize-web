@@ -84,7 +84,21 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
                 ))}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-gray-900">{r.cliente} <span className="font-mono text-xs text-gray-400">· {r.ventaCodigo}</span></p>
+                <p className="truncate text-sm text-gray-900">
+                  {r.cliente}
+                  {r.lineas.length === 1 && <span className="font-mono text-xs text-gray-400"> · {r.lineas[0].ventaCodigo}</span>}
+                </p>
+                {/* Un pago a varias ventas: cuánto va a cada una (así se registra). */}
+                {r.lineas.length > 1 && (
+                  <p className="text-[11px] text-gray-500">
+                    {r.lineas.length} ventas:{' '}
+                    {r.lineas.map((l, i) => (
+                      <span key={l.ventaId} className="whitespace-nowrap">
+                        {i > 0 && ' · '}<span className="font-mono">{l.ventaCodigo}</span> {fmt(l.monto)}
+                      </span>
+                    ))}
+                  </p>
+                )}
                 <p className="text-[11px] text-gray-500">
                   {fmtFechaHora(r.creadoEn)}
                   {r.numeroOperacion && <> · Op. {r.numeroOperacion}</>}
@@ -133,7 +147,9 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
             const r = aprobando;
             setAprobando(null);
             await cargar();
-            onAprobado(`Abono de ${fmt(r.monto)} registrado a ${r.ventaCodigo}`);
+            onAprobado(r.lineas.length === 1
+              ? `Abono de ${fmt(r.monto)} registrado a ${r.lineas[0].ventaCodigo}`
+              : `Pago de ${fmt(r.monto)} registrado en ${r.lineas.length} ventas`);
           }}
         />
       )}
@@ -178,10 +194,23 @@ function AprobarDialog({ reporte, onCerrar, onListo }: { reporte: ReporteAbonoCl
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <h3 className="text-sm font-medium text-gray-900">Aprobar pago de {reporte.cliente}</h3>
         <p className="mt-1 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-800">
-          {fmt(reporte.monto)} por {METODO[reporte.metodoPago]?.texto ?? reporte.metodoPago} a {reporte.ventaCodigo}
+          {fmt(reporte.monto)} por {METODO[reporte.metodoPago]?.texto ?? reporte.metodoPago}
+          {reporte.lineas.length === 1 ? ` a ${reporte.lineas[0].ventaCodigo}` : ''}
           {reporte.numeroOperacion && <> · Op. {reporte.numeroOperacion}</>}
         </p>
-        <p className="mt-2 text-[11px] text-gray-500">Verifica que el dinero llegó antes de aprobar: se registra como abono y baja el saldo del cliente.</p>
+        {reporte.lineas.length > 1 && (
+          <ul className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-100 text-xs">
+            {reporte.lineas.map((l) => (
+              <li key={l.ventaId} className="flex justify-between px-3 py-1.5">
+                <span className="font-mono text-gray-600">{l.ventaCodigo}</span>
+                <span className="tabular-nums text-gray-900">{fmt(l.monto)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-[11px] text-gray-500">
+          Verifica que el dinero llegó antes de aprobar: se registra {reporte.lineas.length > 1 ? `un abono en cada una de las ${reporte.lineas.length} ventas` : 'como abono'} y baja el saldo del cliente. Si una venta no lo acepta, no se registra ninguno.
+        </p>
 
         <label className="mt-3 mb-1 block text-xs font-medium text-gray-600">Entra a</label>
         <select className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#437EFF]"

@@ -4,7 +4,23 @@ import { useEffect, useRef, useState } from 'react';
 import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
 import { mensajeError } from '@/lib/mis-servicios';
-import { MediosPago, MetodoAbono, misCompras } from '@/lib/mis-compras';
+import { MediosPago, MetodoAbono, diaVence, misCompras } from '@/lib/mis-compras';
+
+/** Una compra a la que se le puede abonar desde este panel. */
+export interface CompraAbonable {
+  id: string;
+  codigo: string;
+  fecha: string;
+  /** Saldo menos lo que ya está en revisión: el tope para esta compra. */
+  disponible: number;
+  /** Lo que se propone de entrada al marcarla (con varias: todo, para cancelarla). */
+  sugerido: number;
+  /** Próximo vencimiento (para ayudar a elegir). */
+  vence?: string | null;
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const num = (t: string) => Number(t.replace(',', '.'));
 
 /** Yape topa S/ 500 por operación y S/ 2,000 al día: hasta 4 Yape en un abono, una captura por cada uno. */
 const MAX_CAPTURAS = 4;
@@ -16,25 +32,33 @@ const METODOS: { id: MetodoAbono; texto: string; color: string }[] = [
 ];
 
 /**
- * Abonar a una compra a crédito: el cliente elige cuánto y cómo, ve el QR o la
- * cuenta de la tienda, paga en su app y sube la captura. Queda EN REVISIÓN:
- * recién cuando la tienda lo aprueba baja su saldo.
+ * Abonar a una o varias compras a crédito del MISMO titular: el cliente elige a
+ * cuáles y cuánto a cada una (una transferencia grande puede saldar varias),
+ * cómo pagó, ve el QR o la cuenta de la tienda y sube las capturas. Queda EN
+ * REVISIÓN: recién cuando la tienda lo aprueba bajan los saldos.
  */
-export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido, colors, onListo, onCerrar }: {
+export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, onCerrar }: {
   subdominio: string;
-  ventaId: string;
-  codigo: string;
-  /** Saldo menos lo que ya está en revisión: el tope del abono. */
-  disponible: number;
-  /** Lo que se propone de entrada (la próxima cuota). */
-  sugerido: number;
+  /** Una sola = abono a esa compra; varias = elige a cuáles. */
+  compras: CompraAbonable[];
+  /** Las que arrancan marcadas (con varias). */
+  inicial?: string[];
   colors: TiendaColors;
   onListo: () => void;
   onCerrar: () => void;
 }) {
+  const unaSola = compras.length === 1;
   const [medios, setMedios] = useState<MediosPago | null>(null);
   const [metodo, setMetodo] = useState<MetodoAbono>('YAPE');
-  const [monto, setMonto] = useState(Math.min(sugerido > 0 ? sugerido : disponible, disponible).toFixed(2));
+  // Por compra: si va en este pago y cuánto.
+  const [lineas, setLineas] = useState<Record<string, { on: boolean; monto: string }>>(() =>
+    Object.fromEntries(compras.map((c) => [c.id, {
+      on: unaSola || (inicial ?? []).includes(c.id),
+      monto: Math.min(c.sugerido > 0 ? c.sugerido : c.disponible, c.disponible).toFixed(2),
+    }])),
+  );
+  const setLinea = (id: string, cambio: Partial<{ on: boolean; monto: string }>) =>
+    setLineas((l) => ({ ...l, [id]: { ...l[id], ...cambio } }));
   const [cuentaId, setCuentaId] = useState<string | null>(null);
   const [operacion, setOperacion] = useState('');
   const [archivos, setArchivos] = useState<File[]>([]);
@@ -80,20 +104,27 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
     try { await navigator.clipboard.writeText(texto); setCopiado(texto); setTimeout(() => setCopiado(null), 1800); } catch { /* sin permiso */ }
   };
 
-  const valor = Number(monto.replace(',', '.'));
+  const elegidas = compras.filter((c) => lineas[c.id]?.on);
+  const valor = r2(elegidas.reduce((s, c) => s + (num(lineas[c.id].monto) || 0), 0));
+  const unica = unaSola ? compras[0] : null;
+  const montoUnico = unica ? lineas[unica.id].monto : '';
   const qr = metodo === 'YAPE' ? medios?.qrYapeUrl : metodo === 'PLIN' ? medios?.qrPlinUrl : null;
   const sinCuentas = metodo === 'TRANSFERENCIA' && medios !== null && medios.cuentas.length === 0;
 
   const enviar = async () => {
     setError(null);
-    if (!(valor > 0)) return setError('Escribe el monto que pagaste');
-    if (valor > disponible + 0.005) return setError(`El monto no puede ser mayor a ${soles(disponible)}`);
+    if (elegidas.length === 0) return setError('Elige al menos una compra');
+    for (const c of elegidas) {
+      const m = num(lineas[c.id].monto);
+      if (!(m > 0)) return setError(unaSola ? 'Escribe el monto que pagaste' : `Escribe cuánto va a ${c.codigo}`);
+      if (m > c.disponible + 0.005) return setError(`A ${c.codigo} le puedes pagar hasta ${soles(c.disponible)}`);
+    }
     if (metodo === 'TRANSFERENCIA' && !cuentaId) return setError('Elige la cuenta a la que transferiste');
     if (archivos.length === 0) return setError('Sube la captura de tu pago');
     setEnviando(true);
     try {
-      await misCompras.reportarAbono(subdominio, ventaId, {
-        monto: Math.round(valor * 100) / 100,
+      await misCompras.reportarAbono(subdominio, {
+        lineas: elegidas.map((c) => ({ ventaId: c.id, monto: r2(num(lineas[c.id].monto)) })),
         metodoPago: metodo,
         numeroOperacion: operacion,
         empresaBancoId: metodo === 'TRANSFERENCIA' ? cuentaId ?? undefined : undefined,
@@ -109,12 +140,14 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Abonar a ${codigo}`} onClick={() => !enviando && onCerrar()}>
+    <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={unica ? `Abonar a ${unica.codigo}` : 'Pagar varias compras'} onClick={() => !enviando && onCerrar()}>
       <div className="bg-white w-full sm:max-w-lg max-h-[92vh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="min-w-0">
-            <h2 className="text-[17px] font-medium text-gray-900">Abonar a {codigo}</h2>
-            <p className="text-xs text-gray-500">Puedes pagar hasta {soles(disponible)}</p>
+            <h2 className="text-[17px] font-medium text-gray-900">{unica ? `Abonar a ${unica.codigo}` : 'Pagar varias compras'}</h2>
+            <p className="text-xs text-gray-500">
+              {unica ? `Puedes pagar hasta ${soles(unica.disponible)}` : 'Marca las compras que pagas y cuánto va a cada una'}
+            </p>
           </div>
           <button type="button" onClick={onCerrar} disabled={enviando} aria-label="Cerrar" className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -126,28 +159,74 @@ export function AbonarDialog({ subdominio, ventaId, codigo, disponible, sugerido
             <span className="w-14 h-14 rounded-full flex items-center justify-center" style={{ backgroundColor: '#e7f7ee', color: '#146c3a' }}>
               <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
             </span>
-            <p className="text-base font-medium text-gray-900">Recibimos tu pago de {soles(valor)}</p>
+            <p className="text-base font-medium text-gray-900">
+              Recibimos tu pago de {soles(valor)}{elegidas.length > 1 ? ` para ${elegidas.length} compras` : ''}
+            </p>
             <p className="text-sm text-gray-500 max-w-sm">La tienda lo va a revisar. Mientras tanto aparece como <b className="font-medium text-gray-700">en revisión</b> y tu saldo baja cuando lo confirmen.</p>
             <button type="button" onClick={onCerrar} className="mt-2 h-11 px-6 rounded-xl text-white text-sm font-medium" style={{ backgroundColor: colors.primario }}>Entendido</button>
           </div>
         ) : (
           <>
             <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] text-gray-600">¿Cuánto vas a pagar?</span>
-                <div className="flex items-center h-12 rounded-xl border border-gray-200 px-3.5 focus-within:border-gray-400">
-                  <span className="text-gray-500 mr-1.5">S/</span>
-                  <input
-                    value={monto}
-                    onChange={(e) => setMonto(e.target.value.replace(/[^\d.,]/g, ''))}
-                    inputMode="decimal"
-                    className="flex-1 min-w-0 outline-none text-lg font-medium tabular-nums text-gray-900"
-                  />
-                  {valor !== disponible && (
-                    <button type="button" onClick={() => setMonto(disponible.toFixed(2))} className="text-xs font-medium" style={{ color: colors.primario }}>Todo ({soles(disponible)})</button>
-                  )}
+              {unica ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] text-gray-600">¿Cuánto vas a pagar?</span>
+                  <div className="flex items-center h-12 rounded-xl border border-gray-200 px-3.5 focus-within:border-gray-400">
+                    <span className="text-gray-500 mr-1.5">S/</span>
+                    <input
+                      value={montoUnico}
+                      onChange={(e) => setLinea(unica.id, { monto: e.target.value.replace(/[^\d.,]/g, '') })}
+                      inputMode="decimal"
+                      className="flex-1 min-w-0 outline-none text-lg font-medium tabular-nums text-gray-900"
+                    />
+                    {num(montoUnico) !== unica.disponible && (
+                      <button type="button" onClick={() => setLinea(unica.id, { monto: unica.disponible.toFixed(2) })} className="text-xs font-medium" style={{ color: colors.primario }}>Todo ({soles(unica.disponible)})</button>
+                    )}
+                  </div>
+                </label>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[13px] text-gray-600">¿Qué compras pagas?</span>
+                  <div className="flex flex-col rounded-xl border border-gray-200 divide-y divide-gray-100">
+                    {compras.map((c) => {
+                      const l = lineas[c.id];
+                      return (
+                        <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+                          <input
+                            type="checkbox"
+                            id={`abonar-${c.id}`}
+                            checked={l.on}
+                            onChange={(e) => setLinea(c.id, { on: e.target.checked })}
+                            className="w-5 h-5 flex-shrink-0"
+                            style={{ accentColor: colors.primario }}
+                          />
+                          <label htmlFor={`abonar-${c.id}`} className="flex-1 min-w-0 cursor-pointer">
+                            <span className="block text-sm text-gray-900 tabular-nums">{c.codigo}</span>
+                            <span className="block text-xs text-gray-500 tabular-nums">
+                              Debes {soles(c.disponible)}{c.vence ? ` · vence ${diaVence(c.vence)}` : ''}
+                            </span>
+                          </label>
+                          <div className={`flex items-center h-10 w-28 rounded-lg border px-2 ${l.on ? 'border-gray-300' : 'border-gray-100 opacity-40'}`}>
+                            <span className="text-xs text-gray-500 mr-1">S/</span>
+                            <input
+                              value={l.monto}
+                              disabled={!l.on}
+                              onChange={(e) => setLinea(c.id, { monto: e.target.value.replace(/[^\d.,]/g, '') })}
+                              inputMode="decimal"
+                              aria-label={`Monto para ${c.codigo}`}
+                              className="w-full min-w-0 bg-transparent outline-none text-sm text-right tabular-nums text-gray-900"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between px-1 pt-1">
+                    <span className="text-sm text-gray-600">{elegidas.length} {elegidas.length === 1 ? 'compra' : 'compras'}</span>
+                    <span className="text-sm text-gray-600">Total a pagar <b className="text-lg font-medium tabular-nums text-gray-900">{soles(valor)}</b></span>
+                  </div>
                 </div>
-              </label>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <span className="text-[13px] text-gray-600">¿Cómo vas a pagar?</span>

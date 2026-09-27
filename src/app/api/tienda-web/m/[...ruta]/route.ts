@@ -17,7 +17,6 @@ const PERMITIDAS = [
   // Mis compras (sus ventas en esa tienda: pagadas y a crédito)
   /^marketplace\/empresas\/[\w-]+\/mis-compras$/,
   /^marketplace\/empresas\/[\w-]+\/mis-compras\/[\w-]+$/,
-  /^marketplace\/empresas\/[\w-]+\/mis-compras\/[\w-]+\/abonos$/,
   // Mis servicios (órdenes de servicio del comprador en esa tienda)
   /^marketplace\/empresas\/[\w-]+\/mis-servicios$/,
   /^marketplace\/empresas\/[\w-]+\/mis-servicios\/[\w-]+$/,

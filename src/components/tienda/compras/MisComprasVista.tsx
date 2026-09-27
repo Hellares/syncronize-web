@@ -11,7 +11,7 @@ import {
 import { useSesionTienda } from '../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../compra/CarritoVista';
 import { HeroPortal, Pastilla } from '../servicios/portal/HeroPortal';
-import { AbonarDialog } from './AbonarDialog';
+import { AbonarDialog, type CompraAbonable } from './AbonarDialog';
 
 type Tab = 'todas' | 'credito' | 'pagadas';
 
@@ -38,6 +38,13 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
   // null = todas; '' = personales; nombre = las de ese cliente empresa.
   const [filtro, setFiltro] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<string | null>(null);
+  // Sube tras reportar un pago: se vuelve a pedir la lista (lo "en revisión").
+  const [version, setVersion] = useState(0);
+  // Y esta remonta el detalle abierto (su compra pudo entrar en el pago).
+  const [versionDetalle, setVersionDetalle] = useState(0);
+  // Pagar varias compras de un titular: null = personales, id = esa empresa.
+  const [pagando, setPagando] = useState<{ grupo: string | null } | null>(null);
+  const [pagoEnviado, setPagoEnviado] = useState(false);
 
   useEffect(() => {
     if (!usuario) return;
@@ -53,12 +60,13 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
       const escritorio = window.matchMedia('(min-width: 1024px)').matches;
       const inicial = (pedida && r.data.find((c) => c.id === pedida)?.id)
         ?? (escritorio ? (r.resumen.proximoPago?.ventaId ?? r.data[0]?.id ?? null) : null);
-      setSeleccion(inicial);
+      // Al recargar (tras un pago) se queda en la compra que estaba mirando.
+      setSeleccion((actual) => (actual && r.data.some((c) => c.id === actual) ? actual : inicial));
     }).catch((e) => {
       if (vivo) setError(mensajeError(e, 'No se pudieron cargar tus compras'));
     });
     return () => { vivo = false; };
-  }, [usuario, subdominio]);
+  }, [usuario, subdominio, version]);
 
   const empresas = useMemo(
     () => [...new Set((compras ?? []).map((c) => c.empresaCliente).filter((e): e is string => !!e))],
@@ -88,6 +96,19 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
       .sort((a, b) => (a.empresa === null ? -1 : b.empresa === null ? 1 : a.empresa.localeCompare(b.empresa)));
   })();
   const separarDeuda = deudas.some((d) => d.id !== null);
+  /** Las compras de un titular a las que todavía se les puede abonar (la más antigua primero). */
+  const abonables = (grupo: string | null): CompraAbonable[] =>
+    (compras ?? [])
+      .filter((c) => c.esCredito && (c.clienteEmpresaId ?? null) === grupo)
+      .map((c) => ({ c, disponible: Math.round((c.saldo - (c.enRevision ?? 0)) * 100) / 100 }))
+      .filter(({ disponible }) => disponible > 0)
+      .sort((a, b) => a.c.fecha.localeCompare(b.c.fecha))
+      .map(({ c, disponible }) => ({
+        id: c.id, codigo: c.codigo, fecha: c.fecha, disponible,
+        // Con varias, marcar una propone cancelarla completa.
+        sugerido: disponible,
+        vence: c.proximoPago?.fechaVencimiento ?? null,
+      }));
   const hayCreditoPersonal = (compras ?? []).some((c) => c.esCredito && !c.clienteEmpresaId);
 
   const abrir = (id: string | null) => {
@@ -133,6 +154,17 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
                         </span>
                         <span className="flex items-center gap-1.5 flex-shrink-0">
                           <span className={`text-lg md:text-xl font-bold tabular-nums ${d.monto > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(d.monto)}</span>
+                          {abonables(d.id).length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => { setPagoEnviado(false); setPagando({ grupo: d.id }); }}
+                              className="h-8 px-2.5 rounded-lg text-xs font-medium text-white"
+                              style={{ backgroundColor: colors.primario }}
+                              aria-label={`Pagar compras ${d.empresa ?? 'personales'}`}
+                            >
+                              Pagar
+                            </button>
+                          )}
                           {(d.id !== null || hayCreditoPersonal) && (
                             <BotonEstadoCuenta clienteEmpresaId={d.id} colors={colors} icono etiqueta={`Estado de cuenta ${d.empresa ?? 'personal'}`} />
                           )}
@@ -148,7 +180,22 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
                         ? `En ${resumen.comprasConDeuda} ${resumen.comprasConDeuda === 1 ? 'compra' : 'compras'} a crédito${resumen.mora > 0 ? ` · mora ${soles(resumen.mora)}` : ''}`
                         : 'Estás al día. ¡Gracias!'}
                     </span>
-                    {hayCreditoPersonal && <BotonEstadoCuenta clienteEmpresaId={null} colors={colors} />}
+                    {(abonables(null).length > 0 || hayCreditoPersonal) && (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        {abonables(null).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => { setPagoEnviado(false); setPagando({ grupo: null }); }}
+                            className="inline-flex items-center gap-1.5 min-h-[32px] text-[13px] font-medium"
+                            style={{ color: colors.primario }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h3" /></svg>
+                            {abonables(null).length > 1 ? 'Pagar varias compras' : 'Pagar'}
+                          </button>
+                        )}
+                        {hayCreditoPersonal && <BotonEstadoCuenta clienteEmpresaId={null} colors={colors} />}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -255,10 +302,11 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
 
               {seleccion ? (
                 <DetalleCompra
-                  key={seleccion}
+                  key={`${seleccion}-${versionDetalle}`}
                   id={seleccion}
                   colors={colors}
                   onVolver={() => abrir(null)}
+                  onPagado={() => setVersion((v) => v + 1)}
                 />
               ) : (
                 <div className="hidden lg:flex bg-white rounded-2xl p-10 text-sm text-gray-500 items-center justify-center">
@@ -269,6 +317,19 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
           </>
         )}
       </main>
+      {pagando && (
+        <AbonarDialog
+          subdominio={subdominio}
+          compras={abonables(pagando.grupo)}
+          colors={colors}
+          onListo={() => setPagoEnviado(true)}
+          onCerrar={() => {
+            setPagando(null);
+            // Recién al cerrar: recargar antes borraría el mensaje de "recibimos tu pago".
+            if (pagoEnviado) { setVersion((v) => v + 1); setVersionDetalle((v) => v + 1); }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -333,11 +394,16 @@ const ESTADO_CUOTA: Record<string, { texto: string; fondo: string; color: string
   PENDIENTE: { texto: 'Pendiente', fondo: '#eef2f8', color: '#3a4a63' },
 };
 
-function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaColors; onVolver: () => void }) {
+function DetalleCompra({ id, colors, onVolver, onPagado }: {
+  id: string; colors: TiendaColors; onVolver: () => void;
+  /** Tras reportar un pago: la lista recalcula lo "en revisión". */
+  onPagado: () => void;
+}) {
   const { subdominio } = useSesionTienda();
   const [c, setC] = useState<CompraDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [abonando, setAbonando] = useState(false);
+  const [pagoEnviado, setPagoEnviado] = useState(false);
   // Sube al reportar un pago: se vuelve a pedir el detalle (aparece "en revisión").
   const [version, setVersion] = useState(0);
 
@@ -500,6 +566,9 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">{rechazado ? 'La tienda no pudo confirmar este pago' : 'En revisión por la tienda'}</p>
                     <p className="text-xs text-gray-500 tabular-nums">{fechaHora(r.fecha)} · {METODO_PAGO[r.metodo] ?? r.metodo}</p>
+                    {r.compras > 1 && (
+                      <p className="text-xs text-gray-500">Parte de un pago de {soles(r.pagoTotal)} a {r.compras} compras</p>
+                    )}
                     {rechazado && r.motivoRechazo && <p className="text-xs mt-0.5" style={{ color: '#b42318' }}>Motivo: {r.motivoRechazo}</p>}
                   </div>
                   <span className="text-sm font-medium tabular-nums" style={{ color: rechazado ? '#b42318' : '#9a4b00' }}>{soles(r.monto)}</span>
@@ -534,13 +603,19 @@ function DetalleCompra({ id, colors, onVolver }: { id: string; colors: TiendaCol
       {abonando && (
         <AbonarDialog
           subdominio={subdominio}
-          ventaId={c.id}
-          codigo={c.codigo}
-          disponible={disponible}
-          sugerido={proxima ? Math.min(proxima.saldo, disponible) : disponible}
+          compras={[{
+            id: c.id, codigo: c.codigo, fecha: c.fecha, disponible,
+            // Con una sola compra se propone la próxima cuota.
+            sugerido: proxima ? Math.min(proxima.saldo, disponible) : disponible,
+            vence: proxima?.fechaVencimiento ?? null,
+          }]}
           colors={colors}
-          onListo={() => setVersion((v) => v + 1)}
-          onCerrar={() => setAbonando(false)}
+          onListo={() => setPagoEnviado(true)}
+          onCerrar={() => {
+            setAbonando(false);
+            // Recién al cerrar: recargar antes borraría el mensaje de "recibimos tu pago".
+            if (pagoEnviado) { setPagoEnviado(false); setVersion((v) => v + 1); onPagado(); }
+          }}
         />
       )}
     </div>
