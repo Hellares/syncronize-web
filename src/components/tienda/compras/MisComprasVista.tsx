@@ -73,6 +73,21 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
     .filter((c) => !q || c.codigo.toLowerCase().includes(q));
   const nombre = usuario?.nombres?.split(' ')[0];
   const px = resumen?.proximoPago;
+  // La deuda separada: la personal y la de cada empresa donde es encargado.
+  // No se suman: la de la empresa la paga la empresa, no él.
+  const deudas = (() => {
+    const mapa = new Map<string, { monto: number; compras: number }>();
+    for (const c of compras ?? []) {
+      if (!c.esCredito || c.saldo <= 0) continue;
+      const k = c.empresaCliente ?? '';
+      const d = mapa.get(k) ?? { monto: 0, compras: 0 };
+      mapa.set(k, { monto: d.monto + c.saldo, compras: d.compras + 1 });
+    }
+    return [...mapa.entries()]
+      .map(([empresa, d]) => ({ empresa: empresa || null, monto: Math.round(d.monto * 100) / 100, compras: d.compras }))
+      .sort((a, b) => (a.empresa === null ? -1 : b.empresa === null ? 1 : a.empresa.localeCompare(b.empresa)));
+  })();
+  const separarDeuda = deudas.some((d) => d.empresa !== null);
 
   const abrir = (id: string | null) => {
     setSeleccion(id);
@@ -100,12 +115,35 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3.5 text-gray-900">
               <div className="bg-white rounded-2xl px-4 py-3.5 md:px-5 md:py-4 flex flex-col gap-1">
                 <span className="text-[13px] text-gray-500">Le debes a la tienda</span>
-                <span className={`text-2xl md:text-[30px] font-bold tabular-nums ${resumen.deuda > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(resumen.deuda)}</span>
-                <span className="text-[13px] text-gray-500">
-                  {resumen.deuda > 0
-                    ? `En ${resumen.comprasConDeuda} ${resumen.comprasConDeuda === 1 ? 'compra' : 'compras'} a crédito${resumen.mora > 0 ? ` · mora ${soles(resumen.mora)}` : ''}`
-                    : 'Estás al día. ¡Gracias!'}
-                </span>
+                {separarDeuda ? (
+                  <div className="flex flex-col divide-y divide-gray-100">
+                    {(deudas.some((d) => d.empresa === null) ? deudas : [{ empresa: null, monto: 0, compras: 0 }, ...deudas]).map((d) => (
+                      <div key={d.empresa ?? '__personal'} className="flex items-center justify-between gap-3 py-1.5">
+                        <span className="min-w-0 flex items-center gap-1.5 text-[13px] text-gray-700">
+                          {d.empresa ? (
+                            <>
+                              <IconoEmpresa className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="truncate" title={d.empresa}>{d.empresa}</span>
+                            </>
+                          ) : (
+                            <span>Personal</span>
+                          )}
+                          {d.compras > 0 && <span className="flex-shrink-0 text-gray-400">· {d.compras}</span>}
+                        </span>
+                        <span className={`text-lg md:text-xl font-bold tabular-nums flex-shrink-0 ${d.monto > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(d.monto)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <span className={`text-2xl md:text-[30px] font-bold tabular-nums ${resumen.deuda > 0 ? 'text-[#9a4b00]' : 'text-[#146c3a]'}`}>{soles(resumen.deuda)}</span>
+                    <span className="text-[13px] text-gray-500">
+                      {resumen.deuda > 0
+                        ? `En ${resumen.comprasConDeuda} ${resumen.comprasConDeuda === 1 ? 'compra' : 'compras'} a crédito${resumen.mora > 0 ? ` · mora ${soles(resumen.mora)}` : ''}`
+                        : 'Estás al día. ¡Gracias!'}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="bg-white rounded-2xl px-4 py-3.5 md:px-5 md:py-4 flex flex-col gap-1">
                 <span className="text-[13px] text-gray-500">Próximo pago</span>
