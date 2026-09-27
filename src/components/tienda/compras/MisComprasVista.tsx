@@ -276,7 +276,7 @@ function TarjetaCompra({ c, colors, activa, onAbrir }: { c: CompraResumen; color
       type="button"
       onClick={onAbrir}
       aria-current={activa}
-      className="text-left bg-white rounded-2xl p-4 flex flex-col gap-3 shadow-[0_2px_12px_rgba(15,26,46,0.06)] hover:shadow-[0_8px_24px_rgba(15,26,46,0.10)] transition-shadow border-2"
+      className="text-left bg-white rounded-xl px-4 pt-1.5 pb-[11px] flex flex-col gap-3 shadow-[0_2px_12px_rgba(15,26,46,0.06)] hover:shadow-[0_8px_24px_rgba(15,26,46,0.10)] transition-shadow border-2"
       style={{ borderColor: activa ? colors.primario : 'transparent' }}
     >
       <div className="flex items-start justify-between gap-3">
