@@ -367,7 +367,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
   return (
     <div className="flex flex-col gap-2">
       {volver}
-      <section className="bg-white rounded-2xl px-4 pb-4 pt-1.5 md:px-6 md:pb-6 md:pt-3.5 flex flex-col gap-5 md:gap-6 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
+      <section className="bg-white rounded-[10px] px-4 pb-4 pt-1.5 md:px-6 md:pb-6 md:pt-3.5 flex flex-col gap-5 md:gap-6 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
