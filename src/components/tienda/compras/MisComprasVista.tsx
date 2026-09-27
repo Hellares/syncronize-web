@@ -367,11 +367,11 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
   return (
     <div className="flex flex-col gap-2">
       {volver}
-      <section className="bg-white rounded-2xl p-4 md:p-6 flex flex-col gap-5 md:gap-6 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
+      <section className="bg-white rounded-2xl px-4 pb-4 pt-1.5 md:px-6 md:pb-6 md:pt-3.5 flex flex-col gap-5 md:gap-6 shadow-[0_2px_12px_rgba(15,26,46,0.06)]">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg md:text-[22px] font-bold text-gray-900 tabular-nums">Compra {c.codigo}</h2>
+              <h2 className="text-[15px] md:text-[19px] font-bold text-gray-900 tabular-nums">Compra {c.codigo}</h2>
               <Pastilla {...e} texto={c.esCredito && c.numeroCuotas ? `${e.texto} · ${c.numeroCuotas} ${c.numeroCuotas === 1 ? 'cuota' : 'cuotas'}` : e.texto} />
             </div>
             <p className="text-[13px] text-gray-500">
