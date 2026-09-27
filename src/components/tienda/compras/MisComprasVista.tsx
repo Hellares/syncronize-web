@@ -371,7 +371,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-[15px] md:text-[19px] font-bold text-gray-900 tabular-nums">Compra {c.codigo}</h2>
+              <h2 className="text-[15px] md:text-[19px] font-medium text-gray-900 tabular-nums">Compra {c.codigo}</h2>
               <Pastilla {...e} texto={c.esCredito && c.numeroCuotas ? `${e.texto} · ${c.numeroCuotas} ${c.numeroCuotas === 1 ? 'cuota' : 'cuotas'}` : e.texto} />
             </div>
             <p className="text-[13px] text-gray-500">
@@ -409,7 +409,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
         </div>
 
         <div className="flex flex-col">
-          <h3 className="text-[15px] font-bold mb-1" style={{ color: colors.primario }}>Productos</h3>
+          <h3 className="text-[15px] font-medium mb-1" style={{ color: colors.primario }}>Productos</h3>
           {c.items.map((it, i) => (
             <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
               <span className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: alpha(colors.primario, 0.06), color: colors.primario }}>
@@ -436,7 +436,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
 
         {c.cuotas.length > 0 && (
           <div className="flex flex-col gap-2.5">
-            <h3 className="text-[15px] font-bold" style={{ color: colors.primario }}>Cronograma de pagos</h3>
+            <h3 className="text-[15px] font-medium" style={{ color: colors.primario }}>Cronograma de pagos</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
               {c.cuotas.map((q) => {
                 const eq = ESTADO_CUOTA[q.estado] ?? ESTADO_CUOTA.PENDIENTE;
@@ -444,7 +444,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
                 return (
                   <div
                     key={q.numero}
-                    className="rounded-xl px-3.5 py-3 flex flex-col gap-1"
+                    className="rounded-[10px] px-3.5 pt-[7px] pb-3 flex flex-col gap-1"
                     style={{
                       backgroundColor: q.estado === 'PAGADA' ? '#f3fbf6' : esProxima ? '#fffaf0' : '#f6f8fc',
                       boxShadow: esProxima ? `inset 0 0 0 1.5px ${q.estado === 'VENCIDA' ? '#f1a9a0' : '#f3c77a'}` : undefined,
@@ -454,7 +454,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
                       <span className="text-xs text-gray-500">Cuota {q.numero}</span>
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: eq.fondo, color: eq.color }}>{esProxima && q.estado === 'PENDIENTE' ? 'Próxima' : eq.texto}</span>
                     </div>
-                    <span className="text-lg font-bold tabular-nums text-gray-900">{soles(q.saldo > 0 ? q.saldo : q.monto)}</span>
+                    <span className="text-base font-medium tabular-nums text-gray-900">{soles(q.saldo > 0 ? q.saldo : q.monto)}</span>
                     <span className="text-xs text-gray-500">
                       {q.estado === 'PAGADA' ? `Pagada · vencía el ${diaVence(q.fechaVencimiento)}` : `Vence el ${diaVence(q.fechaVencimiento)}`}
                     </span>
@@ -468,7 +468,7 @@ function DetalleCompra({ id, colors, telefono, onVolver }: { id: string; colors:
 
         {c.pagos.length > 0 && (
           <div className="flex flex-col gap-2">
-            <h3 className="text-[15px] font-bold" style={{ color: colors.primario }}>Tus pagos</h3>
+            <h3 className="text-[15px] font-medium" style={{ color: colors.primario }}>Tus pagos</h3>
             {c.pagos.map((p, i) => (
               <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-slate-50">
                 <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#e7f7ee', color: '#146c3a' }}>
