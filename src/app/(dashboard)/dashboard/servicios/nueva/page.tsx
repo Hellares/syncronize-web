@@ -12,7 +12,7 @@ import type { ClienteEmpresaContacto } from '@/core/types/cliente-empresa';
 import { DynamicFieldsForm, seedDefaults, validarCamposRequeridos, limpiarDatos } from '@/features/ordenes-servicio/components/dynamic-fields-form';
 import * as osService from '@/features/ordenes-servicio/services/orden-servicio-service';
 import * as catalogoService from '@/features/ordenes-servicio/services/servicio-catalogo-service';
-import { agregarContacto, buscarClientes } from '@/features/cotizacion/services/cliente-service';
+import { agregarContacto, buscarClientes, consultarDni } from '@/features/cotizacion/services/cliente-service';
 import ClientePersonaFormDialog from '@/features/clientes/components/ClientePersonaFormDialog';
 import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpresaFormDialog';
 import type { ClientePersona } from '@/core/types/cliente';
@@ -122,6 +122,20 @@ export default function NuevaOrdenPage() {
   // "+ Nuevo contacto": se crea en la empresa cliente al registrar la orden.
   // Con su DNI, esa persona sigue el servicio desde la tienda web (Mis servicios).
   const [nuevoContacto, setNuevoContacto] = useState({ nombre: '', dni: '', celular: '', cargo: '' });
+  // El DNI va primero: con 8 dígitos se busca en RENIEC (Factiliza) y se llena el nombre.
+  const [dniBusqueda, setDniBusqueda] = useState<{ estado: 'buscando' | 'ok' | 'error'; texto: string } | null>(null);
+  const buscarDniContacto = async (dni: string) => {
+    if (!/^\d{8}$/.test(dni)) return;
+    setDniBusqueda({ estado: 'buscando', texto: 'Buscando en RENIEC...' });
+    try {
+      const r = await consultarDni(dni);
+      const nombre = r.nombreCompleto || [r.nombres, r.apellidoPaterno, r.apellidoMaterno].filter(Boolean).join(' ');
+      setNuevoContacto((v) => (v.dni === dni ? { ...v, nombre } : v));
+      setDniBusqueda({ estado: 'ok', texto: nombre ? `Encontrado: ${nombre}` : 'Datos encontrados' });
+    } catch {
+      setDniBusqueda({ estado: 'error', texto: 'No se encontró ese DNI. Escribe el nombre a mano.' });
+    }
+  };
 
   const [sedeId, setSedeId] = useState('');
   const [tipoServicio, setTipoServicio] = useState<TipoServicio>('REPARACION');
@@ -422,12 +436,41 @@ export default function NuevaOrdenPage() {
                 {creandoContacto && (
                   <div className="mt-2.5 rounded-lg border border-gray-200 bg-gray-50/60 p-3 grid gap-2.5 sm:grid-cols-2">
                     <div>
-                      <label className={LABEL} htmlFor="nc-nombre">Nombre</label>
-                      <input id="nc-nombre" className={INPUT_STD} value={nuevoContacto.nombre} onChange={e => setNuevoContacto(v => ({ ...v, nombre: e.target.value }))} placeholder="Nombre y apellido" />
+                      <label className={LABEL} htmlFor="nc-dni">DNI</label>
+                      <div className="flex gap-2">
+                        <input
+                          id="nc-dni"
+                          className={INPUT_STD}
+                          inputMode="numeric"
+                          maxLength={8}
+                          autoFocus
+                          value={nuevoContacto.dni}
+                          onChange={e => {
+                            const dni = e.target.value.replace(/\D/g, '');
+                            setNuevoContacto(v => ({ ...v, dni }));
+                            setDniBusqueda(null);
+                            if (dni.length === 8) void buscarDniContacto(dni);
+                          }}
+                          placeholder="8 dígitos"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void buscarDniContacto(nuevoContacto.dni)}
+                          disabled={nuevoContacto.dni.length !== 8 || dniBusqueda?.estado === 'buscando'}
+                          className="flex-shrink-0 px-3 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Buscar
+                        </button>
+                      </div>
+                      {dniBusqueda && (
+                        <p className={`mt-1 text-[11px] ${dniBusqueda.estado === 'error' ? 'text-amber-700' : dniBusqueda.estado === 'ok' ? 'text-emerald-700' : 'text-gray-500'}`}>
+                          {dniBusqueda.texto}
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <label className={LABEL} htmlFor="nc-dni">DNI</label>
-                      <input id="nc-dni" className={INPUT_STD} inputMode="numeric" maxLength={8} value={nuevoContacto.dni} onChange={e => setNuevoContacto(v => ({ ...v, dni: e.target.value.replace(/\D/g, '') }))} placeholder="8 dígitos" />
+                      <label className={LABEL} htmlFor="nc-nombre">Nombre</label>
+                      <input id="nc-nombre" className={INPUT_STD} value={nuevoContacto.nombre} onChange={e => setNuevoContacto(v => ({ ...v, nombre: e.target.value }))} placeholder="Se llena con el DNI" />
                     </div>
                     <div>
                       <label className={LABEL} htmlFor="nc-celular">Celular</label>
