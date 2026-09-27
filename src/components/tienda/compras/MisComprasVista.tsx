@@ -317,7 +317,7 @@ function TarjetaCompra({ c, colors, activa, onAbrir }: { c: CompraResumen; color
         </div>
       </div>
       {deuda && (
-        <div className="-mt-1.5 flex flex-col gap-1.5">
+        <div className="-mt-3 flex flex-col gap-1.5">
           <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${avance}%`, backgroundColor: c.estado === 'VENCIDA' ? '#b42318' : colors.primario }} />
           </div>
