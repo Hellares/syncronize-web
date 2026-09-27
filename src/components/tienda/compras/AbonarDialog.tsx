@@ -6,8 +6,8 @@ import { soles } from '@/lib/tienda-compra';
 import { mensajeError } from '@/lib/mis-servicios';
 import { MediosPago, MetodoAbono, misCompras } from '@/lib/mis-compras';
 
-/** Un abono grande puede ir en varios Yape (límite por operación): una captura por cada uno. */
-const MAX_CAPTURAS = 3;
+/** Yape topa S/ 500 por operación y S/ 2,000 al día: hasta 4 Yape en un abono, una captura por cada uno. */
+const MAX_CAPTURAS = 4;
 
 const METODOS: { id: MetodoAbono; texto: string; color: string }[] = [
   { id: 'YAPE', texto: 'Yape', color: '#742284' },

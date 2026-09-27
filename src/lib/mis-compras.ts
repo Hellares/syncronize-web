@@ -83,7 +83,7 @@ export const misCompras = {
   /** Reporta un abono con la captura (multipart). Queda en revisión hasta que la tienda lo apruebe. */
   reportarAbono: (sub: string, id: string, datos: {
     monto: number; metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string;
-    /** 1 a 3 capturas: un pago grande puede ir en varios Yape. */
+    /** 1 a 4 capturas: un pago grande puede ir en varios Yape (S/ 500 c/u). */
     comprobantes: File[];
   }) => {
     const fd = new FormData();
