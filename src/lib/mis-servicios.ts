@@ -36,7 +36,8 @@ export interface OrdenDetalle extends OrdenResumen {
   descripcionProblema: string | null;
   diagnostico: string | null;
   accesorios: string[];
-  items: { nombre: string; monto: number }[];
+  /** Componentes: `accion` es el TipoAccionComponente (REPARAR, COMPRAR…). */
+  items: { nombre: string; monto: number; accion?: string | null; descripcion?: string | null }[];
   costoServicio: number | null;
   descuento: number;
   adelanto: number;

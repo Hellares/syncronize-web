@@ -6,6 +6,7 @@ import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { ETIQUETA, MensajeOrden, OrdenDetalle, PASOS, etiquetaOrden, fechaCorta, horaCorta, misServicios, pasoDe, mensajeError } from '@/lib/mis-servicios';
+import { TIPO_ACCION_COLOR, TIPO_ACCION_LABEL, type TipoAccionComponente } from '@/core/types/orden-servicio';
 import { useSesionTienda } from '../../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../../compra/CarritoVista';
 import { HeroPortal, Pastilla } from './HeroPortal';
@@ -199,7 +200,16 @@ export function MiServicioDetalle({ id, colors, empresaNombre, telefono }: {
                       {(orden.costoServicio ?? 0) > 0 && (
                         <Linea nombre={orden.servicio ?? 'Servicio'} valor={soles(orden.costoServicio)} />
                       )}
-                      {orden.items.map((it, i) => <Linea key={i} nombre={it.nombre} valor={soles(it.monto)} />)}
+                      {orden.items.map((it, i) => (
+                        <Linea
+                          key={i}
+                          nombre={it.nombre}
+                          accion={it.accion ? (TIPO_ACCION_LABEL[it.accion as TipoAccionComponente] ?? it.accion) : null}
+                          accionColor={it.accion ? (TIPO_ACCION_COLOR[it.accion as TipoAccionComponente] ?? 'text-teal-600') : undefined}
+                          detalle={it.descripcion}
+                          valor={soles(it.monto)}
+                        />
+                      ))}
                       {orden.descuento > 0 && <Linea nombre="Descuento" valor={`− ${soles(orden.descuento)}`} tenue />}
                       {orden.adelanto > 0 && <Linea nombre="Adelanto pagado" valor={`− ${soles(orden.adelanto)}`} tenue sinBorde />}
                       <div className="flex justify-between items-baseline pt-2">
@@ -419,10 +429,18 @@ function VisorFotos({ fotos, inicial, onCerrar }: { fotos: string[]; inicial: nu
   );
 }
 
-function Linea({ nombre, valor, tenue = false, sinBorde = false }: { nombre: string; valor: string; tenue?: boolean; sinBorde?: boolean }) {
+function Linea({ nombre, valor, tenue = false, sinBorde = false, accion, accionColor, detalle }: {
+  nombre: string; valor: string; tenue?: boolean; sinBorde?: boolean;
+  /** Componente: acción ("Reparar") y su descripción, como en la orden del taller. */
+  accion?: string | null; accionColor?: string; detalle?: string | null;
+}) {
   return (
     <div className={`flex justify-between gap-3 py-2.5 ${sinBorde ? '' : 'border-b border-gray-100'} ${tenue ? 'text-gray-500' : 'text-gray-900'}`}>
-      <span>{nombre}</span>
+      <span className="min-w-0">
+        {nombre}
+        {accion && <> · <span className={accionColor}>{accion}</span></>}
+        {detalle && <span className="block text-xs text-gray-500">{detalle}</span>}
+      </span>
       <span className="tabular-nums font-medium">{valor}</span>
     </div>
   );
