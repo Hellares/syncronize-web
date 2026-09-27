@@ -11,6 +11,7 @@ import { PaginaDestellos } from '@/components/tienda/PaginaDestellos';
 import { VideosSection } from '@/components/tienda/VideosSection';
 import { ServiciosLista } from '@/components/tienda/servicios/ServiciosLista';
 import { GaleriaSlider } from '@/components/tienda/servicios/GaleriaSlider';
+import { TextoEscrito } from '@/components/tienda/servicios/TextoEscrito';
 import { ServicioTienda, urlSegura } from '@/lib/servicios-web';
 
 interface Props {
@@ -129,16 +130,19 @@ export default async function ServiciosPage({ params }: Props) {
 
           <div className={`grid gap-8 md:gap-12 items-center ${hayMedia ? 'md:grid-cols-2' : ''}`}>
             <div className="relative flex flex-col gap-4 md:gap-5">
-              {/* El logo va sobre una placa blanca: muchos tienen letras oscuras y la portada es oscura. */}
-              {logo ? (
-                <span className="self-start inline-flex items-center bg-white rounded-lg px-3 py-2 shadow-sm">
-                  <img src={logo} alt={empresa.nombre} className="h-7 md:h-9 max-w-[180px] object-contain" />
+              {/* Logo y título en una sola fila. El logo va sobre una placa blanca:
+                muchos tienen letras oscuras y la portada es de color. */}
+            <div className="flex items-center gap-3 md:gap-4">
+              {logo && (
+                <span className="flex-shrink-0 inline-flex items-center bg-white rounded-lg px-2.5 py-1.5 md:px-3 md:py-2 shadow-sm">
+                  <img src={logo} alt={empresa.nombre} className="h-6 md:h-9 max-w-[120px] md:max-w-[180px] object-contain" />
                 </span>
-              ) : (
-                <span className="text-[11px] md:text-xs font-bold tracking-[0.12em] uppercase" style={{ color: lighten(colors.primario, 0.45) }}>{empresa.nombre}</span>
               )}
-              <h1 className="text-[28px] md:text-5xl font-extrabold leading-[1.1] tracking-tight [text-wrap:balance]">{titulo}</h1>
-              <p className="text-[15px] md:text-[17px] leading-relaxed text-white/90 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
+              <h1 className="min-w-0 text-[22px] md:text-4xl font-extrabold leading-[1.1] tracking-tight">
+                <TextoEscrito texto={titulo} />
+              </h1>
+            </div>
+            <p className="text-[15px] md:text-[17px] leading-relaxed text-white/90 max-w-[46ch] whitespace-pre-line">{descripcion}</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 {whatsapp && (
                   <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="h-[42px] px-6 rounded-[10px] bg-[#1fa855] hover:bg-[#1a9249] text-white font-bold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
