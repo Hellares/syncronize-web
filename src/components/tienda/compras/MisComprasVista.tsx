@@ -113,7 +113,7 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
           </div>
           {resumen && resumen.cantidad > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 md:gap-3.5 text-gray-900">
-              <div className="bg-white rounded-2xl px-4 py-3.5 md:px-5 md:py-4 flex flex-col gap-1">
+              <div className="bg-white rounded-xl px-4 pt-1 pb-[9px] md:px-5 md:pt-1.5 md:pb-[11px] flex flex-col gap-1">
                 <span className="text-[13px] text-gray-500">Le debes a la tienda</span>
                 {separarDeuda ? (
                   <div className="flex flex-col divide-y divide-gray-100">
@@ -145,7 +145,7 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                   </>
                 )}
               </div>
-              <div className="bg-white rounded-2xl px-4 py-3.5 md:px-5 md:py-4 flex flex-col gap-1">
+              <div className="bg-white rounded-xl px-4 pt-1 pb-[9px] md:px-5 md:pt-1.5 md:pb-[11px] flex flex-col gap-1">
                 <span className="text-[13px] text-gray-500">Próximo pago</span>
                 <span className="text-2xl md:text-[30px] font-bold tabular-nums">{px ? soles(px.saldo) : '—'}</span>
                 <span className="text-[13px] text-gray-500">
@@ -154,7 +154,7 @@ export function MisComprasVista({ colors, empresaNombre, telefono }: { colors: T
                     : 'No tienes pagos pendientes'}
                 </span>
               </div>
-              <div className="bg-white rounded-2xl px-4 py-3.5 md:px-5 md:py-4 flex flex-col gap-1">
+              <div className="bg-white rounded-xl px-4 pt-1 pb-[9px] md:px-5 md:pt-1.5 md:pb-[11px] flex flex-col gap-1">
                 <span className="text-[13px] text-gray-500">Compraste en total</span>
                 <span className="text-2xl md:text-[30px] font-bold tabular-nums">{soles(resumen.totalComprado)}</span>
                 <span className="text-[13px] text-gray-500">{resumen.cantidad} {resumen.cantidad === 1 ? 'compra' : 'compras'} · pagado {soles(resumen.totalPagado)}</span>
