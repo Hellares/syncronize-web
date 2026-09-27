@@ -66,6 +66,12 @@ export function seedDefaults(campos: CampoServicio[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const c of campos) {
     const dv = c.defaultValue;
+    // La evidencia fotográfica (ARCHIVO) arranca MARCADA: casi siempre se
+    // sacan fotos del equipo. Solo un default explícito "false" la apaga.
+    if (c.tipoCampo === 'ARCHIVO') {
+      out[c.nombre] = !(dv === 'false' || dv === '0');
+      continue;
+    }
     if (dv == null || dv === '') continue;
     if (c.tipoCampo === 'NUMERO') {
       const n = Number(dv);
