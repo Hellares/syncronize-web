@@ -686,13 +686,22 @@ export default function VarianteSelector({
                     </button>
                   );
                 }
-                const vals = grupos.map((g) => valorDe(v, g.clave)).filter((x): x is string => !!x);
+                // Un diseño SOLO se titula como su colección, igual que los
+                // agrupados: "D1" suelto no le dice nada al vendedor. La foto
+                // es lo que lo identifica.
+                const esDiseno = valorDe(v, CLAVE_DISENO) != null;
+                const vals = grupos
+                  .filter((g) => !esDiseno || g.clave !== CLAVE_DISENO)
+                  .map((g) => valorDe(v, g.clave))
+                  .filter((x): x is string => !!x);
                 const titulo = vals.length ? vals[vals.length - 1] : v.nombre;
                 const resto = vals.slice(0, -1).join(' · ');
                 const p = precioDe(v);
+                const foto = esDiseno ? imgDe(v) : null;
                 return (
                   <button key={v.id} type="button" onClick={() => elegirVariante(v)}
                     className="mb-1.5 flex w-full items-center gap-2.5 rounded-md border border-gray-200 py-2 pl-3 pr-2.5 text-left transition hover:border-gray-300 hover:bg-gray-50">
+                    {foto && <img src={foto} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-semibold text-gray-900">{titulo}</span>
                       {resto && <span className="block truncate text-[10px] text-gray-500">{resto}</span>}
