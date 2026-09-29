@@ -387,6 +387,32 @@ export default function VarianteSelector({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, variantes, grupos, enCarrito, sedeId]);
 
+  /**
+   * Los resultados con los DISEÑOS de una misma colección juntos.
+   *
+   * Separar por diseño deja "ALIANZA / D1", "D2", "D3"… iguales en todo menos
+   * el diseño: listados sueltos eran cuatro renglones idénticos que solo
+   * decían D1, D2… Juntos son UN renglón con las fotos y el stock sumado, y al
+   * tocarlo se abre el paso "Diseño" para elegir por foto.
+   */
+  const filasResultado = useMemo(() => {
+    const filas: { v: ProductoVariante; variantes: ProductoVariante[] }[] = [];
+    const porClave = new Map<string, { v: ProductoVariante; variantes: ProductoVariante[] }>();
+    for (const v of resultados) {
+      if (valorDe(v, CLAVE_DISENO) == null) { filas.push({ v, variantes: [v] }); continue; }
+      const clave = grupos
+        .filter((g) => g.clave !== CLAVE_DISENO)
+        .map((g) => valorDe(v, g.clave) ?? SIN_ASIGNAR)
+        .join('');
+      const fila = porClave.get(clave);
+      if (fila) { fila.variantes.push(v); continue; }
+      const nueva = { v, variantes: [v] };
+      porClave.set(clave, nueva);
+      filas.push(nueva);
+    }
+    return filas;
+  }, [resultados, grupos]);
+
   const hayResultados = query.trim().length >= 2 && resultados.length > 0;
 
   // ---- Acordeón ----
@@ -451,6 +477,19 @@ export default function VarianteSelector({
     setUltimoAgregado(null);
     setGrupoExpandido(grupos.length ? grupos[grupos.length - 1].clave : null);
     fijarCantidadInicial(v);
+  };
+
+  /** Elegir una colección con varios diseños: queda todo armado menos el diseño. */
+  const elegirColeccion = (v: ProductoVariante) => {
+    const next: Record<string, string | null> = {};
+    for (const g of grupos) {
+      next[g.clave] = g.clave === CLAVE_DISENO ? null : (valorDe(v, g.clave) ?? SIN_ASIGNAR);
+    }
+    setSeleccion(next);
+    setQuery('');
+    setUltimoAgregado(null);
+    setGrupoExpandido(CLAVE_DISENO);
+    fijarCantidadInicial(null);
   };
 
   const limpiar = () => {
@@ -605,11 +644,48 @@ export default function VarianteSelector({
               {/* Las unidades solo se suman si ninguna se vende por peso: sumar
                   5000 g con 2 sacos da un número que no significa nada. */}
               <p className="mb-1.5 text-[10px] text-gray-500">
-                {resultados.length} {resultados.length === 1 ? 'combinación' : 'combinaciones'}
+                {filasResultado.length} {filasResultado.length === 1 ? 'combinación' : 'combinaciones'}
                 {resultados.every((v) => presDe(v).factor === 1) &&
                   ` · ${resultados.reduce((s, v) => s + disponible(v), 0)} en stock`}
               </p>
-              {resultados.map((v) => {
+              {filasResultado.map(({ v, variantes: disenos }) => {
+                if (disenos.length > 1) {
+                  const vals = grupos
+                    .filter((g) => g.clave !== CLAVE_DISENO)
+                    .map((g) => valorDe(v, g.clave))
+                    .filter((x): x is string => !!x);
+                  const titulo = vals.length ? vals[vals.length - 1] : v.nombre;
+                  const resto = vals.slice(0, -1).join(' · ');
+                  const precios = disenos.map((d) => precioDe(d)).filter((x) => x != null).map(Number);
+                  const minimo = precios.length ? Math.min(...precios) : null;
+                  const todosIguales = precios.every((x) => x === minimo);
+                  const stock = disenos.reduce((acc, d) => acc + disponible(d), 0);
+                  const fotos = disenos.map((d) => imgDe(d)).filter((x): x is string => !!x);
+                  return (
+                    <button key={`col-${v.id}`} type="button" onClick={() => elegirColeccion(v)}
+                      className="mb-1.5 flex w-full items-center gap-2.5 rounded-md border border-gray-200 py-2 pl-3 pr-2.5 text-left transition hover:border-gray-300 hover:bg-gray-50">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-gray-900">{titulo}</span>
+                        {resto && <span className="block truncate text-[10px] text-gray-500">{resto}</span>}
+                        <span className="mt-1 flex items-center gap-1">
+                          {fotos.slice(0, 5).map((f, i) => (
+                            <img key={i} src={f} alt="" className="h-6 w-6 rounded object-cover" />
+                          ))}
+                          <span className="ml-0.5 text-[10px] font-medium text-gray-500">{disenos.length} diseños</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        {minimo != null && (
+                          <span className="block text-xs font-semibold" style={{ color: accent }}>
+                            {todosIguales ? '' : 'desde '}{textoPrecioDe(v, minimo)}
+                          </span>
+                        )}
+                        <span className="block text-[10px] text-gray-500">{textoCantidadDe(v, stock)}</span>
+                      </span>
+                      <span className="shrink-0" style={{ color: accent }}><IconChevron /></span>
+                    </button>
+                  );
+                }
                 const vals = grupos.map((g) => valorDe(v, g.clave)).filter((x): x is string => !!x);
                 const titulo = vals.length ? vals[vals.length - 1] : v.nombre;
                 const resto = vals.slice(0, -1).join(' · ');
