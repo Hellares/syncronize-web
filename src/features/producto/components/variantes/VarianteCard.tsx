@@ -15,9 +15,11 @@ interface Props {
   onDelete: () => void;
   /** Abre el diálogo de imágenes de la variante. */
   onImagenes?: () => void;
+  /** Separar en diseños (una foto = un diseño). */
+  onSepararDiseno?: () => void;
 }
 
-export default function VarianteCard({ variante, presentacionProducto, canManage, onView, onEdit, onDelete, onImagenes }: Props) {
+export default function VarianteCard({ variante, presentacionProducto, canManage, onView, onEdit, onDelete, onImagenes, onSepararDiseno }: Props) {
   const stockTotal = variante.stocksPorSede?.reduce((sum, s) => sum + s.cantidad, 0) ?? 0;
   // El stock se guarda en unidad de venta y se lee en la de presentación:
   // "28 kg", no "28000".
@@ -80,6 +82,13 @@ export default function VarianteCard({ variante, presentacionProducto, canManage
                 <button onClick={onImagenes} title="Imágenes" className="rounded-lg p-1.5 text-gray-400 hover:bg-violet-50 hover:text-violet-600">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                  </svg>
+                </button>
+              )}
+              {onSepararDiseno && (
+                <button onClick={onSepararDiseno} title="Separar por diseño" className="rounded-lg p-1.5 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
                   </svg>
                 </button>
               )}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProductoVariante } from '@/core/types/producto';
+import { esDiseno } from './SepararPorDisenoDialog';
 import { infoLiquidacionActiva, infoOfertaActiva, infoPrecioEfectivo } from '@/core/types/producto';
 import type { PresentacionPlana } from '@/core/utils/unidad-presentacion';
 import { presentacionDeVariante } from './filtro-variantes';
@@ -23,6 +24,8 @@ interface Props {
   onDelete: (v: ProductoVariante) => void;
   /** Abre el diálogo de imágenes de la variante. */
   onImagenes?: (v: ProductoVariante) => void;
+  /** Separar en diseños (una foto = un diseño). Solo si la fila no es ya uno. */
+  onSepararDiseno?: (v: ProductoVariante) => void;
 }
 
 /**
@@ -88,7 +91,7 @@ function estadoDe(v: ProductoVariante, ejes: string[]): { color: string; titulo:
   return { color: 'bg-green-500', titulo: 'Activa', alerta: false };
 }
 
-export default function VarianteTable({ variantes, presentacionProducto, ejes, canManage, seleccionadaId, onView, onEdit, onDelete, onImagenes }: Props) {
+export default function VarianteTable({ variantes, presentacionProducto, ejes, canManage, seleccionadaId, onView, onEdit, onDelete, onImagenes, onSepararDiseno }: Props) {
   return (
     <div className="overflow-x-auto rounded-[10px] border border-gray-100">
       <table className="w-full border-collapse text-left">
@@ -190,6 +193,17 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
                         >
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                          </svg>
+                        </button>
+                      )}
+                      {onSepararDiseno && !esDiseno(v) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSepararDiseno(v); }}
+                          title="Separar por diseño"
+                          className="rounded p-0.5 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
                           </svg>
                         </button>
                       )}

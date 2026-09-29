@@ -93,7 +93,9 @@ export interface ProductoDetalle extends Producto {
   variantes?: {
     id: string;
     nombre: string;
-    atributos: { nombre: string; valor: string }[];
+    atributos: { nombre: string; valor: string; clave?: string | null }[];
+    /** Las fotos PROPIAS de la variante (un diseño tiene la suya). */
+    imagenes?: { url: string; thumbnail: string | null }[];
     precio: number | null;
     precioOferta: number | null;
     enOferta: boolean;

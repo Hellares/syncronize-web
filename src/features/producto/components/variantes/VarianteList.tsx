@@ -17,6 +17,7 @@ import VarianteFormDialog from './VarianteFormDialog';
 import GenerarCombinacionesDialog from './GenerarCombinacionesDialog';
 import VarianteDetailDialog from './VarianteDetailDialog';
 import ProductoImagenesDialog from '../ProductoImagenesDialog';
+import SepararPorDisenoDialog, { CLAVE_ATRIBUTO_DISENO, esDiseno } from './SepararPorDisenoDialog';
 
 interface Props {
   productoId: string;
@@ -79,6 +80,7 @@ export default function VarianteList({
   const [editingVariante, setEditingVariante] = useState<ProductoVariante | null>(null);
   const [generarOpen, setGenerarOpen] = useState(false);
   const [imagenesVariante, setImagenesVariante] = useState<ProductoVariante | null>(null);
+  const [separarVariante, setSepararVariante] = useState<ProductoVariante | null>(null);
   const [detailVariante, setDetailVariante] = useState<ProductoVariante | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductoVariante | null>(null);
   /**
@@ -126,15 +128,31 @@ export default function VarianteList({
     return mapa;
   }, [ejes, variantes]);
 
+  /**
+   * Ejes que NO es un problema dejar vacios. El Diseño solo lo tienen las
+   * variantes separadas por foto: la coleccion que no se separo no esta
+   * incompleta por no tenerlo.
+   */
+  const ejesOpcionales = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of variantes) {
+      for (const av of v.atributosValores) {
+        if (av.atributo.clave === CLAVE_ATRIBUTO_DISENO) set.add(av.atributo.nombre);
+      }
+    }
+    return set;
+  }, [variantes]);
+
   /** Le falta algun eje, o no tiene precio configurado. */
   const tieneProblema = useCallback((v: ProductoVariante) => {
     const faltaEje = ejes.some((e) => {
+      if (ejesOpcionales.has(e)) return false;
       const av = v.atributosValores.find((a) => a.atributo.nombre === e);
       return !av?.valor?.trim();
     });
     const sinPrecio = !v.stocksPorSede?.some((st) => st.precioConfigurado);
     return faltaEje || sinPrecio;
-  }, [ejes]);
+  }, [ejes, ejesOpcionales]);
 
   const filtradas = useMemo(() => {
     // Primero los filtros propios de la web (tabs y ejes), despues el filtro
@@ -435,6 +453,7 @@ export default function VarianteList({
           variantes={filtradas}
           presentacionProducto={presentacionProducto}
           onImagenes={canManage ? setImagenesVariante : undefined}
+          onSepararDiseno={canManage ? setSepararVariante : undefined}
           ejes={ejes}
           canManage={canManage}
           seleccionadaId={seleccionadaId}
@@ -450,6 +469,7 @@ export default function VarianteList({
               variante={v}
               presentacionProducto={presentacionProducto}
               onImagenes={canManage ? () => setImagenesVariante(v) : undefined}
+              onSepararDiseno={canManage && !esDiseno(v) ? () => setSepararVariante(v) : undefined}
               canManage={canManage}
               onView={() => (onSeleccionar ? onSeleccionar(v) : setDetailVariante(v))}
               onEdit={() => handleEdit(v)}
@@ -499,6 +519,17 @@ export default function VarianteList({
           empresaId={empresa?.id}
           onClose={() => setImagenesVariante(null)}
           onChanged={loadVariantes}
+        />
+      )}
+
+      {separarVariante && empresa && (
+        <SepararPorDisenoDialog
+          key={separarVariante.id}
+          variante={separarVariante}
+          empresaId={empresa.id}
+          sedeId={sedeId}
+          onClose={() => setSepararVariante(null)}
+          onChanged={() => loadVariantes()}
         />
       )}
 

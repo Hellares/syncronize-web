@@ -95,3 +95,24 @@ export async function getPlantilla(id: string): Promise<AtributoPlantilla> {
   const res = await apiClient.get<AtributoPlantilla>(PRODUCTO_ENDPOINTS.PLANTILLA(id));
   return res.data;
 }
+
+export interface SepararPorDisenoResultado {
+  disenos: { id: string; nombre: string; cantidad: number }[];
+  stockRestante: number;
+  origenDesactivada: boolean;
+}
+
+/**
+ * Una foto = un diseño: cada foto elegida pasa a ser una variante con las
+ * unidades que se le asignan. Lo no asignado queda en la original.
+ */
+export async function separarPorDiseno(
+  varianteId: string,
+  data: { sedeId: string; disenos: { archivoId: string; cantidad: number }[] },
+): Promise<SepararPorDisenoResultado> {
+  const res = await apiClient.post<SepararPorDisenoResultado>(
+    `${PRODUCTO_ENDPOINTS.VARIANTE(varianteId)}/separar-por-diseno`,
+    data,
+  );
+  return res.data;
+}

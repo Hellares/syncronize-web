@@ -59,6 +59,13 @@ const SIN_ASIGNAR = '__sin_asignar__';
 const TIPO_CODIGO_BARRAS = 'CODIGO_BARRAS';
 
 /**
+ * Atributo "Diseño": una foto = un diseño (ver `SepararPorDisenoDialog`). Sus
+ * valores son D1, D2… que no le dicen nada a nadie, así que el chip se dibuja
+ * con la FOTO de la variante: el cajero elige el estampado que ve.
+ */
+const CLAVE_DISENO = 'diseno';
+
+/**
  * A partir de cuántos caracteres una consulta puede ser un código.
  *
  * 🔴 Con consultas cortas no se miran los códigos: los SKU son `VAR-000238`,
@@ -276,6 +283,14 @@ export default function VarianteSelector({
     const tentativa: Record<string, string | null> = {};
     for (const g of grupos) tentativa[g.clave] = g.clave === clave ? valor : seleccion[g.clave];
     return hayStockCon(tentativa);
+  };
+
+  /** La foto de la variante que quedaría con ese valor (para el chip del diseño). */
+  const fotoDeValor = (clave: string, valor: string): string | null => {
+    const tentativa: Record<string, string | null> = {};
+    for (const g of grupos) tentativa[g.clave] = g.clave === clave ? valor : seleccion[g.clave];
+    const v = candidatas(tentativa).find((c) => imgDe(c)) ?? null;
+    return imgDe(v);
   };
 
   const resuelta = resolverCon(seleccion);
@@ -672,6 +687,20 @@ export default function VarianteSelector({
                   <div className="flex flex-wrap gap-2">
                     {visibles.map((valor) => {
                       const sel = elegido === valor;
+                      const foto = g.clave === CLAVE_DISENO ? fotoDeValor(g.clave, valor) : null;
+                      if (foto) {
+                        return (
+                          <button key={valor} type="button" onClick={() => seleccionar(g.clave, valor)} title={valor}
+                            style={sel ? { borderColor: accent, boxShadow: `0 0 0 2px ${accent}` } : undefined}
+                            className={`relative overflow-hidden rounded-md border transition ${
+                              sel ? '' : 'border-gray-200 hover:border-gray-400'}`}>
+                            <img src={foto} alt={valor} className="h-16 w-16 object-cover" />
+                            <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-center text-[9px] font-bold text-white">
+                              {valor}
+                            </span>
+                          </button>
+                        );
+                      }
                       return (
                         <button key={valor} type="button" onClick={() => seleccionar(g.clave, valor)}
                           style={sel ? { borderColor: accent, color: accent, backgroundColor: `${accent}10` } : undefined}

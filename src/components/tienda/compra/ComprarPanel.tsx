@@ -9,7 +9,8 @@ import { volarAlCarrito } from './volar-al-carrito';
 export interface VarianteCompra {
   id: string;
   nombre: string;
-  atributos: { nombre: string; valor: string }[];
+  atributos: { nombre: string; valor: string; clave?: string | null }[];
+  imagenes?: { url: string; thumbnail: string | null }[];
   precio: number | null;
   precioOferta: number | null;
   enOferta: boolean;
@@ -35,6 +36,13 @@ interface Props {
  * con lo ya elegido no tiene stock queda deshabilitada, y recién con todos
  * los atributos elegidos queda una variante concreta para comprar.
  */
+/**
+ * Clave del atributo "Diseño": una foto = un diseño con su propio stock. Sus
+ * valores (D1, D2…) no le dicen nada al comprador, así que se elige por FOTO y
+ * solo se muestran los diseños que quedan: uno agotado desaparece.
+ */
+const CLAVE_DISENO = 'diseno';
+
 export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, stockActual, variantes, colorPrimario }: Props) {
   const { agregar, subdominio } = useSesionTienda();
   const router = useRouter();
@@ -55,7 +63,11 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
         if (!lista.includes(a.valor)) lista.push(a.valor);
       }
     }
-    return orden.map((nombre) => ({ nombre, valores: valores.get(nombre)! }));
+    return orden.map((nombre) => ({
+      nombre,
+      valores: valores.get(nombre)!,
+      esDiseno: variantes.some((v) => v.atributos.some((a) => a.nombre === nombre && a.clave === CLAVE_DISENO)),
+    }));
   }, [variantes]);
 
   const valorDe = (v: VarianteCompra, nombre: string) => v.atributos.find((a) => a.nombre === nombre)?.valor;
@@ -74,6 +86,15 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
   const maximo = conVariantes ? (variante?.stockActual ?? 1) : stockActual;
   const disponible = conVariantes ? !!variante?.hayStock : hayStock;
   const faltaElegir = conVariantes && !variante;
+
+  /** La foto de la variante que quedaría eligiendo ese diseño con lo ya elegido. */
+  const fotoDe = (nombre: string, valor: string) => {
+    const v = variantes.find((x) =>
+      valorDe(x, nombre) === valor &&
+      Object.entries(eleccion).every(([n, val]) => n === nombre || valorDe(x, n) === val));
+    const im = v?.imagenes?.[0];
+    return im ? (im.thumbnail ?? im.url) : null;
+  };
 
   const precioVariante = variante
     ? (variante.enOferta && variante.precioOferta ? variante.precioOferta : variante.precio)
@@ -101,7 +122,7 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
       nombre,
       varianteNombre: variante?.nombre ?? null,
       precio: (variante ? precioVariante : precio) ?? 0,
-      imagenUrl,
+      imagenUrl: variante?.imagenes?.[0]?.url ?? imagenUrl,
       stockMax: maximo,
     });
     setEnviando(null);
@@ -118,6 +139,28 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
           <p className="text-xs font-medium text-gray-500 mb-1.5">
             {a.nombre}{eleccion[a.nombre] && <span className="text-gray-900">: {eleccion[a.nombre]}</span>}
           </p>
+          {a.esDiseno ? (
+            <div className="flex flex-wrap gap-2">
+              {a.valores.filter((val) => posible(a.nombre, val) || eleccion[a.nombre] === val).map((val) => {
+                const activo = eleccion[a.nombre] === val;
+                const foto = fotoDe(a.nombre, val);
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    title={val}
+                    onClick={() => elegir(a.nombre, val)}
+                    className="relative h-16 w-16 overflow-hidden rounded-lg border-2 bg-gray-50 transition-colors"
+                    style={{ borderColor: activo ? colorPrimario : '#e5e7eb' }}
+                  >
+                    {foto
+                      ? <img src={foto} alt={val} className="h-full w-full object-cover" />
+                      : <span className="text-xs font-medium text-gray-600">{val}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
           <div className="flex flex-wrap gap-1.5">
             {a.valores.map((val) => {
               const activo = eleccion[a.nombre] === val;
@@ -138,6 +181,7 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
               );
             })}
           </div>
+          )}
         </div>
       ))}
 
