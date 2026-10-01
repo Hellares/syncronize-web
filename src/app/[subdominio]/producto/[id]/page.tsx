@@ -123,7 +123,7 @@ export default async function ProductoPage({ params }: Props) {
       </header>
 
       {/* Breadcrumb */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-2">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-2">
         <div className="flex items-center gap-1.5 text-xs text-gray-500">
           <Link href={`/${subdominio}`} className="hover:underline">{empresa?.nombre || 'Tienda'}</Link>
           <span>/</span>
@@ -137,7 +137,9 @@ export default async function ProductoPage({ params }: Props) {
         </div>
       </div>
 
-      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pb-8 flex-1">
+      {/* w-full: con mx-auto dentro de un flex-col el ancho sale del contenido,
+          y las tarjetas crecían recién cuando terminaba de cargar la foto */}
+      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-8 flex-1">
         {/* Product card principal */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
           <div className="grid grid-cols-1 md:grid-cols-2">
