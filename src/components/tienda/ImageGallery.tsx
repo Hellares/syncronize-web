@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type PointerEvent } from 'react';
 import { TiendaColors, DEFAULT_COLORS } from '@/lib/colors';
 import { detectVideoType, getYoutubeEmbedUrl, getVimeoEmbedUrl } from '@/lib/video';
 
@@ -18,8 +18,22 @@ interface Props {
   videoUrl?: string;
 }
 
+const ZOOM_ESCALA = 2.2;
+
 export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoUrl }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
+  // Punto de la foto (en %) bajo el cursor; null = sin zoom
+  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+
+  // Solo con mouse: en táctil el dedo no "pasa por encima" y el zoom quedaría pegado
+  const moverZoom = (e: PointerEvent<HTMLImageElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const caja = e.currentTarget.parentElement!.getBoundingClientRect();
+    setZoom({
+      x: ((e.clientX - caja.left) / caja.width) * 100,
+      y: ((e.clientY - caja.top) / caja.height) * 100,
+    });
+  };
 
   // Construir array de media: video primero, luego imágenes
   const media: MediaItem[] = [];
@@ -54,7 +68,11 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
             src={current.url}
             alt={nombre}
             data-producto-foto
-            className="w-full h-full object-contain transition-opacity duration-300"
+            onPointerEnter={moverZoom}
+            onPointerMove={moverZoom}
+            onPointerLeave={() => setZoom(null)}
+            className="w-full h-full object-contain transition-[opacity,transform] duration-200 ease-out"
+            style={zoom ? { transform: `scale(${ZOOM_ESCALA})`, transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}
           />
         )}
 
