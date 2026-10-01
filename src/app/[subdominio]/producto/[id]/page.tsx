@@ -191,18 +191,18 @@ export default async function ProductoPage({ params }: Props) {
                 {producto.marca && (
                   <div className="rounded-lg border border-gray-200 px-3 py-2 min-w-0">
                     <dt className="text-xs text-gray-500">Marca</dt>
-                    <dd className="text-sm font-bold text-gray-900 truncate">{producto.marca}</dd>
+                    <dd className="text-sm font-medium text-gray-900 truncate">{producto.marca}</dd>
                   </div>
                 )}
                 {producto.sku && (
                   <div className="rounded-lg border border-gray-200 px-3 py-2 min-w-0">
                     <dt className="text-xs text-gray-500">SKU</dt>
-                    <dd className="text-sm font-bold text-gray-900 truncate" title={producto.sku}>{producto.sku}</dd>
+                    <dd className="text-sm font-medium text-gray-900 truncate" title={producto.sku}>{producto.sku}</dd>
                   </div>
                 )}
                 <div className="rounded-lg border border-gray-200 px-3 py-2 min-w-0">
                   <dt className="text-xs text-gray-500">Disponibilidad</dt>
-                  <dd className={`text-sm font-bold flex items-center gap-1.5 ${producto.hayStock ? 'text-green-700' : 'text-red-600'}`}>
+                  <dd className={`text-sm font-medium flex items-center gap-1.5 ${producto.hayStock ? 'text-green-700' : 'text-red-600'}`}>
                     <span className={`w-2 h-2 rounded-full ${producto.hayStock ? 'bg-green-500' : 'bg-red-500'}`} />
                     {producto.hayStock ? 'En stock' : 'Sin stock'}
                   </dd>
@@ -249,7 +249,7 @@ export default async function ProductoPage({ params }: Props) {
                   <a
                     href={whatsapp}
                     target="_blank" rel="noopener noreferrer"
-                    className="h-11 px-4 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors"
+                    className="h-11 px-4 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
@@ -261,7 +261,7 @@ export default async function ProductoPage({ params }: Props) {
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${coordenadas.lat},${coordLng}`}
                     target="_blank" rel="noopener noreferrer"
-                    className="h-11 px-4 flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-800 hover:border-gray-400 text-sm font-semibold rounded-xl transition-colors"
+                    className="h-11 px-4 flex items-center justify-center gap-2 border border-gray-300 bg-white text-gray-800 hover:border-gray-400 text-sm font-medium rounded-xl transition-colors"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

@@ -205,7 +205,7 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
           type="button"
           onClick={() => void ejecutar('agregar')}
           disabled={faltaElegir || !disponible || !!enviando}
-          className="h-11 px-5 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="h-11 px-5 rounded-xl text-white text-sm font-medium flex items-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40"
           style={{ backgroundColor: colorPrimario }}
         >
           <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
@@ -218,7 +218,7 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
           type="button"
           onClick={() => void ejecutar('comprar')}
           disabled={faltaElegir || !disponible || !!enviando}
-          className="h-11 px-5 rounded-xl border-2 bg-white text-sm font-bold transition-colors disabled:opacity-40"
+          className="h-11 px-5 rounded-xl border-2 bg-white text-sm font-medium transition-colors disabled:opacity-40"
           style={{ borderColor: colorPrimario, color: colorPrimario }}
         >
           {enviando === 'comprar' ? 'Un momento…' : faltaElegir ? `Falta elegir: ${atributos.find((a) => !eleccion[a.nombre])?.nombre}` : 'Comprar ahora'}
