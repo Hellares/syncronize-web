@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { TiendaColors, DEFAULT_COLORS } from '@/lib/colors';
 import { detectVideoType, getYoutubeEmbedUrl, getVimeoEmbedUrl } from '@/lib/video';
 
@@ -19,20 +19,56 @@ interface Props {
 }
 
 const ZOOM_ESCALA = 2.2;
+// Fracción del camino hacia el cursor que avanza la foto en cada cuadro
+const ZOOM_SUAVIZADO = 0.12;
 
 export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoUrl }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
-  // Punto de la foto (en %) bajo el cursor; null = sin zoom
-  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(false);
+  // Punto de la foto (en %) bajo el cursor y el que se está mostrando: el segundo
+  // persigue al primero cuadro a cuadro, así la foto se desliza en vez de saltar
+  const destino = useRef({ x: 50, y: 50 });
+  const actual = useRef({ x: 50, y: 50 });
+  const cuadro = useRef(0);
 
-  // Solo con mouse: en táctil el dedo no "pasa por encima" y el zoom quedaría pegado
-  const moverZoom = (e: PointerEvent<HTMLImageElement>) => {
-    if (e.pointerType !== 'mouse') return;
+  useEffect(() => () => cancelAnimationFrame(cuadro.current), []);
+
+  const puntoBajoCursor = (e: PointerEvent<HTMLImageElement>) => {
     const caja = e.currentTarget.parentElement!.getBoundingClientRect();
-    setZoom({
+    return {
       x: ((e.clientX - caja.left) / caja.width) * 100,
       y: ((e.clientY - caja.top) / caja.height) * 100,
-    });
+    };
+  };
+
+  // Solo con mouse: en táctil el dedo no "pasa por encima" y el zoom quedaría pegado
+  const entrarZoom = (e: PointerEvent<HTMLImageElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const img = e.currentTarget;
+    destino.current = actual.current = puntoBajoCursor(e);
+    img.style.transformOrigin = `${actual.current.x}% ${actual.current.y}%`;
+    setZoom(true);
+
+    const seguir = () => {
+      const a = actual.current;
+      const d = destino.current;
+      actual.current = { x: a.x + (d.x - a.x) * ZOOM_SUAVIZADO, y: a.y + (d.y - a.y) * ZOOM_SUAVIZADO };
+      img.style.transformOrigin = `${actual.current.x}% ${actual.current.y}%`;
+      cuadro.current = requestAnimationFrame(seguir);
+    };
+    cancelAnimationFrame(cuadro.current);
+    cuadro.current = requestAnimationFrame(seguir);
+  };
+
+  const moverZoom = (e: PointerEvent<HTMLImageElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    destino.current = puntoBajoCursor(e);
+  };
+
+  // El origen se queda donde estaba: la foto se achica hacia ese punto, sin salto
+  const salirZoom = () => {
+    cancelAnimationFrame(cuadro.current);
+    setZoom(false);
   };
 
   // Construir array de media: video primero, luego imágenes
@@ -68,11 +104,11 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
             src={current.url}
             alt={nombre}
             data-producto-foto
-            onPointerEnter={moverZoom}
+            onPointerEnter={entrarZoom}
             onPointerMove={moverZoom}
-            onPointerLeave={() => setZoom(null)}
-            className="w-full h-full object-contain transition-[opacity,transform] duration-200 ease-out"
-            style={zoom ? { transform: `scale(${ZOOM_ESCALA})`, transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}
+            onPointerLeave={salirZoom}
+            className="w-full h-full object-contain transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+            style={{ transform: zoom ? `scale(${ZOOM_ESCALA})` : 'scale(1)' }}
           />
         )}
 
