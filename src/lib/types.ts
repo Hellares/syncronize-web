@@ -88,6 +88,9 @@ export interface Producto {
 
 export interface ProductoDetalle extends Producto {
   stockActual: number;
+  sku?: string | null;
+  /** La categoría de la empresa (no la maestra): filtra los "similares". */
+  categoriaId?: string | null;
   tieneVariantes?: boolean;
   /** Con variantes, el precio y el stock viven en cada una (ver `ComprarPanel`). */
   variantes?: {

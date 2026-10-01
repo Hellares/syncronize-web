@@ -192,33 +192,38 @@ export function ComprarPanel({ productoId, nombre, precio, imagenUrl, hayStock, 
         </p>
       )}
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center rounded-lg border border-gray-200">
-          <button type="button" aria-label="Menos" className="w-9 h-10 text-lg text-gray-600 disabled:opacity-30"
+      {/* Una sola fila de botones a su ancho; en pantallas angostas bajan de línea */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center h-11 rounded-xl border border-gray-300">
+          <button type="button" aria-label="Menos" className="w-10 h-11 text-lg text-gray-700 disabled:opacity-30"
             disabled={cantidad <= 1} onClick={() => setCantidad((c) => Math.max(1, c - 1))}>−</button>
-          <span className="w-8 text-center text-sm font-medium text-gray-900">{cantidad}</span>
-          <button type="button" aria-label="Más" className="w-9 h-10 text-lg text-gray-600 disabled:opacity-30"
+          <span className="w-8 text-center text-sm font-bold text-gray-900">{cantidad}</span>
+          <button type="button" aria-label="Más" className="w-10 h-11 text-lg text-gray-700 disabled:opacity-30"
             disabled={cantidad >= maximo || faltaElegir} onClick={() => setCantidad((c) => Math.min(maximo, c + 1))}>+</button>
         </div>
         <button
           type="button"
           onClick={() => void ejecutar('agregar')}
           disabled={faltaElegir || !disponible || !!enviando}
-          className="flex-1 h-10 rounded-lg border-2 text-sm font-medium transition-colors disabled:opacity-40"
-          style={{ borderColor: colorPrimario, color: colorPrimario }}
+          className="h-11 px-5 rounded-xl text-white text-sm font-bold flex items-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40"
+          style={{ backgroundColor: colorPrimario }}
         >
+          <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" />
+            <path d="M2 3h3l2.6 12.2a1 1 0 001 .8h9.5a1 1 0 001-.8L21 7H6" />
+          </svg>
           {enviando === 'agregar' ? 'Agregando…' : 'Agregar al carrito'}
         </button>
+        <button
+          type="button"
+          onClick={() => void ejecutar('comprar')}
+          disabled={faltaElegir || !disponible || !!enviando}
+          className="h-11 px-5 rounded-xl border-2 bg-white text-sm font-bold transition-colors disabled:opacity-40"
+          style={{ borderColor: colorPrimario, color: colorPrimario }}
+        >
+          {enviando === 'comprar' ? 'Un momento…' : faltaElegir ? `Falta elegir: ${atributos.find((a) => !eleccion[a.nombre])?.nombre}` : 'Comprar ahora'}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => void ejecutar('comprar')}
-        disabled={faltaElegir || !disponible || !!enviando}
-        className="w-full h-11 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
-        style={{ backgroundColor: colorPrimario }}
-      >
-        {enviando === 'comprar' ? 'Un momento…' : faltaElegir ? `Falta elegir: ${atributos.find((a) => !eleccion[a.nombre])?.nombre}` : 'Comprar ahora'}
-      </button>
     </div>
   );
 }

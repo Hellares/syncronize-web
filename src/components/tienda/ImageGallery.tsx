@@ -94,9 +94,10 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
   const current = media[activeIndex];
 
   return (
-    <div className="space-y-3">
+    // En escritorio las miniaturas van en columna a la IZQUIERDA de la foto
+    <div className="flex flex-col gap-3 md:flex-row-reverse md:items-start">
       {/* Media principal */}
-      <div className="bg-white rounded-2xl shadow-md overflow-hidden aspect-square relative group">
+      <div className="bg-white rounded-2xl shadow-md overflow-hidden aspect-square relative group w-full md:w-auto md:flex-1 md:min-w-0">
         {current.type === 'video' ? (
           <VideoPlayer url={current.url} />
         ) : (
@@ -149,7 +150,7 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
 
       {/* Thumbnails */}
       {totalItems > 1 && (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-x-visible md:overflow-y-auto md:max-h-[480px] md:shrink-0">
           {media.map((item, i) => (
             <button
               key={item.id}
