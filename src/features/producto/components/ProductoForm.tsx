@@ -760,7 +760,11 @@ export default function ProductoForm({ empresaId, producto }: Props) {
           Cancelar
         </Link>
         <button
-          onClick={handleSubmit}
+          onClick={() => handleSubmit(
+            // Solo si la sección de atributos está a la vista y las plantillas
+            // cargaron: si no, un [] borraría las secciones ya guardadas.
+            !form.tieneVariantes && !form.esCombo && plantillas.length > 0 ? plantillasSeleccionadas : undefined,
+          )}
           disabled={isSubmitting}
           className="rounded-lg bg-[#004A94] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50"
         >

@@ -217,7 +217,13 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
     return dto;
   }, [form, empresaId]);
 
-  const handleSubmit = useCallback(async () => {
+  /**
+   * 🔴 `plantillasIds` son las secciones de la ficha, EN ORDEN. Sin mandarlas
+   * el producto guardaba los valores pero no con qué plantilla se cargaron, y
+   * la tienda --que agrupa por ese dato-- los mostraba en lista plana.
+   * `undefined` = no tocar lo guardado (el form no mostró los atributos).
+   */
+  const handleSubmit = useCallback(async (plantillasIds?: string[]) => {
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -225,6 +231,7 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
 
     try {
       const dto = buildDto();
+      if (plantillasIds) (dto as CreateProductoDto).plantillasAtributosIds = plantillasIds;
       if (producto) {
         // 🔴 `imagenesIds` NO va en el update: allá REEMPLAZA la lista entera
         // --`actualizarImagenes` desasocia las anteriores-- y editando un

@@ -379,6 +379,8 @@ export interface CreateProductoDto {
   sedesIds?: string[];
   imagenesIds?: string[];
   atributosEstructurados?: Array<{ atributoId: string; valor: string }>;
+  /** Las secciones de la ficha, en orden. En el update REEMPLAZA la lista. */
+  plantillasAtributosIds?: string[];
 }
 
 export type UpdateProductoDto = Partial<Omit<CreateProductoDto, 'empresaId' | 'sedesIds'>>;
