@@ -17,24 +17,13 @@ type Pestana = 'descripcion' | 'caracteristicas';
 
 /** La misma tarjeta que la ficha técnica del panel (`FichaTecnicaAtributos`). */
 function SeccionCard({ nombre, cantidad, children }: { nombre: string; cantidad: number; children: React.ReactNode }) {
-  const [abierta, setAbierta] = useState(true);
   return (
     <div className="overflow-hidden rounded-lg ring-1 ring-[#cfe0f5]">
-      <button
-        type="button"
-        onClick={() => setAbierta((v) => !v)}
-        aria-expanded={abierta}
-        className="flex w-full items-center justify-between bg-[#eaf2fd] px-4 py-2 text-left transition-colors hover:bg-[#dfeafb]"
-      >
-        <span className="truncate text-sm font-medium text-[#004A94]">{nombre}</span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <span className="text-xs text-[#7ea6d8]">{cantidad}</span>
-          <svg className={`h-4 w-4 text-[#7ea6d8] transition-transform ${abierta ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
-        </span>
-      </button>
-      {abierta && <div className="p-2">{children}</div>}
+      <div className="flex items-center justify-between bg-[#eaf2fd] px-4 py-2">
+        <span className="truncate text-xs font-medium text-[#004A94]">{nombre}</span>
+        <span className="shrink-0 text-[10px] text-[#7ea6d8]">{cantidad}</span>
+      </div>
+      <div className="p-2">{children}</div>
     </div>
   );
 }
@@ -53,8 +42,8 @@ export function FichaProducto({ nombre, descripcion, atributos, secciones, color
     <div className="rounded-md ring-1 ring-[#cfe0f5] overflow-hidden divide-y divide-[#e6eef8]">
       {lista.map((attr, i) => (
         <div key={`${attr.nombre}-${i}`} className={`flex gap-4 py-2.5 px-4 ${i % 2 === 0 ? 'bg-gray-50/60' : 'bg-white'}`}>
-          <span className="w-2/5 shrink-0 text-sm text-gray-500">{attr.nombre}</span>
-          <span className="text-sm font-medium text-gray-800">{attr.valor}</span>
+          <span className="w-2/5 shrink-0 text-xs text-gray-500">{attr.nombre}</span>
+          <span className="text-xs font-medium text-gray-800">{attr.valor}</span>
         </div>
       ))}
     </div>
