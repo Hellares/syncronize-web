@@ -7,7 +7,7 @@ import { AxiosError } from 'axios';
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import type { VentaItem, Venta, NivelPrecio, PrecioModoCosto, CostosDeItem, LoteVendible } from '@/core/types/venta';
-import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea, claveCosto, precioDelModoCosto, puedeVenderseACosto, LABEL_MODO_COSTO, MODOS_COSTO } from '@/core/types/venta';
+import { recalcularNivelesEnLote, calcularLinea, cantidadesGrupoMayoreo, claveGrupoMayoreo, precioConNivel, tituloYContextoLinea, claveCosto, precioDelModoCosto, puedeVenderseACosto, puedeVendersePorMayor, escalonesMayor, LABEL_MODO_COSTO, MODOS_COSTO } from '@/core/types/venta';
 import type { OrdenCobrable } from '@/core/types/orden-servicio';
 import { baseFacturableOrden, costoNetoOrden, ESTADOS_OS_COBRABLES, nombreClienteOrden, TIPO_SERVICIO_LABEL } from '@/core/types/orden-servicio';
 import * as productoService from '@/features/producto/services/producto-service';
@@ -182,6 +182,14 @@ function VentaRapidaInner() {
   // efecto que recotiza: sin esto se re-pediría en cada render.
   const firmaCosto = useRef<string>('');
 
+  // --- Vender por mayor ---
+  // Prendido: todo el carrito (y lo que se agregue) se cobra a su precio por
+  // mayor aunque la cantidad no llegue al mínimo. La marca vive en cada línea
+  // (`precioPorMayor`), así que una línea puede entrar o salir por su cuenta.
+  const [modoMayor, setModoMayor] = useState(false);
+  // Key de la línea a la que se le está eligiendo el escalón.
+  const [nivelPickerFor, setNivelPickerFor] = useState<string | null>(null);
+
   // --- Ventas en espera (en el navegador, ver `ventas-en-espera.ts`) ---
   const [enEspera, setEnEspera] = useState<VentaEnEspera[]>([]);
   const [esperaDialogOpen, setEsperaDialogOpen] = useState(false);
@@ -311,6 +319,8 @@ function VentaRapidaInner() {
       precioCosto: stock?.precioCosto != null ? Number(stock.precioCosto) : null,
       stockDisponible: stock?.cantidad ?? null,
       ...(pres.factor > 1 && { factorPresentacion: pres.factor, unidadPresentacionSimbolo: pres.simbolo ?? null }),
+      // Con "vender por mayor" prendido, lo que se agrega entra por mayor.
+      ...(modoMayor && { precioPorMayor: true }),
     };
     // 🔴 Se vuelve a mirar sobre `prev`: con el lector se timbra el mismo
     // producto dos veces antes de que la pantalla se repinte, y el `items` de
@@ -336,7 +346,7 @@ function VentaRapidaInner() {
       }
     } catch { /* sin niveles */ }
     return true;
-  }, [items, stockDeSede]);
+  }, [items, stockDeSede, modoMayor]);
 
   // --- Combos: se EXPANDEN en componentes con prorrateo del descuento (paridad _expandirYAgregarCombo) ---
   const expandirCombo = useCallback(async (p: Producto) => {
@@ -638,7 +648,50 @@ function VentaRapidaInner() {
     const topado = it.precioBase > 0 ? Math.min(precio, it.precioBase) : precio;
     // El descuento se limpia: un centavo sobre una línea a costo la manda a
     // pérdida, y el backend la rechaza.
-    return { ...it, precioModo: modo, precioUnitario: topado, nivelAplicado: null, descuento: 0 };
+    // A costo y por mayor no van juntos en una línea: el backend la rechaza.
+    return {
+      ...it, precioModo: modo, precioUnitario: topado, nivelAplicado: null, descuento: 0,
+      precioPorMayor: false, precioNivelId: null, nivelForzado: false,
+    };
+  };
+
+  /**
+   * Marca (o desmarca) una línea como "por mayor". Solo pone la marca: el
+   * precio lo resuelve `recalcularNivelesEnLote`, que mide la línea como si
+   * llevara el mínimo del escalón. Una línea a costo sale del costo.
+   */
+  const porMayor = (it: VentaItem, on: boolean, nivelId?: string | null): VentaItem => {
+    if (!on) {
+      return it.precioPorMayor ? { ...it, precioPorMayor: false, precioNivelId: null } : it;
+    }
+    if (!puedeVendersePorMayor(it)) return it;
+    return {
+      ...it,
+      precioModo: null,
+      precioUnitario: it.precioModo ? it.precioBase : it.precioUnitario,
+      precioPorMayor: true,
+      precioNivelId: nivelId !== undefined ? nivelId : it.precioNivelId ?? null,
+    };
+  };
+
+  /** El interruptor grande: todo el carrito por mayor, o de vuelta a lista. */
+  const toggleModoMayor = () => {
+    const on = !modoMayor;
+    setModoMayor(on);
+    // Los dos interruptores no conviven: lo mixto se arma línea por línea.
+    if (on) setModoCosto(null);
+    setItems(prev => recalcularNivelesEnLote(prev.map(it => porMayor(it, on))));
+  };
+
+  /** Mete o saca UNA línea, desde su propio botón. */
+  const toggleLineaPorMayor = (key: string) => setItems(prev => recalcularNivelesEnLote(
+    prev.map(it => (it.key === key ? porMayor(it, !it.precioPorMayor) : it))));
+
+  /** Cambia el escalón por mayor de una línea. */
+  const elegirNivelLinea = (key: string, nivelId: string) => {
+    setNivelPickerFor(null);
+    setItems(prev => recalcularNivelesEnLote(
+      prev.map(it => (it.key === key ? porMayor(it, true, nivelId) : it))));
   };
 
   /** El interruptor grande: prende o apaga el modo para TODO el carrito. */
@@ -665,6 +718,7 @@ function VentaRapidaInner() {
     }
     const cache = await traerCostos(items);
     setModoCosto(modo);
+    setModoMayor(false);
     setItems(prev => recalcularNivelesEnLote(prev.map(it => aCosto(it, modo, cache))));
   }, [modoCosto, costos, items, traerCostos, empresa?.id, modoDefault]);
 
@@ -733,7 +787,8 @@ function VentaRapidaInner() {
       const cache = await traerCostos(elegibles);
       if (cancelado) return;
       setItems(prev => recalcularNivelesEnLote(
-        prev.map(it => (puedeVenderseACosto(it) ? aCosto(it, modoCosto, cache) : it)),
+        // Una línea que el cajero pasó a "por mayor" no se arrastra al costo.
+        prev.map(it => (puedeVenderseACosto(it) && !it.precioPorMayor ? aCosto(it, modoCosto, cache) : it)),
       ));
     })();
     return () => { cancelado = true; };
@@ -1052,9 +1107,10 @@ function VentaRapidaInner() {
    * cliente pregunta ("¿cuánto me estás rebajando?") y no se veía en ningún lado.
    */
   const resumenCarrito = useMemo(() => {
-    let unidades = 0, porNivel = 0, porDescuento = 0, resignado = 0, aCostoCount = 0;
+    let unidades = 0, porNivel = 0, porDescuento = 0, resignado = 0, aCostoCount = 0, porMayorCount = 0;
     for (const it of items) {
       unidades += it.cantidad;
+      if (it.precioPorMayor && !it.precioModo) porMayorCount++;
       // 🔴 Lo que se resigna vendiendo a costo NO es "ahorro por mayoreo": es
       // plata que no entra. Va en su propia línea y en su propio color.
       if (it.precioModo) {
@@ -1078,6 +1134,7 @@ function VentaRapidaInner() {
       /** Margen que se está resignando por vender a costo. */
       resignado,
       lineasACosto: aCostoCount,
+      lineasPorMayor: porMayorCount,
     };
   }, [items]);
 
@@ -1194,6 +1251,7 @@ function VentaRapidaInner() {
     setItems(c.items);
     setOrdenCliente(c.ordenCliente);
     setModoCosto(c.modoCosto);
+    setModoMayor(c.modoMayor === true);
     // El cache de costos es del carrito anterior; el efecto que recotiza lo
     // vuelve a pedir si este trae líneas a costo.
     setCostos({});
@@ -1206,8 +1264,8 @@ function VentaRapidaInner() {
   // primer commit corre primero, ve `hidratado` vacío y no pisa nada.
   useEffect(() => {
     if (!alcance || hidratado.current !== JSON.stringify(alcance)) return;
-    guardarCarritoActual(alcance, { items, ordenCliente, modoCosto });
-  }, [alcance, items, ordenCliente, modoCosto]);
+    guardarCarritoActual(alcance, { items, ordenCliente, modoCosto, modoMayor });
+  }, [alcance, items, ordenCliente, modoCosto, modoMayor]);
 
   // Recuperar al entrar (o al cambiar de sede/usuario).
   useEffect(() => {
@@ -1222,6 +1280,7 @@ function VentaRapidaInner() {
       setItems(prev => [...c.items, ...prev.filter(it => !c.items.some(x => x.key === it.key || (x.ordenServicioId && x.ordenServicioId === it.ordenServicioId)))]);
       setOrdenCliente(prev => c.ordenCliente ?? prev);
       setModoCosto(c.modoCosto);
+      setModoMayor(c.modoMayor === true);
       void refrescarCarrito(c.items);
       setInfo('Se recuperó la venta que tenías en curso');
     }
@@ -1239,7 +1298,7 @@ function VentaRapidaInner() {
       id: `${ahora.toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       etiqueta: etiqueta.trim() || ordenCliente?.nombre
         || `Venta de las ${new Date(ahora).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`,
-      items, ordenCliente, modoCosto, guardadoEn: ahora,
+      items, ordenCliente, modoCosto, modoMayor, guardadoEn: ahora,
     };
     return [nueva, ...lista].slice(0, MAX_EN_ESPERA);
   };
@@ -1253,6 +1312,7 @@ function VentaRapidaInner() {
     setItems([]);
     setOrdenCliente(null);
     setModoCosto(null);
+    setModoMayor(false);
     setCostos({});
     firmaCosto.current = '';
     setInfo(`⏸ "${lista[0].etiqueta}" quedó en espera`);
@@ -1279,6 +1339,7 @@ function VentaRapidaInner() {
     setItems([]);
     setOrdenCliente(null);
     setModoCosto(null);
+    setModoMayor(false);
     setCostos({});
     firmaCosto.current = '';
     setInfo('Carrito vaciado');
@@ -1387,6 +1448,20 @@ function VentaRapidaInner() {
                 <span className={`absolute top-[2px] h-[11px] w-[11px] rounded-full bg-white transition-all ${modoCosto ? 'left-[13px]' : 'left-[2px]'}`} />
               </span>
               {costoCargando ? 'Buscando costos…' : 'Vender a costo'}
+            </button>
+          )}
+          {/* Vender por mayor: el precio por mayor sin exigir la cantidad
+              mínima. Mismo permiso que el costo: es cambiar el precio. */}
+          {permissions.canEditarPrecioVenta && (
+            <button onClick={toggleModoMayor}
+              title="Cobrar los productos a su precio por mayor aunque no lleguen a la cantidad mínima"
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold ${modoMayor
+                ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
+                : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+              <span className={`relative h-[15px] w-[26px] shrink-0 rounded-full transition-colors ${modoMayor ? 'bg-blue-300' : 'bg-gray-300'}`}>
+                <span className={`absolute top-[2px] h-[11px] w-[11px] rounded-full bg-white transition-all ${modoMayor ? 'left-[13px]' : 'left-[2px]'}`} />
+              </span>
+              Vender por mayor
             </button>
           )}
           {/* Vender una compra entera al costo de SUS lotes: el caso de la
@@ -1643,6 +1718,21 @@ function VentaRapidaInner() {
               </div>
             )}
 
+            {/* Vender por mayor: cuántas líneas van con el precio por mayor
+                forzado. Pastel y no oscuro: sigue siendo un nivel de precio de
+                la casa, no un modo que resigna el margen. */}
+            {(modoMayor || resumenCarrito.lineasPorMayor > 0) && (
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-blue-200 bg-blue-100/70 px-3.5 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-white">POR MAYOR</span>
+                  <span className="truncate text-[11px] text-blue-800">
+                    {`${resumenCarrito.lineasPorMayor} de ${items.filter(puedeVendersePorMayor).length} líneas`}
+                    {modoMayor ? ' · lo que agregues entra por mayor' : ''}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Mayoreo combinado: qué grupo ya aplica y cuál está a una unidad
                 de aplicar. Sin esto el cajero no tiene forma de saberlo. */}
             {tirasMayoreo.map(t => (
@@ -1706,6 +1796,14 @@ function VentaRapidaInner() {
                   ? precioDelModoCosto(costosLinea, it.precioModo)
                   : null;
                 const costoTopado = costoCrudo != null && costoCrudo > it.precioUnitario + 0.005;
+                // Por mayor: la marca está puesta, pero puede no tener efecto.
+                const porMayorLinea = !!it.precioPorMayor && !aCostoLinea;
+                const escalones = porMayorLinea ? escalonesMayor(it.niveles) : [];
+                const escalonLinea = escalones.find(n => n.id === it.precioNivelId) ?? escalones[0];
+                const porMayorSinEfecto = !porMayorLinea || it.precioUnitario < it.precioBase ? null
+                  : it.enLiquidacion ? 'En liquidación: se cobra el precio de liquidación'
+                    : escalones.length === 0 ? 'Sin precio por mayor cargado: se cobra a precio de lista'
+                      : 'Su precio por mayor no baja del precio vigente: se cobra a precio de lista';
                 return (
                   <div key={it.key}
                     className={`border-b border-gray-100 py-2.5 pl-3.5 pr-2 last:border-b-0 ${it.esOrdenServicio ? 'bg-blue-50/40' : it.origenComboId ? 'bg-purple-50/40' : aCostoLinea ? 'bg-slate-50' : 'hover:bg-gray-50/60'}`}>
@@ -1748,7 +1846,7 @@ function VentaRapidaInner() {
                           {pres.activa ? pres.precioTexto(it.precioUnitario) : `S/ ${fmt(it.precioUnitario)} c/u`}
                           {/* El precio de lista tachado al lado: es el tamaño
                               del favor que se está haciendo. */}
-                          {aCostoLinea && it.precioBase > it.precioUnitario && (
+                          {(aCostoLinea || it.nivelForzado) && it.precioBase > it.precioUnitario && (
                             <span className="ml-1 font-normal text-gray-400 line-through">{fmt(pres.precio(it.precioBase))}</span>
                           )}
                         </p>
@@ -1829,6 +1927,23 @@ function VentaRapidaInner() {
                             {aCostoLinea ? 'Volver a precio de lista' : 'Pasar a costo'}
                           </button>
                         )}
+                        {/* Por mayor por línea: algunos productos por mayor y
+                            el resto a precio normal, en la misma venta. */}
+                        {permissions.canEditarPrecioVenta && puedeCosto && (
+                          <button onClick={() => toggleLineaPorMayor(it.key)}
+                            className={`h-7 rounded-full border px-2.5 text-[11px] font-medium ${porMayorLinea
+                              ? 'border-blue-300 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                            {porMayorLinea ? 'Quitar por mayor' : 'Por mayor'}
+                          </button>
+                        )}
+                        {/* Con más de un escalón, cuál se está cobrando. */}
+                        {porMayorLinea && escalones.length > 1 && escalonLinea && (
+                          <button onClick={() => setNivelPickerFor(it.key)} title="Elegir el nivel por mayor"
+                            className="h-7 rounded-full border border-blue-300 px-2.5 text-[11px] font-medium text-blue-700 hover:bg-blue-50">
+                            Nivel ≥{escalonLinea.cantidadMinima} · Cambiar
+                          </button>
+                        )}
                         {/* De qué lote sale. Se muestra SIEMPRE en las líneas
                             elegibles: los lotes llegan dentro de la cotización
                             de costos, así que con el modo apagado todavía no se
@@ -1846,7 +1961,7 @@ function VentaRapidaInner() {
                         )}
                         {conNivel && it.nivelAplicado && (
                           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">
-                            {it.nivelAplicado}
+                            {it.nivelAplicado}{it.nivelForzado ? ' · manual' : ''}
                           </span>
                         )}
                         {it.enLiquidacion && (
@@ -1874,6 +1989,16 @@ function VentaRapidaInner() {
                             Usar el promedio
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {/* Marcada por mayor y cobrando lista: la línea lo dice. */}
+                    {porMayorSinEfecto && (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-md bg-amber-50 px-2 py-1.5">
+                        <svg className="h-3 w-3 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 17h.01" />
+                        </svg>
+                        <span className="flex-1 text-[10px] text-amber-800">{porMayorSinEfecto}</span>
                       </div>
                     )}
 
@@ -2002,6 +2127,24 @@ function VentaRapidaInner() {
             costos={cos}
             onPick={(m) => cambiarModoCosto(m, linea?.key)}
             onClose={() => setModoPickerFor(null)}
+          />
+        );
+      })()}
+
+      {/* Qué escalón por mayor se le cobra a una línea */}
+      {nivelPickerFor && (() => {
+        const linea = items.find(it => it.key === nivelPickerFor);
+        if (!linea) return null;
+        const escalones = escalonesMayor(linea.niveles);
+        return (
+          <NivelMayorDialog
+            titulo={tituloYContextoLinea(linea).titulo}
+            precioBase={linea.precioBase}
+            escalones={escalones}
+            actual={escalones.find(n => n.id === linea.precioNivelId)?.id ?? escalones[0]?.id ?? null}
+            precioTexto={(n) => presDeLinea(linea).precioTexto(n)}
+            onPick={(id) => elegirNivelLinea(linea.key, id)}
+            onClose={() => setNivelPickerFor(null)}
           />
         );
       })()}
@@ -2406,6 +2549,54 @@ function ModoCostoDialog({ titulo, subtitulo, actual, costos, onPick, onClose }:
         <p className="bg-gray-50 px-4 py-2 text-[10px] text-gray-500">
           Los tres son <b>con IGV</b>, igual que el precio de venta.
           {sinFlete && ' Esta compra no trajo flete: por eso los dos primeros dan lo mismo.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Con qué nivel por mayor se cobra una línea, cuando el ítem tiene varios
+ * escalones (≥3, ≥6, ≥12…). Elegir uno la precia como si llevara ese mínimo.
+ */
+function NivelMayorDialog({ titulo, precioBase, escalones, actual, precioTexto, onPick, onClose }: {
+  titulo: string;
+  precioBase: number;
+  escalones: NivelPrecio[];
+  actual: string | null;
+  precioTexto: (precio: number) => string;
+  onPick: (nivelId: string) => void;
+  onClose: () => void;
+}) {
+  useEscape(onClose);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="border-b border-gray-100 px-4 py-3">
+          <h3 className="truncate text-sm font-medium text-[#043261]">{titulo}</h3>
+          <p className="truncate text-[10px] text-gray-500">Precio de lista {precioTexto(precioBase)} · elegí el nivel por mayor</p>
+        </div>
+        {escalones.map(n => {
+          const sel = actual === n.id;
+          return (
+            <button key={n.id} onClick={() => onPick(n.id)}
+              className={`flex w-full items-start gap-2.5 border-b border-gray-100 px-4 py-2.5 text-left last:border-b-0 ${sel ? 'bg-[#f5f9ff]' : 'hover:bg-gray-50'}`}>
+              <span className={`mt-0.5 h-[15px] w-[15px] shrink-0 rounded-full ${sel ? 'border-[5px] border-blue-600' : 'border-[1.5px] border-gray-300'}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-[#043261]">{n.nombre}</span>
+                <span className="block text-[10px] text-gray-500">
+                  Normalmente desde {n.cantidadMinima} unidades
+                  {n.cantidadMaxima != null ? ` hasta ${n.cantidadMaxima}` : ''}
+                </span>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-[13px] font-bold text-gray-900">
+                {precioTexto(precioConNivel(precioBase, n))}
+              </span>
+            </button>
+          );
+        })}
+        <p className="bg-gray-50 px-4 py-2 text-[10px] text-gray-500">
+          Si hay una oferta o un precio más barato, se sigue cobrando el menor.
         </p>
       </div>
     </div>

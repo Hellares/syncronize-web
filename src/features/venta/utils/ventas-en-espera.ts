@@ -31,6 +31,8 @@ export interface CarritoGuardado {
   items: VentaItem[];
   ordenCliente: ClienteDeOrden | null;
   modoCosto: PrecioModoCosto | null;
+  /** Interruptor "vender por mayor". Opcional: los carritos viejos no lo traen. */
+  modoMayor?: boolean;
   /** epoch ms */
   guardadoEn: number;
 }

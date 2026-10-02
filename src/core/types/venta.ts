@@ -34,6 +34,14 @@ export interface VentaDetalleDto {
    */
   precioModo?: PrecioModoCosto;
   /**
+   * VENDER POR MAYOR. El servidor precia la línea como si llevara el mínimo
+   * del nivel (`precioNivelId`, o el primer escalón si no viene). El
+   * `precioUnitario` SÍ se valida contra ese cálculo. Mismo permiso que el
+   * costo, y no va junto con `precioModo`.
+   */
+  precioPorMayor?: boolean;
+  precioNivelId?: string;
+  /**
    * Vender de ESTE lote, en vez del que elegiría FEFO.
    *
    * 🔑 Para mercadería comprada POR ENCARGO: esa caja tiene dueño y su costo
@@ -467,6 +475,12 @@ export interface CtxGrupoMayoreo {
    * producto suelto la haría enganchar con un grupo que el servidor no arma.
    */
   productoId?: string | null;
+  /**
+   * VENDER POR MAYOR: la línea se mide como si llevara al menos estas unidades
+   * (el mínimo del escalón que eligió el cajero). Espejo de `pisoForzado` en
+   * `PrecioNivelService.calcularPrecioSegunCantidad`.
+   */
+  pisoForzado?: number;
 }
 
 /**
@@ -482,11 +496,12 @@ export function nivelAplicable(
 ): NivelPrecio | null {
   // El `max` garantiza que el mayoreo combinado nunca EMPEORE un precio: una
   // línea de 10 unidades se sigue midiendo por sus 10 aunque el grupo sume menos.
-  const efectiva = (n: NivelPrecio): number => {
+  const real = (n: NivelPrecio): number => {
     if (!ctx?.cantidadesGrupo || !ctx.productoId) return cantidad;
     const delGrupo = ctx.cantidadesGrupo.get(claveGrupoMayoreo(ctx.productoId, n));
     return delGrupo != null && delGrupo > cantidad ? delGrupo : cantidad;
   };
+  const efectiva = (n: NivelPrecio): number => Math.max(real(n), ctx?.pisoForzado ?? 0);
   return niveles
     .filter(n => n.isActive !== false)
     .filter(n => {
@@ -504,6 +519,22 @@ export function precioConNivel(precioBase: number, nivel: NivelPrecio | null): n
     : precioBase * (1 - Number(nivel.porcentajeDesc ?? 0) / 100);
   // Regla del proyecto: el nivel solo aplica si reduce el precio
   return precio < precioBase ? precio : precioBase;
+}
+
+// ============ VENDER POR MAYOR ============
+
+/**
+ * Los escalones POR MAYOR de un ítem, del más bajo al más alto. Un nivel desde
+ * 1 unidad es el precio de siempre con otro nombre, no un mayoreo.
+ *
+ * 🔴 ESPEJO de `escalones` en `PrecioNivelService.calcularPrecioSegunCantidad`:
+ * "el primer escalón" tiene que ser el mismo en los dos lados, o la venta
+ * rebota con 409 PRECIO_DESACTUALIZADO.
+ */
+export function escalonesMayor(niveles: NivelPrecio[] | undefined): NivelPrecio[] {
+  return (niveles ?? [])
+    .filter(n => n.isActive !== false && n.cantidadMinima > 1)
+    .sort((a, b) => a.cantidadMinima - b.cantidadMinima);
 }
 
 // ============ VENDER A COSTO ============
@@ -680,6 +711,16 @@ export interface VentaItem {
    */
   precioModo?: PrecioModoCosto | null;
   /**
+   * VENDER POR MAYOR. SÍ viaja al backend: la línea se precia con su nivel por
+   * mayor aunque la cantidad no llegue al mínimo. A diferencia del costo, el
+   * `precioUnitario` SÍ se valida: tiene que coincidir con el del servidor.
+   */
+  precioPorMayor?: boolean;
+  /** Qué escalón por mayor (viaja). null = el primero, el de menor mínimo. */
+  precioNivelId?: string | null;
+  /** Local: el nivel aplica solo porque se forzó (por cantidad no llegaba). */
+  nivelForzado?: boolean;
+  /**
    * Lote elegido a mano. SÍ viaja al backend: manda sobre FEFO tanto para el
    * costo como para de dónde sale la mercadería.
    */
@@ -715,6 +756,13 @@ export function puedeVenderseACosto(it: VentaItem): boolean {
 }
 
 /**
+ * Si esta línea puede marcarse "por mayor": las mismas que a costo (el backend
+ * rechaza servicios y combos igual). Que TENGA escalones es otra pregunta —los
+ * niveles llegan después de agregar la línea— y la contesta `escalonesMayor`.
+ */
+export const puedeVendersePorMayor = puedeVenderseACosto;
+
+/**
  * Qué se lee grande en una línea del carrito y qué baja a contexto.
  *
  * 🔑 Con mayoreo combinado el caso normal son varias líneas del MISMO producto
@@ -746,18 +794,34 @@ export function recalcularPorNiveles(
   // subir la cantidad la devolvía al precio de lista sin avisar.
   if (item.precioModo) return { ...item, cantidad };
   if (item.enLiquidacion) {
-    return { ...item, cantidad, precioUnitario: item.precioBase, nivelAplicado: null };
+    return { ...item, cantidad, precioUnitario: item.precioBase, nivelAplicado: null, nivelForzado: false };
   }
-  const nivel = nivelAplicable(item.niveles, cantidad, {
+  const ctx: CtxGrupoMayoreo = {
     cantidadesGrupo,
     productoId: item.varianteId ? item.productoId : null,
-  });
+  };
+  // VENDER POR MAYOR: se mide como si llevara el mínimo del escalón elegido.
+  // Si el escalón elegido ya no existe se cae al primero y se SUELTA el id,
+  // para que el servidor (que con id nulo también toma el primero) dé lo mismo.
+  let precioNivelId = item.precioNivelId ?? null;
+  let piso = 0;
+  if (item.precioPorMayor) {
+    const escalones = escalonesMayor(item.niveles);
+    const elegido = escalones.find(n => n.id === precioNivelId) ?? escalones[0];
+    if (elegido?.id !== precioNivelId) precioNivelId = null;
+    piso = elegido?.cantidadMinima ?? 0;
+  }
+  const nivel = nivelAplicable(item.niveles, cantidad, { ...ctx, pisoForzado: piso });
   const precio = precioConNivel(item.precioBase, nivel);
+  const baja = precio < item.precioBase;
   return {
     ...item,
     cantidad,
     precioUnitario: precio,
-    nivelAplicado: precio < item.precioBase ? nivel?.nombre ?? null : null,
+    nivelAplicado: baja ? nivel?.nombre ?? null : null,
+    ...(item.precioPorMayor && { precioNivelId }),
+    // Forzado = sin el interruptor, esta línea no llegaba a ese nivel.
+    nivelForzado: baja && piso > 0 && nivelAplicable(item.niveles, cantidad, ctx)?.id !== nivel?.id,
   };
 }
 

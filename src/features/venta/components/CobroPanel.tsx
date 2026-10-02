@@ -426,6 +426,12 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               // `precioUnitario` y pone el costo — mandarlo igual no molesta y
               // deja el rastro de lo que el cajero vio en pantalla.
               ...(it.precioModo && { precioModo: it.precioModo }),
+              // VENDER POR MAYOR: el servidor precia la línea como si llevara
+              // el mínimo del escalón. Acá `precioUnitario` SÍ se valida.
+              ...(it.precioPorMayor && !it.precioModo && {
+                precioPorMayor: true,
+                ...(it.precioNivelId && { precioNivelId: it.precioNivelId }),
+              }),
               // Lote elegido a mano: manda sobre FEFO para el costo y para de
               // dónde sale la mercadería.
               ...(it.loteId && { loteId: it.loteId }),
