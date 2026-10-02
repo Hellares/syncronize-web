@@ -7,11 +7,13 @@ interface Props {
   title: string;
   isLoading: boolean;
   showSimbolo?: boolean;
+  /** El rechazo del servidor (nombre repetido, sin permiso), si lo hubo. */
+  errorServidor?: string | null;
   onConfirm: (data: { nombre: string; descripcion?: string; simbolo?: string; orden?: number }) => void;
   onCancel: () => void;
 }
 
-export default function CrearDialog({ isOpen, title, isLoading, showSimbolo, onConfirm, onCancel }: Props) {
+export default function CrearDialog({ isOpen, title, isLoading, showSimbolo, errorServidor, onConfirm, onCancel }: Props) {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [simbolo, setSimbolo] = useState('');
@@ -91,6 +93,8 @@ export default function CrearDialog({ isOpen, title, isLoading, showSimbolo, onC
             />
           </div>
         </div>
+
+        {errorServidor && <p className="mt-3 text-xs text-red-500">{errorServidor}</p>}
 
         <div className="mt-6 flex gap-3 justify-end">
           <button onClick={onCancel} disabled={isLoading} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">

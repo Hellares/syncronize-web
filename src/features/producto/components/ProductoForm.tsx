@@ -7,7 +7,9 @@ import { useEmpresa } from '@/features/empresa/context/empresa-context';
 import type { Producto, AtributoPlantilla, PlantillaAtributo } from '@/core/types/producto';
 import type { ConfiguracionPrecio } from '@/core/types/precio';
 import type { CatalogoItem, UnidadMedida } from '@/features/catalogo/services/catalogo-service';
+import { AxiosError } from 'axios';
 import SelectBuscable from '@/components/ui/SelectBuscable';
+import CrearDialog from '@/features/catalogo/components/CrearDialog';
 import * as catalogoService from '@/features/catalogo/services/catalogo-service';
 import * as varianteService from '../services/variante-service';
 import * as configPrecioService from '../services/configuracion-precio-service';
@@ -62,6 +64,22 @@ const inputClass = "w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 r
 const textareaClass = "w-full bg-zinc-100 text-[#004A94] font-sans text-xs ring-1 ring-blue-400 outline-none transition-all duration-300 placeholder:text-zinc-500 placeholder:opacity-60 rounded-[6px] px-3 py-2 shadow-md focus:shadow-lg focus:shadow-blue-200";
 const selectClass = inputClass;
 
+function BotonAgregar({ titulo, onClick }: { titulo: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={titulo}
+      aria-label={titulo}
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[6px] bg-[#004A94] text-white shadow-md transition-colors hover:bg-[#003570]"
+    >
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
+  );
+}
+
 export default function ProductoForm({ empresaId, producto }: Props) {
   const { form, updateField, isSubmitting, error, errors, handleSubmit, setImagenesIds, isEditing } = useProductoForm(empresaId, producto);
   const { sedes } = useEmpresa();
@@ -73,6 +91,39 @@ export default function ProductoForm({ empresaId, producto }: Props) {
   const [plantillasSeleccionadas, setPlantillasSeleccionadas] = useState<string[]>([]);
   const [configsPrecio, setConfigsPrecio] = useState<ConfiguracionPrecio[]>([]);
   const [catalogoError, setCatalogoError] = useState<string | null>(null);
+
+  // Alta de categoría o marca sin salir del formulario: se crea como
+  // personalizada de la empresa (lo mismo que "Crear" en sus páginas), entra al
+  // combo y queda elegida.
+  const [crear, setCrear] = useState<'categoria' | 'marca' | null>(null);
+  const [creando, setCreando] = useState(false);
+  const [crearError, setCrearError] = useState<string | null>(null);
+
+  const abrirCrear = (tipo: 'categoria' | 'marca') => { setCrearError(null); setCrear(tipo); };
+
+  const confirmarCrear = async (data: { nombre: string; descripcion?: string; orden?: number }) => {
+    if (!crear) return;
+    setCreando(true);
+    setCrearError(null);
+    const dto = { empresaId, nombrePersonalizado: data.nombre, descripcionPersonalizada: data.descripcion, orden: data.orden };
+    try {
+      if (crear === 'categoria') {
+        const nueva = await catalogoService.activarCategoria(dto);
+        setCategorias(prev => [...prev, { id: nueva.id, nombre: data.nombre }]);
+        updateField('empresaCategoriaId', nueva.id);
+      } else {
+        const nueva = await catalogoService.activarMarca(dto);
+        setMarcas(prev => [...prev, { id: nueva.id, nombre: data.nombre }]);
+        updateField('empresaMarcaId', nueva.id);
+      }
+      setCrear(null);
+    } catch (err) {
+      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      setCrearError((Array.isArray(msg) ? msg.join(', ') : msg) || 'No se pudo crear');
+    } finally {
+      setCreando(false);
+    }
+  };
 
   // Las plantillas elegidas, en el orden en que se agregaron, y las que
   // todavia se pueden agregar.
@@ -270,24 +321,34 @@ export default function ProductoForm({ empresaId, producto }: Props) {
               productos (sin tildes, todas las palabras). */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Categoría">
-              <SelectBuscable
-                etiqueta="categoría"
-                value={form.empresaCategoriaId}
-                onChange={(id) => updateField('empresaCategoriaId', id)}
-                opciones={categorias}
-                placeholder="Sin categoría"
-                textoVacio="Sin categoría"
-              />
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <SelectBuscable
+                    etiqueta="categoría"
+                    value={form.empresaCategoriaId}
+                    onChange={(id) => updateField('empresaCategoriaId', id)}
+                    opciones={categorias}
+                    placeholder="Sin categoría"
+                    textoVacio="Sin categoría"
+                  />
+                </div>
+                <BotonAgregar titulo="Nueva categoría" onClick={() => abrirCrear('categoria')} />
+              </div>
             </Field>
             <Field label="Marca">
-              <SelectBuscable
-                etiqueta="marca"
-                value={form.empresaMarcaId}
-                onChange={(id) => updateField('empresaMarcaId', id)}
-                opciones={marcas}
-                placeholder="Sin marca"
-                textoVacio="Sin marca"
-              />
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <SelectBuscable
+                    etiqueta="marca"
+                    value={form.empresaMarcaId}
+                    onChange={(id) => updateField('empresaMarcaId', id)}
+                    opciones={marcas}
+                    placeholder="Sin marca"
+                    textoVacio="Sin marca"
+                  />
+                </div>
+                <BotonAgregar titulo="Nueva marca" onClick={() => abrirCrear('marca')} />
+              </div>
             </Field>
             <Field label="Unidad de Medida">
               <SelectBuscable
@@ -758,6 +819,18 @@ export default function ProductoForm({ empresaId, producto }: Props) {
         )}
         </div>
       </div>
+
+      {/* Montado solo mientras está abierto: así arranca con los campos vacíos. */}
+      {crear && (
+        <CrearDialog
+          isOpen
+          title={crear === 'categoria' ? 'Nueva categoría' : 'Nueva marca'}
+          isLoading={creando}
+          errorServidor={crearError}
+          onConfirm={confirmarCrear}
+          onCancel={() => setCrear(null)}
+        />
+      )}
 
       {/* Submit */}
       <div className="flex gap-3 justify-end pt-2">
