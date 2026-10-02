@@ -210,6 +210,13 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
                       {m.ventaCodigo && <span className="text-purple-600">Venta: {m.ventaCodigo}</span>}
                       {m.compraCodigo && <span className="text-green-600">Compra: {m.compraCodigo}</span>}
                       {m.transferenciaCodigo && <span className="text-teal-600">Transfer: {m.transferenciaCodigo}</span>}
+                      {/* Historial de la variante original (antes de separarla por diseño). */}
+                      {m.heredado && (
+                        <span className="mt-0.5 block w-fit rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 ring-1 ring-amber-200"
+                          title="Movimiento de la variante original, antes de separarla por diseño. El stock anterior y nuevo son los de esa variante.">
+                          De: {m.heredadoDe ?? 'variante original'}
+                        </span>
+                      )}
                     </td>
                     <td className="hidden px-4 py-3 text-xs text-gray-500 lg:table-cell">{m.usuarioNombre || '-'}</td>
                     <td className="hidden px-4 py-3 text-xs text-gray-500 md:table-cell truncate max-w-[150px]">{m.motivo || '-'}</td>

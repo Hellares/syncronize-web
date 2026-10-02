@@ -199,6 +199,13 @@ export interface MovimientoStock {
   valorMovimiento?: number | null;
   costoManoObra?: number | null;
   creadoEn: string;
+  /**
+   * Vino de la variante ORIGINAL, antes de separarla por diseño: es historial
+   * de la misma mercadería. Sus cantidades anterior/nueva son las de esa
+   * variante, no las de esta.
+   */
+  heredado?: boolean;
+  heredadoDe?: string | null;
 }
 
 export interface ResumenMovimiento {
