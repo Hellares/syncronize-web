@@ -8,6 +8,7 @@ import { getBancos } from '@/features/compras/services/compra-service';
 import * as cxcService from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import type { ReporteAbonoCliente } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import { fmtFechaHora } from '@/core/utils/fecha';
+import DepositoClienteDialog from './DepositoClienteDialog';
 
 const fmt = (n: number) => `S/ ${Number(n ?? 0).toFixed(2)}`;
 const METODO: Record<string, { texto: string; clase: string }> = {
@@ -36,6 +37,8 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
   const [aprobando, setAprobando] = useState<ReporteAbonoCliente | null>(null);
   const [visor, setVisor] = useState<{ fotos: string[]; i: number } | null>(null);
   const [error, setError] = useState('');
+  /** Un depósito recién aprobado: lo que sigue es repartirlo. */
+  const [repartir, setRepartir] = useState<ReporteAbonoCliente | null>(null);
 
   const cargar = useCallback(async () => {
     try { setReportes(await cxcService.getReportesAbono('PENDIENTE')); } catch { /* sin permiso o sin red: la sección no aparece */ }
@@ -60,7 +63,19 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
     }
   };
 
-  if (reportes.length === 0) return null;
+  // Aprobado el último, la sección desaparece: el reparto del depósito tiene
+  // que seguir a la vista igual.
+  const dialogoReparto = repartir && (
+    <DepositoClienteDialog
+      titular={{ clienteId: repartir.clienteId, clienteEmpresaId: repartir.clienteEmpresaId }}
+      nombre={repartir.cliente}
+      modo="repartir"
+      onCerrar={() => setRepartir(null)}
+      onListo={(msg) => { setRepartir(null); onAprobado(msg); }}
+    />
+  );
+
+  if (reportes.length === 0) return dialogoReparto || null;
 
   return (
     <section className="mx-auto w-full max-w-5xl rounded-xl bg-white shadow-sm ring-1 ring-amber-300">
@@ -88,6 +103,10 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
                   {r.cliente}
                   {r.lineas.length === 1 && <span className="font-mono text-xs text-gray-400"> · {r.lineas[0].ventaCodigo}</span>}
                 </p>
+                {/* Sin compras elegidas: la tienda decide a qué ventas va. */}
+                {r.lineas.length === 0 && (
+                  <p className="text-[11px] font-medium text-amber-700">Depósito sin indicar compras: al aprobarlo lo repartes tú</p>
+                )}
                 {/* Un pago a varias ventas: cuánto va a cada una (así se registra). */}
                 {r.lineas.length > 1 && (
                   <p className="text-[11px] text-gray-500">
@@ -147,12 +166,20 @@ export default function ReportesAbonoCliente({ puedeGestionar, onAprobado }: {
             const r = aprobando;
             setAprobando(null);
             await cargar();
+            if (r.lineas.length === 0) {
+              // La plata ya entró: ahora se reparte (o se deja a favor).
+              onAprobado(`Depósito de ${fmt(r.monto)} de ${r.cliente} registrado`);
+              setRepartir(r);
+              return;
+            }
             onAprobado(r.lineas.length === 1
               ? `Abono de ${fmt(r.monto)} registrado a ${r.lineas[0].ventaCodigo}`
               : `Pago de ${fmt(r.monto)} registrado en ${r.lineas.length} ventas`);
           }}
         />
       )}
+
+      {dialogoReparto}
     </section>
   );
 }
@@ -209,7 +236,9 @@ function AprobarDialog({ reporte, onCerrar, onListo }: { reporte: ReporteAbonoCl
           </ul>
         )}
         <p className="mt-2 text-[11px] text-gray-500">
-          Verifica que el dinero llegó antes de aprobar: se registra {reporte.lineas.length > 1 ? `un abono en cada una de las ${reporte.lineas.length} ventas` : 'como abono'} y baja el saldo del cliente. Si una venta no lo acepta, no se registra ninguno.
+          {reporte.lineas.length === 0
+            ? 'Verifica que el dinero llegó antes de aprobar: entra como depósito del cliente y a continuación eliges a qué ventas va. Lo que no repartas queda a su favor.'
+            : <>Verifica que el dinero llegó antes de aprobar: se registra {reporte.lineas.length > 1 ? `un abono en cada una de las ${reporte.lineas.length} ventas` : 'como abono'} y baja el saldo del cliente. Si una venta no lo acepta, no se registra ninguno.</>}
         </p>
 
         <label className="mt-3 mb-1 block text-xs font-medium text-gray-600">Entra a</label>
@@ -239,7 +268,7 @@ function AprobarDialog({ reporte, onCerrar, onListo }: { reporte: ReporteAbonoCl
           <button type="button" onClick={onCerrar} disabled={enviando} className="rounded-lg border border-gray-200 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
           <button type="button" onClick={() => void aprobar()} disabled={enviando}
             className="rounded-lg bg-green-600 px-4 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50">
-            {enviando ? 'Registrando...' : 'Aprobar y registrar abono'}
+            {enviando ? 'Registrando...' : reporte.lineas.length === 0 ? 'Aprobar depósito' : 'Aprobar y registrar abono'}
           </button>
         </div>
       </div>

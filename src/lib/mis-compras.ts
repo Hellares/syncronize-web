@@ -45,6 +45,21 @@ export interface ResumenCompras {
   proximoPago: (ProximoPago & { codigo: string; ventaId: string; numeroCuotas: number | null }) | null;
 }
 
+/**
+ * Lo que tiene a favor un titular (lo personal, o una empresa donde es
+ * contacto): plata que depositó y la tienda todavía no aplicó a una compra.
+ */
+export interface SaldoTitular {
+  /** null = lo personal. */
+  clienteEmpresaId: string | null;
+  nombre: string | null;
+  saldoAFavor: number;
+  /** Depósitos que reportó y la tienda aún no aprueba. */
+  enRevision: number;
+  deuda: number;
+  puedeDepositar: boolean;
+}
+
 export interface CompraDetalle extends Omit<CompraResumen, 'fotos' | 'cantidadItems' | 'enRevision'> {
   sede: string | null;
   interes: number;
@@ -83,7 +98,7 @@ export interface MediosPago {
 const base = (sub: string) => `/empresas/${encodeURIComponent(sub)}/mis-compras`;
 
 export const misCompras = {
-  listar: (sub: string) => mkt<{ resumen: ResumenCompras; data: CompraResumen[] }>(base(sub)),
+  listar: (sub: string) => mkt<{ resumen: ResumenCompras; data: CompraResumen[]; saldos?: SaldoTitular[] }>(base(sub)),
   detalle: (sub: string, id: string) => mkt<CompraDetalle>(`${base(sub)}/${id}`),
   mediosPago: (sub: string) => mkt<MediosPago>(`${base(sub)}/medios-pago`),
   /**
@@ -91,13 +106,21 @@ export const misCompras = {
    * mismo titular. Queda en revisión hasta que la tienda lo apruebe.
    */
   reportarAbono: (sub: string, datos: {
+    /** Vacío = depósito: la tienda decide a qué compras va (`deposito`). */
     lineas: { ventaId: string; monto: number }[];
+    /** Depósito sin indicar compras: cuánto, y por qué empresa (null = personal). */
+    deposito?: { monto: number; clienteEmpresaId: string | null };
     metodoPago: MetodoAbono; numeroOperacion?: string; empresaBancoId?: string;
     /** 1 a 4 capturas: un pago grande puede ir en varios Yape (S/ 500 c/u). */
     comprobantes: File[];
   }) => {
     const fd = new FormData();
-    fd.append('lineas', JSON.stringify(datos.lineas.map((l) => ({ ventaId: l.ventaId, monto: l.monto.toFixed(2) }))));
+    if (datos.lineas.length) {
+      fd.append('lineas', JSON.stringify(datos.lineas.map((l) => ({ ventaId: l.ventaId, monto: l.monto.toFixed(2) }))));
+    } else if (datos.deposito) {
+      fd.append('monto', datos.deposito.monto.toFixed(2));
+      if (datos.deposito.clienteEmpresaId) fd.append('clienteEmpresaId', datos.deposito.clienteEmpresaId);
+    }
     fd.append('metodoPago', datos.metodoPago);
     if (datos.numeroOperacion?.trim()) fd.append('numeroOperacion', datos.numeroOperacion.trim());
     if (datos.empresaBancoId) fd.append('empresaBancoId', datos.empresaBancoId);

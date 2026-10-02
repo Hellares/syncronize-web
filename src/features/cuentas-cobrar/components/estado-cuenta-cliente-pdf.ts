@@ -180,6 +180,18 @@ export async function construirEstadoCuentaClientePdf(
     `Total vendido: ${money(r.totalVendido)}    Total abonado: ${money(r.totalAbonado)}    Ventas: ${r.cantidadVentas} (${r.ventasConSaldo} con saldo)`,
     margin, y,
   );
+  // Lo depositado que todavía no se aplicó a ninguna venta: baja lo que el
+  // cliente debe de verdad, aunque el saldo pendiente no lo descuente.
+  const aFavor = r.saldoAFavor ?? 0;
+  if (aFavor > 0.005) {
+    y += 5;
+    doc.setTextColor(150, 90, 0);
+    doc.text(
+      `Saldo a favor (depositado sin aplicar): ${money(aFavor)}    Deuda neta: ${money(Math.max(0, r.saldoPendiente - aFavor))}`,
+      margin, y,
+    );
+    doc.setTextColor(0, 0, 0);
+  }
   y += 7;
 
   const seccion = (titulo: string) => {

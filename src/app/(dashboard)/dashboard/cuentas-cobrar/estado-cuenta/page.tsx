@@ -8,11 +8,15 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { EstadoCuentaCliente, VentaCreditoEC } from '@/core/types/cuentas-cobrar';
 import { ESTADO_CUENTA_CONFIG } from '@/core/types/cuentas-cobrar';
-import { getEstadoCuentaCliente } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
+import {
+  getEstadoCuentaCliente, getDepositosCliente, anularDepositoCliente,
+} from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
+import type { DepositoCliente } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
+import DepositoClienteDialog from '@/features/cuentas-cobrar/components/DepositoClienteDialog';
 import CompartirEstadoCuentaDialog from '@/features/cuentas-cobrar/components/CompartirEstadoCuentaDialog';
 import VentaEstadoCuentaDetalle from '@/features/cuentas-cobrar/components/VentaEstadoCuentaDetalle';
 import Plegable from '@/components/ui/Plegable';
-import { useEmpresa } from '@/features/empresa/context/empresa-context';
+import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 import { fmtFechaHora } from '@/core/utils/fecha';
 const fmt = (n: number | undefined | null) =>
@@ -37,6 +41,38 @@ function EstadoCuentaClienteContent() {
   const [verHistorial, setVerHistorial] = useState(false);
   const [verAbonos, setVerAbonos] = useState(false);
   const [compartir, setCompartir] = useState(false);
+
+  // Depósitos sin repartir: lo que el cliente tiene a favor.
+  const puedeGestionar = usePermissions().canManageVentas;
+  const [depositos, setDepositos] = useState<DepositoCliente[]>([]);
+  const [saldoAFavor, setSaldoAFavor] = useState(0);
+  const [verDepositos, setVerDepositos] = useState(false);
+  const [dialogoDeposito, setDialogoDeposito] = useState<'nuevo' | 'repartir' | null>(null);
+  const [aviso, setAviso] = useState<{ texto: string; error?: boolean } | null>(null);
+
+  const cargarDepositos = useCallback(async () => {
+    if (!clienteId && !clienteEmpresaId) return;
+    try {
+      const d = await getDepositosCliente({ clienteId, clienteEmpresaId });
+      setDepositos(d.depositos);
+      setSaldoAFavor(d.saldoAFavor);
+    } catch { /* sin permiso o sin red: la sección queda vacía */ }
+  }, [clienteId, clienteEmpresaId]);
+
+  useEffect(() => { void cargarDepositos(); }, [cargarDepositos]);
+
+  const anularDeposito = async (d: DepositoCliente) => {
+    const motivo = prompt(`¿Anular el depósito de ${fmt(d.monto)}? Se revierte su ingreso a caja/banco. Motivo:`, '');
+    if (motivo === null) return;
+    try {
+      await anularDepositoCliente(d.id, motivo.trim() || undefined);
+      setAviso({ texto: `Depósito de ${fmt(d.monto)} anulado` });
+      await cargarDepositos();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setAviso({ texto: msg || 'No se pudo anular el depósito', error: true });
+    }
+  };
 
   const cargar = useCallback(async () => {
     if (!clienteId && !clienteEmpresaId) {
@@ -101,6 +137,17 @@ function EstadoCuentaClienteContent() {
             </p>
           </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+        {puedeGestionar && (
+          <button
+            onClick={() => setDialogoDeposito('nuevo')}
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-[#004A94] px-3 text-[10px] font-medium text-white shadow-md transition-colors hover:bg-[#003570]">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Registrar depósito
+          </button>
+        )}
         <button
           onClick={() => setCompartir(true)}
           className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-zinc-100 px-3 text-[10px] font-medium text-[#004A94] shadow-md ring-1 ring-blue-400 transition-shadow hover:shadow-lg hover:shadow-blue-200">
@@ -109,7 +156,37 @@ function EstadoCuentaClienteContent() {
           </svg>
           Compartir
         </button>
+        </div>
       </div>
+
+      {aviso && (
+        <p className={`rounded-lg px-3 py-2 text-xs ring-1 ${aviso.error ? 'bg-red-50 text-red-700 ring-red-200' : 'bg-green-50 text-green-800 ring-green-200'}`}>
+          {aviso.texto}
+        </p>
+      )}
+
+      {/* Saldo a favor: plata que el cliente ya entregó y no está aplicada a
+          ninguna venta. Va arriba porque cambia lo que de verdad debe. */}
+      {saldoAFavor > 0.005 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-white to-amber-100 p-4 shadow-sm ring-1 ring-amber-400">
+          <div>
+            <p className="text-xs text-gray-500">Saldo a favor del cliente</p>
+            <p className="text-xl font-bold text-amber-700">{fmt(saldoAFavor)}</p>
+            <p className="text-[11px] text-gray-500">
+              {conSaldo
+                ? `Depositado y sin aplicar. Neto, el cliente debe ${fmt(Math.max(0, resumen.saldoPendiente - saldoAFavor))}.`
+                : 'Depositado y sin aplicar: no tiene ventas pendientes.'}
+            </p>
+          </div>
+          {puedeGestionar && conSaldo && (
+            <button
+              onClick={() => setDialogoDeposito('repartir')}
+              className="inline-flex h-[30px] items-center rounded-[6px] bg-amber-600 px-3 text-[10px] font-medium text-white shadow-md transition-colors hover:bg-amber-700">
+              Repartir a sus ventas
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Resumen: el saldo manda, y su color dice si hay que llamar al cliente
           o no. Mismo tratamiento que las tarjetas de cuentas por cobrar --ring
@@ -206,6 +283,67 @@ function EstadoCuentaClienteContent() {
           </table>
         )}
       </Plegable>
+
+      {/* Depósitos: de dónde sale el saldo a favor y a qué ventas fue cada uno. */}
+      {depositos.length > 0 && (
+        <Plegable
+          titulo="Depósitos"
+          resumen={`${depositos.filter(d => !d.anulado).length} · a favor ${fmt(saldoAFavor)}`}
+          abierto={verDepositos}
+          onToggle={() => setVerDepositos(v => !v)}
+        >
+          <ul className="divide-y divide-gray-100 text-[12px]">
+            {depositos.map(d => (
+              <li key={d.id} className={`py-2 ${d.anulado ? 'opacity-50' : ''}`}>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  <span className="text-gray-600">{fmtFechaHora(d.fecha)}</span>
+                  <span className="text-gray-700">{d.metodoPago}{d.referencia ? ` · Op. ${d.referencia}` : ''}</span>
+                  <span className="text-gray-400">{fuenteLabel(d.fuente)}{d.origen === 'TIENDA' ? ' · reportado por el cliente' : ''}</span>
+                  <span className="ml-auto font-medium text-gray-900">{fmt(d.monto)}</span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-[11px]">
+                  {d.anulado ? (
+                    <span className="text-red-600">Anulado{d.motivoAnulacion ? `: ${d.motivoAnulacion}` : ''}</span>
+                  ) : (
+                    <>
+                      <span className="text-gray-500">
+                        {d.aplicaciones.length === 0
+                          ? 'Sin repartir'
+                          : d.aplicaciones.map((a, i) => (
+                              <span key={a.pagoId} className="whitespace-nowrap">
+                                {i > 0 && ' · '}<span className="font-mono">{a.ventaCodigo ?? '—'}</span> {fmt(a.monto)}
+                              </span>
+                            ))}
+                      </span>
+                      {d.disponible > 0.005 && <span className="font-medium text-amber-700">a favor {fmt(d.disponible)}</span>}
+                      {puedeGestionar && d.aplicado <= 0.005 && (
+                        <button type="button" onClick={() => void anularDeposito(d)} className="ml-auto text-red-600 hover:underline">
+                          Anular
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Plegable>
+      )}
+
+      {dialogoDeposito && (
+        <DepositoClienteDialog
+          titular={{ clienteId, clienteEmpresaId }}
+          nombre={cliente.nombre ?? nombreFallback ?? 'Cliente'}
+          modo={dialogoDeposito}
+          onCerrar={() => setDialogoDeposito(null)}
+          onListo={(msg) => {
+            setDialogoDeposito(null);
+            setAviso({ texto: msg });
+            void cargar();
+            void cargarDepositos();
+          }}
+        />
+      )}
 
       {compartir && (
         <CompartirEstadoCuentaDialog

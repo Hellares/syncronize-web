@@ -6,7 +6,7 @@ import { TiendaColors, alpha } from '@/lib/colors';
 import { soles } from '@/lib/tienda-compra';
 import { mensajeError } from '@/lib/mis-servicios';
 import {
-  CompraDetalle, CompraResumen, ESTADO_COMPRA, METODO_PAGO, ResumenCompras, descargarEstadoCuenta, diaVence, fechaHora, misCompras,
+  CompraDetalle, CompraResumen, ESTADO_COMPRA, METODO_PAGO, ResumenCompras, SaldoTitular, descargarEstadoCuenta, diaVence, fechaHora, misCompras,
 } from '@/lib/mis-compras';
 import { useSesionTienda } from '../compra/SesionTienda';
 import { Cargando, PedirIngreso } from '../compra/CarritoVista';
@@ -32,6 +32,8 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
   const { subdominio, usuario } = useSesionTienda();
   const [compras, setCompras] = useState<CompraResumen[] | null>(null);
   const [resumen, setResumen] = useState<ResumenCompras | null>(null);
+  // Lo que tiene a favor (depositado y sin aplicar), por titular.
+  const [saldos, setSaldos] = useState<SaldoTitular[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('todas');
   const [busqueda, setBusqueda] = useState('');
@@ -53,6 +55,7 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
       if (!vivo) return;
       setCompras(r.data);
       setResumen(r.resumen);
+      setSaldos(r.saldos ?? []);
       setError(null);
       // En escritorio el detalle está al lado: se abre la compra que más importa
       // (la próxima a pagar, si no la última). En el celular arranca en la lista.
@@ -110,6 +113,23 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
         vence: c.proximoPago?.fechaVencimiento ?? null,
       }));
   const hayCreditoPersonal = (compras ?? []).some((c) => c.esCredito && !c.clienteEmpresaId);
+  const saldoDe = (grupo: string | null) => saldos.find((s) => s.clienteEmpresaId === grupo);
+  /** "Tienes S/ 20 a favor · aún debes S/ 980 más": lo depositado que no alcanzó para una cuota. */
+  const notaSaldo = (grupo: string | null, deuda: number) => {
+    const s = saldoDe(grupo);
+    if (!s || (s.saldoAFavor <= 0 && s.enRevision <= 0)) return null;
+    const partes: string[] = [];
+    if (s.saldoAFavor > 0) {
+      const neto = Math.round((deuda - s.saldoAFavor) * 100) / 100;
+      partes.push(
+        deuda > 0
+          ? `Tienes ${soles(s.saldoAFavor)} a favor${neto > 0 ? `: te faltan ${soles(neto)} para saldar` : ''}`
+          : `Tienes ${soles(s.saldoAFavor)} a favor`,
+      );
+    }
+    if (s.enRevision > 0) partes.push(`${soles(s.enRevision)} depositados en revisión`);
+    return partes.join(' · ');
+  };
 
   const abrir = (id: string | null) => {
     setSeleccion(id);
@@ -140,7 +160,8 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
                 {separarDeuda ? (
                   <div className="flex flex-col divide-y divide-gray-100">
                     {(deudas.some((d) => d.id === null) ? deudas : [{ id: null, empresa: null, monto: 0, compras: 0 }, ...deudas]).map((d) => (
-                      <div key={d.id ?? '__personal'} className="flex items-center justify-between gap-3 py-1.5">
+                      <div key={d.id ?? '__personal'} className="py-1.5">
+                      <div className="flex items-center justify-between gap-3">
                         <span className="min-w-0 flex items-center gap-1.5 text-[13px] text-gray-700">
                           {d.empresa ? (
                             <>
@@ -170,6 +191,8 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
                           )}
                         </span>
                       </div>
+                      {notaSaldo(d.id, d.monto) && <p className="text-xs text-[#146c3a]">{notaSaldo(d.id, d.monto)}</p>}
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -180,6 +203,7 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
                         ? `En ${resumen.comprasConDeuda} ${resumen.comprasConDeuda === 1 ? 'compra' : 'compras'} a crédito${resumen.mora > 0 ? ` · mora ${soles(resumen.mora)}` : ''}`
                         : 'Estás al día. ¡Gracias!'}
                     </span>
+                    {notaSaldo(null, resumen.deuda) && <span className="text-[13px] text-[#146c3a]">{notaSaldo(null, resumen.deuda)}</span>}
                     {(abonables(null).length > 0 || hayCreditoPersonal) && (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         {abonables(null).length > 0 && (
@@ -321,6 +345,8 @@ export function MisComprasVista({ colors, empresaNombre }: { colors: TiendaColor
         <AbonarDialog
           subdominio={subdominio}
           compras={abonables(pagando.grupo)}
+          // Puede depositar sin elegir compras si ese titular lo admite.
+          deposito={saldoDe(pagando.grupo)?.puedeDepositar ? { clienteEmpresaId: pagando.grupo } : undefined}
           colors={colors}
           onListo={() => setPagoEnviado(true)}
           onCerrar={() => {

@@ -92,6 +92,8 @@ export interface EstadoCuentaCliente {
   };
   resumen: {
     saldoPendiente: number;
+    /** Lo que el cliente depositó y aún no se aplicó a ninguna venta. */
+    saldoAFavor?: number;
     totalVendido: number;
     totalAbonado: number;
     totalMora: number;

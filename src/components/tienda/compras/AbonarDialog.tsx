@@ -37,8 +37,13 @@ const METODOS: { id: MetodoAbono; texto: string; color: string }[] = [
  * cómo pagó, ve el QR o la cuenta de la tienda y sube las capturas. Queda EN
  * REVISIÓN: recién cuando la tienda lo aprueba bajan los saldos.
  */
-export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, onCerrar }: {
+export function AbonarDialog({ subdominio, compras, inicial, deposito, colors, onListo, onCerrar }: {
   subdominio: string;
+  /**
+   * Permite DEPOSITAR sin elegir compras (la tienda lo reparte): el titular
+   * por el que paga, null = lo personal. Sin esto solo se abona a compras.
+   */
+  deposito?: { clienteEmpresaId: string | null };
   /** Una sola = abono a esa compra; varias = elige a cuáles. */
   compras: CompraAbonable[];
   /** Las que arrancan marcadas (con varias). */
@@ -48,6 +53,9 @@ export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, on
   onCerrar: () => void;
 }) {
   const unaSola = compras.length === 1;
+  // Sin compras a las que abonar, lo único posible es depositar.
+  const [depositar, setDepositar] = useState(!!deposito && compras.length === 0);
+  const [montoDeposito, setMontoDeposito] = useState('');
   const [medios, setMedios] = useState<MediosPago | null>(null);
   const [metodo, setMetodo] = useState<MetodoAbono>('YAPE');
   // Por compra: si va en este pago y cuánto.
@@ -105,26 +113,34 @@ export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, on
   };
 
   const elegidas = compras.filter((c) => lineas[c.id]?.on);
-  const valor = r2(elegidas.reduce((s, c) => s + (num(lineas[c.id].monto) || 0), 0));
-  const unica = unaSola ? compras[0] : null;
+  const valor = depositar
+    ? r2(num(montoDeposito) || 0)
+    : r2(elegidas.reduce((s, c) => s + (num(lineas[c.id].monto) || 0), 0));
+  const unica = unaSola && !depositar ? compras[0] : null;
+  const titulo = depositar ? 'Depositar a la tienda' : unica ? `Abonar a ${unica.codigo}` : 'Pagar varias compras';
   const montoUnico = unica ? lineas[unica.id].monto : '';
   const qr = metodo === 'YAPE' ? medios?.qrYapeUrl : metodo === 'PLIN' ? medios?.qrPlinUrl : null;
   const sinCuentas = metodo === 'TRANSFERENCIA' && medios !== null && medios.cuentas.length === 0;
 
   const enviar = async () => {
     setError(null);
-    if (elegidas.length === 0) return setError('Elige al menos una compra');
-    for (const c of elegidas) {
-      const m = num(lineas[c.id].monto);
-      if (!(m > 0)) return setError(unaSola ? 'Escribe el monto que pagaste' : `Escribe cuánto va a ${c.codigo}`);
-      if (m > c.disponible + 0.005) return setError(`A ${c.codigo} le puedes pagar hasta ${soles(c.disponible)}`);
+    if (depositar) {
+      if (!(valor > 0)) return setError('Escribe cuánto depositaste');
+    } else {
+      if (elegidas.length === 0) return setError('Elige al menos una compra');
+      for (const c of elegidas) {
+        const m = num(lineas[c.id].monto);
+        if (!(m > 0)) return setError(unaSola ? 'Escribe el monto que pagaste' : `Escribe cuánto va a ${c.codigo}`);
+        if (m > c.disponible + 0.005) return setError(`A ${c.codigo} le puedes pagar hasta ${soles(c.disponible)}`);
+      }
     }
     if (metodo === 'TRANSFERENCIA' && !cuentaId) return setError('Elige la cuenta a la que transferiste');
     if (archivos.length === 0) return setError('Sube la captura de tu pago');
     setEnviando(true);
     try {
       await misCompras.reportarAbono(subdominio, {
-        lineas: elegidas.map((c) => ({ ventaId: c.id, monto: r2(num(lineas[c.id].monto)) })),
+        lineas: depositar ? [] : elegidas.map((c) => ({ ventaId: c.id, monto: r2(num(lineas[c.id].monto)) })),
+        deposito: depositar ? { monto: valor, clienteEmpresaId: deposito?.clienteEmpresaId ?? null } : undefined,
         metodoPago: metodo,
         numeroOperacion: operacion,
         empresaBancoId: metodo === 'TRANSFERENCIA' ? cuentaId ?? undefined : undefined,
@@ -140,13 +156,15 @@ export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, on
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={unica ? `Abonar a ${unica.codigo}` : 'Pagar varias compras'} onClick={() => !enviando && onCerrar()}>
+    <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-label={titulo} onClick={() => !enviando && onCerrar()}>
       <div className="bg-white w-full sm:max-w-lg max-h-[92vh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="min-w-0">
-            <h2 className="text-[17px] font-medium text-gray-900">{unica ? `Abonar a ${unica.codigo}` : 'Pagar varias compras'}</h2>
+            <h2 className="text-[17px] font-medium text-gray-900">{titulo}</h2>
             <p className="text-xs text-gray-500">
-              {unica ? `Puedes pagar hasta ${soles(unica.disponible)}` : 'Marca las compras que pagas y cuánto va a cada una'}
+              {depositar
+                ? 'La tienda lo aplica a tus compras; lo que sobre queda a tu favor'
+                : unica ? `Puedes pagar hasta ${soles(unica.disponible)}` : 'Marca las compras que pagas y cuánto va a cada una'}
             </p>
           </div>
           <button type="button" onClick={onCerrar} disabled={enviando} aria-label="Cerrar" className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
@@ -160,15 +178,51 @@ export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, on
               <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
             </span>
             <p className="text-base font-medium text-gray-900">
-              Recibimos tu pago de {soles(valor)}{elegidas.length > 1 ? ` para ${elegidas.length} compras` : ''}
+              Recibimos tu {depositar ? 'depósito' : 'pago'} de {soles(valor)}{!depositar && elegidas.length > 1 ? ` para ${elegidas.length} compras` : ''}
             </p>
-            <p className="text-sm text-gray-500 max-w-sm">La tienda lo va a revisar. Mientras tanto aparece como <b className="font-medium text-gray-700">en revisión</b> y tu saldo baja cuando lo confirmen.</p>
+            <p className="text-sm text-gray-500 max-w-sm">
+              {depositar
+                ? <>La tienda lo va a revisar y aplicar a tus compras. Si sobra algo, lo verás como <b className="font-medium text-gray-700">saldo a favor</b>.</>
+                : <>La tienda lo va a revisar. Mientras tanto aparece como <b className="font-medium text-gray-700">en revisión</b> y tu saldo baja cuando lo confirmen.</>}
+            </p>
             <button type="button" onClick={onCerrar} className="mt-2 h-11 px-6 rounded-xl text-white text-sm font-medium" style={{ backgroundColor: colors.primario }}>Entendido</button>
           </div>
         ) : (
           <>
             <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4">
-              {unica ? (
+              {deposito && compras.length > 0 && (
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1" role="radiogroup" aria-label="Qué pagas">
+                  {([[false, 'Elegir compras'], [true, 'Solo depositar']] as const).map(([valorModo, texto]) => (
+                    <button
+                      key={texto}
+                      type="button"
+                      role="radio"
+                      aria-checked={depositar === valorModo}
+                      onClick={() => { setDepositar(valorModo); setError(null); }}
+                      className="h-10 rounded-lg text-sm font-medium transition-colors"
+                      style={depositar === valorModo ? { backgroundColor: '#fff', color: colors.primario } : { color: '#4b5563' }}
+                    >
+                      {texto}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {depositar ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] text-gray-600">¿Cuánto depositaste?</span>
+                  <div className="flex items-center h-12 rounded-xl border border-gray-200 px-3.5 focus-within:border-gray-400">
+                    <span className="text-gray-500 mr-1.5">S/</span>
+                    <input
+                      value={montoDeposito}
+                      onChange={(e) => setMontoDeposito(e.target.value.replace(/[^\d.,]/g, ''))}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      className="flex-1 min-w-0 outline-none text-lg font-medium tabular-nums text-gray-900"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400">No hace falta que elijas compras: la tienda reparte tu depósito entre lo que debes.</span>
+                </label>
+              ) : unica ? (
                 <label className="flex flex-col gap-1.5">
                   <span className="text-[13px] text-gray-600">¿Cuánto vas a pagar?</span>
                   <div className="flex items-center h-12 rounded-xl border border-gray-200 px-3.5 focus-within:border-gray-400">
@@ -354,9 +408,11 @@ export function AbonarDialog({ subdominio, compras, inicial, colors, onListo, on
                 className="w-full h-12 rounded-xl text-white text-[15px] font-medium disabled:opacity-60"
                 style={{ backgroundColor: colors.primario }}
               >
-                {enviando ? 'Enviando...' : `Enviar pago${valor > 0 ? ` de ${soles(valor)}` : ''}`}
+                {enviando ? 'Enviando...' : `Enviar ${depositar ? 'depósito' : 'pago'}${valor > 0 ? ` de ${soles(valor)}` : ''}`}
               </button>
-              <p className="mt-2 text-center text-xs text-gray-400">Tu saldo baja cuando la tienda confirme el pago.</p>
+              <p className="mt-2 text-center text-xs text-gray-400">
+                {depositar ? 'La tienda confirma el depósito y lo aplica a tus compras.' : 'Tu saldo baja cuando la tienda confirme el pago.'}
+              </p>
             </div>
           </>
         )}
