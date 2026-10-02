@@ -41,7 +41,18 @@ function cajaOrigen(m: TesoreriaMovimiento): string | null {
 interface ChipBarrido { metodoPago: string; monto: number; aBanco: boolean }
 
 /** Una fila de la lista: un movimiento, o el barrido de UN cierre de caja junto. */
-interface FilaTesoreria { m: TesoreriaMovimiento; monto: number; chips: ChipBarrido[]; totalBarrido: number }
+interface FilaTesoreria {
+  m: TesoreriaMovimiento;
+  monto: number;
+  chips: ChipBarrido[];
+  totalBarrido: number;
+  /** Ciclo de caja: el retiro con el que se ABRIÓ la caja que este depósito cierra. */
+  retiro?: TesoreriaMovimiento;
+  /** Anulaciones posteriores (de venta o de cotización) que afectaron a esa caja ya cerrada. */
+  reversos?: { montoVenta: number; cantVenta: number; montoCot: number; cantCot: number };
+}
+
+const plural = (n: number, uno: string, varios: string) => (n === 1 ? `1 ${uno}` : `${n} ${varios}`);
 
 /**
  * El desglose completo del barrido (efectivo + lo digital que fue a bancos).
@@ -92,7 +103,40 @@ function agruparBarridos(movs: TesoreriaMovimiento[]): FilaTesoreria[] {
     fila.chips = chips.length > 1 || chips.some((c) => c.aBanco) ? chips : [];
     fila.totalBarrido = chips.reduce((t, c) => t + c.monto, 0);
   }
-  return filas;
+
+  // ── Ciclo apertura ↔ cierre (como el app) ──
+  // El retiro con que se abrió una caja se dibuja JUNTO al depósito de su
+  // cierre: es la misma plata que salió y volvió. Si la caja sigue abierta (o
+  // el cierre cayó en otra página), el retiro queda como fila propia.
+  const depositoDeCaja = new Map<string, FilaTesoreria>();
+  for (const f of filas) {
+    const caja = f.m.categoria === 'DEPOSITO_TESORERIA' ? ((f.m.metadata ?? {}).cajaEspejoId as string | undefined) : undefined;
+    if (caja && !depositoDeCaja.has(caja)) depositoDeCaja.set(caja, f);
+  }
+  const absorbidas = new Set<FilaTesoreria>();
+  for (const f of filas) {
+    const meta = f.m.metadata ?? {};
+    if (f.m.categoria !== 'RETIRO_TESORERIA' || meta.esRetiroApertura !== true || f.m.anulado) continue;
+    const deposito = depositoDeCaja.get(meta.cajaAperturaId as string);
+    if (deposito && !deposito.retiro) {
+      deposito.retiro = f.m;
+      absorbidas.add(f);
+    }
+  }
+
+  // ── Anulaciones que afectaron a una caja ya cerrada ──
+  for (const m of movs) {
+    const esReverso = m.categoria === 'REVERSO_CAJA_CERRADA';
+    const esDevCot = m.categoria === 'DEVOLUCION_ADELANTO_COTIZACION';
+    if ((!esReverso && !esDevCot) || m.anulado) continue;
+    const deposito = depositoDeCaja.get((m.metadata ?? {}).cajaOrigenId as string);
+    if (!deposito) continue;
+    const r = deposito.reversos ?? { montoVenta: 0, cantVenta: 0, montoCot: 0, cantCot: 0 };
+    if (esReverso) { r.montoVenta += Number(m.monto); r.cantVenta++; } else { r.montoCot += Number(m.monto); r.cantCot++; }
+    deposito.reversos = r;
+  }
+
+  return filas.filter((f) => !absorbidas.has(f));
 }
 
 export default function TesoreriaPage() {
@@ -309,14 +353,38 @@ export default function TesoreriaPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {agruparBarridos(movimientos).map(({ m, monto, chips, totalBarrido }) => {
+              {agruparBarridos(movimientos).map(({ m, monto, chips, totalBarrido, retiro, reversos }) => {
                 const esIngreso = m.tipo === 'INGRESO';
+                const cajero = (m.metadata ?? {}).cajaOrigenUsuarioNombre as string | undefined;
                 const ref = m.venta ?? m.devolucion ?? m.compra ?? m.cotizacion;
                 const origen = cajaOrigen(m);
                 const registrador = nombreRegistrador(m);
                 return (
                   <tr key={m.id} className={`align-top hover:bg-[#437EFF]/5 ${m.anulado ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-2.5">
+                      {/* Ciclo de caja: el retiro de apertura arriba y, colgando de él, el depósito del cierre. */}
+                      {retiro && (
+                        <div className="mb-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-medium text-red-600">Retiro de Tesorería</span>
+                            <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[9px] font-medium text-orange-600 ring-1 ring-orange-200">devuelto al cierre</span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-gray-700">
+                            Retiro para apertura{cajaOrigen(retiro) ? `: ${cajaOrigen(retiro)}` : ''}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            {METODO_PAGO_LABEL[retiro.metodoPago] ?? retiro.metodoPago} · {fmtFecha(retiro.fechaMovimiento)}
+                            {nombreRegistrador(retiro) ? ` · por ${nombreRegistrador(retiro)}` : ''}
+                          </p>
+                        </div>
+                      )}
+                      <div className={retiro ? 'flex gap-1.5' : undefined}>
+                      {retiro && (
+                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 4v8a3 3 0 003 3h9M14 11l4 4-4 4" />
+                        </svg>
+                      )}
+                      <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">{CATEGORIA_MOVIMIENTO_LABEL[m.categoria as string] ?? m.categoria}</span>
                         {origen && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] text-blue-600">{origen}</span>}
@@ -351,7 +419,27 @@ export default function TesoreriaPage() {
                           <button onClick={() => { if (m.venta) router.push(`/dashboard/ventas/${m.venta.id}`); }}
                             className="font-mono text-[10px] text-[#437EFF] hover:underline">{ref.codigo}</button>
                         )}
-                        {registrador && <span className="text-[10px] text-gray-400">por {registrador}</span>}
+                        {cajero && <span className="text-[10px] text-gray-400">Cajero: {cajero}</span>}
+                        {registrador && registrador.trim().toLowerCase() !== (cajero ?? '').trim().toLowerCase() && (
+                          <span className="text-[10px] text-gray-400">{cajero ? 'Cerró' : 'por'} {registrador}</span>
+                        )}
+                      </div>
+                      {/* Anulaciones posteriores que le restaron a esta caja ya cerrada. */}
+                      {reversos && (
+                        <div className="mt-1.5 flex items-center gap-2 rounded-[6px] bg-orange-50 px-2.5 py-1 text-[10px] text-orange-700 ring-1 ring-orange-200">
+                          <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />
+                          </svg>
+                          <span className="min-w-0 flex-1">
+                            Afectado por {[
+                              reversos.cantVenta > 0 ? plural(reversos.cantVenta, 'anulación de venta', 'anulaciones de venta') : null,
+                              reversos.cantCot > 0 ? plural(reversos.cantCot, 'anulación de cotización', 'anulaciones de cotización') : null,
+                            ].filter(Boolean).join(' y ')}
+                          </span>
+                          <span className="font-medium tabular-nums">−{fmt(reversos.montoVenta + reversos.montoCot)}</span>
+                        </div>
+                      )}
+                      </div>
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500 hidden md:table-cell">
@@ -359,6 +447,9 @@ export default function TesoreriaPage() {
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500 hidden lg:table-cell">{fmtFecha(m.fechaMovimiento)}</td>
                     <td className="px-4 py-2.5 text-right">
+                      {retiro && (
+                        <span className="mb-7 block text-sm font-bold text-red-600">−{fmt(retiro.monto)}</span>
+                      )}
                       <span className={`text-sm font-bold ${esIngreso ? 'text-green-600' : 'text-red-600'} ${m.anulado ? 'line-through' : ''}`}>
                         {esIngreso ? '+' : '−'}{fmt(monto)}
                       </span>
