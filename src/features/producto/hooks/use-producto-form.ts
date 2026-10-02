@@ -231,7 +231,13 @@ export function useProductoForm(empresaId: string, producto?: Producto | null) {
 
     try {
       const dto = buildDto();
-      if (plantillasIds) (dto as CreateProductoDto).plantillasAtributosIds = plantillasIds;
+      if (plantillasIds) {
+        (dto as CreateProductoDto).plantillasAtributosIds = plantillasIds;
+        // Al editar, "sin atributos" viaja como [] y no como undefined: el
+        // backend lee undefined como "no tocar" y dejaba los valores de antes
+        // al quitar la última plantilla.
+        if (producto && !dto.atributosEstructurados) dto.atributosEstructurados = [];
+      }
       if (producto) {
         // 🔴 `imagenesIds` NO va en el update: allá REEMPLAZA la lista entera
         // --`actualizarImagenes` desasocia las anteriores-- y editando un

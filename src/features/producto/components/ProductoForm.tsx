@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useProductoForm } from '../hooks/use-producto-form';
 import { useEmpresa } from '@/features/empresa/context/empresa-context';
@@ -106,8 +106,13 @@ export default function ProductoForm({ empresaId, producto }: Props) {
    * alcanza: media docena de plantillas comparten FABRICANTE y se marcarían
    * todas.
    */
+  // 🔴 Se marcan UNA sola vez. Antes el efecto corría cada vez que la lista
+  // quedaba vacía, así que quitar la última plantilla las traía a todas de
+  // vuelta (y sin valores, porque esos ya se habían descartado).
+  const plantillasMarcadas = useRef(false);
   useEffect(() => {
-    if (!producto?.atributosValores?.length || plantillas.length === 0 || plantillasSeleccionadas.length) return;
+    if (plantillasMarcadas.current || !producto?.atributosValores?.length || plantillas.length === 0) return;
+    plantillasMarcadas.current = true;
     const secciones = agruparPorSeccion(
       producto.atributosValores,
       plantillas,
@@ -115,7 +120,7 @@ export default function ProductoForm({ empresaId, producto }: Props) {
     );
     const ids = secciones.filter(sec => !sec.suelto).map(sec => sec.id);
     if (ids.length) setPlantillasSeleccionadas(ids);
-  }, [producto, plantillas, plantillasSeleccionadas.length]);
+  }, [producto, plantillas]);
 
   // Todos los atributos de las plantillas elegidas, sin repetir: un
   // dependiente puede colgar de uno que vive en OTRA plantilla.
