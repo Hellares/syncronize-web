@@ -106,7 +106,12 @@ export async function updatePrecios(id: string, data: UpdatePreciosStockDto): Pr
 
 export async function getMovimientos(id: string, filtros: MovimientoFiltros): Promise<KardexResponse> {
   const query = buildMovimientoParams(filtros);
-  const res = await apiClient.get<KardexResponse>(`${STOCK_ENDPOINTS.MOVIMIENTOS(id)}?${query}`);
+  // `incluirOrigen`: si la variante nació de "Separar por diseño", trae también
+  // el historial de la original. Vienen marcadas (`heredado`) y la pantalla las
+  // dibuja APARTE: no son movimientos de este stock y no entran en sus totales.
+  const res = await apiClient.get<KardexResponse>(
+    `${STOCK_ENDPOINTS.MOVIMIENTOS(id)}?${query}${query ? '&' : ''}incluirOrigen=true`,
+  );
   return res.data;
 }
 

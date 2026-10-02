@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { Fragment, use, useState } from 'react';
 import Link from 'next/link';
 import { useKardex } from '@/features/stock/hooks/use-kardex';
 import { getMovementTypeInfo } from '@/features/stock/components/movement-types';
@@ -58,7 +58,11 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
   };
 
   // Valorización total del filtro actual (suma de |valorMovimiento| de entradas)
-  const valorizacion = movimientos.reduce((acc, m) => acc + (m.valorMovimiento != null ? Number(m.valorMovimiento) : 0), 0);
+  // 🔴 Solo lo PROPIO. Lo heredado es historial de la variante original
+  // (antes de separarla por diseño): contarlo acá inflaría esta variante.
+  const propios = movimientos.filter(m => !m.heredado);
+  const heredados = movimientos.length - propios.length;
+  const valorizacion = propios.reduce((acc, m) => acc + (m.valorMovimiento != null ? Number(m.valorMovimiento) : 0), 0);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -76,7 +80,10 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
           </svg>
           Filtros
         </button>
-        <span className="text-xs text-gray-500">{movimientos.length} movimientos</span>
+        <span className="text-xs text-gray-500">
+          {propios.length} movimientos
+          {heredados > 0 && <span className="text-amber-700"> · + {heredados} de la variante original (no suman)</span>}
+        </span>
         {valorizacion > 0 && (
           <span className="text-xs text-gray-500">· Valorización: <strong className="text-gray-700">S/ {valorizacion.toFixed(2)}</strong></span>
         )}
@@ -182,11 +189,23 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
               </tr>
             </thead>
             <tbody>
-              {movimientos.map(m => {
+              {movimientos.map((m, i) => {
                 const info = getMovementTypeInfo(m.tipo);
                 const isPositive = m.cantidad > 0;
+                // Vienen por fecha: lo propio (posterior a la separación) arriba
+                // y lo heredado abajo. La franja marca dónde cambia.
+                const empiezaHeredado = !!m.heredado && !movimientos[i - 1]?.heredado;
                 return (
-                  <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <Fragment key={m.id}>
+                  {empiezaHeredado && (
+                    <tr className="border-y border-amber-200 bg-amber-50">
+                      <td colSpan={10} className="px-4 py-2 text-[11px] text-amber-800">
+                        Historial de la variante original{m.heredadoDe ? ` «${m.heredadoDe}»` : ''}, antes de separarla por diseño.
+                        Es informativo: <span className="font-medium">no suma al stock ni a los totales de esta variante</span>, y los saldos son los de la original.
+                      </td>
+                    </tr>
+                  )}
+                  <tr className={`border-b border-gray-100 hover:bg-gray-50 ${m.heredado ? 'bg-amber-50/30 opacity-70' : ''}`}>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(m.creadoEn)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${info.color}`}>{info.label}</span>
@@ -221,6 +240,7 @@ export default function KardexPage({ params }: { params: Promise<{ id: string }>
                     <td className="hidden px-4 py-3 text-xs text-gray-500 lg:table-cell">{m.usuarioNombre || '-'}</td>
                     <td className="hidden px-4 py-3 text-xs text-gray-500 md:table-cell truncate max-w-[150px]">{m.motivo || '-'}</td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
