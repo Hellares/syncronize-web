@@ -99,8 +99,9 @@ function agruparBarridos(movs: TesoreriaMovimiento[]): FilaTesoreria[] {
     const chips = resumen.length
       ? resumen
       : items.length > 1 ? items.map((i) => ({ metodoPago: String(i.metodoPago), monto: Number(i.monto), aBanco: false })) : [];
-    // Un solo método que fue a la bóveda no necesita chip: ya lo dice la fila.
-    fila.chips = chips.length > 1 || chips.some((c) => c.aBanco) ? chips : [];
+    // El chip va SIEMPRE, aunque el cierre haya sido de un solo método: el
+    // user lo busca ahí (cerró con una venta en efectivo y no vio "Efectivo").
+    fila.chips = chips;
     fila.totalBarrido = chips.reduce((t, c) => t + c.monto, 0);
   }
 
