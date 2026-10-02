@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { INPUT_STD, INPUT_STD_TA, LABEL, DIALOG_PANEL_RELIEVE_MD, DIALOG_HEAD, DIALOG_BODY, DIALOG_FOOT } from '@/components/ui/dialogo';
 
 interface Props {
   isOpen: boolean;
@@ -36,71 +37,74 @@ export default function CrearDialog({ isOpen, title, isLoading, showSimbolo, err
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-
-        <div className="mt-3 rounded-lg bg-amber-50 border border-amber-100 p-3">
-          <p className="text-xs text-amber-700">Esta será exclusiva de tu empresa y no aparecerá en el catálogo global.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={DIALOG_PANEL_RELIEVE_MD} onClick={(e) => e.stopPropagation()}>
+        <div className={DIALOG_HEAD}>
+          <h3 className="text-sm font-medium text-[#004A94]">{title}</h3>
+          <p className="text-[11px] text-gray-500">Será exclusiva de tu empresa: no aparece en el catálogo global.</p>
         </div>
 
-        <div className="mt-4 space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Nombre *</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => { setNombre(e.target.value); setError(''); }}
-              placeholder="Nombre personalizado"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
-            />
-            {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Descripción</label>
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Descripción (opcional)"
-              maxLength={200}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF] min-h-[60px]"
-            />
-          </div>
-
-          {showSimbolo && (
+        <div className={DIALOG_BODY}>
+          <div className="space-y-3 pb-3 pt-1">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Símbolo *</label>
+              <label className={LABEL}>Nombre *</label>
               <input
                 type="text"
-                value={simbolo}
-                onChange={(e) => setSimbolo(e.target.value)}
-                placeholder="kg, m, L..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
+                autoFocus
+                value={nombre}
+                onChange={(e) => { setNombre(e.target.value); setError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                placeholder="Nombre personalizado"
+                className={INPUT_STD}
+              />
+              {error && <p className="mt-1 text-[11px] text-red-500">{error}</p>}
+            </div>
+
+            <div>
+              <label className={LABEL}>Descripción</label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Descripción (opcional)"
+                maxLength={200}
+                className={`${INPUT_STD_TA} min-h-[60px]`}
               />
             </div>
-          )}
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Orden</label>
-            <input
-              type="number"
-              value={orden}
-              onChange={(e) => setOrden(e.target.value)}
-              placeholder="Orden (opcional)"
-              min="1"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#437EFF]"
-            />
+            {showSimbolo && (
+              <div>
+                <label className={LABEL}>Símbolo *</label>
+                <input
+                  type="text"
+                  value={simbolo}
+                  onChange={(e) => setSimbolo(e.target.value)}
+                  placeholder="kg, m, L..."
+                  className={INPUT_STD}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className={LABEL}>Orden</label>
+              <input
+                type="number"
+                value={orden}
+                onChange={(e) => setOrden(e.target.value)}
+                placeholder="Orden (opcional)"
+                min="1"
+                className={INPUT_STD}
+              />
+            </div>
+
+            {errorServidor && <p className="text-[11px] text-red-500">{errorServidor}</p>}
           </div>
         </div>
 
-        {errorServidor && <p className="mt-3 text-xs text-red-500">{errorServidor}</p>}
-
-        <div className="mt-6 flex gap-3 justify-end">
-          <button onClick={onCancel} disabled={isLoading} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+        <div className={DIALOG_FOOT}>
+          <button onClick={onCancel} disabled={isLoading} className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
             Cancelar
           </button>
-          <button onClick={handleSubmit} disabled={isLoading} className="rounded-lg bg-[#004A94] px-4 py-2 text-sm font-medium text-white hover:bg-[#003570] disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={isLoading} className="rounded-lg bg-[#004A94] px-4 py-2 text-xs font-medium text-white hover:bg-[#003570] disabled:opacity-50">
             {isLoading ? 'Creando...' : 'Crear'}
           </button>
         </div>
