@@ -37,6 +37,64 @@ function cajaOrigen(m: TesoreriaMovimiento): string | null {
   return (meta.cajaOrigenCodigo as string) ?? (meta.cajaAperturaCodigo as string) ?? null;
 }
 
+/** Un método del barrido de cierre: cuánto, y si fue a un banco (no a la bóveda). */
+interface ChipBarrido { metodoPago: string; monto: number; aBanco: boolean }
+
+/** Una fila de la lista: un movimiento, o el barrido de UN cierre de caja junto. */
+interface FilaTesoreria { m: TesoreriaMovimiento; monto: number; chips: ChipBarrido[]; totalBarrido: number }
+
+/**
+ * El desglose completo del barrido (efectivo + lo digital que fue a bancos).
+ * Lo adjunta el backend en la metadata del ingreso de tesorería; es lo mismo
+ * que el app dibuja como chips.
+ */
+function barridoResumen(m: TesoreriaMovimiento): ChipBarrido[] {
+  const raw = (m.metadata ?? {}).barridoResumen;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((x) => {
+    const r = (x ?? {}) as Record<string, unknown>;
+    return { metodoPago: String(r.metodoPago ?? ''), monto: Number(r.monto ?? 0), aBanco: r.aBanco === true };
+  });
+}
+
+/**
+ * Junta en UNA fila los depósitos del mismo cierre de caja (uno por método),
+ * como el app. Solo agrupa lo que cayó en la misma página.
+ */
+function agruparBarridos(movs: TesoreriaMovimiento[]): FilaTesoreria[] {
+  const filas: FilaTesoreria[] = [];
+  const porCierre = new Map<string, { fila: FilaTesoreria; items: TesoreriaMovimiento[] }>();
+  for (const m of movs) {
+    const cierreId = m.categoria === 'DEPOSITO_TESORERIA' && !m.anulado ? ((m.metadata ?? {}).cierreId as string | undefined) : undefined;
+    const grupo = cierreId ? porCierre.get(cierreId) : undefined;
+    if (grupo) {
+      grupo.items.push(m);
+      grupo.fila.monto += Number(m.monto);
+      continue;
+    }
+    const fila: FilaTesoreria = { m, monto: Number(m.monto), chips: [], totalBarrido: 0 };
+    filas.push(fila);
+    if (cierreId) porCierre.set(cierreId, { fila, items: [m] });
+  }
+  for (const { fila, items } of porCierre.values()) {
+    // La fila la encabeza la "Recepción de cierre" (la que trae el resumen), y
+    // su monto es lo que entró a la bóveda: lo que fue a un banco no suma acá.
+    const conResumen = items.find((i) => barridoResumen(i).length > 0);
+    if (conResumen) fila.m = conResumen;
+    const aBoveda = items.filter((i) => (i.metadata ?? {}).destino !== 'BANCO');
+    if (aBoveda.length) fila.monto = aBoveda.reduce((t, i) => t + Number(i.monto), 0);
+    const resumen = conResumen ? barridoResumen(conResumen) : [];
+    // Sin resumen (cierres viejos): los chips salen de los propios depósitos.
+    const chips = resumen.length
+      ? resumen
+      : items.length > 1 ? items.map((i) => ({ metodoPago: String(i.metodoPago), monto: Number(i.monto), aBanco: false })) : [];
+    // Un solo método que fue a la bóveda no necesita chip: ya lo dice la fila.
+    fila.chips = chips.length > 1 || chips.some((c) => c.aBanco) ? chips : [];
+    fila.totalBarrido = chips.reduce((t, c) => t + c.monto, 0);
+  }
+  return filas;
+}
+
 export default function TesoreriaPage() {
   const router = useRouter();
   const { sedes } = useEmpresa();
@@ -251,7 +309,7 @@ export default function TesoreriaPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {movimientos.map(m => {
+              {agruparBarridos(movimientos).map(({ m, monto, chips, totalBarrido }) => {
                 const esIngreso = m.tipo === 'INGRESO';
                 const ref = m.venta ?? m.devolucion ?? m.compra ?? m.cotizacion;
                 const origen = cajaOrigen(m);
@@ -265,6 +323,29 @@ export default function TesoreriaPage() {
                         {m.anulado && <span className="text-[9px] font-semibold text-red-500">ANULADO</span>}
                       </div>
                       <p className="mt-0.5 text-xs text-gray-700">{m.descripcion ?? '—'}</p>
+                      {/* El barrido del cierre, por método (como en el app). */}
+                      {chips.length > 0 && (
+                        <div className="mt-1.5">
+                          <div className="flex flex-wrap gap-1.5">
+                            {chips.map((c, i) => (
+                              <span key={`${c.metodoPago}-${i}`}
+                                title={c.aBanco ? 'Fue a una cuenta bancaria' : 'Entró a la bóveda'}
+                                className={`inline-flex items-center gap-1.5 rounded-[6px] bg-white px-2 py-1 text-[10px] ring-1 ${c.aBanco ? 'ring-blue-300' : 'ring-green-300'}`}>
+                                <span className="font-medium text-gray-700">{METODO_PAGO_LABEL[c.metodoPago as MetodoPagoVenta] ?? c.metodoPago}</span>
+                                <span className={`font-medium tabular-nums ${c.aBanco ? 'text-[#004A94]' : 'text-green-700'}`}>+ {fmt(c.monto)}</span>
+                                {c.aBanco && (
+                                  <svg className="h-3 w-3 text-[#004A94]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-label="a banco">
+                                    <path d="M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18" />
+                                  </svg>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                          {chips.some((c) => c.aBanco) && (
+                            <p className="mt-1 text-[10px] text-gray-400">Efectivo → bóveda · digital → bancos</p>
+                          )}
+                        </div>
+                      )}
                       <div className="mt-0.5 flex flex-wrap items-center gap-2">
                         {ref && (
                           <button onClick={() => { if (m.venta) router.push(`/dashboard/ventas/${m.venta.id}`); }}
@@ -273,12 +354,18 @@ export default function TesoreriaPage() {
                         {registrador && <span className="text-[10px] text-gray-400">por {registrador}</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500 hidden md:table-cell">{METODO_PAGO_LABEL[m.metodoPago] ?? m.metodoPago}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-500 hidden md:table-cell">
+                      {chips.length > 1 ? `${chips.length} métodos` : METODO_PAGO_LABEL[m.metodoPago] ?? m.metodoPago}
+                    </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500 hidden lg:table-cell">{fmtFecha(m.fechaMovimiento)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <span className={`text-sm font-bold ${esIngreso ? 'text-green-600' : 'text-red-600'} ${m.anulado ? 'line-through' : ''}`}>
-                        {esIngreso ? '+' : '−'}{fmt(m.monto)}
+                        {esIngreso ? '+' : '−'}{fmt(monto)}
                       </span>
+                      {/* Lo que entró a la bóveda vs. todo lo barrido (con lo que fue a bancos). */}
+                      {chips.length > 0 && Math.abs(totalBarrido - monto) > 0.001 && (
+                        <span className="block text-[10px] text-gray-400">Barrido: {fmt(totalBarrido)}</span>
+                      )}
                     </td>
                   </tr>
                 );
