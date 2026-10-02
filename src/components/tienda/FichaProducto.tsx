@@ -15,6 +15,30 @@ interface Props {
 
 type Pestana = 'descripcion' | 'caracteristicas';
 
+/** La misma tarjeta que la ficha técnica del panel (`FichaTecnicaAtributos`). */
+function SeccionCard({ nombre, cantidad, children }: { nombre: string; cantidad: number; children: React.ReactNode }) {
+  const [abierta, setAbierta] = useState(true);
+  return (
+    <div className="overflow-hidden rounded-lg ring-1 ring-[#cfe0f5]">
+      <button
+        type="button"
+        onClick={() => setAbierta((v) => !v)}
+        aria-expanded={abierta}
+        className="flex w-full items-center justify-between bg-[#eaf2fd] px-4 py-2 text-left transition-colors hover:bg-[#dfeafb]"
+      >
+        <span className="truncate text-sm font-medium text-[#004A94]">{nombre}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="text-xs text-[#7ea6d8]">{cantidad}</span>
+          <svg className={`h-4 w-4 text-[#7ea6d8] transition-transform ${abierta ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+      {abierta && <div className="p-2">{children}</div>}
+    </div>
+  );
+}
+
 /** Descripción y características del producto en una sola ficha con pestañas. */
 export function FichaProducto({ nombre, descripcion, atributos, secciones, colorPrimario }: Props) {
   const pestanas: { id: Pestana; titulo: string }[] = [];
@@ -26,10 +50,10 @@ export function FichaProducto({ nombre, descripcion, atributos, secciones, color
   const activa = pestanas.some((p) => p.id === elegida) ? elegida : pestanas[0].id;
 
   const filas = (lista: Atributo[]) => (
-    <div className="rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+    <div className="rounded-md ring-1 ring-[#cfe0f5] overflow-hidden divide-y divide-[#e6eef8]">
       {lista.map((attr, i) => (
         <div key={`${attr.nombre}-${i}`} className={`flex gap-4 py-2.5 px-4 ${i % 2 === 0 ? 'bg-gray-50/60' : 'bg-white'}`}>
-          <span className="w-1/3 shrink-0 text-sm text-gray-500">{attr.nombre}</span>
+          <span className="w-2/5 shrink-0 text-sm text-gray-500">{attr.nombre}</span>
           <span className="text-sm font-medium text-gray-800">{attr.valor}</span>
         </div>
       ))}
@@ -66,12 +90,11 @@ export function FichaProducto({ nombre, descripcion, atributos, secciones, color
             <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{descripcion}</p>
           </div>
         ) : secciones?.length ? (
-          <div className="max-w-4xl space-y-5">
+          <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {secciones.map((seccion) => (
-              <div key={seccion.nombre}>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">{seccion.nombre}</p>
+              <SeccionCard key={seccion.nombre} nombre={seccion.nombre} cantidad={seccion.atributos.length}>
                 {filas(seccion.atributos)}
-              </div>
+              </SeccionCard>
             ))}
           </div>
         ) : (
