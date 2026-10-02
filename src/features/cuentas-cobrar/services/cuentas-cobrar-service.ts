@@ -220,3 +220,23 @@ export async function anularDepositoCliente(id: string, motivo?: string): Promis
   const res = await apiClient.post(`${BASE}/depositos/${id}/anular`, motivo ? { motivo } : {});
   return res.data;
 }
+
+/** Un cliente con plata depositada que todavía no se aplicó a ninguna venta. */
+export interface ClienteSaldoAFavor {
+  clienteId: string | null;
+  clienteEmpresaId: string | null;
+  tipo: 'PERSONA' | 'EMPRESA';
+  nombre: string;
+  documento: string | null;
+  saldoAFavor: number;
+  /** Lo que todavía debe en ventas a crédito: a eso se le puede repartir. */
+  deuda: number;
+  depositos: number;
+  ultimoDeposito: string | null;
+}
+
+/** Todos los clientes con saldo a favor y el total (para Tesorería). */
+export async function getSaldosAFavor(): Promise<{ total: number; clientes: ClienteSaldoAFavor[] }> {
+  const res = await apiClient.get(`${BASE}/depositos/saldos-a-favor`);
+  return { total: Number(res.data?.total ?? 0), clientes: Array.isArray(res.data?.clientes) ? res.data.clientes : [] };
+}

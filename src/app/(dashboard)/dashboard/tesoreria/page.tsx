@@ -8,6 +8,7 @@ import type { TipoMovimientoCaja, MetodoPagoVenta } from '@/core/types/caja';
 import { METODO_PAGO_LABEL, CATEGORIA_MOVIMIENTO_LABEL } from '@/core/types/caja';
 import * as tesoreriaService from '@/features/tesoreria/services/tesoreria-service';
 import AjusteTesoreriaDialog from '@/features/tesoreria/components/AjusteTesoreriaDialog';
+import { getSaldosAFavor } from '@/features/cuentas-cobrar/services/cuentas-cobrar-service';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 
 const TIPOS: Array<{ value: TipoMovimientoCaja | ''; label: string }> = [
@@ -59,6 +60,17 @@ export default function TesoreriaPage() {
   const [q, setQ] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ajusteOpen, setAjusteOpen] = useState(false);
+
+  // Plata de clientes que ya entró y aún no se aplicó a ninguna venta. Es de
+  // toda la empresa (no por sede). Sin permiso de ventas, la tarjeta no sale.
+  const [saldosAFavor, setSaldosAFavor] = useState<{ total: number; clientes: number } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getSaldosAFavor()
+      .then((r) => { if (vivo) setSaldosAFavor({ total: r.total, clientes: r.clientes.length }); })
+      .catch(() => { /* sin permiso o sin red */ });
+    return () => { vivo = false; };
+  }, []);
 
   // Default sede = primera activa
   useEffect(() => {
@@ -162,7 +174,7 @@ export default function TesoreriaPage() {
 
       {/* Saldos */}
       {resumen && (
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+        <div className={`grid grid-cols-2 gap-2 ${saldosAFavor ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
           <div className="rounded-xl border border-[#437EFF]/30 bg-[#437EFF]/5 p-3">
             <p className="text-lg font-bold text-[#004A94]">{fmt(resumen.saldoTotal)}</p>
             <p className="text-[11px] text-gray-500">Saldo total</p>
@@ -183,6 +195,16 @@ export default function TesoreriaPage() {
             <p className="text-lg font-bold text-red-600">{fmt(resumen.totalEgresos)}</p>
             <p className="text-[11px] text-gray-500">Egresos</p>
           </div>
+          {saldosAFavor && (
+            <Link href="/dashboard/cuentas-cobrar/saldos-a-favor"
+              title="Ver los clientes con saldo a favor"
+              className="rounded-xl border border-amber-300 bg-amber-50 p-3 transition-shadow hover:shadow-md">
+              <p className="text-lg font-bold text-amber-700">{fmt(saldosAFavor.total)}</p>
+              <p className="text-[11px] text-gray-500">
+                Saldos a favor · {saldosAFavor.clientes} {saldosAFavor.clientes === 1 ? 'cliente' : 'clientes'} ›
+              </p>
+            </Link>
+          )}
         </div>
       )}
 
