@@ -148,6 +148,18 @@ export function ComprarPanel({
       if (vals.length === 1) sel[n] = vals[0];
     }
   }
+  // Con la colección elegida, lo que todavía tiene varias opciones arranca en
+  // la que más ofrece (TELA en ALIANZA): así los diseños se ven de una y el
+  // cliente sabe que existen. Es una sugerencia: tocar otra la cambia.
+  if (atrColeccion && coleccion) {
+    for (const n of otros) {
+      if (sel[n]) continue;
+      const vals = unicos(universo.filter((v) => coincide(v, n)).map((v) => valorDe(v, n)));
+      if (vals.length < 2) continue;
+      const cuantas = (val: string) => universo.filter((v) => valorDe(v, n) === val && coincide(v, n)).length;
+      sel[n] = vals.reduce((mejor, val) => (cuantas(val) > cuantas(mejor) ? val : mejor), vals[0]);
+    }
+  }
   const atributos = otros
     .map((n) => {
       const todos = unicos(universo.map((v) => valorDe(v, n)));
