@@ -31,6 +31,8 @@ interface Props {
   colorPrimario: string;
   /** Sin fotos propias, la galería arranca con las de las variantes. */
   productoTieneFotos?: boolean;
+  /** Lo buscado en la tienda ("alianza"): se abre en esa colección. */
+  busquedaInicial?: string;
 }
 
 /**
@@ -56,6 +58,33 @@ const fotoDe = (v: VarianteCompra | undefined): FotoSeleccion | null => {
 const valorDe = (v: VarianteCompra, n: string) => v.atributos.find((a) => a.nombre === n)?.valor?.trim() || undefined;
 const unicos = (xs: (string | undefined)[]) => xs.filter((x, i): x is string => !!x && xs.indexOf(x) === i);
 const numeroDiseno = (d: string) => Number(d.replace(/^\D+/, '')) || 999;
+/** Minúsculas y sin tildes, como el texto de búsqueda del backend. */
+const normalizar = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+/**
+ * Dónde arranca el selector cuando se llegó buscando ("alianza"): una sola
+ * colección que coincide queda elegida; varias ("spider") dejan el buscador
+ * de colecciones con esa palabra.
+ */
+function arranqueDesdeBusqueda(variantes: VarianteCompra[], busqueda?: string) {
+  const vacio = { eleccion: {} as Record<string, string>, busqueda: '' };
+  const palabras = normalizar(busqueda ?? '').split(/\s+/).filter((w) => w.length >= 3);
+  if (!palabras.length) return vacio;
+  const atr = variantes.flatMap((v) => v.atributos).find(esColeccion)?.nombre;
+  if (!atr) return vacio;
+  const nombres = unicos(variantes.filter((v) => v.hayStock).map((v) => valorDe(v, atr)));
+  for (const w of palabras) {
+    const hits = nombres.filter((n) => normalizar(n).includes(w));
+    if (hits.length === 1) return { eleccion: { [atr]: hits[0] }, busqueda: '' };
+    if (hits.length > 1) {
+      // "spiderman azul": la frase entera puede dejar una sola.
+      const exacta = hits.filter((n) => palabras.every((x) => normalizar(n).includes(x)));
+      if (exacta.length === 1) return { eleccion: { [atr]: exacta[0] }, busqueda: '' };
+      return { eleccion: {}, busqueda: w };
+    }
+  }
+  return vacio;
+}
 
 /**
  * Cantidad + "Agregar al carrito" / "Comprar ahora" del detalle.
@@ -69,12 +98,14 @@ const numeroDiseno = (d: string) => Number(d.replace(/^\D+/, '')) || 999;
  */
 export function ComprarPanel({
   productoId, nombre, precio, imagenUrl, hayStock, stockActual, variantes, colorPrimario, productoTieneFotos = true,
+  busquedaInicial,
 }: Props) {
   const { agregar, subdominio } = useSesionTienda();
   const router = useRouter();
   const setSeleccion = useSeleccionVariante()?.setSeleccion;
-  const [eleccion, setEleccion] = useState<Record<string, string>>({});
-  const [busqueda, setBusqueda] = useState('');
+  const [arranque] = useState(() => arranqueDesdeBusqueda(variantes, busquedaInicial));
+  const [eleccion, setEleccion] = useState<Record<string, string>>(arranque.eleccion);
+  const [busqueda, setBusqueda] = useState(arranque.busqueda);
   const [verTodas, setVerTodas] = useState(false);
   const [cantidad, setCantidad] = useState(1);
   const [enviando, setEnviando] = useState<'agregar' | 'comprar' | null>(null);
@@ -262,7 +293,7 @@ export function ComprarPanel({
       >
         {numero}
       </span>
-      <p className="text-sm font-bold text-gray-900">{titulo}</p>
+      <p className="text-sm font-medium text-gray-900">{titulo}</p>
       {extra && <span className="text-xs text-gray-500">{extra}</span>}
     </div>
   );
@@ -316,7 +347,7 @@ export function ComprarPanel({
             ))}
           </div>
           {!verTodas && !q && filtradas.length > COLECCIONES_VISIBLES && (
-            <button type="button" onClick={() => setVerTodas(true)} className="text-sm font-bold" style={{ color: colorPrimario }}>
+            <button type="button" onClick={() => setVerTodas(true)} className="text-sm font-medium" style={{ color: colorPrimario }}>
               Ver las {filtradas.length} {atrColeccion.toLowerCase().endsWith('n') ? 'colecciones' : 'opciones'}
             </button>
           )}

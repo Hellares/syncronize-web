@@ -8,7 +8,13 @@ import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { useSesionTienda } from './compra/SesionTienda';
 import { volarAlCarrito } from './compra/volar-al-carrito';
 
-export function ProductoCard({ producto, subdominio, colors }: { producto: Producto; subdominio: string; colors: TiendaColors }) {
+export function ProductoCard({ producto, subdominio, colors, busqueda }: {
+  producto: Producto;
+  subdominio: string;
+  colors: TiendaColors;
+  /** Lo buscado en la tienda: el detalle abre con esa colección elegida. */
+  busqueda?: string;
+}) {
   const [loading, setLoading] = useState(false);
   const [agregando, setAgregando] = useState(false);
   const fotoRef = useRef<HTMLImageElement>(null);
@@ -22,7 +28,9 @@ export function ProductoCard({ producto, subdominio, colors }: { producto: Produ
   const handleClick = () => {
     if (loading) return;
     setLoading(true);
-    router.push(`/${subdominio}/producto/${producto.id}`);
+    // Encontrado por una variante ("alianza"): el detalle abre en ella.
+    const q = busqueda?.trim();
+    router.push(`/${subdominio}/producto/${producto.id}${q && producto.tieneVariantes ? `?buscar=${encodeURIComponent(q)}` : ''}`);
   };
 
   // Con variantes hay que elegir (talla, color…): el botón lleva al detalle.

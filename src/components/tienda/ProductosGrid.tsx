@@ -189,7 +189,7 @@ export function ProductosGrid({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-[8px] sm:gap-5 px-[2.5px] md:px-0">
           {productos.map((producto) => (
-            <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} colors={colors} />
+            <ProductoCard key={producto.id} producto={producto} subdominio={subdominio} colors={colors} busqueda={busqueda} />
           ))}
         </div>
       )}

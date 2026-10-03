@@ -18,6 +18,8 @@ const SIMILARES = 5;
 
 interface Props {
   params: Promise<{ subdominio: string; id: string }>;
+  /** `buscar`: lo buscado en la tienda ("alianza"), para abrir en esa colección. */
+  searchParams?: Promise<{ buscar?: string | string[] }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -38,8 +40,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ProductoPage({ params }: Props) {
+export default async function ProductoPage({ params, searchParams }: Props) {
   const { subdominio, id } = await params;
+  const { buscar } = (await searchParams) ?? {};
 
   let producto: ProductoDetalle;
   let empresa: Empresa | null = null;
@@ -248,6 +251,7 @@ export default async function ProductoPage({ params }: Props) {
                 variantes={producto.variantes ?? []}
                 colorPrimario={colors.primario}
                 productoTieneFotos={(producto.imagenes?.length ?? 0) > 0}
+                busquedaInicial={typeof buscar === 'string' ? buscar : undefined}
               />
 
               {/* Botones de acción */}
