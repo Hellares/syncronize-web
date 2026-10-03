@@ -15,33 +15,46 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
   /** Lo buscado en la tienda: el detalle abre con esa colección elegida. */
   busqueda?: string;
 }) {
+  // Encontrado por una variante: foto, precio y stock son los de esa
+  // colección, no los del producto genérico.
+  const coin = producto.coincidencia;
+  const p = coin
+    ? {
+      ...producto,
+      imagen: coin.imagen ?? producto.imagen,
+      precio: coin.precio ?? producto.precio,
+      precioOferta: coin.precioOferta ?? undefined,
+      enOferta: coin.enOferta,
+      hayStock: coin.hayStock,
+    }
+    : producto;
   const [loading, setLoading] = useState(false);
   const [agregando, setAgregando] = useState(false);
   const fotoRef = useRef<HTMLImageElement>(null);
   const router = useRouter();
   const { agregar } = useSesionTienda();
-  const precioFinal = producto.enOferta && producto.precioOferta ? producto.precioOferta : producto.precio;
-  const tieneDescuento = producto.enOferta && producto.precioOferta && producto.precio;
-  const descuentoPct = tieneDescuento && producto.precio! > 0
-    ? Math.round((1 - producto.precioOferta! / producto.precio!) * 100) : 0;
+  const precioFinal = p.enOferta && p.precioOferta ? p.precioOferta : p.precio;
+  const tieneDescuento = p.enOferta && p.precioOferta && p.precio;
+  const descuentoPct = tieneDescuento && p.precio! > 0
+    ? Math.round((1 - p.precioOferta! / p.precio!) * 100) : 0;
 
   const handleClick = () => {
     if (loading) return;
     setLoading(true);
     // Encontrado por una variante ("alianza"): el detalle abre en ella.
     const q = busqueda?.trim();
-    router.push(`/${subdominio}/producto/${producto.id}${q && producto.tieneVariantes ? `?buscar=${encodeURIComponent(q)}` : ''}`);
+    router.push(`/${subdominio}/producto/${p.id}${q && p.tieneVariantes ? `?buscar=${encodeURIComponent(q)}` : ''}`);
   };
 
   // Con variantes hay que elegir (talla, color…): el botón lleva al detalle.
   const agregarAlCarrito = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (producto.tieneVariantes) { handleClick(); return; }
+    if (p.tieneVariantes) { handleClick(); return; }
     if (agregando) return;
     // Sin foto vuela el mismo botón "+".
     const origen = fotoRef.current ?? e.currentTarget as HTMLElement;
     setAgregando(true);
-    const ok = await agregar(producto.id, null, 1, { nombre: producto.nombre, precio: precioFinal ?? 0, imagenUrl: producto.imagen });
+    const ok = await agregar(p.id, null, 1, { nombre: p.nombre, precio: precioFinal ?? 0, imagenUrl: p.imagen });
     setAgregando(false);
     if (ok) volarAlCarrito(origen);
   };
@@ -51,10 +64,10 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
   // en el servidor y el HTML tiene que coincidir con el del cliente.
   const consultarPorWhatsapp = (e: React.MouseEvent) => {
     e.stopPropagation(); // la tarjeta entera navega al detalle
-    const url = `${window.location.origin}/${subdominio}/producto/${producto.id}`;
+    const url = `${window.location.origin}/${subdominio}/producto/${p.id}`;
     const link = enlaceChatWhatsapp(
-      producto.empresa?.telefono,
-      `Hola ${producto.empresa?.nombre ?? ''}, quisiera consultar por este producto que figura sin stock:\n\n*${producto.nombre}*\n${url}`,
+      p.empresa?.telefono,
+      `Hola ${p.empresa?.nombre ?? ''}, quisiera consultar por este producto que figura sin stock:\n\n*${p.nombre}*\n${url}`,
     );
     if (link) window.open(link, '_blank', 'noopener,noreferrer');
     else handleClick(); // sin teléfono: al menos el detalle
@@ -93,11 +106,11 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
 
         {/* Imagen */}
         <div className="relative aspect-square md:aspect-[4/3] bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-hidden border-b border-gray-100">
-          {producto.imagen ? (
+          {p.imagen ? (
             <img
               ref={fotoRef}
-              src={producto.imagen}
-              alt={producto.nombre}
+              src={p.imagen}
+              alt={p.nombre}
               className="w-full h-full object-contain p-2 md:p-4 group-hover:scale-110 transition-transform duration-500 ease-out"
             />
           ) : (
@@ -117,7 +130,7 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
               </span>
             ) : <span />}
 
-            {producto.hayStock && producto.enOferta && (
+            {p.hayStock && p.enOferta && (
               <span className="bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[7px] md:text-[9px] font-bold px-1.5 md:px-2 py-0.5 rounded-md shadow-md">
                 OFERTA
               </span>
@@ -136,12 +149,13 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
             <div>
               {precioFinal != null ? (
                 <div className="flex items-baseline gap-1 md:gap-2">
+                  {coin?.varia && <span className="text-[8px] md:text-[11px] font-medium text-gray-500">desde</span>}
                   <span className={`text-[10px] md:text-lg font-extrabold tracking-tight whitespace-nowrap ${tieneDescuento ? 'text-green-600' : 'text-gray-900'}`}>
                     S/ {precioFinal.toFixed(2)}
                   </span>
                   {tieneDescuento && (
                     <span className="text-[8px] md:text-[11px] text-gray-400 line-through font-medium">
-                      S/ {producto.precio!.toFixed(2)}
+                      S/ {p.precio!.toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -150,13 +164,13 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
               )}
             </div>
 
-            {producto.hayStock && precioFinal != null && (
+            {p.hayStock && precioFinal != null && (
               <button
                 type="button"
                 onClick={agregarAlCarrito}
                 disabled={agregando}
-                aria-label={producto.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
-                title={producto.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
+                aria-label={p.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
+                title={p.tieneVariantes ? 'Elegir opciones' : 'Agregar al carrito'}
                 className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full text-white flex items-center justify-center shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: colors.primario }}
               >
@@ -166,7 +180,7 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
               </button>
             )}
 
-            {!producto.hayStock && (
+            {!p.hayStock && (
               <button
                 type="button"
                 onClick={consultarPorWhatsapp}
@@ -182,30 +196,35 @@ export function ProductoCard({ producto, subdominio, colors, busqueda }: {
           </div>
 
           {/* Estrellas */}
-          {producto.calificacion != null && producto.totalOpiniones! > 0 && (
+          {p.calificacion != null && p.totalOpiniones! > 0 && (
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="flex gap-px">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <svg key={i} className={`w-3.5 h-3.5 ${i <= producto.calificacion! ? 'text-amber-400 drop-shadow-sm' : 'text-gray-200'}`}
+                  <svg key={i} className={`w-3.5 h-3.5 ${i <= p.calificacion! ? 'text-amber-400 drop-shadow-sm' : 'text-gray-200'}`}
                     fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
                 ))}
               </div>
-              <span className="text-[10px] text-gray-400 font-medium">({producto.totalOpiniones})</span>
+              <span className="text-[10px] text-gray-400 font-medium">({p.totalOpiniones})</span>
             </div>
           )}
 
           {/* Nombre */}
           <h3 className="text-[9px] md:text-[13px] text-gray-800 line-clamp-2 leading-tight font-medium transition-colors flex-1 mt-0.5 product-title">
-            {producto.nombre}
+            {coin ? coin.titulo : p.nombre}
           </h3>
+          {coin && (
+            <p className="text-[8px] md:text-[11px] text-gray-500 leading-tight line-clamp-1">
+              {p.nombre}{coin.variantes > 1 ? ` · ${coin.variantes} opciones` : ''}
+            </p>
+          )}
 
           {/* La dirección no se repite en cada tarjeta: está en el panel de Ubicación de la tienda. */}
-          {producto.distancia != null && (
+          {p.distancia != null && (
             <div className="flex justify-end mt-auto pt-1 md:pt-2">
               <span className="text-[10px] text-emerald-600 font-bold whitespace-nowrap bg-emerald-50 px-1.5 py-0.5 rounded">
-                {producto.distancia < 1 ? `${Math.round(producto.distancia * 1000)}m` : `${producto.distancia.toFixed(1)}km`}
+                {p.distancia < 1 ? `${Math.round(p.distancia * 1000)}m` : `${p.distancia.toFixed(1)}km`}
               </span>
             </div>
           )}

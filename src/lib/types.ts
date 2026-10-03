@@ -73,6 +73,21 @@ export interface Producto {
   /** El precio y el stock viven en las variantes: se elige en el detalle. */
   tieneVariantes?: boolean;
   imagen?: string;
+  /**
+   * Encontrado por una VARIANTE ("cristal" → EDREDONES): la card muestra esa
+   * colección. Solo viene en un listado con búsqueda.
+   */
+  coincidencia?: {
+    titulo: string;
+    variantes: number;
+    imagen: string | null;
+    precio: number | null;
+    precioOferta: number | null;
+    enOferta: boolean;
+    /** Los precios de lo encontrado varían: va "desde". */
+    varia: boolean;
+    hayStock: boolean;
+  };
   calificacion?: number;
   totalOpiniones?: number;
   distancia?: number;
