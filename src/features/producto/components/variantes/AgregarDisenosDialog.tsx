@@ -44,6 +44,9 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
   const [sedeId, setSedeId] = useState(sedeInicial);
   const [ingresarAhora, setIngresarAhora] = useState(false);
   const [costo, setCosto] = useState('');
+  // Precio de venta: arranca con el de la colección; un diseño exclusivo puede
+  // venderse más caro.
+  const [precio, setPrecio] = useState('');
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +67,7 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
         setCantidades(Object.fromEntries(fs.map((f) => [f.id, 1])));
         const sede = c.sedes.some((s) => s.sedeId === sedeInicial) ? sedeInicial : (c.sedes[0]?.sedeId ?? sedeInicial);
         setSedeId(sede);
-        const sug = c.sedes.find((s) => s.sedeId === sede)?.precioCosto;
-        setCosto(sug != null && sug > 0 ? sug.toFixed(2) : '');
+        sugerir(c, sede);
       })
       .catch((e) => {
         if (cancelado) return;
@@ -75,6 +77,13 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
       .finally(() => { if (!cancelado) setCargando(false); });
     return () => { cancelado = true; };
   }, [varianteId, sedeInicial]);
+
+  /** Costo y precio de venta de la colección en la sede: lo sugerido. */
+  const sugerir = (c: ColeccionDiseno, sede: string) => {
+    const s = c.sedes.find((x) => x.sedeId === sede);
+    setCosto(s?.precioCosto != null && s.precioCosto > 0 ? s.precioCosto.toFixed(2) : '');
+    setPrecio(s?.precioVenta != null && s.precioVenta > 0 ? s.precioVenta.toFixed(2) : '');
+  };
 
   /** Fotos subidas o quitadas en el uploader: las nuevas arrancan elegidas. */
   const recibirFotos = (lista: Foto[]) => {
@@ -92,6 +101,8 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
   const disenos = fotos.filter((f) => elegidas.has(f.id));
   const costoNum = Number(costo.replace(',', '.'));
   const costoValido = costo.trim() !== '' && Number.isFinite(costoNum) && costoNum >= 0;
+  const precioNum = Number(precio.replace(',', '.'));
+  const precioValido = precio.trim() !== '' && Number.isFinite(precioNum) && precioNum >= 0;
 
   const rango = (() => {
     const sig = coleccion?.siguienteDiseno ?? 'D1';
@@ -116,6 +127,7 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
           archivoId: f.id,
           cantidad: ingresarAhora ? (cantidades[f.id] ?? 1) : 0,
           ...(ingresarAhora && costoValido ? { costoUnitario: costoNum } : {}),
+          ...(ingresarAhora && precioValido ? { precioVenta: precioNum } : {}),
         })),
       });
       setResultado(r.disenos);
@@ -189,8 +201,7 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
                   value={sedeId}
                   onChange={(e) => {
                     setSedeId(e.target.value);
-                    const sug = coleccion.sedes.find((s) => s.sedeId === e.target.value)?.precioCosto;
-                    setCosto(sug != null && sug > 0 ? sug.toFixed(2) : '');
+                    sugerir(coleccion, e.target.value);
                   }}
                   className="h-[30px] rounded-[6px] bg-zinc-100 px-2 text-xs text-[#004A94] ring-1 ring-blue-400 outline-none"
                 >
@@ -261,17 +272,33 @@ export default function AgregarDisenosDialog({ varianteId, titulo, empresaId, se
                   {opcion(true, 'Ingresar stock ahora', 'Entrada de inventario con su costo (sin compra).')}
                 </div>
                 {ingresarAhora && (
-                  <label className="mt-3 block text-xs text-gray-600">
-                    Costo unitario (S/)
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={costo}
-                      onChange={(e) => setCosto(e.target.value.replace(/[^\d.,]/g, ''))}
-                      className="mt-1 block h-[30px] w-40 rounded-[6px] bg-zinc-100 px-2 text-xs text-[#004A94] ring-1 ring-blue-400 outline-none"
-                    />
-                    <span className="mt-1 block text-[11px] text-gray-400">Sugerido: el costo actual de la colección.</span>
-                  </label>
+                  <div className="mt-3">
+                    <div className="flex flex-wrap gap-3">
+                      <label className="block text-xs text-gray-600">
+                        Costo unitario (S/)
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={costo}
+                          onChange={(e) => setCosto(e.target.value.replace(/[^\d.,]/g, ''))}
+                          className="mt-1 block h-[30px] w-40 rounded-[6px] bg-zinc-100 px-2 text-xs text-[#004A94] ring-1 ring-blue-400 outline-none"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Precio de venta (S/)
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={precio}
+                          onChange={(e) => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
+                          className="mt-1 block h-[30px] w-40 rounded-[6px] bg-zinc-100 px-2 text-xs text-[#004A94] ring-1 ring-blue-400 outline-none"
+                        />
+                      </label>
+                    </div>
+                    <span className="mt-1 block text-[11px] text-gray-400">
+                      Sugeridos: los de la colección. El precio aplica a los diseños de este ingreso.
+                    </span>
+                  </div>
                 )}
               </>
             )}

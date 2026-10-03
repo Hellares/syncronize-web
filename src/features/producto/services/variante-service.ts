@@ -112,7 +112,7 @@ export interface ColeccionDiseno {
   disenos: { id: string; nombre: string; isActive: boolean; diseno: string | null }[];
   /** Cómo se va a llamar el próximo: "D4". */
   siguienteDiseno: string;
-  sedes: { sedeId: string; sedeNombre: string; precioCosto: number | null }[];
+  sedes: { sedeId: string; sedeNombre: string; precioCosto: number | null; precioVenta: number | null }[];
 }
 
 /** La colección de una variante (cualquiera de sus diseños o la base). */
@@ -129,7 +129,7 @@ export async function getColeccionDiseno(varianteId: string): Promise<ColeccionD
  */
 export async function agregarDisenos(
   varianteId: string,
-  data: { sedeId: string; disenos: { archivoId: string; cantidad: number; costoUnitario?: number }[] },
+  data: { sedeId: string; disenos: { archivoId: string; cantidad: number; costoUnitario?: number; precioVenta?: number }[] },
 ): Promise<{ disenos: { id: string; nombre: string; cantidad: number }[] }> {
   const res = await apiClient.post<{ disenos: { id: string; nombre: string; cantidad: number }[] }>(
     `${PRODUCTO_ENDPOINTS.VARIANTE(varianteId)}/agregar-disenos`,
