@@ -250,7 +250,23 @@ export default function VarianteTable({ variantes, presentacionProducto, ejes, c
     const ejeDiseno = primero.atributosValores.find((a) => a.atributo.clave === CLAVE_ATRIBUTO_DISENO)?.atributo.nombre;
     const stock = disenos.reduce((s, d) => s + stockTotal(d), 0);
     const stockTexto = presentacionDeVariante(primero, presentacionProducto).cantidadTexto(stock);
-    const precio = precioDe(primero, presentacionProducto);
+    // Un diseño puede costar más (uno exclusivo): con precios distintos se
+    // muestra "desde" el más bajo, como el buscador de la venta.
+    const precios = disenos
+      .map((d) => {
+        const filaPrecio = d.stocksPorSede?.find((s) => s.precioConfigurado);
+        const ef = filaPrecio ? infoPrecioEfectivo(filaPrecio) : null;
+        return ef != null ? Number(ef) : null;
+      })
+      .filter((p): p is number => p != null);
+    const minimo = precios.length ? Math.min(...precios) : null;
+    const variados = precios.some((p) => Math.abs(p - (minimo ?? p)) > 0.0001);
+    const precio = minimo == null
+      ? precioDe(primero, presentacionProducto)
+      : {
+          texto: `${variados ? 'desde ' : ''}${presentacionDeVariante(primero, presentacionProducto).precioTexto(minimo)}`,
+          sinPrecio: false,
+        };
     const visibles = disenos.slice(0, 8);
     return (
       <tr
