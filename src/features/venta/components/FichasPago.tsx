@@ -92,7 +92,7 @@ export default function FichasPago({ fichas, activa, numpadVisible, onActivar, o
             type="button"
             onClick={() => setMenuAbierto(v => !v)}
             onBlur={() => setTimeout(() => setMenuAbierto(false), 150)}
-            className="flex h-[68px] w-full flex-col items-center justify-center gap-0.5 rounded-[6px] border-[0.5px] border-[#81B3E6] text-xs font-semibold text-[#004A94] transition-colors hover:bg-[#004A94]/5"
+            className="flex h-[68px] w-full flex-col items-center justify-center gap-0.5 rounded-[6px] border-[0.5px] border-[#81B3E6] text-xs font-medium text-[#004A94] transition-colors hover:bg-[#004A94]/5"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
             Otro método
@@ -157,7 +157,7 @@ function Ficha({ ficha, seleccionada, numpadVisible, onActivar, onCambiar, onQui
         {estilo.logo ? (
           <img src={estilo.logo} alt={estilo.label} className={ficha.metodo === 'YAPE' ? 'h-[26px] w-auto' : 'h-[22px] w-auto'} />
         ) : (
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold" style={{ color: estilo.color }}>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-medium" style={{ color: estilo.color }}>
             <IconoMetodo metodo={ficha.metodo} />
             <span className="truncate">{estilo.label}</span>
           </span>
