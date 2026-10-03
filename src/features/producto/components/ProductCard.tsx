@@ -8,6 +8,8 @@
 import type { Producto, StockPorSedeInfo } from '@/core/types/producto';
 import { infoPrecioEfectivo, infoLiquidacionActiva } from '@/core/types/producto';
 import { presentacionPlana } from '@/core/utils/unidad-presentacion';
+import type { CoincidenciaVariantes } from './busqueda-variantes';
+import { precioDeCoincidencia, stockDeCoincidencia } from './busqueda-variantes';
 
 /**
  * Shell del <button> contenedor, SIN color de borde.
@@ -39,15 +41,25 @@ interface Props {
   sedeId: string;
   /** Color de acento (VR #437EFF, cotización #004A94). */
   accent?: string;
+  /**
+   * Apareció en la búsqueda por una VARIANTE ("cristal"): la card habla de
+   * ESAS variantes —título CRISTAL, su stock, su foto, precio "desde"— y el
+   * nombre del producto pasa a la línea chica de arriba.
+   */
+  coincidencia?: CoincidenciaVariantes | null;
 }
 
-export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }: Props) {
+export default function ProductCard({ producto: p, sedeId, accent = '#004A94', coincidencia: coin = null }: Props) {
   const stock: StockPorSedeInfo | null = (p.stocksPorSede ?? []).find(s => s.sedeId === sedeId) ?? p.stocksPorSede?.[0] ?? null;
-  const precio = p.tieneVariantes ? null : stock ? infoPrecioEfectivo(stock) : null;
-  const enLiq = stock ? infoLiquidacionActiva(stock) : false;
-  const img = imgUrl(p);
-  const sinStock = !p.tieneVariantes && !p.esCombo && (stock?.cantidad ?? 0) <= 0;
-  const marca = p.marca?.nombre;
+  const precioCoin = coin ? precioDeCoincidencia(coin, sedeId) : null;
+  const stockCoin = coin ? stockDeCoincidencia(coin, sedeId) : null;
+  const precio = coin ? precioCoin!.minimo : p.tieneVariantes ? null : stock ? infoPrecioEfectivo(stock) : null;
+  const enLiq = !coin && stock ? infoLiquidacionActiva(stock) : false;
+  const img = coin
+    ? (coin.variantes.map((v) => imgUrl(v)).find(Boolean) ?? imgUrl(p))
+    : imgUrl(p);
+  const sinStock = coin ? stockCoin! <= 0 : !p.tieneVariantes && !p.esCombo && (stock?.cantidad ?? 0) <= 0;
+  const marca = coin ? p.nombre : p.marca?.nombre;
   const priceColor = enLiq ? '#dc2626' : accent;
   // Un granel se guarda en gramos: sin convertir, la tarjeta decía "S/ 0.01"
   // y "×28000" en vez de "S/ 11.00/kg" y "28 kg". Sin presentación el factor
@@ -80,7 +92,11 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
             {p.esCombo && <span className="rounded-md bg-purple-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm">📦 COMBO</span>}
             {enLiq && <span className="rounded-md bg-red-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm">LIQ</span>}
           </div>
-          {!p.tieneVariantes && (
+          {coin ? (
+            <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[8px] font-bold shadow-sm ${sinStock ? 'bg-red-600/90 text-white' : 'bg-white/90 text-gray-600'}`}>
+              {sinStock ? 'SIN STOCK' : `×${stockCoin}`}
+            </span>
+          ) : !p.tieneVariantes && (
             <span className={`absolute right-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[8px] font-bold shadow-sm ${sinStock ? 'bg-red-600/90 text-white' : 'bg-white/90 text-gray-600'}`}>
               {sinStock ? 'SIN STOCK' : pres.activa ? pres.cantidadTexto(stock?.cantidad ?? 0) : `×${stock?.cantidad ?? 0}`}
             </span>
@@ -89,6 +105,7 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
         {/* Price tag flotante (asoma bajo la imagen) */}
         {precio != null && (
           <span className="absolute -bottom-2 right-1.5 z-10 rounded-lg rounded-b-2xl bg-white px-1.5 py-0.5 text-[11px] font-extrabold shadow-[0_2px_10px_rgba(0,0,0,0.15)]" style={{ color: priceColor }}>
+            {precioCoin?.variado && <span className="text-[9px] font-bold">desde </span>}
             S/ {fmt(pres.precio(Number(precio)))}
             {pres.activa && <span className="text-[9px] font-bold">/{pres.simbolo}</span>}
           </span>
@@ -104,9 +121,13 @@ export default function ProductCard({ producto: p, sedeId, accent = '#004A94' }:
           otras dos. Así la tarjeta mide lo mismo SIEMPRE. */}
       <div className="px-1.5 pb-1 pt-3">
         <p className="h-3 truncate text-[9px] font-bold uppercase leading-3 tracking-wide text-gray-400">{marca ?? ''}</p>
-        <p className="line-clamp-2 text-[11px] font-medium leading-tight text-gray-800 min-h-[1.8rem]">{p.nombre}</p>
+        <p className="line-clamp-2 text-[11px] font-medium leading-tight text-gray-800 min-h-[1.8rem]">{coin ? coin.valor : p.nombre}</p>
         <div className="mt-0.5 flex h-[18px] items-center">
-          {p.tieneVariantes ? (
+          {coin ? (
+            <span className="inline-block rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+              {coin.colecciones > 1 ? `${coin.colecciones} colecciones →` : 'Ver diseños →'}
+            </span>
+          ) : p.tieneVariantes ? (
             <span className="inline-block rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 ring-1 ring-blue-200">Variantes →</span>
           ) : p.esCombo && precio == null ? (
             <p className="text-[11px] font-bold text-purple-700">Calculado</p>

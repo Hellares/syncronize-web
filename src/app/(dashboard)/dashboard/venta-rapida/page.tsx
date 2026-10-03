@@ -21,6 +21,7 @@ import VenderCompraSheet, { type LineaDeCompra } from '@/features/venta/componen
 import SelectorLoteDialog from '@/features/venta/components/SelectorLoteDialog';
 import CobroPanel from '@/features/venta/components/CobroPanel';
 import VarianteSelector from '@/features/producto/components/VarianteSelector';
+import { coincidenciaPorVariantes } from '@/features/producto/components/busqueda-variantes';
 import ProductCard, { PRODUCT_CARD_BASE } from '@/features/producto/components/ProductCard';
 import { useEmpresa, usePermissions } from '@/features/empresa/context/empresa-context';
 import AutorizacionDialog from '@/features/stock/components/AutorizacionDialog';
@@ -131,6 +132,9 @@ function VentaRapidaInner() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [searching, setSearching] = useState(false);
   const [variantePicker, setVariantePicker] = useState<Producto | null>(null);
+  // Producto encontrado por una variante ("cristal"): el selector abre ya
+  // filtrado con esto y muestra de una la colección con sus diseños.
+  const [pickerBusqueda, setPickerBusqueda] = useState<string | undefined>(undefined);
 
   // --- Alta rápida: crear el producto sin salir del mostrador ---
   // Se abre cuando la búsqueda no encuentra nada y el usuario tiene el
@@ -415,6 +419,7 @@ function VentaRapidaInner() {
       return;
     }
     if (p.tieneVariantes) {
+      setPickerBusqueda(coincidenciaPorVariantes(p, grillaQueryRef.current ?? '')?.consulta);
       if (!p.variantes?.length) {
         try { setVariantePicker(await productoService.getProducto(p.id)); } catch { /* ignore */ }
       } else {
@@ -1584,7 +1589,8 @@ function VentaRapidaInner() {
               // usan la lista de productos y la tabla.
               <button key={p.id} onClick={() => handlePick(p)}
                 className={`${PRODUCT_CARD_BASE} rounded-tr-[1.85rem] border-[#d1e5ff]`}>
-                <ProductCard producto={p} sedeId={sedeId} accent="#437EFF" />
+                <ProductCard producto={p} sedeId={sedeId} accent="#437EFF"
+                  coincidencia={grillaQueryRef.current ? coincidenciaPorVariantes(p, grillaQueryRef.current) : null} />
               </button>
             ))}
             {!searching && productos.length === 0 && (
@@ -2088,6 +2094,7 @@ function VentaRapidaInner() {
           varias, y cerrar obligaba a reabrir y volver a buscar desde cero. */}
       {variantePicker && (
         <VarianteSelector producto={variantePicker} sedeId={sedeId} accent="#437EFF"
+          busquedaInicial={pickerBusqueda}
           cantidadesEnCarrito={cantidadesPorVariante}
           onClose={() => setVariantePicker(null)}
           onConfirm={(v, c) => { addItem(variantePicker, v.id, v.nombre, c); }} />

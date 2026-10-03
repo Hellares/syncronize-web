@@ -203,10 +203,15 @@ interface Props {
    * esto se podría vender dos veces la misma unidad.
    */
   cantidadesEnCarrito?: Record<string, number>;
+  /**
+   * El producto se encontró por una variante ("cristal"): el buscador del
+   * diálogo arranca con eso y muestra de una la colección con sus diseños.
+   */
+  busquedaInicial?: string;
 }
 
 export default function VarianteSelector({
-  producto, sedeId, onConfirm, onClose, accent = '#437EFF', cantidadesEnCarrito = {},
+  producto, sedeId, onConfirm, onClose, accent = '#437EFF', cantidadesEnCarrito = {}, busquedaInicial,
 }: Props) {
   const variantes = useMemo(() => (producto.variantes ?? []).filter((v) => v.isActive !== false), [producto]);
   const grupos = useMemo(() => derivarGrupos(variantes), [variantes]);
@@ -214,7 +219,7 @@ export default function VarianteSelector({
   // Se siembra una vez y se acumula en cada agregado; el padre re-renderiza
   // después, así que leer su mapa en cada tecla llegaría tarde.
   const [enCarrito, setEnCarrito] = useState<Record<string, number>>(() => ({ ...cantidadesEnCarrito }));
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(busquedaInicial?.trim() ?? '');
   const [grupoExpandido, setGrupoExpandido] = useState<string | null>(null);
   const [ultimoAgregado, setUltimoAgregado] = useState<string | null>(null);
   const [granelTexto, setGranelTexto] = useState('');
