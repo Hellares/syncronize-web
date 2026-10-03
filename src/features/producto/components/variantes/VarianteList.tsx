@@ -19,6 +19,8 @@ import VarianteDetailDialog from './VarianteDetailDialog';
 import ProductoImagenesDialog from '../ProductoImagenesDialog';
 import SepararPorDisenoDialog, { CLAVE_ATRIBUTO_DISENO, esDiseno } from './SepararPorDisenoDialog';
 import AgregarDisenosDialog from './AgregarDisenosDialog';
+import NuevaColeccionPlantillaDialog from './NuevaColeccionPlantillaDialog';
+import PlantillasVariantesDialog from './PlantillasVariantesDialog';
 import { tituloColeccion } from './coleccion-disenos';
 
 interface Props {
@@ -86,6 +88,12 @@ export default function VarianteList({
   // Diseños nuevos para la colección de esta variante (D4, D5…).
   const [agregarDisenosDe, setAgregarDisenosDe] = useState<ProductoVariante | null>(null);
   const [detailVariante, setDetailVariante] = useState<ProductoVariante | null>(null);
+  // Plantillas de VARIANTES: colección nueva de una vez ("Edredones" +
+  // DINOSAURIO) y su gestión. La key remonta "Nueva colección" al volver de
+  // la gestión, para que recargue las plantillas.
+  const [nuevaColeccionOpen, setNuevaColeccionOpen] = useState(false);
+  const [nuevaColeccionKey, setNuevaColeccionKey] = useState(0);
+  const [plantillasOpen, setPlantillasOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProductoVariante | null>(null);
   /**
    * Buscador + filtro numerico, el MISMO que usan la edicion masiva y el
@@ -271,6 +279,23 @@ export default function VarianteList({
           </Link>
           {canManage && (
             <>
+              <button
+                onClick={() => setPlantillasOpen(true)}
+                title="Plantillas de variantes (Edredones, Peluches…)"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+              >
+                Plantillas
+              </button>
+              <button
+                onClick={() => setNuevaColeccionOpen(true)}
+                title="Crear una colección nueva (ej. DINOSAURIO) desde una plantilla"
+                className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+              >
+                <svg className="mr-1 inline h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3l1.9 5.8H20l-4.9 3.6 1.9 5.8-5-3.6-5 3.6 1.9-5.8L4 8.8h6.1z" />
+                </svg>
+                Nueva colección
+              </button>
               <button
                 onClick={() => setGenerarOpen(true)}
                 className="rounded-lg border border-[#437EFF] px-3 py-1.5 text-xs font-medium text-[#437EFF] hover:bg-[#437EFF]/5"
@@ -547,6 +572,30 @@ export default function VarianteList({
           sedeId={sedeId}
           onClose={() => setAgregarDisenosDe(null)}
           onChanged={() => loadVariantes()}
+        />
+      )}
+
+      {nuevaColeccionOpen && (
+        <NuevaColeccionPlantillaDialog
+          key={nuevaColeccionKey}
+          productoId={productoId}
+          productoNombre={productoNombre}
+          onGestionarPlantillas={() => setPlantillasOpen(true)}
+          onClose={() => setNuevaColeccionOpen(false)}
+          onChanged={() => loadVariantes()}
+        />
+      )}
+
+      {plantillasOpen && (
+        <PlantillasVariantesDialog
+          productoId={productoId}
+          productoNombre={productoNombre}
+          variantes={variantes}
+          atributos={atributosDisponibles}
+          onClose={() => {
+            setPlantillasOpen(false);
+            setNuevaColeccionKey((k) => k + 1);
+          }}
         />
       )}
 
