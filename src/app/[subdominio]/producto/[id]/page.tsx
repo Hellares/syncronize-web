@@ -7,6 +7,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { enlaceChatWhatsapp } from '@/core/utils/telefono';
 import { ComprarPanel } from '@/components/tienda/compra/ComprarPanel';
+import { SeleccionVarianteProvider } from '@/components/tienda/compra/seleccion-variante';
+import { PrecioVivo } from '@/components/tienda/compra/PrecioVivo';
 import { BotonCarrito } from '@/components/tienda/compra/CarritoYCuenta';
 import { logoTienda } from '@/lib/tienda';
 import { ImageGallery } from '@/components/tienda/ImageGallery';
@@ -155,6 +157,8 @@ export default async function ProductoPage({ params }: Props) {
       <main className="relative z-10 w-full max-w-[1320px] mx-auto px-4 sm:px-6 pb-8 flex-1">
         {/* Product card principal */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+          {/* La elección de variante cambia la galería y el precio en vivo. */}
+          <SeleccionVarianteProvider>
           <div className="grid grid-cols-1 md:grid-cols-[5fr_6fr]">
             {/* Galería */}
             <div className="p-4 md:p-6 border-b md:border-b-0 md:border-r border-gray-100">
@@ -211,6 +215,7 @@ export default async function ProductoPage({ params }: Props) {
 
               {/* Precio */}
               <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: lighten(colors.primario, 0.95) }}>
+                <PrecioVivo>
                 {tieneDescuento && (
                   <p className="text-sm text-gray-400 line-through">S/ {producto.precio!.toFixed(2)}</p>
                 )}
@@ -228,6 +233,7 @@ export default async function ProductoPage({ params }: Props) {
                 ) : (
                   <span className="text-xl font-semibold" style={{ color: colors.primario }}>Consultar precio</span>
                 )}
+                </PrecioVivo>
               </div>
 
 
@@ -241,6 +247,7 @@ export default async function ProductoPage({ params }: Props) {
                 stockActual={producto.stockActual}
                 variantes={producto.variantes ?? []}
                 colorPrimario={colors.primario}
+                productoTieneFotos={(producto.imagenes?.length ?? 0) > 0}
               />
 
               {/* Botones de acción */}
@@ -273,6 +280,7 @@ export default async function ProductoPage({ params }: Props) {
               </div>
             </div>
           </div>
+          </SeleccionVarianteProvider>
         </div>
 
         {/* Descripción y características: una ficha con pestañas. Las secciones

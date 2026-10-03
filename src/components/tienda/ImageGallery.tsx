@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { TiendaColors, DEFAULT_COLORS } from '@/lib/colors';
 import { detectVideoType, getYoutubeEmbedUrl, getVimeoEmbedUrl } from '@/lib/video';
+import { useSeleccionVariante } from './compra/seleccion-variante';
 
 interface MediaItem {
   id: string;
@@ -71,14 +72,34 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
     setZoom(false);
   };
 
+  // Lo que se está eligiendo en el selector de variantes manda: la colección,
+  // y después el diseño, reemplazan las fotos del producto.
+  const seleccion = useSeleccionVariante()?.seleccion;
+  const fotosSeleccion = seleccion?.fotos?.length ? seleccion.fotos : null;
+
   // Construir array de media: video primero, luego imágenes
   const media: MediaItem[] = [];
-  if (videoUrl) {
-    media.push({ id: 'video-main', url: videoUrl, type: 'video' });
+  if (fotosSeleccion) {
+    fotosSeleccion.forEach((f, i) => {
+      media.push({ id: `sel-${i}-${f.url}`, url: f.url, thumbnail: f.thumbnail ?? undefined, type: 'image' });
+    });
+  } else {
+    if (videoUrl) {
+      media.push({ id: 'video-main', url: videoUrl, type: 'video' });
+    }
+    imagenes.forEach((img) => {
+      media.push({ id: img.id, url: img.url, thumbnail: img.thumbnail, type: 'image' });
+    });
   }
-  imagenes.forEach((img) => {
-    media.push({ id: img.id, url: img.url, thumbnail: img.thumbnail, type: 'image' });
-  });
+
+  // Al cambiar la selección, la foto grande va a la elegida (o a la primera).
+  const claveSeleccion = `${fotosSeleccion?.map((f) => f.url).join('|') ?? ''}#${seleccion?.fotoActiva ?? ''}`;
+  const [claveVista, setClaveVista] = useState(claveSeleccion);
+  if (claveVista !== claveSeleccion) {
+    setClaveVista(claveSeleccion);
+    const i = seleccion?.fotoActiva ? media.findIndex((m) => m.url === seleccion.fotoActiva) : -1;
+    setActiveIndex(i >= 0 ? i : 0);
+  }
 
   if (media.length === 0) {
     return (
@@ -91,7 +112,7 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
   }
 
   const totalItems = media.length;
-  const current = media[activeIndex];
+  const current = media[Math.min(activeIndex, totalItems - 1)];
 
   return (
     // En escritorio las miniaturas van en columna a la IZQUIERDA de la foto
@@ -111,6 +132,12 @@ export function ImageGallery({ imagenes, nombre, colors = DEFAULT_COLORS, videoU
             className="w-full h-full object-contain transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
             style={{ transform: zoom ? `scale(${ZOOM_ESCALA})` : 'scale(1)' }}
           />
+        )}
+
+        {seleccion?.etiqueta && (
+          <span className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-gray-900/75 px-3 py-1 text-xs font-semibold text-white">
+            {seleccion.etiqueta}
+          </span>
         )}
 
         {/* Flechas */}
