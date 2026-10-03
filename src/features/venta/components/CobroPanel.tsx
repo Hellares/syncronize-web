@@ -16,10 +16,9 @@ import ClienteEmpresaFormDialog from '@/features/clientes/components/ClienteEmpr
 import EvidenciaVentaCard from './EvidenciaVentaCard';
 import CobroYapeModal, { tramosPorMetodo, type TramoYape } from './CobroYapeModal';
 import Numpad from './Numpad';
+import FichasPago, { montoDeFicha, nombreMetodo, type FichaPagoState } from './FichasPago';
 import { numpadAbierto, numpadDelServer, suscribirNumpad, guardarNumpad } from './preferencia-numpad';
 
-const METODOS = ['EFECTIVO', 'YAPE', 'TARJETA', 'PLIN', 'TRANSFERENCIA'] as const;
-const METODOS_DIGITALES = ['YAPE', 'PLIN', 'TARJETA', 'TRANSFERENCIA'];
 const REQUIEREN_BANCO = ['TARJETA', 'TRANSFERENCIA'];
 const TOLERANCIA = 0.005;
 const ROLES_AUTORIZADORES = ['SUPER_ADMIN', 'EMPRESA_ADMIN', 'GERENTE_SEDE', 'ADMINISTRADOR', 'SUPERVISOR'];
@@ -32,6 +31,14 @@ const inputClass =
 
 
 interface Pago { metodoPago: string; monto: number; referencia?: string; banco?: string }
+
+// La referencia de los digitales arranca en "000", como en el app: el cajero
+// verifica el Yape a ojo y solo la edita si necesita el número real.
+const FICHAS_INICIALES: FichaPagoState[] = [
+  { id: 'EFECTIVO', metodo: 'EFECTIVO', monto: '', referencia: '', banco: '', fija: true },
+  { id: 'YAPE', metodo: 'YAPE', monto: '', referencia: '000', banco: '', fija: true },
+  { id: 'PLIN', metodo: 'PLIN', monto: '', referencia: '000', banco: '', fija: true },
+];
 
 function fmt(n: number): string {
   return n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -154,12 +161,21 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   const [numeroCuotas, setNumeroCuotas] = useState(1);
   const [frecuenciaDias, setFrecuenciaDias] = useState(30);
 
-  // Pagos
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [metodoActual, setMetodoActual] = useState<string>('EFECTIVO');
-  const [montoInput, setMontoInput] = useState('');
-  const [refInput, setRefInput] = useState('');
-  const [bancoInput, setBancoInput] = useState('');
+  // Pagos: una ficha por método (paridad con el app). Efectivo, Yape y Plin
+  // arrancan visibles; tarjeta y transferencia se agregan desde "Otro método".
+  // La lista `pagos` que usa todo lo demás (display, bancarización, envío,
+  // cobro Yape con QR) se DERIVA de las fichas con monto.
+  const [fichas, setFichas] = useState<FichaPagoState[]>(FICHAS_INICIALES);
+  const [fichaActiva, setFichaActiva] = useState('EFECTIVO');
+  const pagos = useMemo<Pago[]>(() => fichas
+    .filter(f => montoDeFicha(f) > 0)
+    .map(f => ({
+      metodoPago: f.metodo,
+      monto: montoDeFicha(f),
+      referencia: f.referencia.trim() || undefined,
+      banco: REQUIEREN_BANCO.includes(f.metodo) ? f.banco.trim() || undefined : undefined,
+    })), [fichas]);
+  const activa = fichas.find(f => f.id === fichaActiva) ?? fichas[0];
 
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -348,28 +364,27 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
   };
 
   // --- Pagos ---
-  const seleccionarMetodo = (m: string) => {
-    setMetodoActual(m);
-    if (METODOS_DIGITALES.includes(m) && !refInput.trim()) setRefInput('000');
-    if (m === 'EFECTIVO' && refInput === '000') setRefInput('');
+  const cambiarFicha = (id: string, cambio: Partial<FichaPagoState>) => {
+    setFichas(prev => prev.map(f => (f.id === id ? { ...f, ...cambio } : f)));
   };
 
-  const agregarPago = (montoOverride?: number) => {
-    const m = montoOverride ?? parseFloat(montoInput);
-    if (isNaN(m) || m <= 0) return;
-    if (REQUIEREN_BANCO.includes(metodoActual) && !bancoInput.trim()) {
-      setError(`${metodoActual} requiere indicar el banco`);
-      return;
-    }
-    setError('');
-    setPagos(prev => [...prev, {
-      metodoPago: metodoActual,
-      monto: m,
-      referencia: refInput.trim() || undefined,
-      banco: REQUIEREN_BANCO.includes(metodoActual) ? bancoInput.trim() : undefined,
-    }]);
-    setMontoInput('');
-    setRefInput(METODOS_DIGITALES.includes(metodoActual) ? '000' : '');
+  const agregarFicha = (metodo: string) => {
+    const id = `${metodo}-${Date.now()}`;
+    setFichas(prev => [...prev, { id, metodo, monto: '', referencia: '000', banco: '', fija: false }]);
+    setFichaActiva(id);
+    setCampoNumpad('monto');
+  };
+
+  const quitarFicha = (id: string) => {
+    setFichas(prev => prev.filter(f => f.id !== id));
+    if (fichaActiva === id) setFichaActiva('EFECTIVO');
+  };
+
+  /** "Exacto": lo que falta va a la ficha seleccionada (sumado a lo que ya tenía). */
+  const exacto = () => {
+    if (faltante <= TOLERANCIA || !activa) return;
+    const nuevo = Math.round((montoDeFicha(activa) + faltante) * 100) / 100;
+    cambiarFicha(activa.id, { monto: nuevo.toFixed(2) });
   };
 
   // --- Bancarización Ley 28194 (umbral fijo 2000, paridad Flutter) ---
@@ -589,7 +604,9 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
     }
     // Orden 100% adelantada (saldo 0): se emite el comprobante sin cobrar nada hoy.
     const sinSaldoHoy = totalACobrar <= TOLERANCIA;
-    if (!esCredito && !sinSaldoHoy && pagos.length === 0) { setError('Agrega al menos un pago'); return; }
+    if (!esCredito && !sinSaldoHoy && pagos.length === 0) { setError('Ingresa el monto en al menos un método de pago'); return; }
+    const sinBanco = pagos.find(p => REQUIEREN_BANCO.includes(p.metodoPago) && !p.banco);
+    if (!esCredito && sinBanco) { setError(`${nombreMetodo(sinBanco.metodoPago)} requiere indicar el banco`); return; }
     if (!esCredito && !sinSaldoHoy && !cubierto) { setError(`Faltan S/ ${fmt(faltante)} por cubrir`); return; }
     // Sin cliente identificado la venta va a CLIENTES VARIOS y sigue: en un
     // mostrador con cola, obligar a elegir "Genérico" era un paso de más para
@@ -845,7 +862,7 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
             <p className="text-sm font-medium text-gray-800 mb-2">Condición de pago</p>
             <div className="flex gap-2">
               {(['CONTADO', 'CREDITO'] as const).map(c => (
-                <button key={c} onClick={() => { setCondicionPago(c); if (c === 'CREDITO') setPagos([]); }}
+                <button key={c} onClick={() => { setCondicionPago(c); if (c === 'CREDITO') setFichas(FICHAS_INICIALES); }}
                   className={`flex-1 rounded-lg border p-2 text-xs font-medium ${condicionPago === c ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500'}`}>
                   {c === 'CONTADO' ? '💵 Contado' : '📅 Crédito'}
                 </button>
@@ -891,25 +908,6 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               cobrar— y si la lista creciera ahí adentro, cada pago empujaría
               el botón de cobrar más abajo. Acá crece hacia el lado que tiene
               lugar. */}
-          {pagos.length > 0 && (
-            <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
-              <p className="mb-2 text-sm font-medium text-gray-800">
-                Pagos registrados
-                {pagos.length > 1 && <span className="ml-2 text-[10px] font-medium text-purple-600">MIXTO</span>}
-              </p>
-              <div className="space-y-1">
-                {pagos.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-1.5 text-xs">
-                    <span className="text-gray-700">{p.metodoPago}{p.banco ? ` · ${p.banco}` : ''}{p.referencia ? ` · ${p.referencia}` : ''}</span>
-                    <span className="flex items-center gap-2">
-                      <strong className="font-medium">S/ {fmt(p.monto)}</strong>
-                      <button onClick={() => setPagos(prev => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">✕</button>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* === Panel de cobro === */}
@@ -933,69 +931,39 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
 
           {!esCredito && (
             <div className="rounded-xl border border-[#d1e5ff] bg-white p-4">
-              <p className="text-sm font-medium text-gray-800 mb-2">Pagos</p>
-              <div className="flex flex-wrap gap-1.5">
-                {METODOS.map(m => (
-                  <button key={m} onClick={() => seleccionarMetodo(m)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${metodoActual === m ? 'border-[#437EFF] bg-[#437EFF]/10 text-[#437EFF]' : 'border-gray-200 text-gray-500'}`}>
-                    {m}
-                  </button>
-                ))}
+              <div className="mb-2 flex items-baseline justify-between">
+                <p className="text-sm font-medium text-gray-800">Pagos</p>
+                {pagos.length > 1 && <span className="text-[10px] font-semibold text-purple-600">MIXTO</span>}
               </div>
-              {/* El monto y las dos acciones en UNA fila: el input se lleva lo
-                  que sobra y los botones van fijos. La tarjeta vive en la
-                  columna de 340 px, asi que el input queda corto a proposito —
-                  un monto entra de sobra en ese ancho. */}
+              <FichasPago
+                fichas={fichas}
+                activa={activa?.id ?? 'EFECTIVO'}
+                numpadVisible={verNumpad}
+                onActivar={id => { setFichaActiva(id); setCampoNumpad('monto'); }}
+                onCambiar={cambiarFicha}
+                onQuitar={quitarFicha}
+                onAgregar={agregarFicha}
+              />
+              {/* "Exacto" deja lo que falta en la ficha seleccionada. El botón
+                  del numpad se queda a su lado: se fija por DISPOSITIVO (en la
+                  PC del mostrador estorba, en una tablet es la forma cómoda). */}
               <div className="mt-2 flex gap-1.5">
-                <div className="relative min-w-0 flex-1">
-                  {/* 🔴 `type="text"` y no `number`: varios navegadores móviles
-                      IGNORAN `inputMode` sobre un input numérico y abren su
-                      teclado igual, que es justo lo que el numpad viene a
-                      evitar. Con text, `inputMode` manda. De paso se acaba el
-                      clásico de la rueda del mouse cambiando el monto sin que
-                      nadie la toque. El valor ya era string y se lee con
-                      `parseFloat`, así que no cambia nada más. */}
-                  <input className={inputClass + ' pr-8 text-right'} type="text" value={montoInput}
-                    inputMode={verNumpad ? 'none' : 'decimal'}
-                    onFocus={() => setCampoNumpad('monto')}
-                    onChange={e => setMontoInput(e.target.value)} placeholder={`S/ ${fmt(Math.max(0, faltante))}`} />
-                  {/* El numpad se fija por DISPOSITIVO: en la PC del mostrador
-                      estorba, en una tablet es la única forma cómoda de tipear.
-                      Arranca cerrado y se recuerda. */}
-                  <button type="button" onMouseDown={e => e.preventDefault()}
-                    onClick={() => guardarNumpad(!verNumpad)}
-                    title={verNumpad ? 'Ocultar teclado numérico' : 'Mostrar teclado numérico'}
-                    className={`absolute right-1 top-1/2 flex h-[24px] w-[24px] -translate-y-1/2 items-center justify-center rounded-md ${
-                      verNumpad ? 'bg-[#004A94] text-white' : 'text-gray-400 hover:bg-gray-100'
-                    }`}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                      <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
-                    </svg>
-                  </button>
-                </div>
-                <button onClick={() => agregarPago()} disabled={!montoInput || parseFloat(montoInput) <= 0}
-                  className="inline-flex h-[30px] shrink-0 items-center rounded-md border border-[#437EFF] px-2.5 text-[10px] font-medium text-[#437EFF] transition-colors hover:bg-[#437EFF]/5 disabled:opacity-40">
-                  Agregar pago
+                <button onClick={exacto} disabled={faltante <= TOLERANCIA}
+                  className="inline-flex h-[30px] flex-1 items-center justify-center rounded-md border border-green-500 px-2.5 text-[11px] font-semibold text-green-600 transition-colors hover:bg-green-50 disabled:opacity-40">
+                  Exacto en {nombreMetodo(activa?.metodo ?? 'EFECTIVO')}
                 </button>
-                <button onClick={() => agregarPago(Math.max(0, faltante))} disabled={faltante <= TOLERANCIA}
-                  className="inline-flex h-[30px] shrink-0 items-center rounded-md border border-green-500 px-2.5 text-[10px] font-medium text-green-600 transition-colors hover:bg-green-50 disabled:opacity-40">
-                  Exacto
+                <button type="button" onMouseDown={e => e.preventDefault()}
+                  onClick={() => guardarNumpad(!verNumpad)}
+                  aria-label={verNumpad ? 'Ocultar teclado numérico' : 'Mostrar teclado numérico'}
+                  title={verNumpad ? 'Ocultar teclado numérico' : 'Mostrar teclado numérico'}
+                  className={`flex h-[30px] w-[34px] shrink-0 items-center justify-center rounded-md border ${
+                    verNumpad ? 'border-[#004A94] bg-[#004A94] text-white' : 'border-gray-200 text-gray-400 hover:bg-gray-100'
+                  }`}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                    <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01" />
+                  </svg>
                 </button>
               </div>
-
-              {/* La referencia y el banco bajan a su propia fila: en la de arriba
-                  ya no entran, y no siempre se piden. */}
-              {(METODOS_DIGITALES.includes(metodoActual) || REQUIEREN_BANCO.includes(metodoActual)) && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {METODOS_DIGITALES.includes(metodoActual) && (
-                    <input className={`${inputClass} col-span-2`} value={refInput} onChange={e => setRefInput(e.target.value)} placeholder="N° operación" />
-                  )}
-                  {REQUIEREN_BANCO.includes(metodoActual) && (
-                    <input className={`${inputClass} col-span-2`} value={bancoInput} onChange={e => setBancoInput(e.target.value)} placeholder="Banco (BCP, Interbank...) *" />
-                  )}
-                </div>
-              )}
-
 
               {/* Recibido, faltante y vuelto se fueron al display de arriba:
                   repetirlos acá era decir tres veces lo mismo en la misma
@@ -1019,18 +987,16 @@ export default function CobroPanel({ items, setItems, sedeId, total, onBack, onS
               />
             ) : (
               <Numpad
-                titulo="Monto del pago"
-                value={montoInput}
-                onChange={setMontoInput}
+                titulo={`Monto ${nombreMetodo(activa?.metodo ?? 'EFECTIVO')}`}
+                value={activa?.monto ?? ''}
+                onChange={v => activa && cambiarFicha(activa.id, { monto: v })}
                 quickAmounts={[10, 20, 50, 100, 200]}
                 acciones={[
-                  // "Exacto" cobra de una: completa el monto Y agrega el pago.
-                  // Es el caso más común del mostrador —el cliente paga
-                  // justo— y encadenar dos toques para algo que no se revisa
-                  // era fricción.
+                  // "Exacto": lo que falta, en la ficha seleccionada. Es el caso
+                  // más común del mostrador —el cliente paga justo—.
                   {
                     label: 'Exacto',
-                    onTap: () => agregarPago(Math.max(0, faltante)),
+                    onTap: exacto,
                     destacado: true,
                     enabled: faltante > TOLERANCIA,
                   },
