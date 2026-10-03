@@ -18,6 +18,8 @@ import GenerarCombinacionesDialog from './GenerarCombinacionesDialog';
 import VarianteDetailDialog from './VarianteDetailDialog';
 import ProductoImagenesDialog from '../ProductoImagenesDialog';
 import SepararPorDisenoDialog, { CLAVE_ATRIBUTO_DISENO, esDiseno } from './SepararPorDisenoDialog';
+import AgregarDisenosDialog from './AgregarDisenosDialog';
+import { tituloColeccion } from './coleccion-disenos';
 
 interface Props {
   productoId: string;
@@ -81,6 +83,8 @@ export default function VarianteList({
   const [generarOpen, setGenerarOpen] = useState(false);
   const [imagenesVariante, setImagenesVariante] = useState<ProductoVariante | null>(null);
   const [separarVariante, setSepararVariante] = useState<ProductoVariante | null>(null);
+  // Diseños nuevos para la colección de esta variante (D4, D5…).
+  const [agregarDisenosDe, setAgregarDisenosDe] = useState<ProductoVariante | null>(null);
   const [detailVariante, setDetailVariante] = useState<ProductoVariante | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductoVariante | null>(null);
   /**
@@ -454,6 +458,7 @@ export default function VarianteList({
           presentacionProducto={presentacionProducto}
           onImagenes={canManage ? setImagenesVariante : undefined}
           onSepararDiseno={canManage ? setSepararVariante : undefined}
+          onAgregarDisenos={canManage ? setAgregarDisenosDe : undefined}
           ejes={ejes}
           canManage={canManage}
           seleccionadaId={seleccionadaId}
@@ -529,6 +534,18 @@ export default function VarianteList({
           empresaId={empresa.id}
           sedeId={sedeId}
           onClose={() => setSepararVariante(null)}
+          onChanged={() => loadVariantes()}
+        />
+      )}
+
+      {agregarDisenosDe && empresa && (
+        <AgregarDisenosDialog
+          key={agregarDisenosDe.id}
+          varianteId={agregarDisenosDe.id}
+          titulo={tituloColeccion(agregarDisenosDe)}
+          empresaId={empresa.id}
+          sedeId={sedeId}
+          onClose={() => setAgregarDisenosDe(null)}
           onChanged={() => loadVariantes()}
         />
       )}

@@ -106,6 +106,38 @@ export interface SepararPorDisenoResultado {
  * Una foto = un diseño: cada foto elegida pasa a ser una variante con las
  * unidades que se le asignan. Lo no asignado queda en la original.
  */
+export interface ColeccionDiseno {
+  /** La variante de la colección sin diseño: ahí se suben las fotos nuevas. */
+  base: { id: string; nombre: string; isActive: boolean; archivos: { id: string; url: string; urlThumbnail?: string | null }[] };
+  disenos: { id: string; nombre: string; isActive: boolean; diseno: string | null }[];
+  /** Cómo se va a llamar el próximo: "D4". */
+  siguienteDiseno: string;
+  sedes: { sedeId: string; sedeNombre: string; precioCosto: number | null }[];
+}
+
+/** La colección de una variante (cualquiera de sus diseños o la base). */
+export async function getColeccionDiseno(varianteId: string): Promise<ColeccionDiseno> {
+  const res = await apiClient.get<ColeccionDiseno>(
+    `${PRODUCTO_ENDPOINTS.VARIANTE(varianteId)}/coleccion-diseno`,
+  );
+  return res.data;
+}
+
+/**
+ * Diseños NUEVOS en una colección (D4, D5…): cada foto de la base pasa a ser
+ * un diseño. `cantidad` 0 = se crea sin stock y entra con la compra.
+ */
+export async function agregarDisenos(
+  varianteId: string,
+  data: { sedeId: string; disenos: { archivoId: string; cantidad: number; costoUnitario?: number }[] },
+): Promise<{ disenos: { id: string; nombre: string; cantidad: number }[] }> {
+  const res = await apiClient.post<{ disenos: { id: string; nombre: string; cantidad: number }[] }>(
+    `${PRODUCTO_ENDPOINTS.VARIANTE(varianteId)}/agregar-disenos`,
+    data,
+  );
+  return res.data;
+}
+
 export async function separarPorDiseno(
   varianteId: string,
   data: { sedeId: string; disenos: { archivoId: string; cantidad: number }[] },
