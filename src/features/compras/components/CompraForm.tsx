@@ -436,7 +436,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
    * falta ningun request.
    */
   /** [costoTecleado] viene del selector, ya en unidad de PRESENTACION. */
-  const agregarVariante = (p: Producto, v: ProductoVariante, costoTecleado?: number) => {
+  const agregarVariante = (p: Producto, v: ProductoVariante, costoTecleado?: number, cantidad = 1) => {
     const info = stockDeVarianteEnSede(v, sedeId);
     const costo = info?.precioCosto != null ? Number(info.precioCosto) : null;
     const pres = presentacionDeVariante(p, v);
@@ -451,7 +451,7 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
       productoId: p.id,
       varianteId: v.id,
       descripcion: `${p.nombre} - ${v.nombre}`,
-      cantidad: '1',
+      cantidad: String(cantidad),
       // Lo tecleado al elegir gana sobre el costo de la ultima compra: si el
       // usuario se tomo el trabajo de escribirlo, es el de ESTA factura.
       precioUnitario: costoTecleado != null && costoTecleado > 0
@@ -468,6 +468,46 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
         setLineas(ls => ls.map((x, i2) => i2 === idx && x.varianteId === v.id ? { ...x, historial: hist } : x));
       })
       .catch(() => {});
+  };
+
+  /**
+   * El stepper del selector de variantes trabaja sobre las líneas: la primera
+   * unidad CREA la línea, 0 la SACA y lo demás ajusta la cantidad.
+   */
+  const setCantidadVariante = (p: Producto, v: ProductoVariante, cantidad: number) => {
+    const i = lineas.findIndex((l) => l.varianteId === v.id);
+    if (i < 0) {
+      if (cantidad > 0) agregarVariante(p, v, undefined, cantidad);
+      return;
+    }
+    if (cantidad <= 0) {
+      quitar(i);
+      return;
+    }
+    actualizar(i, 'cantidad', String(cantidad));
+  };
+
+  /**
+   * Costo o venta nueva escritos en el selector. Vacío = el de la sede: el
+   * costo vuelve al actual (la línea nunca queda en blanco si había uno) y la
+   * venta vacía se mantiene la de hoy.
+   */
+  const setCampoVariante = (
+    v: ProductoVariante,
+    campo: 'precioUnitario' | 'nuevoPrecioVenta',
+    valor: string,
+  ) => {
+    const i = lineas.findIndex((l) => l.varianteId === v.id);
+    if (i < 0) return;
+    if (campo === 'precioUnitario' && !valor.trim()) {
+      const l = lineas[i];
+      const actual = l.costoActual != null && l.costoActual > 0
+        ? l.costoActual * (l.factorPres && l.factorPres > 1 ? l.factorPres : 1)
+        : null;
+      actualizar(i, 'precioUnitario', actual != null ? actual.toFixed(2) : '');
+      return;
+    }
+    actualizar(i, campo, valor);
   };
 
   const agregarManual = () => {
@@ -2055,8 +2095,17 @@ export default function CompraForm({ compra }: { compra?: CompraDetalle }) {
           producto={productoVariantes}
           sedeId={sedeId}
           moneda={moneda}
-          yaAgregadas={lineas.map((l) => l.varianteId).filter(Boolean) as string[]}
-          onElegir={(v, costo) => agregarVariante(productoVariantes, v, costo)}
+          lineas={Object.fromEntries(
+            lineas
+              .filter((l) => l.varianteId && l.productoId === productoVariantes.id)
+              .map((l) => [l.varianteId as string, {
+                cantidad: l.cantidad,
+                precioUnitario: l.precioUnitario,
+                nuevoPrecioVenta: l.nuevoPrecioVenta,
+              }]),
+          )}
+          onCantidad={(v, n) => setCantidadVariante(productoVariantes, v, n)}
+          onCampo={setCampoVariante}
           onCerrar={() => setProductoVariantes(null)}
         />
       )}

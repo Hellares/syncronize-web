@@ -30,6 +30,22 @@ export function tituloColeccion(v: ProductoVariante): string {
   return v.nombre.replace(new RegExp(`\\s*/\\s*${escapado}\\s*$`), '');
 }
 
+/**
+ * El nombre corto de la colección ("ALIANZA"): el valor del atributo que es la
+ * colección —clave `dise_o` en JAYLI, o uno que se llame "Colección"—; sin él,
+ * el último tramo del nombre sin el diseño. Misma regla que el app.
+ */
+export function nombreColeccion(v: ProductoVariante): string {
+  for (const a of v.atributosValores) {
+    const clave = (a.atributo.clave ?? '').toLowerCase();
+    const esColeccion = clave === 'dise_o' || clave === 'coleccion'
+      || (a.atributo.nombre ?? '').toLowerCase().includes('colec');
+    if (esColeccion && (a.valor ?? '').trim()) return a.valor.trim();
+  }
+  const partes = tituloColeccion(v).split('/').map((x) => x.trim()).filter(Boolean);
+  return partes.length ? partes[partes.length - 1] : v.nombre;
+}
+
 export type FilaVariantes =
   | { tipo: 'variante'; variante: ProductoVariante }
   | { tipo: 'coleccion'; clave: string; disenos: ProductoVariante[] };
